@@ -1,0 +1,30 @@
+# === Django/Python (for aristay_backend) ===
+# Ignore Python bytecode and caches
+*.pyc
+__pycache__/
+
+# Ignore the development database if not needed in version control
+aristay_backend/db.sqlite3
+
+# Ignore virtual environments (update the path to match your project structure)
+aristay_backend/venv/
+env/
+ENV/
+
+# === Flutter/Dart (for aristay_flutter_frontend) ===
+# Build and generated files
+aristay_flutter_frontend/build/
+aristay_flutter_frontend/.dart_tool/
+aristay_flutter_frontend/.flutter-plugins
+aristay_flutter_frontend/.flutter-plugins-dependencies
+aristay_flutter_frontend/.packages
+
+# Additional Flutter/Dart ignores
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# === General IDE, OS, and Miscellaneous Files ===
+*.log
+.DS_Store
+*.iml
+.idea/
