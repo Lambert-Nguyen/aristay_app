@@ -70,30 +70,45 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(title: const Text('Aristay Employee App Login')),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // 1. Add your logo image here
+                Image.asset(
+                  'assets/aristay_logo.jpg',  // Update path/filename as needed
+                  width: 150,                // Adjust sizing to your preference
+                  height: 150,
+                ),
+                const SizedBox(height: 24),
+
+                // 2. Existing username field
                 TextFormField(
                   controller: _usernameController,
                   decoration: const InputDecoration(labelText: 'Username'),
-                  validator: (value) => value == null || value.isEmpty ? 'Please enter your username' : null,
+                  validator: (value) =>
+                      value == null || value.isEmpty ? 'Please enter your username' : null,
                 ),
                 const SizedBox(height: 16),
+
+                // 3. Existing password field
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,
-                  validator: (value) => value == null || value.isEmpty ? 'Please enter your password' : null,
+                  validator: (value) =>
+                      value == null || value.isEmpty ? 'Please enter your password' : null,
                 ),
                 const SizedBox(height: 24),
+
                 if (_errorMessage != null)
                   Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+
                 if (_isLoading)
                   const CircularProgressIndicator()
                 else
