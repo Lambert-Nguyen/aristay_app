@@ -66,6 +66,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                             return ListTile(
                               title: Text(task['property_name'] ?? 'Unnamed'),
                               subtitle: Text('Status: ${task['status']}'),
+                              onTap: () async {
+                                // Navigate to the edit screen with the task data.
+                                final result = await Navigator.pushNamed(context, '/edit-task', arguments: task);
+                                // Optionally refresh tasks if needed.
+                                if (result == true) {
+                                  _fetchTasks();
+                                }
+                              },
                             );
                           },
                         ),

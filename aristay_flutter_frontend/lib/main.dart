@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/task_list_screen.dart';
-import 'screens/task_form_screen.dart';  // Import your task form screen
+import 'screens/task_form_screen.dart';
+import 'screens/edit_task_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +20,12 @@ class MyApp extends StatelessWidget {
         '/': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
         '/tasks': (context) => const TaskListScreen(),
-        '/create-task': (context) => const TaskFormScreen(), // New route for creating a task
+        '/create-task': (context) => const TaskFormScreen(),
+        '/edit-task': (context) {
+          // Retrieve arguments when navigating to edit-task
+          final task = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return EditTaskScreen(task: task);
+        },
       },
     );
   }

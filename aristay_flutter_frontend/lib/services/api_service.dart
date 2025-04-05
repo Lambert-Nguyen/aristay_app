@@ -35,4 +35,28 @@ class ApiService {
       throw Exception('Failed to load tasks. Status code: ${response.statusCode}');
     }
   }
+    Future<bool> updateCleaningTask(int taskId, Map<String, dynamic> updatedData) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      throw Exception('No auth token found');
+    }
+
+    final url = Uri.parse('$baseUrl/cleaning-tasks/$taskId/');
+    final response = await http.patch(
+      url,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(updatedData),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      print('Update failed. Status code: ${response.statusCode}');
+      return false;
+    }
+  }
 }
