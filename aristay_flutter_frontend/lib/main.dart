@@ -1,44 +1,47 @@
 import 'package:flutter/material.dart';
-import 'services/api_service.dart';
+import 'screens/login_screen.dart';
+import 'screens/task_list_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final ApiService apiService = ApiService();
-
+  const MyApp({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Aristay Cleaning Tasks',
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('Cleaning Tasks'),
-        ),
-        body: FutureBuilder<List<dynamic>?>(
-          future: apiService.fetchCleaningTasks(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return Center(child: Text('Error fetching tasks'));
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(child: Text('No tasks available'));
-            } else {
-              final tasks = snapshot.data!;
-              return ListView.builder(
-                itemCount: tasks.length,
-                itemBuilder: (context, index) {
-                  final task = tasks[index];
-                  return ListTile(
-                    title: Text(task['property_name'] ?? 'Unnamed'),
-                    subtitle: Text('Status: ${task['status']}'),
-                  );
-                },
-              );
-            }
-          },
+      title: 'Aristay App',
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(), // We'll create HomeScreen next
+        '/tasks': (context) => const TaskListScreen(), // new route
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Task Management')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Welcome! This is the home screen.'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/tasks');
+              },
+              child: const Text('View Cleaning Tasks'),
+            ),
+          ],
         ),
       ),
     );
