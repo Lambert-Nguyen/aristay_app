@@ -1,46 +1,32 @@
 import 'package:flutter/material.dart';
-import 'services/api_service.dart';
+import 'screens/login_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/task_list_screen.dart';
+import 'screens/task_form_screen.dart';
+import 'screens/edit_task_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final ApiService apiService = ApiService();
-
+  const MyApp({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Aristay Cleaning Tasks',
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('Cleaning Tasks'),
-        ),
-        body: FutureBuilder<List<dynamic>?>(
-          future: apiService.fetchCleaningTasks(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return Center(child: Text('Error fetching tasks'));
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(child: Text('No tasks available'));
-            } else {
-              final tasks = snapshot.data!;
-              return ListView.builder(
-                itemCount: tasks.length,
-                itemBuilder: (context, index) {
-                  final task = tasks[index];
-                  return ListTile(
-                    title: Text(task['property_name'] ?? 'Unnamed'),
-                    subtitle: Text('Status: ${task['status']}'),
-                  );
-                },
-              );
-            }
-          },
-        ),
-      ),
+      title: 'Aristay App',
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/tasks': (context) => const TaskListScreen(),
+        '/create-task': (context) => const TaskFormScreen(),
+        '/edit-task': (context) {
+          // Retrieve arguments when navigating to edit-task
+          final task = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+          return EditTaskScreen(task: task);
+        },
+      },
     );
   }
 }

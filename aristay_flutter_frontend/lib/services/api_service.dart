@@ -1,23 +1,62 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Replace with your local IP address and port if needed.
-  // For example, if your Django server is at 192.168.1.45:8000:
   static const String baseUrl = 'http://192.168.1.41:8000/api';
 
   Future<List<dynamic>?> fetchCleaningTasks() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/cleaning-tasks/'));
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      throw Exception('No auth token found');
+    }
+
+    final uri = Uri.parse('$baseUrl/cleaning-tasks/');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Token $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      // data could be a List (no pagination) or a Map (pagination)
+      if (data is List) {
+        return data; // direct list of tasks
+      } else if (data is Map && data.containsKey('results')) {
+        return data['results']; // DRF pagination: use the "results" array
       } else {
-        print('Error: ${response.statusCode}');
-        return null;
+        // Unexpected structure; return an empty list
+        return [];
       }
-    } catch (e) {
-      print('Exception: $e');
-      return null;
+    } else {
+      throw Exception('Failed to load tasks. Status code: ${response.statusCode}');
+    }
+  }
+    Future<bool> updateCleaningTask(int taskId, Map<String, dynamic> updatedData) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) {
+      throw Exception('No auth token found');
+    }
+
+    final url = Uri.parse('$baseUrl/cleaning-tasks/$taskId/');
+    final response = await http.patch(
+      url,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(updatedData),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      print('Update failed. Status code: ${response.statusCode}');
+      return false;
     }
   }
 }
