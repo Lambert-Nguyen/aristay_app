@@ -20,12 +20,19 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Define a list of allowed statuses
+  final List<String> allowedStatuses = ['pending', 'in-progress', 'completed', 'canceled'];
+
   @override
   void initState() {
     super.initState();
-    // Initialize the form controllers with the existing task data
     _propertyNameController = TextEditingController(text: widget.task['property_name']);
-    _status = widget.task['status'] ?? 'pending';
+    // Retrieve the current status from the task, default to 'pending' if not set or invalid.
+    String rawStatus = widget.task['status'] ?? 'pending';
+    if (!allowedStatuses.contains(rawStatus)) {
+      rawStatus = 'pending';
+    }
+    _status = rawStatus;
   }
 
   Future<void> _updateTask() async {
@@ -37,7 +44,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
       try {
         final apiService = ApiService();
-        // Prepare updated data; you can update additional fields if needed
+        // Prepare updated data
         final updatedData = {
           'property_name': _propertyNameController.text,
           'status': _status,
@@ -45,7 +52,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
 
         bool success = await apiService.updateCleaningTask(widget.task['id'], updatedData);
         if (success) {
-          // If update is successful, pop and indicate a refresh is needed
+          // If update is successful, pop and indicate a refresh is needed.
           Navigator.pop(context, true);
         } else {
           setState(() {
@@ -90,7 +97,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
               DropdownButtonFormField<String>(
                 value: _status,
                 decoration: const InputDecoration(labelText: 'Status'),
-                items: ['pending', 'completed']
+                items: allowedStatuses
                     .map((status) => DropdownMenuItem(
                           value: status,
                           child: Text(status),
