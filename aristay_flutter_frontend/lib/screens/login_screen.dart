@@ -37,11 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token'];
-        // Save the token using shared_preferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', token);
-        print('Logged in successfully, token: $token');
-        // Navigate to the home screen
+        await prefs.setString('username', _usernameController.text);
+        print('Logged in successfully, token: $token, username: ${_usernameController.text}');
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         setState(() {
@@ -82,8 +81,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 // 1. Add your logo image here
                 Image.asset(
                   'assets/aristay_logo.jpg',  // Update path/filename as needed
-                  width: 150,                // Adjust sizing to your preference
-                  height: 150,
+                  width: 200,                // Adjust sizing to your preference
+                  height: 200,
                 ),
                 const SizedBox(height: 24),
 

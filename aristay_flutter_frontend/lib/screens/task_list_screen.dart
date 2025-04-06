@@ -11,24 +11,29 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   final ApiService apiService = ApiService();
   List<dynamic> _tasks = [];
+  String? _nextUrl;
   bool _isLoading = false;
+  bool _isLoadingMore = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _fetchTasks();
+    _fetchTasks(); // load first page
   }
 
   Future<void> _fetchTasks() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _tasks.clear();
+      _nextUrl = null;
     });
     try {
-      final tasks = await apiService.fetchCleaningTasks();
+      final result = await apiService.fetchCleaningTasks();
       setState(() {
-        _tasks = tasks ?? [];
+        _tasks = result['results'] ?? [];
+        _nextUrl = result['next'];
       });
     } catch (error) {
       setState(() {
@@ -37,6 +42,26 @@ class _TaskListScreenState extends State<TaskListScreen> {
     } finally {
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMoreTasks() async {
+    if (_nextUrl == null) return; // no more pages
+    setState(() {
+      _isLoadingMore = true;
+    });
+    try {
+      final result = await apiService.fetchCleaningTasks(url: _nextUrl);
+      setState(() {
+        _tasks.addAll(result['results'] ?? []);
+        _nextUrl = result['next'];
+      });
+    } catch (error) {
+      // Optionally handle error
+    } finally {
+      setState(() {
+        _isLoadingMore = false;
       });
     }
   }
@@ -57,26 +82,38 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ? Center(child: Text(_errorMessage!))
               : RefreshIndicator(
                   onRefresh: _refreshTasks,
-                  child: _tasks.isEmpty
-                      ? const Center(child: Text('No tasks available'))
-                      : ListView.builder(
-                          itemCount: _tasks.length,
-                          itemBuilder: (context, index) {
-                            final task = _tasks[index];
-                            return ListTile(
-                              title: Text(task['property_name'] ?? 'Unnamed'),
-                              subtitle: Text('Status: ${task['status']}'),
-                              onTap: () async {
-                                // Navigate to the edit screen with the task data.
-                                final result = await Navigator.pushNamed(context, '/edit-task', arguments: task);
-                                // Optionally refresh tasks if needed.
-                                if (result == true) {
-                                  _fetchTasks();
-                                }
-                              },
-                            );
+                  child: ListView.builder(
+                    itemCount: _tasks.length + 1, // +1 for load more button
+                    itemBuilder: (context, index) {
+                      if (index < _tasks.length) {
+                        final task = _tasks[index];
+                        return ListTile(
+                          title: Text(task['property_name'] ?? 'Unnamed'),
+                          subtitle: Text('Status: ${task['status']}'),
+                          onTap: () {
+                            Navigator.pushNamed(context, '/task-detail', arguments: task);
                           },
-                        ),
+                        );
+                      } else {
+                        // The last item is the "Load More" button
+                        if (_nextUrl == null) {
+                          return const SizedBox.shrink(); // no more pages
+                        } else {
+                          return Center(
+                            child: _isLoadingMore
+                                ? const Padding(
+                                    padding: EdgeInsets.all(16.0),
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : TextButton(
+                                    onPressed: _loadMoreTasks,
+                                    child: const Text('Load More'),
+                                  ),
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ),
     );
   }

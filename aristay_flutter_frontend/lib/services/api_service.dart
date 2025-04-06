@@ -5,14 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static const String baseUrl = 'http://192.168.1.41:8000/api';
 
-  Future<List<dynamic>?> fetchCleaningTasks() async {
+  // Returns a Map with "results" (List of tasks) and "next" (String?).
+  Future<Map<String, dynamic>> fetchCleaningTasks({String? url}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) {
       throw Exception('No auth token found');
     }
 
-    final uri = Uri.parse('$baseUrl/cleaning-tasks/');
+    final uri = url == null
+        ? Uri.parse('$baseUrl/cleaning-tasks/') // First page
+        : Uri.parse(url); // Next page
+
     final response = await http.get(
       uri,
       headers: {
@@ -22,41 +26,54 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // data could be a List (no pagination) or a Map (pagination)
+      // If pagination is enabled, data is a Map with "results".
+      // If no pagination, data might be a List. We'll unify into a Map.
       if (data is List) {
-        return data; // direct list of tasks
+        // No pagination
+        return {
+          'results': data,
+          'next': null,
+        };
       } else if (data is Map && data.containsKey('results')) {
-        return data['results']; // DRF pagination: use the "results" array
+        // Paginated response
+        return {
+          'results': data['results'],
+          'next': data['next'],
+        };
       } else {
-        // Unexpected structure; return an empty list
-        return [];
+        // Unexpected structure
+        return {
+          'results': <dynamic>[],
+          'next': null,
+        };
       }
     } else {
       throw Exception('Failed to load tasks. Status code: ${response.statusCode}');
     }
   }
-    Future<bool> updateCleaningTask(int taskId, Map<String, dynamic> updatedData) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null) {
-      throw Exception('No auth token found');
-    }
-
-    final url = Uri.parse('$baseUrl/cleaning-tasks/$taskId/');
-    final response = await http.patch(
-      url,
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(updatedData),
-    );
-
-    if (response.statusCode == 200) {
-      return true;
-    } else {
-      print('Update failed. Status code: ${response.statusCode}');
-      return false;
-    }
+  
+  Future<bool> updateCleaningTask(int taskId, Map<String, dynamic> updatedData) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token');
+  if (token == null) {
+    throw Exception('No auth token found');
   }
+
+  final url = Uri.parse('$baseUrl/cleaning-tasks/$taskId/');
+  final response = await http.patch(
+    url,
+    headers: {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(updatedData),
+  );
+
+  if (response.statusCode == 200) {
+    return true;
+  } else {
+    print('Update failed. Status code: ${response.statusCode}');
+    return false;
+  }
+}
 }
