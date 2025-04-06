@@ -1,4 +1,4 @@
-from django.conf import settings  # Import settings for the user model
+from django.conf import settings
 from django.db import models
 
 class CleaningTask(models.Model):
@@ -18,6 +18,16 @@ class CleaningTask(models.Model):
         null=True,
         blank=True
     )
+    # Add assigned_to as an optional field. You can later update permissions to allow admins to set this.
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL,
+        related_name='assigned_tasks',
+        null=True,
+        blank=True
+    )
+    # Store task history as a JSON-encoded string (default empty list)
+    history = models.TextField(blank=True, default='[]')
 
     def __str__(self):
         return f"{self.property_name} ({self.status})"
