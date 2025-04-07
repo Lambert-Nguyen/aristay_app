@@ -38,24 +38,31 @@ Aristay App is a cleaning and maintenance management application designed for pr
    git clone <repository-url>
    cd aristay_flutter_frontend
 2. **Install Flutter dependencies:**
+   ```bash
    flutter pub get
-3. **Run the app on your desired device or simulator:**
+4. **Run the app on your desired device or simulator:**
+   ```bash
    flutter run
 
 ### Backend (Django)
 
 1. **Clone the repository:**
+   ```bash
    git clone <repository-url>
    cd aristay_backend
-2. **Create and activate a virtual environment:**
+3. **Create and activate a virtual environment:**
+      ```bash
    python3 -m venv venv
    source venv/bin/activate
-3. **Install Python dependencies:**
+4. **Install Python dependencies:**
+      ```bash
    pip install -r requirements.txt
-4. **Apply database migrations:**
+5. **Apply database migrations:**
+      ```bash
    python manage.py makemigrations
    python manage.py migrate
-5. **Run the development server:**
+6. **Run the development server:**
+      ```bash
    python manage.py runserver 0.0.0.0:8000
 
 ## Contributing
