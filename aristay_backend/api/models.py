@@ -1,6 +1,29 @@
 from django.conf import settings
 from django.db import models
 
+class Property(models.Model):
+    name       = models.CharField(max_length=100, unique=True)
+    address    = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='properties_created',
+        null=True,
+        blank=True,
+    )
+    modified_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='properties_modified',
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return self.name
+
 class CleaningTask(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -8,7 +31,13 @@ class CleaningTask(models.Model):
         ('completed', 'Completed'),
         ('canceled', 'Canceled'),
     ]
-    property_name = models.CharField(max_length=100)
+    # property_name = models.CharField(max_length=100)
+    property = models.ForeignKey(
+        'Property',
+        on_delete=models.CASCADE,
+        related_name='cleaning_tasks',
+        null=True,
+        blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -26,8 +55,16 @@ class CleaningTask(models.Model):
         null=True,
         blank=True
     )
+    modified_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='modified_tasks',
+        null=True,
+        blank=True
+    )
     # Store task history as a JSON-encoded string (default empty list)
     history = models.TextField(blank=True, default='[]')
 
     def __str__(self):
-        return f"{self.property_name} ({self.status})"
+        return f"{self.property.name} ({self.status})"
