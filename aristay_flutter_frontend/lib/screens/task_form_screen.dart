@@ -35,7 +35,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           return;
         }
 
-        final url = Uri.parse('http://192.168.1.41:8000/api/cleaning-tasks/');
+        // final url = Uri.parse('http://192.168.1.41:8000/api/cleaning-tasks/');
+        final url = Uri.parse('http://127.0.0.1:8000/api/cleaning-tasks/');
+
         final response = await http.post(
           url,
           headers: {

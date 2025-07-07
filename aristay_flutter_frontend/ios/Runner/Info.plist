@@ -45,5 +45,19 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Allow all HTTP (non-HTTPS) requests -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+	<key>NSAllowsArbitraryLoads</key>
+	<true/>
+	</dict>
+
+	<!-- iOS 14+ local network permission -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app needs to talk to your local development server</string>
+	<key>NSBonjourServices</key>
+	<array>
+	<string>_http._tcp</string>
+</array>
 </dict>
 </plist>

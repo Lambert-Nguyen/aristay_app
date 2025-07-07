@@ -3,7 +3,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.41:8000/api';
+  // static const String baseUrl = 'http://192.168.1.41:8000/api';
+  // static const String baseUrl = 'http://172.168.98.196:8000/api';
+  static const String baseUrl = 'http://127.0.0.1:8000/api';
 
   // Returns a Map with "results" (List of tasks) and "next" (String?).
   Future<Map<String, dynamic>> fetchCleaningTasks({String? url}) async {
