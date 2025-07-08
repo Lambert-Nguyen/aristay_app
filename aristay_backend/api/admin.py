@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Property, CleaningTask
+from .models import Property, Task
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
@@ -12,10 +12,10 @@ class PropertyAdmin(admin.ModelAdmin):
             obj.modified_by = request.user
         super().save_model(request, obj, form, change)
 
-@admin.register(CleaningTask)
-class CleaningTaskAdmin(admin.ModelAdmin):
+@admin.register(Task)
+class TaskAdmin(admin.ModelAdmin):
     list_display = (
-        'property', 'status',
+        'task_type', 'title', 'property', 'status',
         'created_by', 'created_at',
         'modified_by', 'modified_at',
     )

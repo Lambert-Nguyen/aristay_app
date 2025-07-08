@@ -23,19 +23,27 @@ class Property(models.Model):
 
     def __str__(self):
         return self.name
+TASK_TYPE_CHOICES = [('cleaning', 'Cleaning'), ('maintenance', 'Maintenance')]
 
-class CleaningTask(models.Model):
+
+class Task(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in-progress', 'In Progress'),
         ('completed', 'Completed'),
         ('canceled', 'Canceled'),
     ]
-    # property_name = models.CharField(max_length=100)
+    task_type = models.CharField(
+        max_length=20,
+        choices=TASK_TYPE_CHOICES,
+        default='cleaning'
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
     property = models.ForeignKey(
         'Property',
         on_delete=models.CASCADE,
-        related_name='cleaning_tasks',
+        related_name='tasks',
         null=True,
         blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -67,4 +75,4 @@ class CleaningTask(models.Model):
     history = models.TextField(blank=True, default='[]')
 
     def __str__(self):
-        return f"{self.property.name} ({self.status})"
+        return f"{self.title} ({self.task_type}) - {self.property.name}"
