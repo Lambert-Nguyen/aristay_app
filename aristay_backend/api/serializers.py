@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Task
+from .models import Task, Property
 import json
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -34,3 +34,8 @@ class TaskSerializer(serializers.ModelSerializer):
             return json.loads(obj.history)
         except (ValueError, TypeError):
             return []
+        
+class PropertySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Property
+        fields = ['id', 'name', 'address', 'created_at', 'created_by', 'modified_at', 'modified_by']
