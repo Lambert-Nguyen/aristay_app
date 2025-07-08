@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/property.dart';
+import '../models/task.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://192.168.1.41:8000/api';
@@ -9,7 +10,7 @@ class ApiService {
   static const String baseUrl = 'http://127.0.0.1:8000/api';
 
   // Returns a Map with "results" (List of tasks) and "next" (String?).
-  Future<Map<String, dynamic>> fetchCleaningTasks({String? url}) async {
+  Future<Map<String, dynamic>> fetchTasks({String? url}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) {
@@ -29,27 +30,23 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      // If pagination is enabled, data is a Map with "results".
-      // If no pagination, data might be a List. We'll unify into a Map.
+      List<Task> tasks;
+      String? next;
+
       if (data is List) {
-        // No pagination
-        return {
-          'results': data,
-          'next': null,
-        };
+        tasks = data.map((e) => Task.fromJson(e as Map<String, dynamic>)).toList();
+        next = null;
       } else if (data is Map && data.containsKey('results')) {
-        // Paginated response
-        return {
-          'results': data['results'],
-          'next': data['next'],
-        };
+        tasks = (data['results'] as List)
+            .map((e) => Task.fromJson(e as Map<String, dynamic>))
+            .toList();
+        next = data['next'] as String?;
       } else {
-        // Unexpected structure
-        return {
-          'results': <dynamic>[],
-          'next': null,
-        };
+        tasks = [];
+        next = null;
       }
+
+      return {'results': tasks, 'next': next};
     } else {
       throw Exception('Failed to load tasks. Status code: ${response.statusCode}');
     }
