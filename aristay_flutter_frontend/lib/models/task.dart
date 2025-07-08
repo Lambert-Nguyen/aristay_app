@@ -1,62 +1,63 @@
-class Task {
-  final int    id;
-  final String status;
-  final String propertyName;
-  final String? createdBy;
-  final String? assignedTo;
+// lib/models/task.dart
 
-  // plus any other fields you need (createdBy, assignedTo, etc.)
+class Task {
+  final int     id;
+  final int     propertyId;
+  final String  propertyName;
+  final String  taskType;
+  final String  title;
+  final String  description;
+  final String  status;
+  final String? createdBy;
+  final String? assignedTo;       // now holds the username
+  final String? modifiedBy;
+  final List<String> history;
+  final DateTime createdAt;
+  final DateTime modifiedAt;
 
   Task({
     required this.id,
-    required this.status,
+    required this.propertyId,
     required this.propertyName,
+    required this.taskType,
+    required this.title,
+    required this.description,
+    required this.status,
     this.createdBy,
     this.assignedTo,
+    this.modifiedBy,
+    required this.history,
+    required this.createdAt,
+    required this.modifiedAt,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
-    // Try the flat property_name field first
-    final rawPropName = json['property_name'];
-    String name;
-    if (rawPropName is String && rawPropName.isNotEmpty) {
-      name = rawPropName;
-    } else if (json['property'] is Map<String, dynamic> &&
-        (json['property']['name'] as String?)?.isNotEmpty == true) {
-      name = json['property']['name'] as String;
-    } else {
-      name = 'Unnamed';
-    }
-
-    // Safely parse status, default to 'unknown'
-    final rawStatus = json['status'];
-    final status = (rawStatus is String && rawStatus.isNotEmpty) ? rawStatus : 'unknown';
-
-    String? createdByValue;
-    final rawCreated = json['created_by'];
-    if (rawCreated is String) {
-      createdByValue = rawCreated;
-    } else if (rawCreated != null) {
-      createdByValue = rawCreated.toString();
-    }
-
-
     return Task(
-      id: json['id'] as int,
-      status: status,
-      propertyName: name,
-      createdBy: createdByValue,
+      id:             json['id'] as int,
+      propertyId:     json['property'] as int,
+      propertyName:   (json['property_name'] as String?) ?? 'Unnamed',
+      taskType:       (json['task_type'] as String?)      ?? '',
+      title:          (json['title'] as String?)          ?? '',
+      description:    (json['description'] as String?)    ?? '',
+      status:         (json['status'] as String?)         ?? '',
+      createdBy:      json['created_by'] as String?,
+      assignedTo:     json['assigned_to_username'] as String?,
+      modifiedBy:     json['modified_by'] as String?,
+      history:        (json['history'] as List<dynamic>?)
+                         ?.map((e) => e.toString())
+                         .toList()                       ?? [],
+      createdAt:      DateTime.parse(json['created_at']   as String),
+      modifiedAt:     DateTime.parse(json['modified_at']  as String),
     );
   }
 
-  /// Converts this Task instance back into a JSON-compatible map.
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'status': status,
-      'property_name': propertyName,
-      'created_by': createdBy,
-      'assigned_to': assignedTo,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id':                 id,
+    'property':           propertyId,
+    'task_type':          taskType,
+    'title':              title,
+    'description':        description,
+    'status':             status,
+    // only writing properties you actually allow to change…
+  };
 }

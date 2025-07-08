@@ -1,46 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/task.dart';
 
 class TaskDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> task;
-
-  const TaskDetailScreen({Key? key, required this.task}) : super(key: key);
+  final Task task;                  // <<— now accepts a Task
+  const TaskDetailScreen({super.key, required this.task});
 
   @override
-  _TaskDetailScreenState createState() => _TaskDetailScreenState();
+  State<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
-  String? _currentUsername;
+  String? _user;
   bool _canEdit = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUser();
+    _initUser();
   }
 
-  Future<void> _loadCurrentUser() async {
+  Future<void> _initUser() async {
     final prefs = await SharedPreferences.getInstance();
-    // Ensure that you save the username during login (e.g., under the key "username")
-    final storedUsername = prefs.getString('username');
+    final me = prefs.getString('username')?.trim().toLowerCase();
     setState(() {
-      _currentUsername = storedUsername;
-      // Compare in a normalized way (trim and lowercase) for accuracy.
-      _canEdit = (widget.task['created_by']?.toString().trim().toLowerCase() ==
-          (storedUsername ?? '').trim().toLowerCase());
+      _user = me;
+      _canEdit = (widget.task.createdBy?.toLowerCase() == me);
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final propertyName = widget.task['property_name'] ?? 'Unnamed';
-    final status = widget.task['status'] ?? 'unknown';
-    final createdBy = widget.task['created_by'] ?? 'unknown';
-    final assignedTo = widget.task['assigned_to'] ?? 'Not assigned';
-    // Assume history is returned as a List from the backend serializer.
-    final history = widget.task['history'] is List ? widget.task['history'] as List<dynamic> : [];
-
+  Widget build(BuildContext c) {
+    final t = widget.task;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task Details'),
@@ -48,35 +39,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           if (_canEdit)
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: () {
-                // Navigate to edit screen if the user can edit.
-                Navigator.pushNamed(context, '/edit-task', arguments: widget.task);
-              },
+              onPressed: () => Navigator.pushNamed(
+                c, '/edit-task',
+                arguments: t,
+              ),
             )
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            Text('Property: $propertyName', style: const TextStyle(fontSize: 18)),
+            Text('Task type: ${t.taskType}', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            Text('Status: $status', style: const TextStyle(fontSize: 16)),
+            Text('Title: ${t.title}', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            Text('Created by: $createdBy', style: const TextStyle(fontSize: 16)),
+            Text('Description: ${t.description}', style: const TextStyle(fontSize: 16)),
+            const Divider(height: 32),
+            Text('Property: ${t.propertyName}', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            Text('Assigned to: $assignedTo', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            const Text('Task History:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Status: ${t.status}', style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 8),
-            history.isNotEmpty
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: history
-                        .map((entry) => Text('• $entry', style: const TextStyle(fontSize: 16)))
-                        .toList(),
-                  )
-                : const Text('No history available', style: TextStyle(fontSize: 16)),
+            Text('Created by: ${t.createdBy ?? "unknown"}', style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Assigned to: ${t.assignedTo ?? "unassigned"}', style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Modified by: ${t.modifiedBy ?? "-"}', style: const TextStyle(fontSize: 16)),
+            const Divider(height: 32),
+            const Text('History:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            if (t.history.isEmpty)
+              const Text('No history available')
+            else
+              ...t.history.map((h) => Text('• $h')).toList(),
           ],
         ),
       ),

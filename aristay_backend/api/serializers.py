@@ -1,7 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Task, Property
-import json
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -11,31 +10,41 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ('username', 'email', 'password')
 
     def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data.get('email', ''),
-            password=validated_data['password']
-        )
-        return user
+        return User.objects.create_user(**validated_data)
 
-class TaskSerializer(serializers.ModelSerializer):
-    created_by = serializers.CharField(source='created_by.username', read_only=True)
-    assigned_to = serializers.CharField(source='assigned_to.username', read_only=True, default='Not assigned')
-    # Use a JSONField for history (or parse the JSON stored in a TextField)
-    history = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Task
-        fields = '__all__'
-        read_only_fields = ('created_by', 'created_at', 'history')
-
-    def get_history(self, obj):
-        try:
-            return json.loads(obj.history)
-        except (ValueError, TypeError):
-            return []
-        
 class PropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
-        fields = ['id', 'name', 'address', 'created_at', 'created_by', 'modified_at', 'modified_by']
+        fields = ['id', 'name']
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    # read‐only nested name of the property
+    property_name       = serializers.CharField(source='property.name',      read_only=True)
+    # raw PK for writes
+    property            = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
+    # read‐only usernames
+    created_by          = serializers.CharField(source='created_by.username',      read_only=True)
+    assigned_to_username = serializers.CharField(source='assigned_to.username',     read_only=True)
+    modified_by         = serializers.CharField(source='modified_by.username',     read_only=True)
+    history             = serializers.ListField(read_only=True)  # assuming JSONField
+
+    class Meta:
+        model = Task
+        fields = [
+            'id',
+            'property',            # for writes
+            'property_name',       # for reads
+            'task_type',
+            'title',
+            'description',
+            'status',
+            'created_by',
+            'assigned_to',         # raw PK if you need it
+            'assigned_to_username',# NEW read‐only username
+            'modified_by',
+            'history',
+            'created_at',
+            'modified_at',
+        ]

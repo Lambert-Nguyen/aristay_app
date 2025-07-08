@@ -1,80 +1,63 @@
-import 'dart:convert';
+// lib/screens/edit_task_screen.dart
+
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/task.dart';
 import '../services/api_service.dart';
 
 class EditTaskScreen extends StatefulWidget {
-  final Map<String, dynamic> task; // The task to be edited
+  final Task task;
 
   const EditTaskScreen({Key? key, required this.task}) : super(key: key);
 
   @override
-  _EditTaskScreenState createState() => _EditTaskScreenState();
+  State<EditTaskScreen> createState() => _EditTaskScreenState();
 }
 
 class _EditTaskScreenState extends State<EditTaskScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _propertyNameController;
   late String _status;
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Define a list of allowed statuses
-  final List<String> allowedStatuses = ['pending', 'in-progress', 'completed', 'canceled'];
+  final List<String> _allowedStatuses = [
+    'pending',
+    'in-progress',
+    'completed',
+    'canceled',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _propertyNameController = TextEditingController(text: widget.task['property_name']);
-    // Retrieve the current status from the task, default to 'pending' if not set or invalid.
-    String rawStatus = widget.task['status'] ?? 'pending';
-    if (!allowedStatuses.contains(rawStatus)) {
-      rawStatus = 'pending';
-    }
-    _status = rawStatus;
+    // initialize dropdown to the task’s current status (default to 'pending')
+    _status = _allowedStatuses.contains(widget.task.status)
+        ? widget.task.status
+        : 'pending';
   }
 
   Future<void> _updateTask() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-      try {
-        final apiService = ApiService();
-        // Prepare updated data
-        final updatedData = {
-          'property_name': _propertyNameController.text,
-          'status': _status,
-        };
-
-        bool success = await apiService.updateCleaningTask(widget.task['id'], updatedData);
-        if (success) {
-          // If update is successful, pop and indicate a refresh is needed.
-          Navigator.pop(context, true);
-        } else {
-          setState(() {
-            _errorMessage = 'Failed to update task.';
-          });
-        }
-      } catch (e) {
-        setState(() {
-          _errorMessage = 'Error: $e';
-        });
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
+    try {
+      final api = ApiService();
+      final success = await api.updateCleaningTask(
+        widget.task.id,
+        { 'status': _status },        // only send status
+      );
+      if (success) {
+        Navigator.pop(context, true);
+      } else {
+        setState(() => _errorMessage = 'Failed to update task.');
       }
+    } catch (e) {
+      setState(() => _errorMessage = 'Error: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
-  }
-
-  @override
-  void dispose() {
-    _propertyNameController.dispose();
-    super.dispose();
   }
 
   @override
@@ -82,38 +65,38 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Task')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _propertyNameController,
-                decoration: const InputDecoration(labelText: 'Property Name'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter a property name' : null,
+              // Read-only display of the property name
+              Text(
+                'Property: ${widget.task.propertyName}',
+                style: const TextStyle(fontSize: 16),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+
+              // Status dropdown
               DropdownButtonFormField<String>(
                 value: _status,
                 decoration: const InputDecoration(labelText: 'Status'),
-                items: allowedStatuses
-                    .map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status),
-                        ))
+                items: _allowedStatuses
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _status = value ?? 'pending';
-                  });
-                },
+                onChanged: (v) => setState(() => _status = v ?? _status),
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Please select a status' : null,
               ),
               const SizedBox(height: 24),
+
               if (_errorMessage != null)
                 Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 8),
+
               _isLoading
-                  ? const CircularProgressIndicator()
+                  ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       onPressed: _updateTask,
                       child: const Text('Update Task'),
