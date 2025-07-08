@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/property.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://192.168.1.41:8000/api';
@@ -16,7 +17,7 @@ class ApiService {
     }
 
     final uri = url == null
-        ? Uri.parse('$baseUrl/cleaning-tasks/') // First page
+        ? Uri.parse('$baseUrl/tasks/') // First page
         : Uri.parse(url); // Next page
 
     final response = await http.get(
@@ -61,7 +62,7 @@ class ApiService {
     throw Exception('No auth token found');
   }
 
-  final url = Uri.parse('$baseUrl/cleaning-tasks/$taskId/');
+  final url = Uri.parse('$baseUrl/tasks/$taskId/');
   final response = await http.patch(
     url,
     headers: {
@@ -77,5 +78,54 @@ class ApiService {
     print('Update failed. Status code: ${response.statusCode}');
     return false;
   }
+}
+
+Future<bool> createTask(Map<String, dynamic> newData) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token');
+  if (token == null) throw Exception('No auth token found');
+  final uri = Uri.parse('$baseUrl/tasks/');
+  final response = await http.post(
+    uri,
+    headers: {
+      'Authorization': 'Token $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode(newData),
+  );
+  return response.statusCode == 201 || response.statusCode == 200;
+}
+
+/// Fetches the list of properties from /api/properties/
+/// Returns a List<Property>.
+Future<List<Property>> fetchProperties() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('auth_token');
+  if (token == null) throw Exception('No auth token found');
+
+  final uri = Uri.parse('$baseUrl/properties/');
+  final response = await http.get(
+    uri,
+    headers: { 'Authorization': 'Token $token' },
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Failed to load properties (status ${response.statusCode})');
+  }
+
+  final decoded = jsonDecode(response.body);
+  late final List<dynamic> rawList;
+
+  if (decoded is List) {
+    rawList = decoded;
+  } else if (decoded is Map && decoded.containsKey('results')) {
+    rawList = decoded['results'] as List<dynamic>;
+  } else {
+    throw Exception('Unexpected JSON structure for properties');
+  }
+
+  return rawList
+      .map((e) => Property.fromJson(e as Map<String, dynamic>))
+      .toList();
 }
 }

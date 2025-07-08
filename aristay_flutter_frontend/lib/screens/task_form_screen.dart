@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/property.dart';
+import '../services/api_service.dart';
 
 class TaskFormScreen extends StatefulWidget {
   const TaskFormScreen({Key? key}) : super(key: key);
@@ -12,10 +12,28 @@ class TaskFormScreen extends StatefulWidget {
 
 class _TaskFormScreenState extends State<TaskFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _propertyNameController = TextEditingController();
+  List<Property> _properties = [];
+  Property? _selectedProperty;
   String _status = 'pending'; // default status
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    ApiService().fetchProperties().then((list) {
+      setState(() {
+        _properties = list;
+        if (_properties.isNotEmpty) {
+          _selectedProperty = _properties.first;
+        }
+      });
+    }).catchError((e) {
+      setState(() {
+        _errorMessage = 'Failed to load properties: $e';
+      });
+    });
+  }
 
   Future<void> _createTask() async {
     if (_formKey.currentState!.validate()) {
@@ -35,27 +53,16 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           return;
         }
 
-        // final url = Uri.parse('http://192.168.1.41:8000/api/cleaning-tasks/');
-        final url = Uri.parse('http://127.0.0.1:8000/api/cleaning-tasks/');
-
-        final response = await http.post(
-          url,
-          headers: {
-            'Authorization': 'Token $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'property_name': _propertyNameController.text,
-            'status': _status,
-          }),
-        );
-
-        if (response.statusCode == 201 || response.statusCode == 200) {
-          // Task created successfully; pop this screen to return to the task list.
+        final api = ApiService();
+        final success = await api.createTask({
+          'property': _selectedProperty!.id,
+          'status': _status,
+        });
+        if (success) {
           Navigator.pop(context, true);
         } else {
           setState(() {
-            _errorMessage = 'Failed to create task. Status: ${response.statusCode}';
+            _errorMessage = 'Failed to create task.';
           });
         }
       } catch (e) {
@@ -72,7 +79,6 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
 
   @override
   void dispose() {
-    _propertyNameController.dispose();
     super.dispose();
   }
 
@@ -86,11 +92,21 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: _propertyNameController,
-                decoration: const InputDecoration(labelText: 'Property Name'),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter a property name' : null,
+              DropdownButtonFormField<Property>(
+                value: _selectedProperty,
+                decoration: const InputDecoration(labelText: 'Property'),
+                items: _properties.map((prop) {
+                  return DropdownMenuItem<Property>(
+                    value: prop,
+                    child: Text(prop.name),
+                  );
+                }).toList(),
+                onChanged: (newProp) {
+                  setState(() {
+                    _selectedProperty = newProp;
+                  });
+                },
+                validator: (value) => value == null ? 'Please select a property' : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
