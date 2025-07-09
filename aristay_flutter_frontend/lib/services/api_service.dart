@@ -24,6 +24,51 @@ class ApiService {
     final raw = body is List ? body : (body['results'] as List<dynamic>);
     return raw.map((e) => Property.fromJson(e as Map<String, dynamic>)).toList();
   }
+  
+  /// Create a new property
+  Future<bool> createProperty(Map<String, dynamic> payload) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) throw Exception('No auth token found');
+    final res = await http.post(
+      Uri.parse('$baseUrl/properties/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
+    return res.statusCode == 201 || res.statusCode == 200;
+  }
+
+  /// Update an existing property
+  Future<bool> updateProperty(int id, Map<String, dynamic> payload) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) throw Exception('No auth token found');
+    final res = await http.patch(
+      Uri.parse('$baseUrl/properties/$id/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(payload),
+    );
+    return res.statusCode == 200;
+  }
+
+  /// Delete a property
+  Future<bool> deleteProperty(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) throw Exception('No auth token found');
+    final res = await http.delete(
+      Uri.parse('$baseUrl/properties/$id/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    return res.statusCode == 204;
+  }
+
   Future<Task> fetchTask(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
