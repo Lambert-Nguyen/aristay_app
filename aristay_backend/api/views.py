@@ -10,7 +10,7 @@ from .models import Task
 from .models import Property
 from .serializers import TaskSerializer
 from .serializers import PropertySerializer
-from .permissions import IsOwnerOrReadOnly  # Import our custom permission
+from .permissions import IsOwnerOrAssignedOrReadOnly  # Import our custom permission
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -31,8 +31,7 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
-    # Combine default read-only permission with our owner check:
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
 
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()

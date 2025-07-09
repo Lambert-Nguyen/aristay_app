@@ -1,13 +1,25 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-class IsOwnerOrReadOnly(BasePermission):
+class IsOwnerOrAssignedOrReadOnly(BasePermission):
     """
-    Custom permission to allow only owners or admins to edit or delete an object.
+    Read-only for everyone.
+    Writes allowed if request.user is:
+      • the creator (created_by), or
+      • the assignee (assigned_to), or
+      • a staff/superuser.
     """
     def has_object_permission(self, request, view, obj):
-        # Read permissions are allowed to any request.
+        # always allow safe methods
         if request.method in SAFE_METHODS:
             return True
-        
-        # Write permissions are allowed only to the owner or admin.
-        return obj.created_by == request.user or request.user.is_staff
+
+        user = request.user
+        # staff can do anything
+        if user.is_staff or user.is_superuser:
+            return True
+
+        # allow creator or assigned user
+        return (
+            obj.created_by == user or
+            obj.assigned_to == user
+        )
