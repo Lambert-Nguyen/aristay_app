@@ -61,6 +61,8 @@ class TaskAdmin(admin.ModelAdmin):
                 obj.modified_by = user
 
         super().save_model(request, obj, form, change)
+    class Media:
+        js = ('admin/js/timezone_local.js',)
 
 
 @admin.register(Property)
@@ -91,3 +93,6 @@ class PropertyAdmin(admin.ModelAdmin):
             obj.created_by = user
         obj.modified_by = user
         super().save_model(request, obj, form, change)
+        
+    class Media:
+        js = ('admin/js/timezone_local.js',)
