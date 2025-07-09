@@ -19,12 +19,18 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-                final created = await Navigator.pushNamed(context, '/create-task');
+                final created =
+                    await Navigator.pushNamed(context, '/create-task');
                 if (created == true) {
                   Navigator.pushReplacementNamed(context, '/tasks');
                 }
               },
               child: const Text('Create New Task'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/properties'),
+              child: const Text('Manage Properties'),
             ),
           ],
         ),

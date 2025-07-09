@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.utils import timezone
 import json
 
@@ -6,15 +7,19 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny  # Import AllowAny
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser
 
-from django.contrib.auth.models import User
-from .serializers import UserRegistrationSerializer
+
 from .models import Task
 from .models import Property
+
 from .serializers import TaskSerializer
 from .serializers import PropertySerializer
-from .permissions import IsOwnerOrAssignedOrReadOnly  # Import our custom permission
 from .serializers import UserSerializer
+from .serializers import UserRegistrationSerializer
+
+
+from .permissions import IsOwnerOrAssignedOrReadOnly  # Import our custom permission
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -74,8 +79,8 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticated]
-    
+    permission_classes = [IsAdminUser]
+        
 class UserList(generics.ListAPIView):
     """
     Lists all users (id + username), so the front end can

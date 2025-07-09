@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'models/task.dart';
+import 'models/property.dart';
+
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/task_list_screen.dart';
 import 'screens/task_form_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'screens/task_detail_screen.dart';
+import 'screens/property_list_screen.dart';
+import 'screens/property_form_screen.dart';
 
 void main() => runApp(const MyApp());
 
@@ -21,6 +25,12 @@ class MyApp extends StatelessWidget {
         '/': (c) => const LoginScreen(),
         '/home': (c) => const HomeScreen(),
         '/tasks': (c) => const TaskListScreen(),
+        '/properties': (c) => const PropertyListScreen(),
+        '/properties/new': (c) => const PropertyFormScreen(),
+        '/properties/edit': (c) {
+          final prop = ModalRoute.of(c)!.settings.arguments as Property;
+          return PropertyFormScreen(property: prop);
+        },
         '/create-task': (c) => const TaskFormScreen(),
         '/edit-task': (c) {
           final task = ModalRoute.of(c)!.settings.arguments as Task;
@@ -28,7 +38,6 @@ class MyApp extends StatelessWidget {
         },
         '/task-detail': (c) {
           final task = ModalRoute.of(c)!.settings.arguments as Task;
-          // change here: use initialTask named parameter
           return TaskDetailScreen(initialTask: task);
         },
       },
