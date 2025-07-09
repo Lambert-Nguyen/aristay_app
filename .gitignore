@@ -28,3 +28,4 @@ aristay_flutter_frontend/.packages
 .DS_Store
 *.iml
 .idea/
+/aristay_backend/api/migrations
