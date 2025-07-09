@@ -1,3 +1,6 @@
+from django.utils import timezone
+import json
+
 from rest_framework import generics
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -33,6 +36,40 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
+
+    def perform_update(self, serializer):
+        # 1) load the old instance
+        old = Task.objects.get(pk=serializer.instance.pk)
+
+        # 2) do the actual update, stamping modified_by
+        instance = serializer.save(modified_by=self.request.user)
+
+        # 3) build a list of change‐entries
+        changes = []
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+            old_val = getattr(old, field)
+            new_val = getattr(instance, field)
+            # if assigned_to or property you'll want .username or .name
+            if field == 'assigned_to':
+                old_val = old.assigned_to.username if old.assigned_to else None
+                new_val = instance.assigned_to.username if instance.assigned_to else None
+            if field == 'property':
+                old_val = old.property.name if old.property else None
+                new_val = instance.property.name if instance.property else None
+
+            if old_val != new_val:
+                changes.append(
+                    f"{timezone.now().isoformat()}: "
+                    f"{self.request.user.username} changed {field} "
+                    f"from '{old_val or ''}' to '{new_val or ''}'"
+                )
+
+        # 4) append to the JSONField (you’re using a TextField with JSON in it)
+        history = json.loads(old.history or '[]')
+        history.extend(changes)
+        instance.history = json.dumps(history)
+        # 5) save only the history column to avoid looping back into perform_update
+        Task.objects.filter(pk=instance.pk).update(history=instance.history)
 
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()

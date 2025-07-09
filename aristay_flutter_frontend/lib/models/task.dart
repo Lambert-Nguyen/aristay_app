@@ -65,7 +65,9 @@ class Task {
 
     // modifiedBy
     String? modifiedBy;
-    if (json['modified_by'] != null) {
+    if (json['modified_by_username'] != null) {
+      modifiedBy = json['modified_by_username'] as String;
+    } else if (json['modified_by'] != null) {
       modifiedBy = json['modified_by'].toString();
     }
 
