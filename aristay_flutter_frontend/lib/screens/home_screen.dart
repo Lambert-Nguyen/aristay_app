@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,19 +10,19 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Welcome! This is the home screen.'),
+            const Text('Welcome!'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/tasks');
-              },
+              onPressed: () => Navigator.pushNamed(context, '/tasks'),
               child: const Text('View Tasks'),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-                final result = await Navigator.pushNamed(context, '/create-task');
-                // Optionally, if result == true, refresh the tasks list or navigate as needed.
+                final created = await Navigator.pushNamed(context, '/create-task');
+                if (created == true) {
+                  Navigator.pushReplacementNamed(context, '/tasks');
+                }
               },
               child: const Text('Create New Task'),
             ),

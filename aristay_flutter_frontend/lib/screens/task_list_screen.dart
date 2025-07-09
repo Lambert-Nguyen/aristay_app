@@ -9,7 +9,7 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
-  final ApiService _api = ApiService();
+  final _api = ApiService();
   List<Task> _tasks = [];
   String? _nextUrl;
   bool _isLoading = false, _isLoadingMore = false;
@@ -22,7 +22,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() => _isLoading = true);
     try {
       final res = await _api.fetchTasks();
       setState(() {
@@ -30,15 +30,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
         _nextUrl = res['next'] as String?;
       });
     } catch (e) {
-      _error = 'Failed to load tasks: $e';
+      setState(() => _error = 'Load failed: $e');
     } finally {
-      setState(() { _isLoading = false; });
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadMore() async {
     if (_nextUrl == null) return;
-    setState(() { _isLoadingMore = true; });
+    setState(() => _isLoadingMore = true);
     final res = await _api.fetchTasks(url: _nextUrl);
     setState(() {
       _tasks.addAll(res['results'] as List<Task>);
@@ -53,7 +53,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     if (_error != null) return Scaffold(body: Center(child: Text(_error!)));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cleaning Tasks')),
+      appBar: AppBar(title: const Text('Tasks')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView.builder(
@@ -62,32 +62,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
             if (i == _tasks.length) {
               return Center(
                 child: _isLoadingMore
-                  ? const Padding(
-                      padding: EdgeInsets.all(16), 
-                      child: CircularProgressIndicator(),
-                    )
-                  : TextButton(
-                      child: const Text('Load More'),
-                      onPressed: _loadMore,
-                    ),
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      )
+                    : TextButton(
+                        onPressed: _loadMore,
+                        child: const Text('Load More'),
+                      ),
               );
             }
-            final task = _tasks[i];
+            final t = _tasks[i];
             return ListTile(
-              title: Text(task.propertyName),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Status: ${task.status}'),
-                  Text('Created by: ${task.createdBy ?? "unknown"}'),
-                ],
-              ),
+              title: Text(t.title),
+              subtitle: Text('Property: ${t.propertyName}\nStatus: ${t.status}'),
               isThreeLine: true,
-              onTap: () => Navigator.pushNamed(
-                context,
-                '/task-detail',
-                arguments: task,               // <<— pass the Task itself
-              ),
+              onTap: () => Navigator.pushNamed(context, '/task-detail', arguments: t),
             );
           },
         ),

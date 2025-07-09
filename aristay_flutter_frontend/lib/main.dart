@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'models/task.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/task_list_screen.dart';
 import 'screens/task_form_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'screens/task_detail_screen.dart';
+import 'models/task.dart';
 
 void main() => runApp(const MyApp());
 
