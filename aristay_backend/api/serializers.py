@@ -1,6 +1,13 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Task, Property
+import json
+from django.utils import timezone
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -20,31 +27,70 @@ class PropertySerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
-    # read‐only nested name of the property
-    property_name       = serializers.CharField(source='property.name',      read_only=True)
-    # raw PK for writes
-    property            = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
-    # read‐only usernames
-    created_by          = serializers.CharField(source='created_by.username',      read_only=True)
-    assigned_to_username = serializers.CharField(source='assigned_to.username',     read_only=True)
-    modified_by         = serializers.CharField(source='modified_by.username',     read_only=True)
-    history             = serializers.ListField(read_only=True)  # assuming JSONField
+    property_name           = serializers.CharField(source='property.name',    read_only=True)
+    property                = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
+    created_by              = serializers.CharField(source='created_by.username',   read_only=True)
+    assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
+    modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
+
+    # Replace ListField with a proper JSON parser:
+    history                 = serializers.SerializerMethodField()
 
     class Meta:
         model = Task
         fields = [
-            'id',
-            'property',            # for writes
-            'property_name',       # for reads
-            'task_type',
-            'title',
-            'description',
-            'status',
-            'created_by',
-            'assigned_to',         # raw PK if you need it
-            'assigned_to_username',# NEW read‐only username
-            'modified_by',
-            'history',
-            'created_at',
-            'modified_at',
+          'id',
+          'property',
+          'property_name',
+          'task_type',
+          'title',
+          'description',
+          'status',
+          'created_by',
+          'assigned_to',
+          'assigned_to_username',
+          'modified_by_username',
+          'history',
+          'created_at',
+          'modified_at',
         ]
+
+    def get_history(self, obj):
+        """
+        obj.history is a JSON‐encoded string; decode it to a Python list.
+        """
+        try:
+            return json.loads(obj.history or '[]')
+        except json.JSONDecodeError:
+            return []
+
+    def _append_history(self, instance, user, changes):
+        existing = self.get_history(instance)
+        timestamp = timezone.now().isoformat()
+        for change in changes:
+            existing.append(f"{timestamp}: {user.username} {change}")
+        return json.dumps(existing)
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        # initial history entry
+        validated_data['history']     = json.dumps([f"{timezone.now().isoformat()}: {user.username} created task"])
+        validated_data['created_by']  = user
+        validated_data['modified_by'] = user
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        user = self.context['request'].user
+        changes = []
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+            if field in validated_data:
+                old = getattr(instance, field)
+                new = validated_data[field]
+                old_val = getattr(old, 'id', old)
+                new_val = getattr(new, 'id', new)
+                if old_val != new_val:
+                    changes.append(f"changed {field} from '{old_val}' to '{new_val}'")
+        if changes:
+            validated_data['history']     = self._append_history(instance, user, changes)
+            validated_data['modified_by'] = user
+        return super().update(instance, validated_data)

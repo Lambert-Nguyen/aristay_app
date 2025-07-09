@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/property.dart';
 import '../models/task.dart';
+import '../models/user.dart';
 
 class ApiService {
   static const String baseUrl = 'http://127.0.0.1:8000/api';
@@ -22,6 +23,21 @@ class ApiService {
     final body = jsonDecode(res.body);
     final raw = body is List ? body : (body['results'] as List<dynamic>);
     return raw.map((e) => Property.fromJson(e as Map<String, dynamic>)).toList();
+  }
+  Future<Task> fetchTask(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) throw Exception('No auth token found');
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/tasks/$id/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load task (#$id): ${res.statusCode}');
+    }
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    return Task.fromJson(json);
   }
 
   Future<Map<String, dynamic>> fetchTasks({String? url}) async {
@@ -98,5 +114,23 @@ class ApiService {
       headers: {'Authorization': 'Token $token'},
     );
     return res.statusCode == 204;
+  }
+  Future<List<User>> fetchUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) throw Exception('No auth token found');
+
+    final uri = Uri.parse('$baseUrl/users/');
+    final resp = await http.get(uri, headers: {
+      'Authorization': 'Token $token',
+    });
+
+    if (resp.statusCode != 200) {
+      throw Exception('Failed to load users (${resp.statusCode})');
+    }
+
+    final data = jsonDecode(resp.body);
+    final list = (data is List ? data : (data['results'] as List)) as List;
+    return list.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
   }
 }
