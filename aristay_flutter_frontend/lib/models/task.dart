@@ -14,6 +14,10 @@ class Task {
   final String? modifiedBy;
   final List<String> history;
 
+  // new fields:
+  final DateTime createdAt;
+  final DateTime modifiedAt;
+
   Task({
     required this.id,
     required this.propertyId,
@@ -27,6 +31,8 @@ class Task {
     this.assignedToUsername,
     this.modifiedBy,
     this.history = const [],
+    required this.createdAt,      // ←
+    required this.modifiedAt,     // ←
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -78,6 +84,9 @@ class Task {
           .map((e) => e.toString())
           .toList();
     }
+    // parse the timestamps:
+    final createdAt = DateTime.parse(json['created_at'] as String);
+    final modifiedAt = DateTime.parse(json['modified_at'] as String);
 
     return Task(
       id:                    json['id'] as int,
@@ -94,6 +103,8 @@ class Task {
       assignedToUsername:    assignedUsername,
       modifiedBy:            modifiedBy,
       history:               history,
+      createdAt:             createdAt,     // ←
+      modifiedAt:            modifiedAt,    // ←
     );
   }
 

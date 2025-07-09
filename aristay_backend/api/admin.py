@@ -8,16 +8,25 @@ from .models import Task, Property
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
-        'title',
-        'task_type',
-        'property',
-        'status',
-        'created_by',
-        'modified_by',
-        'created_at',
-        'modified_at',
+        'title', 'task_type', 'property', 'status',
+        'created_by', 'created_at_local',
+        'modified_by', 'modified_at_local',
     )
-    readonly_fields = ('created_at', 'modified_at')
+    readonly_fields = (
+        'created_at', 'modified_at',
+        'created_at_local', 'modified_at_local',
+    )
+    
+    def created_at_local(self, obj):
+        # convert the UTC stored datetime into current TIME_ZONE
+        local_dt = obj.created_at.astimezone(timezone.get_current_timezone())
+        return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+    created_at_local.short_description = 'Created (Local)'
+
+    def modified_at_local(self, obj):
+        local_dt = obj.modified_at.astimezone(timezone.get_current_timezone())
+        return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+    modified_at_local.short_description = 'Modified (Local)'
 
     def save_model(self, request, obj, form, change):
         user = request.user
@@ -58,12 +67,23 @@ class TaskAdmin(admin.ModelAdmin):
 class PropertyAdmin(admin.ModelAdmin):
     list_display = (
         'name',
-        'created_by',
-        'modified_by',
-        'created_at',
-        'modified_at',
+        'created_by', 'created_at_local',
+        'modified_by', 'modified_at_local',
     )
-    readonly_fields = ('created_at', 'modified_at')
+    readonly_fields = (
+        'created_at', 'modified_at',
+        'created_at_local', 'modified_at_local',
+    )
+    
+    def created_at_local(self, obj):
+        local = obj.created_at.astimezone(timezone.get_current_timezone())
+        return local.strftime('%Y-%m-%d %H:%M:%S %Z')
+    created_at_local.short_description = 'Created (Local)'
+
+    def modified_at_local(self, obj):
+        local = obj.modified_at.astimezone(timezone.get_current_timezone())
+        return local.strftime('%Y-%m-%d %H:%M:%S %Z')
+    modified_at_local.short_description = 'Modified (Local)'
 
     def save_model(self, request, obj, form, change):
         user = request.user
