@@ -11,6 +11,7 @@ from .models import Property
 from .serializers import TaskSerializer
 from .serializers import PropertySerializer
 from .permissions import IsOwnerOrAssignedOrReadOnly  # Import our custom permission
+from .serializers import UserSerializer
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -36,4 +37,14 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
+    permission_classes = [IsAuthenticated]
+    
+class UserList(generics.ListAPIView):
+    """
+    Lists all users (id + username), so the front end can
+    populate its assignee dropdown.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
