@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'models/task.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/task_list_screen.dart';
 import 'screens/task_form_screen.dart';
 import 'screens/edit_task_screen.dart';
 import 'screens/task_detail_screen.dart';
-import 'models/task.dart';
 
 void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -27,7 +28,8 @@ class MyApp extends StatelessWidget {
         },
         '/task-detail': (c) {
           final task = ModalRoute.of(c)!.settings.arguments as Task;
-          return TaskDetailScreen(task: task);
+          // change here: use initialTask named parameter
+          return TaskDetailScreen(initialTask: task);
         },
       },
     );

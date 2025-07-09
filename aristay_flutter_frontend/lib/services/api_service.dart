@@ -24,6 +24,21 @@ class ApiService {
     final raw = body is List ? body : (body['results'] as List<dynamic>);
     return raw.map((e) => Property.fromJson(e as Map<String, dynamic>)).toList();
   }
+  Future<Task> fetchTask(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) throw Exception('No auth token found');
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/tasks/$id/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load task (#$id): ${res.statusCode}');
+    }
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    return Task.fromJson(json);
+  }
 
   Future<Map<String, dynamic>> fetchTasks({String? url}) async {
     final prefs = await SharedPreferences.getInstance();
