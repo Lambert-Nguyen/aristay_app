@@ -3,6 +3,9 @@ from django.utils import timezone
 import json
 
 from rest_framework import generics
+from rest_framework import generics, permissions, viewsets
+from rest_framework.parsers import MultiPartParser, FormParser
+
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.permissions import AllowAny  # Import AllowAny
@@ -10,16 +13,41 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import IsAdminUser
 
 
-from .models import Task
-from .models import Property
+from .models import Task, Property, TaskImage
+
 
 from .serializers import TaskSerializer
 from .serializers import PropertySerializer
 from .serializers import UserSerializer
 from .serializers import UserRegistrationSerializer
+from .serializers import TaskImageSerializer
 
 
 from .permissions import IsOwnerOrAssignedOrReadOnly  # Import our custom permission
+
+class TaskViewSet(viewsets.ModelViewSet):
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
+    authentication_classes = [TokenAuthentication]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user)
+
+class TaskImageCreateView(generics.CreateAPIView):
+    queryset = TaskImage.objects.all()
+    serializer_class = TaskImageSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        task_id = self.kwargs['task_pk']
+        task = Task.objects.get(pk=task_id)
+        serializer.save(task=task)
+
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()

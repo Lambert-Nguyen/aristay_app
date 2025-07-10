@@ -100,3 +100,12 @@ class Task(models.Model):
                 self.history = json.dumps(hist)
 
         super().save(*args, **kwargs)
+
+
+class TaskImage(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='task_images/%Y/%m/%d/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Image for {self.task.title}"

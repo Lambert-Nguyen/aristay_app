@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Task, Property
+from .models import Task, Property, TaskImage
 import json
 from django.utils import timezone
 
@@ -25,6 +25,10 @@ class PropertySerializer(serializers.ModelSerializer):
         model = Property
         fields = ['id', 'name']
 
+class TaskImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaskImage
+        fields = ['id', 'image', 'uploaded_at']
 
 class TaskSerializer(serializers.ModelSerializer):
     property_name           = serializers.CharField(source='property.name',    read_only=True)
@@ -32,6 +36,8 @@ class TaskSerializer(serializers.ModelSerializer):
     created_by              = serializers.CharField(source='created_by.username',   read_only=True)
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
     modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
+    images                  = TaskImageSerializer(many=True, read_only=True)
+
 
     # Replace ListField with a proper JSON parser:
     history                 = serializers.SerializerMethodField()
@@ -53,6 +59,7 @@ class TaskSerializer(serializers.ModelSerializer):
           'history',
           'created_at',
           'modified_at',
+          'images',
         ]
 
     def get_history(self, obj):
