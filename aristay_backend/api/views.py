@@ -80,6 +80,7 @@ class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
     permission_classes = [IsAdminUser]
+    pagination_class = None
         
 class UserList(generics.ListAPIView):
     """
