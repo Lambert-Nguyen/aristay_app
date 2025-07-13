@@ -1,9 +1,23 @@
 from django.contrib import admin
 from django.utils import timezone
+from django.utils.html import format_html
 import json
 
-from .models import Task, Property
+from .models import Task, Property, TaskImage
 
+class TaskImageInline(admin.TabularInline):
+    model = TaskImage
+    extra = 1
+    readonly_fields = ('preview',)
+
+    def preview(self, obj):
+        if obj.image:
+            return format_html(
+                "<img src='{}' style='max-height:100px; margin:5px;'/>",
+                obj.image.url
+            )
+        return ""
+    preview.short_description = 'Image Preview'
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
@@ -16,9 +30,12 @@ class TaskAdmin(admin.ModelAdmin):
         'created_at', 'modified_at',
         'created_at_local', 'modified_at_local',
     )
-    
+    inlines = [TaskImageInline]
+
+    class Media:
+        js = ('admin/js/timezone_local.js',)
+
     def created_at_local(self, obj):
-        # convert the UTC stored datetime into current TIME_ZONE
         local_dt = obj.created_at.astimezone(timezone.get_current_timezone())
         return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
     created_at_local.short_description = 'Created (Local)'
@@ -32,37 +49,29 @@ class TaskAdmin(admin.ModelAdmin):
         user = request.user
 
         if not change:
-            # on create, set both creator and modifier, initialize history
             obj.created_by = user
             obj.modified_by = user
             obj.history = json.dumps([
                 f"{timezone.now().isoformat()}: {user.username} created task"
             ])
         else:
-            # on update, record only actual field changes
             changes = []
             for field in form.changed_data:
                 old = form.initial.get(field)
                 new = form.cleaned_data.get(field)
                 changes.append(f"changed {field} from '{old}' to '{new}'")
-
             if changes:
-                # merge into existing history list
                 try:
                     existing = json.loads(obj.history or '[]')
                 except json.JSONDecodeError:
                     existing = []
-
                 timestamp = timezone.now().isoformat()
                 for c in changes:
                     existing.append(f"{timestamp}: {user.username} {c}")
-
                 obj.history = json.dumps(existing)
                 obj.modified_by = user
 
         super().save_model(request, obj, form, change)
-    class Media:
-        js = ('admin/js/timezone_local.js',)
 
 
 @admin.register(Property)
@@ -76,7 +85,10 @@ class PropertyAdmin(admin.ModelAdmin):
         'created_at', 'modified_at',
         'created_at_local', 'modified_at_local',
     )
-    
+
+    class Media:
+        js = ('admin/js/timezone_local.js',)
+
     def created_at_local(self, obj):
         local = obj.created_at.astimezone(timezone.get_current_timezone())
         return local.strftime('%Y-%m-%d %H:%M:%S %Z')
@@ -93,6 +105,3 @@ class PropertyAdmin(admin.ModelAdmin):
             obj.created_by = user
         obj.modified_by = user
         super().save_model(request, obj, form, change)
-        
-    class Media:
-        js = ('admin/js/timezone_local.js',)
