@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/property.dart';
 import '../services/api_service.dart';
 
@@ -18,6 +20,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   String _status = 'pending';
   bool _loading = false;
   String? _error;
+  File? _pickedImage;
+
 
   @override
   void initState() {
@@ -25,6 +29,15 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     ApiService().fetchProperties().then((l) => setState(() => _properties = l))
       .catchError((e) => setState(() => _error = 'Properties load failed'));
   }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => _pickedImage = File(picked.path));
+    }
+  }
+
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _selectedProperty == null) return;
@@ -95,6 +108,14 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                   .toList(),
               onChanged: (v) => setState(() => _status = v!),
             ),
+            const SizedBox(height: 16),
+              TextButton.icon(
+                icon: const Icon(Icons.photo),
+                label: const Text('Attach Photo'),
+                onPressed: _pickImage,
+              ),
+              if (_pickedImage != null)
+                Image.file(_pickedImage!, height: 100),
             const SizedBox(height: 24),
             if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
             _loading

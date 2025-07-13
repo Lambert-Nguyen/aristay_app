@@ -122,6 +122,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Text('• $h', style: const TextStyle(fontSize: 16)),
                     )),
+                const Divider(height: 32),
+                const Text('Photos:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (_task.imageUrls.isEmpty)
+                  const Text('No photos attached')
+                else
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _task.imageUrls.length,
+                      itemBuilder: (_, i) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Image.network(_task.imageUrls[i]),
+                      ),
+                    ),
+                ),
               ],
             ),
         ),

@@ -13,6 +13,8 @@ class Task {
   final String? assignedToUsername;
   final String? modifiedBy;
   final List<String> history;
+  final List<String> imageUrls;
+
 
   // new fields:
   final DateTime createdAt;
@@ -31,8 +33,9 @@ class Task {
     this.assignedToUsername,
     this.modifiedBy,
     this.history = const [],
-    required this.createdAt,      // ←
-    required this.modifiedAt,     // ←
+    required this.createdAt, 
+    required this.modifiedAt,
+    this.imageUrls = const [],
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -88,6 +91,18 @@ class Task {
     final createdAt = DateTime.parse(json['created_at'] as String);
     final modifiedAt = DateTime.parse(json['modified_at'] as String);
 
+    List<String> images = [];
+    if (json['images'] is List) {
+      for (var item in json['images'] as List) {
+        if (item is String) {
+          images.add(item);
+        } else if (item is Map<String, dynamic>) {
+          final url = item['image'] as String? ?? item['url'] as String?;
+          if (url != null) images.add(url);
+        }
+      }
+    }
+
     return Task(
       id:                    json['id'] as int,
       propertyId:            json['property'] is int
@@ -103,8 +118,9 @@ class Task {
       assignedToUsername:    assignedUsername,
       modifiedBy:            modifiedBy,
       history:               history,
-      createdAt:             createdAt,     // ←
-      modifiedAt:            modifiedAt,    // ←
+      createdAt: DateTime.parse(json['created_at'] as String),
+      modifiedAt: DateTime.parse(json['modified_at'] as String),
+      imageUrls: images,         // << here
     );
   }
 
