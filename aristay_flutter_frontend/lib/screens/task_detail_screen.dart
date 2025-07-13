@@ -43,15 +43,27 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void _openImage(String url) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
-        appBar: AppBar(backgroundColor: Colors.black),
         backgroundColor: Colors.black,
-        body: Center(
-          child: InteractiveViewer(
-            panEnabled: true,
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: Image.network(url),
-          ),
+        appBar: AppBar(backgroundColor: Colors.black),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            return InteractiveViewer(
+              // Constrain to the full available space
+              constrained: true,           
+              // Allow a little extra for panning when zoomed
+              boundaryMargin: const EdgeInsets.all(80),
+              minScale: 1.0,
+              maxScale: 4.0,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,    // scale to fit entire area
+                ),
+              ),
+            );
+          },
         ),
       ),
     ));
@@ -138,7 +150,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             onTap: () => _openImage(url),
                             child: Padding(
                               padding: const EdgeInsets.only(right: 8),
-                              child: Image.network(url, height: 100, fit: BoxFit.cover),
+                              child: Image.network(
+                                url,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           );
                         },
