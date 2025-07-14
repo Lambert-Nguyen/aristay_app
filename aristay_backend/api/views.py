@@ -2,7 +2,6 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import json
 
-from rest_framework import generics
 from rest_framework import generics, permissions, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 
@@ -28,24 +27,26 @@ from .permissions import IsOwnerOrAssignedOrReadOnly  # Import our custom permis
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
     authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        serializer.save(created_by=self.request.user, modified_by=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user)
 
 class TaskImageCreateView(generics.CreateAPIView):
-    queryset = TaskImage.objects.all()
+    """
+    POST /api/tasks/{task_pk}/images/
+    """
     serializer_class = TaskImageSerializer
     parser_classes = [MultiPartParser, FormParser]
-    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAssignedOrReadOnly]
 
     def perform_create(self, serializer):
-        task_id = self.kwargs['task_pk']
-        task = Task.objects.get(pk=task_id)
+        task = generics.get_object_or_404(Task, pk=self.kwargs['task_pk'])
         serializer.save(task=task)
 
 
@@ -107,15 +108,19 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.IsAdminUser]
     pagination_class = None
         
 class UserList(generics.ListAPIView):
     """
-    Lists all users (id + username), so the front end can
-    populate its assignee dropdown.
+    GET /api/users/
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
+
+class UserRegistrationView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.AllowAny]

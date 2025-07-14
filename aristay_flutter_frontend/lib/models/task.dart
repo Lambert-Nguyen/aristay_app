@@ -93,11 +93,12 @@ class Task {
 
     List<String> images = [];
     if (json['images'] is List) {
-      for (var item in json['images'] as List) {
+      for (var item in json['images'] as List<dynamic>) {
         if (item is String) {
           images.add(item);
         } else if (item is Map<String, dynamic>) {
-          final url = item['image'] as String? ?? item['url'] as String?;
+          // your serializer puts the URL on the `image` key
+          final url = item['image'] as String?;
           if (url != null) images.add(url);
         }
       }

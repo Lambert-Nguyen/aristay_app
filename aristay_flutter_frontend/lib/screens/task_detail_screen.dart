@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
@@ -90,6 +92,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               if (ok) Navigator.popUntil(context, ModalRoute.withName('/tasks'));
               else ScaffoldMessenger.of(context)
                   .showSnackBar(const SnackBar(content: Text('Delete failed')));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.photo_camera),
+            onPressed: () async {
+              final img = await ImagePicker().pickImage(source: ImageSource.gallery);
+              if (img == null) return;
+              setState(() => _loading = true);
+              await ApiService().uploadTaskImage(_task.id, File(img.path));
+              await _refresh();
             },
           ),
         ],

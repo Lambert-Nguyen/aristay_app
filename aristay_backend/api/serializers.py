@@ -36,7 +36,7 @@ class TaskSerializer(serializers.ModelSerializer):
     created_by              = serializers.CharField(source='created_by.username',   read_only=True)
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
     modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
-    images                  = TaskImageSerializer(many=True, read_only=True)
+    images = TaskImageSerializer(many=True, read_only=True)
 
 
     # Replace ListField with a proper JSON parser:
