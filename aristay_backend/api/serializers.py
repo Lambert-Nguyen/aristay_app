@@ -11,8 +11,9 @@ from django.utils import timezone
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username']
-
+        # include email so we can show it, and is_staff for “Admin” flag
+        fields = ['id', 'username', 'email', 'is_staff']
+        
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 

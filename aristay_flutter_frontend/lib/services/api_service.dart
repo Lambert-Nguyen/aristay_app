@@ -245,4 +245,68 @@ class ApiService {
         .map((e) => User.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+  
+  /// Invites a new user (admin only). Throws ValidationException on 400.
+  Future<void> inviteUser(String username, String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/admin/invite/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'username': username, 'email': email}),
+    );
+
+    if (res.statusCode == 201) return;
+
+    if (res.statusCode == 400) {
+      final Map<String, dynamic> body = jsonDecode(res.body);
+      final errors = <String, String>{};
+      body.forEach((k, v) {
+        errors[k] = (v is List) ? v.join(' ') : v.toString();
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Invite failed (${res.statusCode}): ${res.body}');
+  }
+
+  /// Sends a password‐reset email (admin only).
+  Future<void> resetUserPassword(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/admin/reset-password/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'email': email}),
+    );
+
+    if (res.statusCode == 200) return;
+
+    if (res.statusCode == 400) {
+      final Map<String, dynamic> body = jsonDecode(res.body);
+      final errors = <String, String>{};
+      body.forEach((k, v) {
+        errors[k] = (v is List) ? v.join(' ') : v.toString();
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Reset failed (${res.statusCode}): ${res.body}');
+  }
+  Future<User> fetchCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.get(
+      Uri.parse('$baseUrl/users/me/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) throw Exception('Failed to load current user');
+    return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
 }

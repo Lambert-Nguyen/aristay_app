@@ -165,3 +165,14 @@ class AdminPasswordResetView(generics.CreateAPIView):
     """
     serializer_class = AdminPasswordResetSerializer
     permission_classes = [IsAdminUser]
+
+class CurrentUserView(generics.RetrieveAPIView):
+    """
+    GET /api/users/me/
+    """
+    serializer_class = UserSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user

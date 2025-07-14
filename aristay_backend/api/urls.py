@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
+    CurrentUserView,
     UserRegistrationView,
     TaskViewSet,
     TaskListCreate, TaskDetail,
@@ -34,4 +35,5 @@ urlpatterns = [
     path('admin/reset-password/',
          AdminPasswordResetView.as_view(),
          name='admin-reset-password'),
+    path('users/me/', CurrentUserView.as_view(), name='current-user'),
 ]
