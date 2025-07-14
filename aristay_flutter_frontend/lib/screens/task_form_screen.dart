@@ -61,10 +61,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       });
       final int newTaskId = createdJson['id'] as int;
 
-      // 2) If the user picked an image, upload it now
+      // 2) If the user picked an image, upload it now (will throw on failure)
       if (_pickedImage != null) {
-        final ok = await ApiService().uploadTaskImage(newTaskId, _pickedImage!);
-        if (!ok) throw Exception('Image upload failed');
+        await ApiService().uploadTaskImage(newTaskId, _pickedImage!);
       }
 
       // 3) Success! pop with true so parent refreshes.

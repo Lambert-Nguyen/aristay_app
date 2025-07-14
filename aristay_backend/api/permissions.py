@@ -1,33 +1,30 @@
 # api/permissions.py
 
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from .models import TaskImage
+
 
 class IsOwnerOrAssignedOrReadOnly(BasePermission):
     """
-    Read-only for everyone.
-    PATCH/PUT allowed for created_by or assigned_to.
-    DELETE only allowed for staff/superuser.
+    - Anyone can read.
+    - Only the task's creator, assignee, or staff can write or delete,
+      whether you're operating on a Task or on a TaskImage.
     """
-
     def has_object_permission(self, request, view, obj):
-        # always allow safe methods (GET, HEAD, OPTIONS)
+        # always allow GET, HEAD, OPTIONS
         if request.method in SAFE_METHODS:
             return True
 
+        # if they're acting on an image, drill down to its task
+        if isinstance(obj, TaskImage):
+            task = obj.task
+        else:
+            task = obj
+
+        # allow if user is creator, assignee, or admin
         user = request.user
-
-        # staff and superusers can do anything
-        if user.is_staff or user.is_superuser:
-            return True
-
-        # NORMAL USERS:
-        # - PATCH/PUT allowed if creator or assignee
-        if request.method in ('PATCH', 'PUT'):
-            return obj.created_by == user or obj.assigned_to == user
-
-        # - DELETE explicitly denied for non-staff
-        if request.method == 'DELETE':
-            return False
-
-        # anything else (e.g. POST on detail) – deny
-        return False
+        return (
+            user.is_staff or
+            task.created_by == user or
+            task.assigned_to == user
+        )

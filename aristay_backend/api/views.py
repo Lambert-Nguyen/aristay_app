@@ -132,9 +132,14 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticatedOrReadOnly]
     pagination_class = None
 
+    def get_permissions(self):
+        # only admins can create
+        if self.request.method == 'POST':
+            return [IsAdminUser()]
+        return super().get_permissions()
 
 class UserList(generics.ListAPIView):
     queryset = User.objects.all()

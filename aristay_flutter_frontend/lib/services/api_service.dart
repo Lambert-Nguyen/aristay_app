@@ -66,15 +66,28 @@ class ApiService {
     return res.statusCode == 204;
   }
 
-  Future<bool> uploadTaskImage(int taskId, File imageFile) async {
+  /// Throws on non-201, with any JSON “detail”
+  Future<void> uploadTaskImage(int taskId, File imageFile) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final uri = Uri.parse('$baseUrl/tasks/$taskId/images/');
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Token $token'
       ..files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-    final resp = await request.send();
-    return resp.statusCode == 201;
+
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+
+    if (response.statusCode != 201) {
+      String message;
+      try {
+        final json = jsonDecode(body);
+        message = json['detail'] ?? body;
+      } catch (_) {
+        message = body;
+      }
+      throw Exception('Failed to upload photo: $message (code ${response.statusCode})');
+    }
   }
 
   Future<Map<String, dynamic>> createTask(Map<String, dynamic> payload) async {
@@ -156,14 +169,25 @@ class ApiService {
     };
   }
 
-  Future<bool> deleteTaskImage(int taskId, int imageId) async {
+  /// Throws on non-204, with the server’s “detail” if present.
+  Future<void> deleteTaskImage(int taskId, int imageId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final res = await http.delete(
       Uri.parse('$baseUrl/tasks/$taskId/images/$imageId/'),
       headers: {'Authorization': 'Token $token'},
     );
-    return res.statusCode == 204;
+
+    if (res.statusCode != 204) {
+      String message;
+      try {
+        final body = jsonDecode(res.body);
+        message = body['detail'] ?? res.body;
+      } catch (_) {
+        message = res.body;
+      }
+      throw Exception('Failed to delete photo: $message (code ${res.statusCode})');
+    }
   }
 
   Future<List<User>> fetchUsers() async {

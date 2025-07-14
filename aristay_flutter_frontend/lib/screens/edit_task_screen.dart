@@ -129,9 +129,12 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           ..clear()
           ..addAll(updated.history);
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo deleted'))
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       setState(() => _loading = false);
     }
@@ -159,9 +162,12 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           ..clear()
           ..addAll(updated.history);
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo replaced'))
+      );
     } catch (e) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Replace failed: $e')));
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       setState(() => _loading = false);
     }
