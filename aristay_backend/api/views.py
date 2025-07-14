@@ -47,8 +47,36 @@ class TaskImageCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         task = generics.get_object_or_404(Task, pk=self.kwargs['task_pk'])
-        serializer.save(task=task)
+        image = serializer.save(task=task)
+        # --- append history entry on Task ----
+        history = json.loads(task.history or '[]')
+        timestamp = timezone.now().isoformat()
+        user = self.request.user.username
+        url = image.image.url
+        history.append(f"{timestamp}: {user} added photo {url}")
+        Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
+        
+class TaskImageDetailView(generics.RetrieveDestroyAPIView):
+    """
+    GET, DELETE /api/tasks/{task_pk}/images/{pk}/
+    """
+    queryset = TaskImage.objects.all()
+    serializer_class = TaskImageSerializer
+    authentication_classes = [TokenAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAssignedOrReadOnly]
 
+    def perform_destroy(self, instance):
+        task = instance.task
+        timestamp = timezone.now().isoformat()
+        user = self.request.user.username
+        url = instance.image.url
+        # first delete the file record
+        instance.delete()
+        # then append to task.history
+        history = json.loads(task.history or '[]')
+        history.append(f"{timestamp}: {user} deleted photo {url}")
+        Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
 
 class UserRegistrationView(generics.CreateAPIView):
     queryset = User.objects.all()

@@ -14,7 +14,7 @@ class Task {
   final String? modifiedBy;
   final List<String> history;
   final List<String> imageUrls;
-
+  final List<int>    imageIds;       // ← new!
 
   // new fields:
   final DateTime createdAt;
@@ -36,6 +36,7 @@ class Task {
     required this.createdAt, 
     required this.modifiedAt,
     this.imageUrls = const [],
+    this.imageIds      = const [],    // ← new!
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -90,16 +91,20 @@ class Task {
     // parse the timestamps:
     final createdAt = DateTime.parse(json['created_at'] as String);
     final modifiedAt = DateTime.parse(json['modified_at'] as String);
+    // Build parallel lists for image URLs and IDs:
+    final urls = <String>[];
+    final ids  = <int>[];
 
-    List<String> images = [];
     if (json['images'] is List) {
-      for (var item in json['images'] as List<dynamic>) {
-        if (item is String) {
-          images.add(item);
-        } else if (item is Map<String, dynamic>) {
-          // your serializer puts the URL on the `image` key
+      for (final item in (json['images'] as List<dynamic>)) {
+        if (item is Map<String, dynamic>) {
+          // Serializer puts { id, image: URL, uploaded_at }
           final url = item['image'] as String?;
-          if (url != null) images.add(url);
+          final id  = item['id']   as int?;
+          if (url != null && id != null) {
+            urls.add(url);
+            ids.add(id);
+          }
         }
       }
     }
@@ -119,9 +124,10 @@ class Task {
       assignedToUsername:    assignedUsername,
       modifiedBy:            modifiedBy,
       history:               history,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      modifiedAt: DateTime.parse(json['modified_at'] as String),
-      imageUrls: images,         // << here
+      createdAt:             DateTime.parse(json['created_at'] as String),
+      modifiedAt:            DateTime.parse(json['modified_at'] as String),
+      imageUrls:             urls,     // ← new
+      imageIds:              ids,      // ← new
     );
   }
 

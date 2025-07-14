@@ -7,17 +7,25 @@ from .views import (
     PropertyListCreate,
     UserList,
     TaskImageCreateView,
+    TaskImageDetailView,
 )
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
 
-
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
     path('', include(router.urls)),
-    # nested image-upload on a task:
-    path('tasks/<int:task_pk>/images/', TaskImageCreateView.as_view(), name='taskimage-create'),
+    path(
+        'tasks/<int:task_pk>/images/',
+        TaskImageCreateView.as_view(),
+        name='taskimage-create'
+    ),
+    path(
+        'tasks/<int:task_pk>/images/<int:pk>/',
+        TaskImageDetailView.as_view(),    # ← new detail route
+        name='taskimage-detail'
+    ),
     path('properties/', PropertyListCreate.as_view(), name='property-list'),
     path('users/', UserList.as_view(), name='user-list'),
 ]

@@ -156,6 +156,16 @@ class ApiService {
     };
   }
 
+  Future<bool> deleteTaskImage(int taskId, int imageId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.delete(
+      Uri.parse('$baseUrl/tasks/$taskId/images/$imageId/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    return res.statusCode == 204;
+  }
+
   Future<List<User>> fetchUsers() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
