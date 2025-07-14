@@ -6,6 +6,12 @@ import '../models/property.dart';
 import '../models/task.dart';
 import '../models/user.dart';
 
+/// Throws when the server returns a 400 with field‐level errors.
+class ValidationException implements Exception {
+  final Map<String, String> errors;
+  ValidationException(this.errors);
+}
+
 class ApiService {
   static const String baseUrl = 'http://127.0.0.1:8000/api';
 
@@ -66,7 +72,6 @@ class ApiService {
     return res.statusCode == 204;
   }
 
-  /// Throws on non-201, with any JSON “detail”
   Future<void> uploadTaskImage(int taskId, File imageFile) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
@@ -90,6 +95,7 @@ class ApiService {
     }
   }
 
+  /// Creates a new task, or throws ValidationException on 400.
   Future<Map<String, dynamic>> createTask(Map<String, dynamic> payload) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
@@ -103,13 +109,28 @@ class ApiService {
       },
       body: jsonEncode(payload),
     );
+
     if (res.statusCode == 201 || res.statusCode == 200) {
       return jsonDecode(res.body) as Map<String, dynamic>;
-    } else {
-      throw Exception('Failed to create task (${res.statusCode})');
     }
+
+    if (res.statusCode == 400) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final errors = <String, String>{};
+      body.forEach((key, value) {
+        if (value is List) {
+          errors[key] = value.join(' ');
+        } else {
+          errors[key] = value.toString();
+        }
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Failed to create task (${res.statusCode})');
   }
 
+  /// Updates an existing task, or throws ValidationException on 400.
   Future<bool> updateTask(int id, Map<String, dynamic> payload) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
@@ -121,7 +142,23 @@ class ApiService {
       },
       body: jsonEncode(payload),
     );
-    return res.statusCode == 200;
+
+    if (res.statusCode == 200) return true;
+
+    if (res.statusCode == 400) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final errors = <String, String>{};
+      body.forEach((key, value) {
+        if (value is List) {
+          errors[key] = value.join(' ');
+        } else {
+          errors[key] = value.toString();
+        }
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Failed to update task (${res.statusCode})');
   }
 
   Future<bool> deleteTask(int id) async {
@@ -169,7 +206,6 @@ class ApiService {
     };
   }
 
-  /// Throws on non-204, with the server’s “detail” if present.
   Future<void> deleteTaskImage(int taskId, int imageId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;

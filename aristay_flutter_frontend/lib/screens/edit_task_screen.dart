@@ -1,8 +1,6 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../models/property.dart';
 import '../models/task.dart';
 import '../models/user.dart';
@@ -33,6 +31,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  Map<String, String> _fieldErrors = {};
 
   @override
   void initState() {
@@ -75,39 +74,36 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
   Future<void> _save() async {
-    // guard against no‐property selected
     if (_selectedProperty == null) {
-      setState(() {
-        _error = 'Please choose a property before saving.';
-      });
+      setState(() => _error = 'Please choose a property');
       return;
     }
-    // now safe to validate
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _saving = true;
       _error = null;
+      _fieldErrors.clear();
     });
 
     final payload = {
       'property': _selectedProperty!.id,
       'task_type': _taskType,
-      'title': _titleCtrl.text,
-      'description': _descCtrl.text,
+      'title': _titleCtrl.text.trim(),
+      'description': _descCtrl.text.trim(),
       'status': _status,
       'assigned_to': _selectedAssignee?.id,
     };
 
     try {
-      final ok = await ApiService().updateTask(widget.task.id, payload);
-      if (ok) {
-        Navigator.pop(context, true);
-      } else {
-        setState(() => _error = 'Save failed');
-      }
+      await ApiService().updateTask(widget.task.id, payload);
+      Navigator.pop(context, true);
+    } on ValidationException catch (ve) {
+      setState(() => _fieldErrors = ve.errors);
     } catch (e) {
-      setState(() => _error = 'Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
     } finally {
       setState(() => _saving = false);
     }
@@ -125,16 +121,12 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         widget.task.imageIds
           ..clear()
           ..addAll(updated.imageIds);
-        widget.task.history
-          ..clear()
-          ..addAll(updated.history);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo deleted'))
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Photo deleted')));
     } catch (e) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       setState(() => _loading = false);
     }
@@ -148,8 +140,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     setState(() => _loading = true);
     try {
       await ApiService().deleteTaskImage(widget.task.id, imageId);
-      await ApiService().uploadTaskImage(
-          widget.task.id, File(picked.path));
+      await ApiService().uploadTaskImage(widget.task.id, File(picked.path));
       final updated = await ApiService().fetchTask(widget.task.id);
       setState(() {
         widget.task.imageUrls
@@ -158,13 +149,9 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
         widget.task.imageIds
           ..clear()
           ..addAll(updated.imageIds);
-        widget.task.history
-          ..clear()
-          ..addAll(updated.history);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Photo replaced'))
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Photo replaced')));
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(e.toString())));
@@ -174,20 +161,11 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   }
 
   @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (_error != null) {
+    if (_error != null && _properties.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Edit Task')),
         body: Center(child: Text(_error!)),
@@ -202,86 +180,87 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // API error message
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
                 ),
-              // Property
+
               DropdownButtonFormField<Property>(
-                decoration: const InputDecoration(labelText: 'Property'),
+                decoration: InputDecoration(
+                  labelText: 'Property',
+                  errorText: _fieldErrors['property'],
+                ),
                 value: _selectedProperty,
                 items: _properties
-                    .map((p) => DropdownMenuItem(
-                          value: p,
-                          child: Text(p.name),
-                        ))
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
                     .toList(),
-                validator: (p) => p == null ? 'Choose a property' : null,
                 onChanged: (p) => setState(() => _selectedProperty = p),
+                validator: (p) => p == null ? 'Required' : null,
               ),
+
               const SizedBox(height: 16),
-              // Task Type
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Task Type'),
+                decoration: InputDecoration(
+                  labelText: 'Task Type',
+                  errorText: _fieldErrors['task_type'],
+                ),
                 value: _taskType,
                 items: ['cleaning', 'maintenance']
-                    .map((t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(t),
-                        ))
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
                 onChanged: (v) => setState(() => _taskType = v!),
               ),
+
               const SizedBox(height: 16),
-              // Title
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: 'Title'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                  errorText: _fieldErrors['title'],
+                ),
+                validator: (v) => v!.trim().isEmpty ? 'Required' : null,
               ),
+
               const SizedBox(height: 16),
-              // Description
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  errorText: _fieldErrors['description'],
+                ),
                 maxLines: 3,
               ),
+
               const SizedBox(height: 16),
-              // Status
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Status'),
+                decoration: InputDecoration(
+                  labelText: 'Status',
+                  errorText: _fieldErrors['status'],
+                ),
                 value: _status,
                 items: ['pending', 'in-progress', 'completed', 'canceled']
-                    .map((s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(s),
-                        ))
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
                 onChanged: (v) => setState(() => _status = v!),
               ),
+
               const SizedBox(height: 16),
-              // Assignee
               DropdownButtonFormField<User>(
-                decoration: const InputDecoration(labelText: 'Assign to'),
+                decoration: InputDecoration(
+                  labelText: 'Assign to',
+                  errorText: _fieldErrors['assigned_to'],
+                ),
                 value: _selectedAssignee,
                 items: _users
-                    .map((u) => DropdownMenuItem(
-                          value: u,
-                          child: Text(u.username),
-                        ))
+                    .map((u) => DropdownMenuItem(value: u, child: Text(u.username)))
                     .toList(),
-                validator: (u) => u == null ? 'Required' : null,
                 onChanged: (u) => setState(() => _selectedAssignee = u),
+                validator: (u) => u == null ? 'Required' : null,
               ),
+
               const SizedBox(height: 24),
-              // Photos
-              const Text('Photos',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('Photos', style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               if (widget.task.imageUrls.isEmpty)
                 const Text('No photos attached')
@@ -298,22 +277,18 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                         padding: const EdgeInsets.only(right: 8),
                         child: Stack(
                           children: [
-                            Image.network(url,
-                                height: 100, fit: BoxFit.cover),
+                            Image.network(url, height: 100, fit: BoxFit.cover),
                             Positioned(
                               right: 0,
                               child: Column(
                                 children: [
                                   IconButton(
-                                    icon: const Icon(
-                                        Icons.delete, color: Colors.red),
-                                    onPressed: () =>
-                                        _deleteImage(imageId),
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () => _deleteImage(imageId),
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.refresh),
-                                    onPressed: () =>
-                                        _replaceImage(imageId),
+                                    onPressed: () => _replaceImage(imageId),
                                   ),
                                 ],
                               ),
@@ -324,20 +299,22 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                     },
                   ),
                 ),
+
               const SizedBox(height: 24),
-              // Save
               _saving
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : ElevatedButton(
-                      onPressed: _save,
-                      child: const Text('Save Changes'),
-                    ),
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(onPressed: _save, child: const Text('Save Changes')),
             ],
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
   }
 }
