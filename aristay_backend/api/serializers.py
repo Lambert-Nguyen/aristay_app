@@ -1,4 +1,8 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.conf import settings
+
 from rest_framework import serializers
 from .models import Task, Property, TaskImage
 import json
@@ -101,3 +105,52 @@ class TaskSerializer(serializers.ModelSerializer):
             validated_data['history']     = self._append_history(instance, user, changes)
             validated_data['modified_by'] = user
         return super().update(instance, validated_data)
+    
+class AdminInviteSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField()
+
+    def validate_username(self, username):
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError("Username already taken")
+        return username
+
+    def create(self, validated_data):
+        # 1) create user with random unusable password
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=User.objects.make_random_password()
+        )
+        user.is_active = False  # force them to set password
+        user.save()
+
+        # 2) build a one-time activation link
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        link = f"{settings.FRONTEND_URL}/activate/{uid}/{token}/"
+
+        # 3) email them
+        send_mail(
+            subject="You’ve been invited!",
+            message=f"Click here to activate your account:\n\n{link}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+        )
+        return user
+
+class AdminPasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def create(self, validated_data):
+        # reuse Django’s password-reset form
+        from django.contrib.auth.forms import PasswordResetForm
+        form = PasswordResetForm(data=validated_data)
+        if form.is_valid():
+            form.save(
+                email_template_name="registration/password_reset_email.html",
+                request=self.context['request']
+            )
+            return {}
+        else:
+            raise serializers.ValidationError(form.errors)

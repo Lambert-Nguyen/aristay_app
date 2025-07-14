@@ -154,3 +154,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# email address that will appear in the From: header of all outgoing mail
+DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
+
+# the URL your users will click through to finish activation/reset
+# (point this at your front-end, e.g. localhost:3000)
+FRONTEND_URL = "http://localhost:3000"

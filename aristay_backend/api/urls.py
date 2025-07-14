@@ -8,6 +8,8 @@ from .views import (
     UserList,
     TaskImageCreateView,
     TaskImageDetailView,
+    AdminInviteUserView,
+    AdminPasswordResetView,
 )
 
 router = DefaultRouter()
@@ -28,4 +30,8 @@ urlpatterns = [
     ),
     path('properties/', PropertyListCreate.as_view(), name='property-list'),
     path('users/', UserList.as_view(), name='user-list'),
+    path('admin/invite/', AdminInviteUserView.as_view(), name='admin-invite'),
+    path('admin/reset-password/',
+         AdminPasswordResetView.as_view(),
+         name='admin-reset-password'),
 ]

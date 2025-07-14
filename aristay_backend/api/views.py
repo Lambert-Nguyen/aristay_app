@@ -15,7 +15,9 @@ from .serializers import (
     PropertySerializer,
     UserSerializer,
     UserRegistrationSerializer,
-    TaskImageSerializer
+    TaskImageSerializer,
+    AdminInviteSerializer,
+    AdminPasswordResetSerializer
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
 
@@ -146,3 +148,20 @@ class UserList(generics.ListAPIView):
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+
+class AdminInviteUserView(generics.CreateAPIView):
+    """
+    POST /api/admin/invite/
+    { "username": "newuser", "email": "new@foo.com" }
+    """
+    serializer_class = AdminInviteSerializer
+    permission_classes = [IsAdminUser]
+
+class AdminPasswordResetView(generics.CreateAPIView):
+    """
+    POST /api/admin/reset-password/
+    { "email": "existing@foo.com" }
+    """
+    serializer_class = AdminPasswordResetSerializer
+    permission_classes = [IsAdminUser]
