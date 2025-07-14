@@ -13,6 +13,8 @@ class Task {
   final String? assignedToUsername;
   final String? modifiedBy;
   final List<String> history;
+  final List<String> imageUrls;
+  final List<int>    imageIds;       // ← new!
 
   // new fields:
   final DateTime createdAt;
@@ -31,8 +33,10 @@ class Task {
     this.assignedToUsername,
     this.modifiedBy,
     this.history = const [],
-    required this.createdAt,      // ←
-    required this.modifiedAt,     // ←
+    required this.createdAt, 
+    required this.modifiedAt,
+    this.imageUrls = const [],
+    this.imageIds      = const [],    // ← new!
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -87,6 +91,23 @@ class Task {
     // parse the timestamps:
     final createdAt = DateTime.parse(json['created_at'] as String);
     final modifiedAt = DateTime.parse(json['modified_at'] as String);
+    // Build parallel lists for image URLs and IDs:
+    final urls = <String>[];
+    final ids  = <int>[];
+
+    if (json['images'] is List) {
+      for (final item in (json['images'] as List<dynamic>)) {
+        if (item is Map<String, dynamic>) {
+          // Serializer puts { id, image: URL, uploaded_at }
+          final url = item['image'] as String?;
+          final id  = item['id']   as int?;
+          if (url != null && id != null) {
+            urls.add(url);
+            ids.add(id);
+          }
+        }
+      }
+    }
 
     return Task(
       id:                    json['id'] as int,
@@ -103,8 +124,10 @@ class Task {
       assignedToUsername:    assignedUsername,
       modifiedBy:            modifiedBy,
       history:               history,
-      createdAt:             createdAt,     // ←
-      modifiedAt:            modifiedAt,    // ←
+      createdAt:             DateTime.parse(json['created_at'] as String),
+      modifiedAt:            DateTime.parse(json['modified_at'] as String),
+      imageUrls:             urls,     // ← new
+      imageIds:              ids,      // ← new
     );
   }
 
