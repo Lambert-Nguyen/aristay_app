@@ -1,10 +1,10 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.base_user import BaseUserManager
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
+
 from django.core.mail import send_mail
+
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
@@ -171,6 +171,13 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('username','email','password','is_staff')
+    
+    
+    def validate_password(self, pw):
+        # raise a ValidationError if pw too weak
+        validate_password(pw)
+        return pw
+
 
     def create(self, validated_data):
         user = User.objects.create_user(

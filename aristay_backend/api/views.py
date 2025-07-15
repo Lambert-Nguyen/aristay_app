@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import json
 
-from rest_framework import generics, permissions, viewsets
+from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import (
@@ -149,6 +149,8 @@ class UserList(generics.ListAPIView):
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields  = ['username', 'email']
 
 
 class AdminInviteUserView(generics.CreateAPIView):
