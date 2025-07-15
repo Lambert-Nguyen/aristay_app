@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
-import '../widgets/task_filter_bar.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({Key? key}) : super(key: key);
@@ -16,11 +15,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   bool _isLoading = false, _isLoadingMore = false;
   String? _error;
 
-  String? _filterSearch;
-  String? _filterStatus;
-  int? _filterProperty;
-  int? _filterAssignee;
-  DateTime? _filterFrom, _filterTo;
+  String _search = '';
+  String _status = 'pending';
 
   @override
   void initState() {
@@ -28,17 +24,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
     _load();
   }
 
-    Future<void> _load({bool append = false}) async {
+  Future<void> _load({bool append = false}) async {
     setState(() => append ? _isLoadingMore = true : _isLoading = true);
     try {
-      final res = await _api.fetchTasks(
-        search: _filterSearch,
-        status: _filterStatus,
-        property: _filterProperty,
-        assignedTo: _filterAssignee,
-        dateFrom: _filterFrom,
-        dateTo: _filterTo,
-      );
+      final res = await _api.fetchTasks(search: _search, status: _status);
       setState(() {
         if (append) {
           _tasks.addAll(res['results'] as List<Task>);
@@ -57,68 +46,102 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  Future<void> _loadMore() async {
-    if (_nextUrl == null) return;
-    setState(() => _isLoadingMore = true);
-    final res = await _api.fetchTasks(url: _nextUrl);
-    setState(() {
-      _tasks.addAll(res['results'] as List<Task>);
-      _nextUrl = res['next'] as String?;
-      _isLoadingMore = false;
-    });
-  }
-
   @override
   Widget build(BuildContext ctx) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_error != null) return Scaffold(body: Center(child: Text(_error!)));
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Tasks')),
-      body: RefreshIndicator(
-        onRefresh: () => _load(),
-        child: Column(children: [
-          TaskFilterBar(onFilter: ({
-            String? search,
-            int? property,
-            String? status,
-            int? assignedTo,
-            DateTime? dateFrom,
-            DateTime? dateTo,
-          }) {
-            _filterSearch   = search;
-            _filterStatus   = status;
-            _filterProperty = property;
-            _filterAssignee = assignedTo;
-            _filterFrom     = dateFrom;
-            _filterTo       = dateTo;
-            _load();  // re-fetch first page
-          }),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _tasks.length + (_nextUrl != null ? 1 : 0),
-              itemBuilder: (ctx, i) {
-                if (i == _tasks.length) {
-                  return Center(
-                    child: _isLoadingMore
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(),
-                        )
-                      : TextButton(onPressed: () => _load(append: true), child: const Text('Load More')),
-                  );
-                }
-                final t = _tasks[i];
-                return ListTile(
-                  title: Text(t.title),
-                  subtitle: Text('Property: ${t.propertyName}\nStatus: ${t.status}'),
-                  isThreeLine: true,
-                  onTap: () => Navigator.pushNamed(ctx, '/task-detail', arguments: t),
-                );
-              },
+      appBar: AppBar(
+        title: const Text('Tasks'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                // 1) Search field
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search…',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSubmitted: (q) {
+                      _search = q.trim();
+                      _load();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 2) Status dropdown
+                DropdownButton<String>(
+                  value: _status,
+                  underline: const SizedBox(),
+                  onChanged: (v) {
+                    setState(() => _status = v!);
+                    _load();
+                  },
+                  items: ['pending', 'in-progress', 'completed', 'canceled']
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                ),
+              ],
             ),
           ),
-        ]),
+        ),
+      ),
+      body: RefreshIndicator(
+        onRefresh: () => _load(),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(child: Text(_error!))
+                : ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _tasks.length + (_nextUrl != null ? 1 : 0),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (ctx, i) {
+                      if (i == _tasks.length) {
+                        // Load more button
+                        return Center(
+                          child: _isLoadingMore
+                              ? const CircularProgressIndicator()
+                              : ElevatedButton(
+                                  onPressed: () => _load(append: true),
+                                  child: const Text('Load More'),
+                                ),
+                        );
+                      }
+                      final t = _tasks[i];
+                      return Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 2,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          title: Text(t.title,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                              'Property: ${t.propertyName}  ·  Created: ${t.createdAt.toIso8601String().substring(0,10)}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Chip(label: Text(t.status)),
+                          onTap: () => Navigator.pushNamed(
+                              ctx, '/task-detail',
+                              arguments: t),
+                        ),
+                      );
+                    },
+                  ),
       ),
     );
   }
