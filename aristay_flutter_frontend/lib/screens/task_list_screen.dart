@@ -19,7 +19,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String? _error;
 
   String _search = '';
-  String _status = 'pending';
+  // start with "all" to fetch everything
+  String _status = 'all';
 
   @override
   void initState() {
@@ -30,8 +31,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Future<void> _load({bool append = false}) async {
     setState(() => append ? _isLoadingMore = true : _isLoading = true);
     try {
-      final res = await _api.fetchTasks(search: _search, status: _status);
-      setState(() {
+        // only filter if _status isn't "all"
+        final statusParam = _status == 'all' ? null : _status;
+        final res = await _api.fetchTasks(search: _search, status: statusParam);      setState(() {
         if (append) {
           _tasks.addAll(res['results'] as List<Task>);
         } else {
@@ -105,8 +107,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     setState(() => _status = v!);
                     _load();
                   },
-                  items: ['pending', 'in-progress', 'completed', 'canceled']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                  items: ['all', 'pending', 'in-progress', 'completed', 'canceled']
+                      .map((s) => DropdownMenuItem(
+                        value: s,
+                            child: Text(
+                              s == 'all'
+                                ? 'All'
+                                : // optionally prettify hyphens:
+                                  s.replaceAll('-', ' ').replaceFirstMapped(
+                                    RegExp(r'^\w'),
+                                    (m) => m.group(0)!.toUpperCase(),
+                                  ),
+                            ),
+                          ))
                       .toList(),
                 ),
               ],
@@ -139,59 +152,45 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       // inside your ListView.separated.itemBuilder:
                       final t = _tasks[i];
                       return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 1.5,
-                        child: InkWell(
-                          onTap: () => Navigator.pushNamed(ctx, '/task-detail', arguments: t),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Row(
-                              children: [
-                                // main info
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Title
-                                      Text(
-                                        t.title,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-
-                                      // Property + CreatedDate
-                                      Text(
-                                        '🏠 ${t.propertyName}   •   🕒 ${DateFormat.yMMMd().format(t.createdAt)}',
-                                        style: TextStyle(color: Colors.grey[700], fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 6),
-
-                                      // Creator + Assignee
-                                      Text(
-                                        '👤 By: ${t.createdBy ?? '—'}   •   👥 Assigned: ${t.assignedToUsername ?? 'Unassigned'}',
-                                        style: TextStyle(color: Colors.grey[700], fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // Status chip
-                                Chip(
-                                  label: Text(
-                                    t.status,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                  ),
-                                  backgroundColor: _statusColor(t.status),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                ),
-                              ],
-                            ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 2,
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          title: Text(
+                            t.title,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
+                          trailing: Chip(
+                            label: Text(t.status),
+                            backgroundColor: _statusColor(t.status),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("🏠 ${t.propertyName} · ⏰ ${_dateFmt.format(t.createdAt)}"),
+                                  const SizedBox(height: 4),
+                                  Text("👤 By: ${t.createdBy ?? '—'} · 🧑‍🤝‍🧑 Assigned: ${t.assignedToUsername ?? 'Unassigned'}"),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/task-detail',
+                                          arguments: t,
+                                        );
+                                      },
+                                      child: const Text('View Details'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
