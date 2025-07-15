@@ -67,7 +67,11 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
             ),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.person_add),
-        onPressed: () => Navigator.pushNamed(ctx, '/admin/invite'),
+        onPressed: () async {
+          final created =
+            await Navigator.pushNamed(context, '/admin/create-user');
+          if (created == true) _load();  // refresh list
+        },
       ),
     );
   }

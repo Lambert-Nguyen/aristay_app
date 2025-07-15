@@ -309,4 +309,40 @@ class ApiService {
     if (res.statusCode != 200) throw Exception('Failed to load current user');
     return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
+  
+  /// Admin: create a new user
+  Future<void> createUser({
+    required String username,
+    required String email,
+    required String password,
+    required bool isStaff,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/admin/create-user/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'username': username,
+        'email': email,
+        'password': password,
+        'is_staff': isStaff,
+      }),
+    );
+    if (res.statusCode == 201) return;
+
+    if (res.statusCode == 400) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final errors = <String,String>{};
+      body.forEach((k,v) {
+        errors[k] = (v is List) ? v.join(' ') : v.toString();
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Failed to create user (${res.statusCode})');
+  }
 }

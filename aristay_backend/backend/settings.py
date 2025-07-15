@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    django_filters,
     "api",
 ]
 
@@ -161,3 +162,6 @@ DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
 # the URL your users will click through to finish activation/reset
 # (point this at your front-end, e.g. localhost:3000)
 FRONTEND_URL = "http://localhost:3000"
+
+# during development, just dump emails to the console instead of real SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

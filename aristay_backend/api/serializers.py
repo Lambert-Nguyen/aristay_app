@@ -1,6 +1,13 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.base_user import BaseUserManager
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+
 from django.conf import settings
 
 from rest_framework import serializers
@@ -117,18 +124,19 @@ class AdminInviteSerializer(serializers.Serializer):
         return username
 
     def create(self, validated_data):
-        # 1) create user with random unusable password
+        # 1) generate a random password via your User manager
+        random_pw = BaseUserManager().make_random_password()
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
-            password=User.objects.make_random_password()
+            password=random_pw,
         )
         user.is_active = False  # force them to set password
         user.save()
 
         # 2) build a one-time activation link
         token = default_token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        uid  = urlsafe_base64_encode(force_bytes(user.pk))
         link = f"{settings.FRONTEND_URL}/activate/{uid}/{token}/"
 
         # 3) email them
@@ -152,6 +160,24 @@ class AdminPasswordResetSerializer(serializers.Serializer):
                 email_template_name="registration/password_reset_email.html",
                 request=self.context['request']
             )
-            return {}
+            return validated_data
         else:
             raise serializers.ValidationError(form.errors)
+        
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    is_staff = serializers.BooleanField(default=False)
+
+    class Meta:
+        model = User
+        fields = ('username','email','password','is_staff')
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+        )
+        user.is_staff = validated_data.get('is_staff', False)
+        user.save()
+        return user

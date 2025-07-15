@@ -25,6 +25,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
+    # support password‐reset confirm, complete, etc.
+    path('api/auth/', include('django.contrib.auth.urls')),
 ]
 
 if settings.DEBUG:

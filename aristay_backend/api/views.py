@@ -17,7 +17,8 @@ from .serializers import (
     UserRegistrationSerializer,
     TaskImageSerializer,
     AdminInviteSerializer,
-    AdminPasswordResetSerializer
+    AdminPasswordResetSerializer,
+    AdminUserCreateSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
 
@@ -176,3 +177,10 @@ class CurrentUserView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+    
+class AdminUserCreateView(generics.CreateAPIView):
+    """
+    POST /api/admin/create-user/
+    """
+    permission_classes = [IsAdminUser]
+    serializer_class   = AdminUserCreateSerializer
