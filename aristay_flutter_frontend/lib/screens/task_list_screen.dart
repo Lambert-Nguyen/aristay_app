@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../widgets/task_filter_bar.dart';
+import '../models/property.dart';
+import '../models/user.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -21,11 +24,32 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String _search = '';
   String _status = 'all'; // start with “All”
 
+  List<Property> _properties = [];
+  List<User>     _assignees  = [];
+  int? _propertyFilter;
+  int? _assigneeFilter;
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
+
   @override
   void initState() {
     super.initState();
+    _loadFilters();
     _load();
   }
+
+  Future<void> _loadFilters() async {
+  final props = await _api.fetchProperties();
+
+  // fetchUsers now returns { 'results': List<User>, 'next': String? }
+  final userResp = await _api.fetchUsers();
+  final users    = userResp['results'] as List<User>;
+
+  setState(() {
+    _properties = props;
+    _assignees  = users;
+  });
+}
 
   Future<void> _load({bool append = false}) async {
     setState(() => append ? _isLoadingMore = true : _isLoading = true);
@@ -33,8 +57,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
     try {
       final statusParam = _status == 'all' ? null : _status;
       final res = await _api.fetchTasks(
-        search: _search,
-        status: statusParam,
+        search:     _search,
+        status:     statusParam,
+        property:   _propertyFilter,
+        assignedTo: _assigneeFilter,
+        dateFrom:   _dateFrom,
+        dateTo:     _dateTo,
       );
 
       setState(() {
@@ -77,69 +105,36 @@ class _TaskListScreenState extends State<TaskListScreen> {
       appBar: AppBar(
         title: const Text('Tasks'),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
-              children: [
-                // 1) Search field
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search…',
-                      prefixIcon: const Icon(Icons.search),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 0),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onSubmitted: (q) {
-                      _search = q.trim();
-                      _load();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // 2) Status dropdown
-                DropdownButton<String>(
-                  value: _status,
-                  underline: const SizedBox(),
-                  onChanged: (v) {
-                    setState(() => _status = v!);
-                    _load();
-                  },
-                  items: [
-                    'all',
-                    'pending',
-                    'in-progress',
-                    'completed',
-                    'canceled'
-                  ]
-                      .map((s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(
-                              s == 'all'
-                                  ? 'All'
-                                  : s
-                                      .replaceAll('-', ' ')
-                                      .replaceFirstMapped(
-                                        RegExp(r'^\w'),
-                                        (m) =>
-                                            m.group(0)!.toUpperCase(),
-                                      ),
-                            ),
-                          ))
-                      .toList(),
-                ),
-              ],
-            ),
-          ),
+        preferredSize: const Size.fromHeight(80),
+        child: TaskFilterBar(
+          properties:       _properties,
+          assignees:        _assignees,
+          selectedSearch:   _search,
+          selectedStatus:   _status,
+          selectedProperty: _propertyFilter,
+          selectedAssignee:_assigneeFilter,
+          dateFrom:         _dateFrom,
+          dateTo:           _dateTo,
+          onFilter: ({
+            String? search,
+            String? status,
+            int? property,
+            int? assignedTo,
+            DateTime? dateFrom,
+            DateTime? dateTo,
+          }) {
+            setState(() {
+              if (search    != null) _search          = search;
+              if (status    != null) _status          = status;
+              _propertyFilter   = property;
+              _assigneeFilter   = assignedTo;
+              _dateFrom         = dateFrom;
+              _dateTo           = dateTo;
+            });
+            _load(); // re-fetch with all filters
+          },
         ),
+      ),
       ),
       body: RefreshIndicator(
         onRefresh: () => _load(),
