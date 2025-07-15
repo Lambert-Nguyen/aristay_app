@@ -133,7 +133,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ? const Center(child: CircularProgressIndicator())
             : _error != null
                 ? Center(child: Text(_error!))
-                : ListView.separated(
+                : _tasks.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No tasks found.',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      )
+                    : ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: _tasks.length + (_nextUrl != null ? 1 : 0),
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
