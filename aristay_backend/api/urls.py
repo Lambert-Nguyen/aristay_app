@@ -1,6 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
+    AdminUserCreateView,
+    CurrentUserView,
     UserRegistrationView,
     TaskViewSet,
     TaskListCreate, TaskDetail,
@@ -8,6 +10,8 @@ from .views import (
     UserList,
     TaskImageCreateView,
     TaskImageDetailView,
+    AdminInviteUserView,
+    AdminPasswordResetView,
 )
 
 router = DefaultRouter()
@@ -28,4 +32,10 @@ urlpatterns = [
     ),
     path('properties/', PropertyListCreate.as_view(), name='property-list'),
     path('users/', UserList.as_view(), name='user-list'),
+    path('admin/invite/', AdminInviteUserView.as_view(), name='admin-invite'),
+    path('admin/reset-password/',
+         AdminPasswordResetView.as_view(),
+         name='admin-reset-password'),
+    path('users/me/', CurrentUserView.as_view(), name='current-user'),
+    path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
 ]

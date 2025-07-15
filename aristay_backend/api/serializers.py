@@ -1,4 +1,15 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.base_user import BaseUserManager
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+
+from django.core.mail import send_mail
+
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+
+from django.conf import settings
+
 from rest_framework import serializers
 from .models import Task, Property, TaskImage
 import json
@@ -7,8 +18,9 @@ from django.utils import timezone
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username']
-
+        # include email so we can show it, and is_staff for “Admin” flag
+        fields = ['id', 'username', 'email', 'is_staff']
+        
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -101,3 +113,78 @@ class TaskSerializer(serializers.ModelSerializer):
             validated_data['history']     = self._append_history(instance, user, changes)
             validated_data['modified_by'] = user
         return super().update(instance, validated_data)
+    
+class AdminInviteSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField()
+
+    def validate_username(self, username):
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError("Username already taken")
+        return username
+
+    def create(self, validated_data):
+        # 1) generate a random password via your User manager
+        random_pw = BaseUserManager().make_random_password()
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=random_pw,
+        )
+        user.is_active = False  # force them to set password
+        user.save()
+
+        # 2) build a one-time activation link
+        token = default_token_generator.make_token(user)
+        uid  = urlsafe_base64_encode(force_bytes(user.pk))
+        link = f"{settings.FRONTEND_URL}/activate/{uid}/{token}/"
+
+        # 3) email them
+        send_mail(
+            subject="You’ve been invited!",
+            message=f"Click here to activate your account:\n\n{link}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+        )
+        return user
+
+class AdminPasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def create(self, validated_data):
+        # reuse Django’s password-reset form
+        from django.contrib.auth.forms import PasswordResetForm
+        form = PasswordResetForm(data=validated_data)
+        if form.is_valid():
+            form.save(
+                email_template_name="registration/password_reset_email.html",
+                request=self.context['request']
+            )
+            return validated_data
+        else:
+            raise serializers.ValidationError(form.errors)
+        
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    is_staff = serializers.BooleanField(default=False)
+
+    class Meta:
+        model = User
+        fields = ('username','email','password','is_staff')
+    
+    
+    def validate_password(self, pw):
+        # raise a ValidationError if pw too weak
+        validate_password(pw)
+        return pw
+
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+        )
+        user.is_staff = validated_data.get('is_staff', False)
+        user.save()
+        return user

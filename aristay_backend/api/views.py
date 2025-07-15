@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 import json
 
-from rest_framework import generics, permissions, viewsets
+from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import (
@@ -15,7 +15,10 @@ from .serializers import (
     PropertySerializer,
     UserSerializer,
     UserRegistrationSerializer,
-    TaskImageSerializer
+    TaskImageSerializer,
+    AdminInviteSerializer,
+    AdminPasswordResetSerializer,
+    AdminUserCreateSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
 
@@ -146,3 +149,40 @@ class UserList(generics.ListAPIView):
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields  = ['username', 'email']
+
+
+class AdminInviteUserView(generics.CreateAPIView):
+    """
+    POST /api/admin/invite/
+    { "username": "newuser", "email": "new@foo.com" }
+    """
+    serializer_class = AdminInviteSerializer
+    permission_classes = [IsAdminUser]
+
+class AdminPasswordResetView(generics.CreateAPIView):
+    """
+    POST /api/admin/reset-password/
+    { "email": "existing@foo.com" }
+    """
+    serializer_class = AdminPasswordResetSerializer
+    permission_classes = [IsAdminUser]
+
+class CurrentUserView(generics.RetrieveAPIView):
+    """
+    GET /api/users/me/
+    """
+    serializer_class = UserSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+    
+class AdminUserCreateView(generics.CreateAPIView):
+    """
+    POST /api/admin/create-user/
+    """
+    permission_classes = [IsAdminUser]
+    serializer_class   = AdminUserCreateSerializer

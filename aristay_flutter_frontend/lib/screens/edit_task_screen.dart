@@ -47,7 +47,10 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     setState(() => _loading = true);
     try {
       final props = await ApiService().fetchProperties();
-      final users = await ApiService().fetchUsers();
+      // unpack the new fetchUsers() signature:
+      final usersResp = await ApiService().fetchUsers();
+      final users     = usersResp['results'] as List<User>;
+      
       final selProp = props.firstWhere(
         (p) => p.id == widget.task.propertyId,
         orElse: () => props.first,

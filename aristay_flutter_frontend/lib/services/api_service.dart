@@ -226,23 +226,124 @@ class ApiService {
     }
   }
 
-  Future<List<User>> fetchUsers() async {
+  Future<Map<String, dynamic>> fetchUsers({ String? url }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final res = await http.get(
-      Uri.parse('$baseUrl/users/'),
+    final uri = Uri.parse(url ?? '$baseUrl/users/');
+    print('fetchUsers → $uri');            // ← add this to debug
+    final res = await http.get(uri,
       headers: {'Authorization': 'Token $token'},
     );
     if (res.statusCode != 200) throw Exception('Failed to load users');
 
-    final data = jsonDecode(res.body);
-    final raw = data is List
-        ? data
-        : data is Map<String, dynamic> && data['results'] is List
-            ? data['results']
-            : throw Exception('Unexpected users payload');
-    return (raw as List)
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final raw   = data['results'] as List<dynamic>;
+    final users = raw
         .map((e) => User.fromJson(e as Map<String, dynamic>))
         .toList();
+    return {
+      'results': users,
+      'next':    data['next'] as String?,
+    };
+  }
+  
+  /// Invites a new user (admin only). Throws ValidationException on 400.
+  Future<void> inviteUser(String username, String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/admin/invite/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'username': username, 'email': email}),
+    );
+
+    if (res.statusCode == 201) return;
+
+    if (res.statusCode == 400) {
+      final Map<String, dynamic> body = jsonDecode(res.body);
+      final errors = <String, String>{};
+      body.forEach((k, v) {
+        errors[k] = (v is List) ? v.join(' ') : v.toString();
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Invite failed (${res.statusCode}): ${res.body}');
+  }
+
+  /// Sends a password‐reset email (admin only).
+  Future<void> resetUserPassword(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/admin/reset-password/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'email': email}),
+    );
+
+    if (res.statusCode == 200) return;
+
+    if (res.statusCode == 400) {
+      final Map<String, dynamic> body = jsonDecode(res.body);
+      final errors = <String, String>{};
+      body.forEach((k, v) {
+        errors[k] = (v is List) ? v.join(' ') : v.toString();
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Reset failed (${res.statusCode}): ${res.body}');
+  }
+  Future<User> fetchCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.get(
+      Uri.parse('$baseUrl/users/me/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) throw Exception('Failed to load current user');
+    return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+  
+  /// Admin: create a new user
+  Future<void> createUser({
+    required String username,
+    required String email,
+    required String password,
+    required bool isStaff,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/admin/create-user/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'username': username,
+        'email': email,
+        'password': password,
+        'is_staff': isStaff,
+      }),
+    );
+    if (res.statusCode == 201) return;
+
+    if (res.statusCode == 400) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final errors = <String,String>{};
+      body.forEach((k,v) {
+        errors[k] = (v is List) ? v.join(' ') : v.toString();
+      });
+      throw ValidationException(errors);
+    }
+
+    throw Exception('Failed to create user (${res.statusCode})');
   }
 }
