@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+
 import json
 
 from rest_framework import generics, permissions, viewsets, filters
@@ -28,6 +30,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
+    
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    # free-text search on title/description
+    search_fields   = ['title', 'description']
+    # exact filters on these fields
+    filterset_fields = ['property', 'status', 'assigned_to', 'created_at']
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, modified_by=self.request.user)

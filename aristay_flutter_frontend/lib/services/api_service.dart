@@ -182,14 +182,32 @@ class ApiService {
     return Task.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  Future<Map<String, dynamic>> fetchTasks({String? url}) async {
+  Future<Map<String, dynamic>> fetchTasks({
+    String? url,
+    String? search,
+    int? property,
+    String? status,
+    int? assignedTo,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final uri = Uri.parse(url ?? '$baseUrl/tasks/');
-    final res = await http.get(
-      uri,
-      headers: {'Authorization': 'Token $token'},
-    );
+    Uri uri;
+    if (url != null) {
+      uri = Uri.parse(url);
+    } else {
+      final qs = <String, String>{};
+      if (search != null && search.isNotEmpty) qs['search'] = search;
+      if (property != null)            qs['property'] = property.toString();
+      if (status != null && status.isNotEmpty)   qs['status'] = status;
+      if (assignedTo != null)         qs['assigned_to'] = assignedTo.toString();
+      if (dateFrom != null)           qs['created_at__gte'] = dateFrom.toIso8601String();
+      if (dateTo != null)             qs['created_at__lte'] = dateTo.toIso8601String();
+      uri = Uri.parse('$baseUrl/tasks/').replace(queryParameters: qs);
+    }
+
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
     if (res.statusCode != 200) throw Exception('Failed to load tasks');
     final data = jsonDecode(res.body);
     final raw = data is List
