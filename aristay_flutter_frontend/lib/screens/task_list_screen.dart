@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
+import 'package:intl/intl.dart';
+
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({Key? key}) : super(key: key);
@@ -9,6 +11,7 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreenState extends State<TaskListScreen> {
+  final _dateFmt = DateFormat.yMMMd(); // e.g. “Jul 15, 2025”
   final _api = ApiService();
   List<Task> _tasks = [];
   String? _nextUrl;
@@ -130,7 +133,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600)),
                           subtitle: Text(
-                              'Property: ${t.propertyName}  ·  Created: ${t.createdAt.toIso8601String().substring(0,10)}',
+                              'Property: ${t.propertyName}  ·  Created: ${_dateFmt.format(t.createdAt)}',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
