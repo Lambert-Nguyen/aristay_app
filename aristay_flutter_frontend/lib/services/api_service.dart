@@ -182,7 +182,7 @@ class ApiService {
     return Task.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-  Future<Map<String, dynamic>> fetchTasks({
+    Future<Map<String, dynamic>> fetchTasks({
     String? url,
     String? search,
     int? property,
@@ -191,36 +191,55 @@ class ApiService {
     DateTime? dateFrom,
     DateTime? dateTo,
   }) async {
+    // 1) Load token
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    Uri uri;
+    
+    // 2) Build or parse URI
+    late final Uri uri;
     if (url != null) {
       uri = Uri.parse(url);
     } else {
       final qs = <String, String>{};
-      if (search != null && search.isNotEmpty) qs['search'] = search;
-      if (property != null)            qs['property'] = property.toString();
-      if (status != null && status.isNotEmpty)   qs['status'] = status;
-      if (assignedTo != null)         qs['assigned_to'] = assignedTo.toString();
-      if (dateFrom != null)           qs['created_at__gte'] = dateFrom.toIso8601String();
-      if (dateTo != null)             qs['created_at__lte'] = dateTo.toIso8601String();
+      if (search != null && search.isNotEmpty)        qs['search']            = search;
+      if (property != null)                           qs['property']          = property.toString();
+      if (status != null && status.isNotEmpty)        qs['status']            = status;
+      if (assignedTo != null)                         qs['assigned_to']       = assignedTo.toString();
+      if (dateFrom != null)                           qs['created_at__gte']   = dateFrom.toIso8601String();
+      if (dateTo != null)                             qs['created_at__lte']   = dateTo.toIso8601String();
+      
       uri = Uri.parse('$baseUrl/tasks/').replace(queryParameters: qs);
     }
-
-    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
-    if (res.statusCode != 200) throw Exception('Failed to load tasks');
+    
+    // 3) Debug print
+    print('fetchTasks → $uri');
+    
+    // 4) GET request
+    final res = await http.get(
+      uri,
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load tasks (${res.statusCode})');
+    }
+    
+    // 5) Decode payload
     final data = jsonDecode(res.body);
     final raw = data is List
         ? data
-        : data is Map<String, dynamic> && data['results'] is List
+        : (data is Map<String, dynamic> && data['results'] is List)
             ? data['results']
             : throw Exception('Unexpected tasks payload');
+    
+    // 6) Map to Task models
     final tasks = (raw as List)
         .map((e) => Task.fromJson(e as Map<String, dynamic>))
         .toList();
+    
+    // 7) Return results + next URL (if paginated)
     return {
       'results': tasks,
-      'next': data is Map<String, dynamic> ? data['next'] as String? : null,
+      'next'   : data is Map<String, dynamic> ? data['next'] as String? : null,
     };
   }
 
