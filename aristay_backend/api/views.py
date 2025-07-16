@@ -246,9 +246,11 @@ class DeviceRegisterView(generics.CreateAPIView):
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['read']  # ← enables ?read=true / ?read=false
 
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user).order_by('-timestamp')
+        return Notification.objects.filter(recipient=self.request.user)
     
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -263,3 +265,12 @@ def mark_notification_read(request, pk):
     notif.save()
 
     return Response({'success': True, 'read_at': notif.read_at})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_all_notifications_read(request):
+    count = Notification.objects.filter(recipient=request.user, read=False).update(
+        read=True,
+        read_at=timezone.now()
+    )
+    return Response({'success': True, 'marked_count': count})

@@ -281,4 +281,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Notification
-        fields = ['id', 'task', 'task_title', 'verb', 'read', 'read_at', 'timestamp']  # ← added 'read_at'
+        fields = [
+            'id', 'task', 'task_title', 'verb',
+            'read', 'read_at', 'timestamp'  # ← added read_at
+        ]
