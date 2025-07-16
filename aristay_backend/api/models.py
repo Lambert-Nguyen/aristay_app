@@ -109,3 +109,30 @@ class TaskImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.task.title}"
+
+class Device(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    verb = models.CharField(max_length=100)  # e.g. "assigned", "status_changed"
+    read = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']  # Latest notifications first
+
+    def __str__(self):
+        return f"{self.verb} → {self.task.title} for {self.recipient.username}"
+    

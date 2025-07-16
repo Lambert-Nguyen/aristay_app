@@ -11,7 +11,7 @@ from django.utils.encoding import force_bytes
 from django.conf import settings
 
 from rest_framework import serializers
-from .models import Task, Property, TaskImage
+from .models import Task, Property, TaskImage, Device, Notification
 import json
 from django.utils import timezone
 
@@ -188,3 +188,15 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         user.is_staff = validated_data.get('is_staff', False)
         user.save()
         return user
+    
+class DeviceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Device
+        fields = ['id', 'token']
+
+class NotificationSerializer(serializers.ModelSerializer):
+    task_title = serializers.CharField(source='task.title', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'task', 'task_title', 'verb', 'read', 'timestamp']

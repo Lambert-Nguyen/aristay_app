@@ -11,7 +11,7 @@ from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
 
-from .models import Task, Property, TaskImage
+from .models import Task, Property, TaskImage, Device, Notification
 from .serializers import (
     TaskSerializer,
     PropertySerializer,
@@ -21,6 +21,8 @@ from .serializers import (
     AdminInviteSerializer,
     AdminPasswordResetSerializer,
     AdminUserCreateSerializer,
+    DeviceSerializer,
+    NotificationSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
 
@@ -194,3 +196,19 @@ class AdminUserCreateView(generics.CreateAPIView):
     """
     permission_classes = [IsAdminUser]
     serializer_class   = AdminUserCreateSerializer
+
+class DeviceRegisterView(generics.CreateAPIView):
+    serializer_class = DeviceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Avoid duplicate tokens for same user
+        Device.objects.filter(token=serializer.validated_data['token']).delete()
+        serializer.save(user=self.request.user)
+
+class NotificationListView(generics.ListAPIView):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user).order_by('-timestamp')
