@@ -127,19 +127,32 @@ class TaskImage(models.Model):
     def __str__(self):
         return f"Image for {self.task.title}"
 
-class Profile(models.Model):
-    user     = models.OneToOneField(settings.AUTH_USER_MODEL,
-                                    on_delete=models.CASCADE)
-    timezone = models.CharField(
-        max_length=32,
-        choices=[(tz, tz) for tz in sorted(available_timezones())],
-        default='UTC'
+class Device(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Device {self.token} for {self.user.username}"
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
     )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    verb = models.CharField(max_length=100)  # e.g. "assigned", "status_changed"
+    read = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']  # Latest notifications first
 
     def __str__(self):
-        return f"{self.user.username} profile"
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        Profile.objects.create(user=instance)
+        return f"{self.verb} → {self.task.title} for {self.recipient.username}"
+    

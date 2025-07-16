@@ -3,6 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AdminUserCreateView,
     CurrentUserView,
+    DeviceRegisterView,
+    NotificationListView,
     UserRegistrationView,
     TaskViewSet,
     TaskListCreate, TaskDetail,
@@ -38,4 +40,6 @@ urlpatterns = [
          name='admin-reset-password'),
     path('users/me/', CurrentUserView.as_view(), name='current-user'),
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
+    path('devices/', DeviceRegisterView.as_view(), name='device-register'),
+    path('notifications/', NotificationListView.as_view(), name='notification-list'),
 ]

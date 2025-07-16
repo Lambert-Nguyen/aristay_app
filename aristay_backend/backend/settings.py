@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
-    "api",
+    "api.apps.ApiConfig",
     "django_filters",
 ]
 
@@ -172,3 +172,5 @@ FRONTEND_URL = "http://localhost:3000"
 
 # during development, just dump emails to the console instead of real SMTP
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+FCM_SERVER_KEY = "your-firebase-server-key-here"
