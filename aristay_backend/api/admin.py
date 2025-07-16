@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 import json
 
-from .models import Task, Property, TaskImage
+from .models import Task, Property, TaskImage, Notification
 
 class TaskImageInline(admin.TabularInline):
     model = TaskImage
@@ -39,11 +39,13 @@ class TaskAdmin(admin.ModelAdmin):
         local_dt = obj.created_at.astimezone(timezone.get_current_timezone())
         return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
     created_at_local.short_description = 'Created (Local)'
+    created_at_local.admin_order_field = 'created_at'  # ← this makes it sortable
 
     def modified_at_local(self, obj):
         local_dt = obj.modified_at.astimezone(timezone.get_current_timezone())
         return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
     modified_at_local.short_description = 'Modified (Local)'
+    modified_at_local.admin_order_field = 'modified_at'  # ← sortable
 
     def save_model(self, request, obj, form, change):
         user = request.user
@@ -105,3 +107,10 @@ class PropertyAdmin(admin.ModelAdmin):
             obj.created_by = user
         obj.modified_by = user
         super().save_model(request, obj, form, change)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('task', 'recipient', 'verb', 'read', 'read_at', 'timestamp')
+    list_filter = ('read', 'verb', 'timestamp')
+    search_fields = ('task__title', 'recipient__username', 'verb')
+    readonly_fields = ('read_at', 'timestamp')
