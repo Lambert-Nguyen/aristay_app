@@ -198,7 +198,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         tooltip: 'Add Task',
         child: const Icon(Icons.add),
         onPressed: () {
-          Navigator.pushNamed(ctx, '/task-add').then((_) => _load());
+        Navigator.pushNamed(ctx, '/create-task').then((_) => _load());
         },
       ),
     );
