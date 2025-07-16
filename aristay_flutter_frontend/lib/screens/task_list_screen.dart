@@ -135,9 +135,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 delegate: TaskSearchDelegate(),
               );
               if (result != null) {
-                setState(() {
-                  _search = result;
-                });
+                setState(() => _search = result);
                 _load();
               }
             },
