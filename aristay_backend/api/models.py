@@ -141,17 +141,14 @@ class Notification(models.Model):
         on_delete=models.CASCADE,
         related_name='notifications'
     )
-    task = models.ForeignKey(
-        Task,
-        on_delete=models.CASCADE,
-        related_name='notifications'
-    )
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='notifications')
     verb = models.CharField(max_length=100)  # e.g. "assigned", "status_changed"
     read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)  # ← new
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-timestamp']  # Latest notifications first
+        ordering = ['-timestamp']
 
     def __str__(self):
         return f"{self.verb} → {self.task.title} for {self.recipient.username}"

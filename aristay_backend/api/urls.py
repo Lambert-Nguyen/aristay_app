@@ -14,6 +14,7 @@ from .views import (
     TaskImageDetailView,
     AdminInviteUserView,
     AdminPasswordResetView,
+    mark_notification_read,
 )
 
 router = DefaultRouter()
@@ -42,4 +43,5 @@ urlpatterns = [
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
+    path('notifications/<int:pk>/read/', mark_notification_read, name='notification-mark-read'),
 ]

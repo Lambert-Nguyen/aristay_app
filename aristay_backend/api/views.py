@@ -9,6 +9,10 @@ from .filters import TaskFilter
 
 from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -245,3 +249,17 @@ class NotificationListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user).order_by('-timestamp')
+    
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def mark_notification_read(request, pk):
+    try:
+        notif = Notification.objects.get(pk=pk, recipient=request.user)
+    except Notification.DoesNotExist:
+        return Response({'detail': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    notif.read = True
+    notif.read_at = timezone.now()
+    notif.save()
+
+    return Response({'success': True, 'read_at': notif.read_at})
