@@ -127,6 +127,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
       appBar: AppBar(
         title: const Text('Tasks'),
         actions: [
+          if (_search.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              tooltip: 'Clear search',
+              onPressed: () {
+                setState(() {
+                  _search = '';
+                });
+                _load();
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () async {
@@ -134,10 +145,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 context: context,
                 delegate: TaskSearchDelegate(),
               );
-              if (result != null) {
-                setState(() => _search = result);
-                _load();
-              }
+              setState(() {
+                // if the user cancelled (result==null) we clear the filter
+                _search = result ?? '';
+              });
+              _load(); 
             },
           ),
           IconButton(
