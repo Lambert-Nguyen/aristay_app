@@ -14,6 +14,7 @@ from .views import (
     TaskImageDetailView,
     AdminInviteUserView,
     AdminPasswordResetView,
+    mark_all_notifications_read,
     mark_notification_read,
 )
 
@@ -44,4 +45,5 @@ urlpatterns = [
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('notifications/<int:pk>/read/', mark_notification_read, name='notification-mark-read'),
+    path('notifications/mark-all-read/', mark_all_notifications_read, name='notification-mark-all-read'),
 ]
