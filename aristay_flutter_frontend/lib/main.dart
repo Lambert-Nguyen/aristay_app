@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
 import 'models/task.dart';
 import 'models/property.dart';
 
@@ -16,8 +19,13 @@ import 'screens/admin_reset_password_screen.dart';
 import 'screens/admin_user_list_screen.dart';
 import 'screens/admin_user_create_screen.dart';
 
-
-void main() => runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
