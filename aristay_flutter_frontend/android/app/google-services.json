@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "676131410875",
+    "project_id": "aristayapp",
+    "storage_bucket": "aristayapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:676131410875:android:d7ba332bda9d44022bea9e",
+        "android_client_info": {
+          "package_name": "com.example.aristay_flutter_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYS2OX0zBeSjBmjm3F0NOR8kxvMTlIweM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
