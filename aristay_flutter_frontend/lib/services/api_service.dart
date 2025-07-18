@@ -237,9 +237,14 @@ class ApiService {
         .toList();
     
     // 7) Return results + next URL (if paginated)
+    final next = data is Map<String, dynamic> ? data['next'] as String? : null;
+    final count = data is Map<String, dynamic> && data['count'] is int
+        ? data['count'] as int
+        : tasks.length;
     return {
       'results': tasks,
-      'next'   : data is Map<String, dynamic> ? data['next'] as String? : null,
+      'next'   : next,
+      'count'  : count,
     };
   }
 

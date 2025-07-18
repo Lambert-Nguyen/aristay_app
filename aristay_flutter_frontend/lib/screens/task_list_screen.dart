@@ -16,13 +16,18 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   final _dateFmt      = DateFormat.yMMMd();
   final _api          = ApiService();
-  final _statusOptions = ['all', 'pending', 'in-progress', 'completed', 'canceled'];
+  final _statusOptions = ['pending', 'in-progress', 'completed', 'canceled'];
 
   // ─── state + infinite‐scroll controller ───────────────
   List<Task>   _tasks     = [];
   String?      _nextUrl;
   bool         _isLoading = false, _isLoadingMore = false;
   String?      _error;
+  
+  // total on the server
+  int      _totalCount   = 0;
+  // last time we fetched fresh data
+  DateTime? _lastUpdated;
 
   String       _search    = '';
   String       _status    = 'all';
@@ -97,9 +102,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
           _tasks.addAll(page);
         } else {
           _tasks = page;
+          // record the fetch timestamp
+          _lastUpdated = DateTime.now();
+
         }
         _nextUrl = res['next'] as String?;
         _error   = null;
+        // record the total count
+        _totalCount = res['count'] as int;
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -161,6 +171,19 @@ class _TaskListScreenState extends State<TaskListScreen> {
       appBar: AppBar(
         title: const Text('Tasks'),
         actions: [
+          // show “All(##)” and reset the status filter
+          TextButton(
+            onPressed: () {
+              if (_status != 'all') {
+                setState(() => _status = 'all');
+                _load();
+              }
+            },
+            child: Text(
+              'All(${_totalCount})',
+              style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+            ),
+          ),
           if (_search.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear),
@@ -278,12 +301,38 @@ class _TaskListScreenState extends State<TaskListScreen> {
       );
 
   Widget _buildList() => ListView.separated(
-        controller: _scrollCtrl,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        // one extra slot for the loading‐more spinner
-        itemCount: _tasks.length + (_nextUrl != null ? 1 : 0),
+        controller: _scrollCtrl,
+        // +1 for header, +1 for optional spinner footer
+        itemCount: 1 + _tasks.length + (_nextUrl != null ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (ctx, i) {
+          // header: show "Updated at ..." once
+          if (i == 0) {
+            final time = _lastUpdated == null
+                ? ''
+                : DateFormat.jm().format(_lastUpdated!);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                time.isEmpty ? '' : 'Updated at $time',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            );
+          }
+          // adjust index into _tasks
+          final taskIdx = i - 1;
+          // footer spinner if we have more pages
+          if (taskIdx >= _tasks.length) {
+            return Center(
+              child: _isLoadingMore
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(),
+                    )
+                  : const SizedBox.shrink(),
+            );
+          }
           // the “footer” slot: show a spinner if we’re fetching more
           if (i == _tasks.length) {
             return Center(
