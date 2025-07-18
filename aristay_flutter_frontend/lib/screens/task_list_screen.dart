@@ -160,24 +160,28 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ToggleButtons(
-              isSelected: _statusOptions.map((s) => s == _status).toList(),
-              onPressed: (idx) {
-                setState(() => _status = _statusOptions[idx]);
-                _load();
-              },
-              borderRadius: BorderRadius.circular(8),
-              selectedColor: Colors.white,
-              fillColor: Theme.of(context).primaryColor,
-              children: _statusOptions.map((s) {
-                final label = s == 'all' ? 'All' : s.replaceAll('-', ' ');
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(label),
-                );
-              }).toList(),
+          child: SizedBox(
+            height: 48,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: ToggleButtons(
+                isSelected: _statusOptions.map((s) => s == _status).toList(),
+                onPressed: (idx) {
+                  setState(() => _status = _statusOptions[idx]);
+                  _load();
+                },
+                borderRadius: BorderRadius.circular(8),
+                selectedColor: Colors.white,
+                fillColor: Theme.of(context).primaryColor,
+                children: _statusOptions.map((s) {
+                  final label = s == 'all' ? 'All' : s.replaceAll('-', ' ');
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(label),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),
