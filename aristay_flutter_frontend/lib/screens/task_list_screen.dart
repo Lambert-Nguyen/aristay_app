@@ -18,7 +18,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   final _api          = ApiService();
   final _statusOptions = ['all', 'pending', 'in-progress', 'completed', 'canceled'];
 
-  // ─── state ─────────────────────────────────────────────
+  // ─── state + infinite‐scroll controller ───────────────
   List<Task>   _tasks     = [];
   String?      _nextUrl;
   bool         _isLoading = false, _isLoadingMore = false;
@@ -34,11 +34,29 @@ class _TaskListScreenState extends State<TaskListScreen> {
   DateTime?      _dateFrom;
   DateTime?      _dateTo;
 
+  // controller to drive infinite scroll
+  late final ScrollController _scrollCtrl;
+
   @override
   void initState() {
     super.initState();
+    // hook up the scroll controller
+    _scrollCtrl = ScrollController()
+      ..addListener(() {
+        final pos = _scrollCtrl.position;
+        if (!_isLoadingMore && _nextUrl != null
+            && pos.pixels >= pos.maxScrollExtent * 0.8) {
+          _load(append: true);
+        }
+      });
     _loadFilters();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFilters() async {
@@ -53,17 +71,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Future<void> _load({bool append = false}) async {
     setState(() => append ? _isLoadingMore = true : _isLoading = true);
     try {
-      final res = await _api.fetchTasks(
-        search:     _search.isEmpty ? null : _search,
-        status:     _status == 'all' ? null : _status,
-        property:   _propertyFilter,
-        assignedTo: _assigneeFilter,
-        dateFrom:   _dateFrom,
-        dateTo:     _dateTo,
-      );
+      // decide whether to page or to fetch fresh
+      final Map<String, dynamic> res;
+      if (append && _nextUrl != null) {
+        // load the next page
+        res = await _api.fetchTasks(url: _nextUrl);
+      } else {
+        // fresh load (first page, or filter changed)
+        res = await _api.fetchTasks(
+          search:     _search.isEmpty ? null : _search,
+          status:     _status == 'all' ? null : _status,
+          property:   _propertyFilter,
+          assignedTo: _assigneeFilter,
+          dateFrom:   _dateFrom,
+          dateTo:     _dateTo,
+        );
+        // if not appending, clear out the old list
+        _tasks = [];
+      }
+
       setState(() {
-        if (append) _tasks.addAll(res['results'] as List<Task>);
-        else        _tasks = res['results'] as List<Task>;
+        // append or replace
+        final page = res['results'] as List<Task>;
+        if (append) {
+          _tasks.addAll(page);
+        } else {
+          _tasks = page;
+        }
         _nextUrl = res['next'] as String?;
         _error   = null;
       });
@@ -244,18 +278,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
       );
 
   Widget _buildList() => ListView.separated(
+        controller: _scrollCtrl,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        // one extra slot for the loading‐more spinner
         itemCount: _tasks.length + (_nextUrl != null ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (ctx, i) {
+          // the “footer” slot: show a spinner if we’re fetching more
           if (i == _tasks.length) {
             return Center(
               child: _isLoadingMore
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: () => _load(append: true),
-                      child: const Text('Load More'),
-                    ),
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(),
+                    )
+                  : const SizedBox.shrink(),
             );
           }
           final t = _tasks[i];
