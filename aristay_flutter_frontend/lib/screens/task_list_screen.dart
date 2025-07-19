@@ -26,6 +26,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   
   // total on the server
   int      _totalCount   = 0;
+  // per‐status counts
+  Map<String,int> _statusCounts = {};
   // last time we fetched fresh data
   DateTime? _lastUpdated;
 
@@ -55,7 +57,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
         }
       });
     _loadFilters();
-    _load();
+    // first load tasks, then counts
+    _load().then((_) => _loadCounts());
   }
 
   @override
@@ -71,6 +74,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
       _properties = props;
       _assignees  = usersRes['results'] as List<User>;
     });
+  }
+
+  Future<void> _loadCounts() async {
+    try {
+      final data = await _api.fetchTaskCounts();
+      setState(() {
+        _totalCount   = data['total'] as int;
+        _statusCounts = Map<String,int>.from(data['by_status']);
+      });
+    } catch (_) {
+      // ignore errors for now
+    }
   }
 
   Future<void> _load({bool append = false}) async {
@@ -108,12 +123,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
         }
         _nextUrl = res['next'] as String?;
         _error   = null;
-        // record the total count
-        _totalCount = res['count'] as int;
       });
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
+      if (!append) _loadCounts();
       setState(() {
         _isLoading     = false;
         _isLoadingMore = false;
@@ -176,12 +190,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
             onPressed: () {
               if (_status != 'all') {
                 setState(() => _status = 'all');
-                _load();
+                _load().then((_) => _loadCounts());
               }
             },
             child: Text(
-              'All(${_totalCount})',
-              style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+              'All($_totalCount)',
+              style: const TextStyle(color: Colors.white),
             ),
           ),
           if (_search.isNotEmpty)
@@ -232,16 +246,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 selectedColor: Colors.white,
                 fillColor: Theme.of(context).primaryColor,
                 children: _statusOptions.map((s) {
-                  final label = s == 'all' ? 'All' : s.replaceAll('-', ' ');
+                  final count = _statusCounts[s] ?? 0;
+                  final label = '${s.replaceAll('-', ' ')} ($count)';
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(label),
                   );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
+                }).toList(), 
+              ),             
+            ),               
+          ),                 
+        ),                   
       ),
 
       body: RefreshIndicator(
@@ -300,68 +315,72 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
       );
 
-  Widget _buildList() => ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        controller: _scrollCtrl,
-        // +1 for header, +1 for optional spinner footer
-        itemCount: 1 + _tasks.length + (_nextUrl != null ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) {
-          // header: show "Updated at ..." once
-          if (i == 0) {
-            final time = _lastUpdated == null
-                ? ''
-                : DateFormat.jm().format(_lastUpdated!);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                time.isEmpty ? '' : 'Updated at $time',
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            );
-          }
-          // adjust index into _tasks
-          final taskIdx = i - 1;
-          // footer spinner if we have more pages
-          if (taskIdx >= _tasks.length) {
-            return Center(
-              child: _isLoadingMore
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(),
-                    )
-                  : const SizedBox.shrink(),
-            );
-          }
-          // the “footer” slot: show a spinner if we’re fetching more
-          if (i == _tasks.length) {
-            return Center(
-              child: _isLoadingMore
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(),
-                    )
-                  : const SizedBox.shrink(),
-            );
-          }
-          final t = _tasks[i];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            elevation: 1,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text("${t.propertyName} • ${_dateFmt.format(t.createdAt)}"),
-              trailing: Chip(
-                label: Text(t.status.replaceAll('-', ' ')),
-                backgroundColor: _statusColor(t.status),
-              ),
-              onTap: () => Navigator.pushNamed(ctx, '/task-detail', arguments: t),
+  Widget _buildList() {
+    // we're reserving index 0 for the "Updated at…" header, and
+    // one slot at the end for the loading spinner if _nextUrl != null
+    final showFooter = _nextUrl != null;
+    final itemCount  = 1 + _tasks.length + (showFooter ? 1 : 0);
+
+    return ListView.separated(
+      controller: _scrollCtrl,
+      padding:    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount:  itemCount,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (ctx, i) {
+        // ── HEADER ─────────────────────────────────────────────────────
+        if (i == 0) {
+          final time = _lastUpdated == null
+              ? ''
+              : DateFormat.jm().format(_lastUpdated!);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              time.isEmpty ? '' : 'Updated at $time',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           );
-        },
-      );
+        }
+
+        // calculate the real task index
+        final taskIdx = i - 1;
+
+        // ── FOOTER SPINNER ─────────────────────────────────────────────
+        if (taskIdx >= _tasks.length) {
+          return Center(
+            child: _isLoadingMore
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(),
+                  )
+                : const SizedBox.shrink(),
+          );
+        }
+
+        // ── TASK ROW ───────────────────────────────────────────────────
+        final t = _tasks[taskIdx];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            title: Text(t.title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
+            ),
+            trailing: Chip(
+              label: Text(t.status.replaceAll('-', ' ')),
+              backgroundColor: _statusColor(t.status),
+            ),
+            onTap: () =>
+                Navigator.pushNamed(ctx, '/task-detail', arguments: t),
+          ),
+        );
+      },
+    );
+  }
 }

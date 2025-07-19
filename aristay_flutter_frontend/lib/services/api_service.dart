@@ -388,4 +388,18 @@ class ApiService {
 
     throw Exception('Failed to create user (${res.statusCode})');
   }
+  /// GET /api/tasks/count-by-status/
+  Future<Map<String, dynamic>> fetchTaskCounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final uri = Uri.parse('$baseUrl/tasks/count-by-status/');
+    final res = await http.get(
+      uri,
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load task counts (${res.statusCode})');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
 }

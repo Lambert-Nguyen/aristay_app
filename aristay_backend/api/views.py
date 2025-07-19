@@ -1,12 +1,15 @@
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count
 
 import json
 
 from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
@@ -42,6 +45,22 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(modified_by=self.request.user)
+        
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='count-by-status',
+        permission_classes=[permissions.IsAuthenticatedOrReadOnly]
+    )
+    def count_by_status(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        total = qs.count()
+        by_status = dict(qs.values_list('status')
+                           .annotate(count=Count('id')))
+        return Response({
+            'total': total,
+            'by_status': by_status,
+        })
 
 
 class TaskImageCreateView(generics.CreateAPIView):
