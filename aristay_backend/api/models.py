@@ -102,6 +102,14 @@ class Task(models.Model):
                     f"{timezone.now().isoformat()}: {user} changed description "
                     f"from '{old.description}' to '{self.description}'"
                 )
+            # Due date change
+            if old.due_date != self.due_date:
+                old_str = old.due_date.isoformat() if old.due_date else 'none'
+                new_str = self.due_date.isoformat() if self.due_date else 'none'
+                changes.append(
+                    f"{timezone.now().isoformat()}: {user} changed due_date "
+                    f"from '{old_str}' to '{new_str}'"
+                )
 
             if changes:
                 hist = json.loads(old.history or "[]")
