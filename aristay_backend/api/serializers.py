@@ -16,10 +16,11 @@ import json
 from django.utils import timezone
 
 class UserSerializer(serializers.ModelSerializer):
+    timezone = serializers.CharField(source='profile.timezone')
     class Meta:
         model = User
         # include email so we can show it, and is_staff for “Admin” flag
-        fields = ['id', 'username', 'email', 'is_staff']
+        fields = ['id','username','email','is_staff','timezone']
         
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -53,6 +54,13 @@ class TaskSerializer(serializers.ModelSerializer):
 
     # Replace ListField with a proper JSON parser:
     history                 = serializers.SerializerMethodField()
+    
+    due_date = serializers.DateTimeField(
+        allow_null=True,
+        required=False,
+        format=None,           # default: ISO-8601 with timezone
+        input_formats=None,    # accept ISO strings
+    )
 
     class Meta:
         model = Task
@@ -68,10 +76,11 @@ class TaskSerializer(serializers.ModelSerializer):
           'assigned_to',
           'assigned_to_username',
           'modified_by_username',
-          'history',
           'created_at',
           'modified_at',
+          'due_date',
           'images',
+          'history',
         ]
 
     def get_history(self, obj):

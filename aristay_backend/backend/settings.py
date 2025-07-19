@@ -62,7 +62,10 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    # Django’s auth middleware must run before you try to use request.user
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Now your timezone middleware can safely reference request.user
+    "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

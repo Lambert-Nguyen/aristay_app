@@ -25,6 +25,7 @@ class TaskAdmin(admin.ModelAdmin):
         'title', 'task_type', 'property', 'status',
         'created_by', 'created_at_local',
         'modified_by', 'modified_at_local',
+        'due_date',
     )
     readonly_fields = (
         'created_at', 'modified_at',

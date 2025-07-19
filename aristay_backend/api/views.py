@@ -38,7 +38,11 @@ class TaskViewSet(viewsets.ModelViewSet):
     # free-text search on title/description
     search_fields   = ['title', 'description']
     # exact filters on these fields
-    filterset_fields = ['property', 'status', 'assigned_to', 'created_at']
+    filterset_fields = ['property', 'status', 'assigned_to', 'created_at',
+                        'due_date',        # exact match
+                        'due_date__gte',   # from
+                        'due_date__lte',   # to
+    ]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, modified_by=self.request.user)
@@ -196,13 +200,13 @@ class AdminPasswordResetView(generics.CreateAPIView):
     serializer_class = AdminPasswordResetSerializer
     permission_classes = [IsAdminUser]
 
-class CurrentUserView(generics.RetrieveAPIView):
+class CurrentUserView(generics.RetrieveUpdateAPIView):
     """
     GET /api/users/me/
     """
-    serializer_class = UserSerializer
+    serializer_class       = UserSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes     = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
