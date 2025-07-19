@@ -82,7 +82,17 @@ class TaskSerializer(serializers.ModelSerializer):
           'images',
           'history',
         ]
-
+        
+    # ------------ New validator ------------
+    def validate_due_date(self, value):
+        """
+        Disallow setting a due_date in the past.
+        """
+        if value is not None and value < timezone.now():
+            raise serializers.ValidationError("Due date cannot be in the past.")
+        return value
+    # ---------------------------------------
+    
     def get_history(self, obj):
         """
         obj.history is a JSON‐encoded string; decode it to a Python list.

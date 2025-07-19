@@ -34,15 +34,19 @@ class TaskViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
     
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
     # free-text search on title/description
     search_fields   = ['title', 'description']
     # exact filters on these fields
-    filterset_fields = ['property', 'status', 'assigned_to', 'created_at',
-                        'due_date',        # exact match
-                        'due_date__gte',   # from
-                        'due_date__lte',   # to
-    ]
+    filterset_fields = {
+        'property':    ['exact'],
+        'status':      ['exact'],
+        'assigned_to': ['exact'],
+        'created_at':  ['exact', 'gte', 'lte'],
+        'due_date':    ['exact', 'gte', 'lte'],
+    }
+    ordering_fields = ['due_date', 'created_at', 'modified_at']
+    ordering        = ['due_date']
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, modified_by=self.request.user)
