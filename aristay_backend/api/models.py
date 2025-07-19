@@ -104,11 +104,11 @@ class Task(models.Model):
                 )
             # Due date change
             if old.due_date != self.due_date:
-                old_str = old.due_date.isoformat() if old.due_date else 'none'
-                new_str = self.due_date.isoformat() if self.due_date else 'none'
+                old_dt = old.due_date.isoformat() if old.due_date else "None"
+                new_dt = self.due_date.isoformat() if self.due_date else "None"
                 changes.append(
                     f"{timezone.now().isoformat()}: {user} changed due_date "
-                    f"from '{old_str}' to '{new_str}'"
+                    f"from '{old_dt}' to '{new_dt}'"
                 )
 
             if changes:

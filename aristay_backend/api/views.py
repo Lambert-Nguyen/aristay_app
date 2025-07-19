@@ -10,6 +10,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
@@ -34,7 +35,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
     
-    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
     # free-text search on title/description
     search_fields   = ['title', 'description']
     # exact filters on these fields
@@ -45,7 +46,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         'created_at':  ['exact', 'gte', 'lte'],
         'due_date':    ['exact', 'gte', 'lte'],
     }
-    ordering_fields = ['due_date', 'created_at', 'modified_at']
+    
+    # Allow clients to order by these model fields:
+    ordering_fields = [
+        'due_date',
+        'created_at',
+        'modified_at',
+        'status',
+        'title',
+    ]
     ordering        = ['due_date']
 
     def perform_create(self, serializer):
