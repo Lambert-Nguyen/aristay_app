@@ -92,7 +92,22 @@ class TaskSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Due date cannot be in the past.")
         return value
     # ---------------------------------------
-    
+
+    def to_representation(self, instance):
+        """
+        Convert due_date into the user's own timezone
+        (taken from request.user.profile.timezone).
+        """
+        data = super().to_representation(instance)
+        user_tz = getattr(self.context['request'].user.profile, 'timezone', None)
+        # only convert if there's a due_date and a valid tz on the user profile
+        if data.get('due_date') and user_tz:
+            from zoneinfo import ZoneInfo
+            # instance.due_date is a UTC datetime; zomeinfo will do the rest
+            local_dt = instance.due_date.astimezone(ZoneInfo(user_tz))
+            data['due_date'] = local_dt.isoformat()
+        return data
+
     def get_history(self, obj):
         """
         obj.history is a JSON‐encoded string; decode it to a Python list.
