@@ -3,7 +3,10 @@ from django.utils import timezone
 from django.utils.html import format_html
 import json
 
-from .models import Task, Property, TaskImage
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin
+
+from .models import Task, Property, TaskImage, Profile
 
 class TaskImageInline(admin.TabularInline):
     model = TaskImage
@@ -106,3 +109,24 @@ class PropertyAdmin(admin.ModelAdmin):
             obj.created_by = user
         obj.modified_by = user
         super().save_model(request, obj, form, change)
+        
+# —————— new: inline your users’ Profile in the User admin ——————
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    verbose_name_plural = 'Profile'
+    fk_name = 'user'
+
+class UserAdmin(DefaultUserAdmin):
+    inlines = (ProfileInline,)
+
+    def get_inline_instances(self, request, obj=None):
+        # only show the Profile panel when editing an *existing* user
+        if not obj:
+            return []
+        return super().get_inline_instances(request, obj)
+
+# swap out Django’s built-in UserAdmin for ours
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)

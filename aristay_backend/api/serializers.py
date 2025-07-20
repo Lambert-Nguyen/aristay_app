@@ -8,14 +8,19 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.utils.dateparse import parse_datetime
+from django.utils import timezone
+
 
 from django.conf import settings
 
 from rest_framework import serializers
 from .models import Task, Property, TaskImage
 import json
-from django.utils import timezone
+import pytz
+
 from zoneinfo import ZoneInfo
+from datetime import datetime
 
 class UserSerializer(serializers.ModelSerializer):
     timezone = serializers.CharField(source='profile.timezone')
@@ -98,8 +103,8 @@ class TaskSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         ret = super().to_representation(instance)
 
-        # figure out what timezone to use
-        request = self.context.get('request', None)
+        # pick the user’s TZ (falling back if no profile)
+        request = self.context.get('request')
         if request and request.user.is_authenticated:
             try:
                 user_tz = request.user.profile.timezone
@@ -107,16 +112,29 @@ class TaskSerializer(serializers.ModelSerializer):
                 # fallback if no Profile exists
                 user_tz = settings.TIME_ZONE
         else:
-            # anonymous or no request → default TZ
             user_tz = settings.TIME_ZONE
 
-        # if you’re converting UTC due_date into that tz:
-        if ret.get('due_date'):
-            # parse ISO string back to datetime
-            dt = timezone.datetime.fromisoformat(ret['due_date'])
-            # convert into the user’s zone
-            local_dt = dt.astimezone(ZoneInfo(user_tz))
-            ret['due_date'] = local_dt.isoformat()
+        raw = ret.get('due_date')
+        if raw:
+            # 1) normalize to a datetime
+            if isinstance(raw, str):
+                # parse the ISO string
+                dt = parse_datetime(raw)
+            elif isinstance(raw, datetime):
+                dt = raw
+            else:
+                dt = None
+
+            if dt:
+                # ensure it's timezone‐aware (DRF might give naive)
+                if dt.tzinfo is None:
+                    dt = timezone.make_aware(dt, timezone.utc)
+
+                # 2) convert to the user’s timezone
+                local_dt = timezone.localtime(dt, pytz.timezone(user_tz))
+
+                # 3) write it back as ISO
+                ret['due_date'] = local_dt.isoformat()
 
         return ret
 
