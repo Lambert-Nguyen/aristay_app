@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from rest_framework import serializers
-from .models import Task, Property, TaskImage
+from .models import Task, Property, TaskImage, Profile
 import json
 import pytz
 
@@ -28,6 +28,24 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         # include email so we can show it, and is_staff for “Admin” flag
         fields = ['id','username','email','is_staff','timezone']
+        
+    def update(self, instance, validated_data):
+        # 1) pull off any profile-specific data
+        profile_data = validated_data.pop('profile', {})
+        tz = profile_data.get('timezone', None)
+
+        # 2) if they sent a new timezone, write it on the Profile
+        if tz is not None:
+            # ensure the profile exists
+            profile = getattr(instance, 'profile', None)
+            if profile is None:
+                # your post_save handler should have created one, but just in case:
+                profile = Profile.objects.create(user=instance)
+            profile.timezone = tz
+            profile.save()
+
+        # 3) update the rest of the User fields (email, etc.)
+        return super().update(instance, validated_data)
         
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
