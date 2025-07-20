@@ -4,22 +4,48 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 
 from django.core.mail import send_mail
+from django.core.exceptions import ObjectDoesNotExist
 
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.utils.dateparse import parse_datetime
+from django.utils import timezone
+
 
 from django.conf import settings
 
 from rest_framework import serializers
-from .models import Task, Property, TaskImage
+from .models import Task, Property, TaskImage, Profile
 import json
-from django.utils import timezone
+import pytz
+
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
 class UserSerializer(serializers.ModelSerializer):
+    timezone = serializers.CharField(source='profile.timezone')
     class Meta:
         model = User
         # include email so we can show it, and is_staff for “Admin” flag
-        fields = ['id', 'username', 'email', 'is_staff']
+        fields = ['id','username','email','is_staff','timezone']
+        
+    def update(self, instance, validated_data):
+        # 1) pull off any profile-specific data
+        profile_data = validated_data.pop('profile', {})
+        tz = profile_data.get('timezone', None)
+
+        # 2) if they sent a new timezone, write it on the Profile
+        if tz is not None:
+            # ensure the profile exists
+            profile = getattr(instance, 'profile', None)
+            if profile is None:
+                # your post_save handler should have created one, but just in case:
+                profile = Profile.objects.create(user=instance)
+            profile.timezone = tz
+            profile.save()
+
+        # 3) update the rest of the User fields (email, etc.)
+        return super().update(instance, validated_data)
         
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -53,6 +79,13 @@ class TaskSerializer(serializers.ModelSerializer):
 
     # Replace ListField with a proper JSON parser:
     history                 = serializers.SerializerMethodField()
+    
+    due_date = serializers.DateTimeField(
+        allow_null=True,
+        required=False,
+        format=None,           # default: ISO-8601 with timezone
+        input_formats=None,    # accept ISO strings
+    )
 
     class Meta:
         model = Task
@@ -68,11 +101,60 @@ class TaskSerializer(serializers.ModelSerializer):
           'assigned_to',
           'assigned_to_username',
           'modified_by_username',
-          'history',
           'created_at',
           'modified_at',
+          'due_date',
           'images',
+          'history',
         ]
+        
+    # ------------ New validator ------------
+    def validate_due_date(self, value):
+        """
+        Disallow setting a due_date in the past.
+        """
+        if value is not None and value < timezone.now():
+            raise serializers.ValidationError("Due date cannot be in the past.")
+        return value
+    # ---------------------------------------
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+
+        # pick the user’s TZ (falling back if no profile)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                user_tz = request.user.profile.timezone
+            except ObjectDoesNotExist:
+                # fallback if no Profile exists
+                user_tz = settings.TIME_ZONE
+        else:
+            user_tz = settings.TIME_ZONE
+
+        raw = ret.get('due_date')
+        if raw:
+            # 1) normalize to a datetime
+            if isinstance(raw, str):
+                # parse the ISO string
+                dt = parse_datetime(raw)
+            elif isinstance(raw, datetime):
+                dt = raw
+            else:
+                dt = None
+
+            if dt:
+                # ensure it's timezone‐aware (DRF might give naive)
+                if dt.tzinfo is None:
+                    dt = timezone.make_aware(dt, timezone.utc)
+
+                # 2) convert to the user’s timezone
+                local_dt = timezone.localtime(dt, pytz.timezone(user_tz))
+
+                # 3) write it back as ISO
+                ret['due_date'] = local_dt.isoformat()
+
+        return ret
 
     def get_history(self, obj):
         """

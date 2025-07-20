@@ -16,13 +16,20 @@ class TaskListScreen extends StatefulWidget {
 class _TaskListScreenState extends State<TaskListScreen> {
   final _dateFmt      = DateFormat.yMMMd();
   final _api          = ApiService();
-  final _statusOptions = ['all', 'pending', 'in-progress', 'completed', 'canceled'];
+  final _statusOptions = ['pending', 'in-progress', 'completed', 'canceled'];
 
-  // ─── state ─────────────────────────────────────────────
+  // ─── state + infinite‐scroll controller ───────────────
   List<Task>   _tasks     = [];
   String?      _nextUrl;
   bool         _isLoading = false, _isLoadingMore = false;
   String?      _error;
+  
+  // total on the server
+  int      _totalCount   = 0;
+  // per‐status counts
+  Map<String,int> _statusCounts = {};
+  // last time we fetched fresh data
+  DateTime? _lastUpdated;
 
   String       _search    = '';
   String       _status    = 'all';
@@ -34,11 +41,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
   DateTime?      _dateFrom;
   DateTime?      _dateTo;
 
+  bool _showOverdue = false;   // ← new
+
+
+  // controller to drive infinite scroll
+  late final ScrollController _scrollCtrl;
+
   @override
   void initState() {
     super.initState();
+    // hook up the scroll controller
+    _scrollCtrl = ScrollController()
+      ..addListener(() {
+        final pos = _scrollCtrl.position;
+        if (!_isLoadingMore && _nextUrl != null
+            && pos.pixels >= pos.maxScrollExtent * 0.8) {
+          _load(append: true);
+        }
+      });
     _loadFilters();
-    _load();
+    // first load tasks, then counts
+    _load().then((_) => _loadCounts());
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFilters() async {
@@ -50,26 +79,59 @@ class _TaskListScreenState extends State<TaskListScreen> {
     });
   }
 
+  Future<void> _loadCounts() async {
+    try {
+      final data = await _api.fetchTaskCounts();
+      setState(() {
+        _totalCount   = data['total'] as int;
+        _statusCounts = Map<String,int>.from(data['by_status']);
+      });
+    } catch (_) {
+      // ignore errors for now
+    }
+  }
+
   Future<void> _load({bool append = false}) async {
     setState(() => append ? _isLoadingMore = true : _isLoading = true);
     try {
-      final res = await _api.fetchTasks(
-        search:     _search.isEmpty ? null : _search,
-        status:     _status == 'all' ? null : _status,
-        property:   _propertyFilter,
-        assignedTo: _assigneeFilter,
-        dateFrom:   _dateFrom,
-        dateTo:     _dateTo,
-      );
+      // decide whether to page or to fetch fresh
+      final Map<String, dynamic> res;
+      if (append && _nextUrl != null) {
+        // load the next page
+        res = await _api.fetchTasks(url: _nextUrl);
+      } else {
+        // fresh load (first page, or filter changed)
+        res = await _api.fetchTasks(
+          search:     _search.isEmpty ? null : _search,
+          status:     _status == 'all' ? null : _status,
+          property:   _propertyFilter,
+          assignedTo: _assigneeFilter,
+          dateFrom:   _dateFrom,
+          dateTo:     _dateTo,
+          overdue:    _showOverdue,
+        );
+        // if not appending, clear out the old list
+        _tasks = [];
+      }
+
       setState(() {
-        if (append) _tasks.addAll(res['results'] as List<Task>);
-        else        _tasks = res['results'] as List<Task>;
+        // append or replace
+        final page = res['results'] as List<Task>;
+        if (append) {
+          _tasks.addAll(page);
+        } else {
+          _tasks = page;
+          // record the fetch timestamp
+          _lastUpdated = DateTime.now();
+
+        }
         _nextUrl = res['next'] as String?;
         _error   = null;
       });
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
+      if (!append) _loadCounts();
       setState(() {
         _isLoading     = false;
         _isLoadingMore = false;
@@ -102,17 +164,20 @@ class _TaskListScreenState extends State<TaskListScreen> {
           selectedAssignee: _assigneeFilter,
           dateFrom:         _dateFrom,
           dateTo:           _dateTo,
+          overdue:          _showOverdue,
           onApply: ({
             int? property,
             int? assignedTo,
             DateTime? dateFrom,
             DateTime? dateTo,
+            bool? overdue,
           }) {
             setState(() {
               _propertyFilter = property;
               _assigneeFilter = assignedTo;
               _dateFrom       = dateFrom;
               _dateTo         = dateTo;
+              _showOverdue    = overdue ?? false;
             });
             _load();
           },
@@ -127,6 +192,24 @@ class _TaskListScreenState extends State<TaskListScreen> {
       appBar: AppBar(
         title: const Text('Tasks'),
         actions: [
+          // show “All(##)” and reset the status filter
+          TextButton(
+            onPressed: () {
+              if (_status != 'all') {
+                setState(() => _status = 'all');
+                _load().then((_) => _loadCounts());
+              }
+            },
+            style: TextButton.styleFrom(
+              // use the same color AppBar uses for its icons/text:
+              foregroundColor: Theme.of(context).iconTheme.color,
+              // shrink the padding to match IconButtons more closely:
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text('All($_totalCount)'),
+          ),
           if (_search.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear),
@@ -160,27 +243,32 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ToggleButtons(
-              isSelected: _statusOptions.map((s) => s == _status).toList(),
-              onPressed: (idx) {
-                setState(() => _status = _statusOptions[idx]);
-                _load();
-              },
-              borderRadius: BorderRadius.circular(8),
-              selectedColor: Colors.white,
-              fillColor: Theme.of(context).primaryColor,
-              children: _statusOptions.map((s) {
-                final label = s == 'all' ? 'All' : s.replaceAll('-', ' ');
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(label),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
+          child: SizedBox(
+            height: 48,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: ToggleButtons(
+                isSelected: _statusOptions.map((s) => s == _status).toList(),
+                onPressed: (idx) {
+                  setState(() => _status = _statusOptions[idx]);
+                  _load();
+                },
+                borderRadius: BorderRadius.circular(8),
+                selectedColor: Colors.white,
+                fillColor: Theme.of(context).primaryColor,
+                children: _statusOptions.map((s) {
+                  final count = _statusCounts[s] ?? 0;
+                  final label = '${s.replaceAll('-', ' ')} ($count)';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(label),
+                  );
+                }).toList(), 
+              ),             
+            ),               
+          ),                 
+        ),                   
       ),
 
       body: RefreshIndicator(
@@ -239,39 +327,72 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
       );
 
-  Widget _buildList() => ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: _tasks.length + (_nextUrl != null ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) {
-          if (i == _tasks.length) {
-            return Center(
-              child: _isLoadingMore
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: () => _load(append: true),
-                      child: const Text('Load More'),
-                    ),
-            );
-          }
-          final t = _tasks[i];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            elevation: 1,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text("${t.propertyName} • ${_dateFmt.format(t.createdAt)}"),
-              trailing: Chip(
-                label: Text(t.status.replaceAll('-', ' ')),
-                backgroundColor: _statusColor(t.status),
-              ),
-              onTap: () => Navigator.pushNamed(ctx, '/task-detail', arguments: t),
+  Widget _buildList() {
+    // we're reserving index 0 for the "Updated at…" header, and
+    // one slot at the end for the loading spinner if _nextUrl != null
+    final showFooter = _nextUrl != null;
+    final itemCount  = 1 + _tasks.length + (showFooter ? 1 : 0);
+
+    return ListView.separated(
+      controller: _scrollCtrl,
+      padding:    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount:  itemCount,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (ctx, i) {
+        // ── HEADER ─────────────────────────────────────────────────────
+        if (i == 0) {
+          final time = _lastUpdated == null
+              ? ''
+              : DateFormat.jm().format(_lastUpdated!);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              time.isEmpty ? '' : 'Updated at $time',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           );
-        },
-      );
+        }
+
+        // calculate the real task index
+        final taskIdx = i - 1;
+
+        // ── FOOTER SPINNER ─────────────────────────────────────────────
+        if (taskIdx >= _tasks.length) {
+          return Center(
+            child: _isLoadingMore
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(),
+                  )
+                : const SizedBox.shrink(),
+          );
+        }
+
+        // ── TASK ROW ───────────────────────────────────────────────────
+        final t = _tasks[taskIdx];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            title: Text(t.title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
+            ),
+            trailing: Chip(
+              label: Text(t.status.replaceAll('-', ' ')),
+              backgroundColor: _statusColor(t.status),
+            ),
+            onTap: () =>
+                Navigator.pushNamed(ctx, '/task-detail', arguments: t),
+          ),
+        );
+      },
+    );
+  }
 }

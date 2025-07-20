@@ -3,6 +3,8 @@ import '../models/property.dart';
 import '../models/user.dart';
 
 class TaskAdvancedFilterSheet extends StatefulWidget {
+  final bool? overdue;
+
   final List<Property> properties;
   final List<User> assignees;
   final int? selectedProperty;
@@ -14,7 +16,8 @@ class TaskAdvancedFilterSheet extends StatefulWidget {
     int? assignedTo,
     DateTime? dateFrom,
     DateTime? dateTo,
-  }) onApply;
+    bool? overdue,
+    }) onApply;
 
   const TaskAdvancedFilterSheet({
     Key? key,
@@ -24,6 +27,7 @@ class TaskAdvancedFilterSheet extends StatefulWidget {
     this.selectedAssignee,
     this.dateFrom,
     this.dateTo,
+    this.overdue,
     required this.onApply,
   }) : super(key: key);
 
@@ -37,6 +41,8 @@ class _TaskAdvancedFilterSheetState extends State<TaskAdvancedFilterSheet> {
   int? _assignee;
   DateTime? _from;
   DateTime? _to;
+  bool      _overdue = false;
+
 
   @override
   void initState() {
@@ -45,6 +51,7 @@ class _TaskAdvancedFilterSheetState extends State<TaskAdvancedFilterSheet> {
     _assignee = widget.selectedAssignee;
     _from     = widget.dateFrom;
     _to       = widget.dateTo;
+    _overdue  = widget.overdue ?? false;
   }
 
   Future<void> _pickFrom() async {
@@ -145,6 +152,14 @@ class _TaskAdvancedFilterSheetState extends State<TaskAdvancedFilterSheet> {
             ),
           ),
 
+          // ── Overdue checkbox ───────────────────────────────
+          CheckboxListTile(
+            title: const Text('Only show overdue'),
+            value: _overdue,
+            onChanged: (v) => setState(() => _overdue = v ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+
           const SizedBox(height: 8),
 
           Padding(
@@ -157,6 +172,7 @@ class _TaskAdvancedFilterSheetState extends State<TaskAdvancedFilterSheet> {
                   assignedTo: _assignee,
                   dateFrom:   _from,
                   dateTo:     _to,
+                  overdue:    _overdue,
                 );
               },
               child: const Text('Apply Filters'),

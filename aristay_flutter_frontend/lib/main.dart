@@ -4,6 +4,7 @@ import 'models/property.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/task_list_screen.dart';
 import 'screens/task_form_screen.dart';
 import 'screens/edit_task_screen.dart';
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (c) => const LoginScreen(),
         '/home': (c) => const HomeScreen(),
+        '/settings': (c) => const SettingsScreen(),
         '/tasks': (c) => const TaskListScreen(),
         '/properties': (c) => const PropertyListScreen(),
         '/properties/new': (c) => const PropertyFormScreen(),
