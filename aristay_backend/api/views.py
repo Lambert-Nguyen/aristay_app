@@ -5,6 +5,8 @@ from django.db.models import Count
 
 import json
 
+from .filters import TaskFilter
+
 from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.authentication import TokenAuthentication
@@ -34,18 +36,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
-    
+   
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
     # free-text search on title/description
     search_fields   = ['title', 'description']
-    # exact filters on these fields
-    filterset_fields = {
-        'property':    ['exact'],
-        'status':      ['exact'],
-        'assigned_to': ['exact'],
-        'created_at':  ['exact', 'gte', 'lte'],
-        'due_date':    ['exact', 'gte', 'lte'],
-    }
+    # use our custom FilterSet
+    filterset_class = TaskFilter
     
     # Allow clients to order by these model fields:
     ordering_fields = [
@@ -79,27 +75,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             'by_status': by_status,
         })
         
-    @action(detail=False, methods=['get'], url_path='overdue',
-            permission_classes=[IsAuthenticatedOrReadOnly])
-    def overdue(self, request):
-        """
-        GET /api/tasks/overdue/
-        Returns tasks where due_date < now() and status is pending or in-progress.
-        """
-        now = timezone.now()
-        qs = self.get_queryset().filter(
-            due_date__lt=now
-        ).exclude(
-            status__in=['completed', 'canceled']
-        )
-        qs = self.filter_queryset(qs)  # apply any search/filter params
-        page = self.paginate_queryset(qs)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data)
 
 
 class TaskImageCreateView(generics.CreateAPIView):
