@@ -195,10 +195,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
           // show “All(##)” and reset the status filter
           TextButton(
             onPressed: () {
-              if (_status != 'all') {
-                setState(() => _status = 'all');
-                _load().then((_) => _loadCounts());
-              }
+              setState(() {
+                _status         = 'all';
+                _search         = '';
+                _propertyFilter = null;
+                _assigneeFilter = null;
+                _dateFrom       = null;
+                _dateTo         = null;
+                _showOverdue    = false;
+              });
+              _load().then((_) => _loadCounts());
             },
             style: TextButton.styleFrom(
               // use the same color AppBar uses for its icons/text:
