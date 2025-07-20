@@ -114,18 +114,29 @@ class PropertyAdmin(admin.ModelAdmin):
 
 class ProfileInline(admin.StackedInline):
     model = Profile
+    fk_name = 'user'
+    fields = ('timezone',)
+    extra = 1        # always show one blank form if none exists
+    max_num = 1      # never allow more than one
     can_delete = False
     verbose_name_plural = 'Profile'
-    fk_name = 'user'
 
 class UserAdmin(DefaultUserAdmin):
     inlines = (ProfileInline,)
 
     def get_inline_instances(self, request, obj=None):
-        # only show the Profile panel when editing an *existing* user
-        if not obj:
-            return []
-        return super().get_inline_instances(request, obj)
+        # only for *editing* an existing user
+        if obj is not None:
+            # create their Profile if it doesn’t already exist
+            Profile.objects.get_or_create(user=obj)
+            return super().get_inline_instances(request, obj)
+        return []
+
+    # (optional) show timezone in the user list view:
+    list_display = DefaultUserAdmin.list_display + ('get_timezone',)
+    def get_timezone(self, obj):
+        return obj.profile.timezone
+    get_timezone.short_description = 'Timezone'
 
 # swap out Django’s built-in UserAdmin for ours
 admin.site.unregister(User)
