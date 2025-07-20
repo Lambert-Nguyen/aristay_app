@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 
 from django.core.mail import send_mail
+from django.core.exceptions import ObjectDoesNotExist
 
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
@@ -14,6 +15,7 @@ from rest_framework import serializers
 from .models import Task, Property, TaskImage
 import json
 from django.utils import timezone
+from zoneinfo import ZoneInfo
 
 class UserSerializer(serializers.ModelSerializer):
     timezone = serializers.CharField(source='profile.timezone')
@@ -94,19 +96,29 @@ class TaskSerializer(serializers.ModelSerializer):
     # ---------------------------------------
 
     def to_representation(self, instance):
-        """
-        Convert due_date into the user's own timezone
-        (taken from request.user.profile.timezone).
-        """
-        data = super().to_representation(instance)
-        user_tz = getattr(self.context['request'].user.profile, 'timezone', None)
-        # only convert if there's a due_date and a valid tz on the user profile
-        if data.get('due_date') and user_tz:
-            from zoneinfo import ZoneInfo
-            # instance.due_date is a UTC datetime; zomeinfo will do the rest
-            local_dt = instance.due_date.astimezone(ZoneInfo(user_tz))
-            data['due_date'] = local_dt.isoformat()
-        return data
+        ret = super().to_representation(instance)
+
+        # figure out what timezone to use
+        request = self.context.get('request', None)
+        if request and request.user.is_authenticated:
+            try:
+                user_tz = request.user.profile.timezone
+            except ObjectDoesNotExist:
+                # fallback if no Profile exists
+                user_tz = settings.TIME_ZONE
+        else:
+            # anonymous or no request → default TZ
+            user_tz = settings.TIME_ZONE
+
+        # if you’re converting UTC due_date into that tz:
+        if ret.get('due_date'):
+            # parse ISO string back to datetime
+            dt = timezone.datetime.fromisoformat(ret['due_date'])
+            # convert into the user’s zone
+            local_dt = dt.astimezone(ZoneInfo(user_tz))
+            ret['due_date'] = local_dt.isoformat()
+
+        return ret
 
     def get_history(self, obj):
         """

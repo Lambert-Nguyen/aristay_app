@@ -78,6 +78,28 @@ class TaskViewSet(viewsets.ModelViewSet):
             'total': total,
             'by_status': by_status,
         })
+        
+    @action(detail=False, methods=['get'], url_path='overdue',
+            permission_classes=[IsAuthenticatedOrReadOnly])
+    def overdue(self, request):
+        """
+        GET /api/tasks/overdue/
+        Returns tasks where due_date < now() and status is pending or in-progress.
+        """
+        now = timezone.now()
+        qs = self.get_queryset().filter(
+            due_date__lt=now
+        ).exclude(
+            status__in=['completed', 'canceled']
+        )
+        qs = self.filter_queryset(qs)  # apply any search/filter params
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
 
 
 class TaskImageCreateView(generics.CreateAPIView):
