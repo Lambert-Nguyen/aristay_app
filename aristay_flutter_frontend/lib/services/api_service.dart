@@ -182,7 +182,7 @@ class ApiService {
     return Task.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
-    Future<Map<String, dynamic>> fetchTasks({
+  Future<Map<String, dynamic>> fetchTasks({
     String? url,
     String? search,
     int? property,
@@ -190,6 +190,7 @@ class ApiService {
     int? assignedTo,
     DateTime? dateFrom,
     DateTime? dateTo,
+    bool? overdue,              // ← NEW
   }) async {
     // 1) Load token
     final prefs = await SharedPreferences.getInstance();
@@ -197,28 +198,24 @@ class ApiService {
     
     // 2) Build or parse URI
     late final Uri uri;
+
     if (url != null) {
       uri = Uri.parse(url);
     } else {
       final qs = <String, String>{};
-      if (search != null && search.isNotEmpty)        qs['search']            = search;
-      if (property != null)                           qs['property']          = property.toString();
-      if (status != null && status.isNotEmpty)        qs['status']            = status;
-      if (assignedTo != null)                         qs['assigned_to']       = assignedTo.toString();
-      if (dateFrom != null)                           qs['created_at__gte']   = dateFrom.toIso8601String();
-      if (dateTo != null)                             qs['created_at__lte']   = dateTo.toIso8601String();
-      
+      if (search?.isNotEmpty == true)  qs['search']          = search!;
+      if (property != null)             qs['property']        = '$property';
+      if (status?.isNotEmpty == true)   qs['status']          = status!;
+      if (assignedTo != null)           qs['assigned_to']     = '$assignedTo';
+      if (dateFrom != null)             qs['created_at__gte'] = dateFrom.toIso8601String();
+      if (dateTo   != null)             qs['created_at__lte'] = dateTo.toIso8601String();
+      if (overdue == true)              qs['overdue']         = 'true';      // ← NEW
+
       uri = Uri.parse('$baseUrl/tasks/').replace(queryParameters: qs);
     }
-    
-    // 3) Debug print
+
     print('fetchTasks → $uri');
-    
-    // 4) GET request
-    final res = await http.get(
-      uri,
-      headers: {'Authorization': 'Token $token'},
-    );
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
     if (res.statusCode != 200) {
       throw Exception('Failed to load tasks (${res.statusCode})');
     }
@@ -235,17 +232,35 @@ class ApiService {
     final tasks = (raw as List)
         .map((e) => Task.fromJson(e as Map<String, dynamic>))
         .toList();
-    
-    // 7) Return results + next URL (if paginated)
-    final next = data is Map<String, dynamic> ? data['next'] as String? : null;
-    final count = data is Map<String, dynamic> && data['count'] is int
-        ? data['count'] as int
-        : tasks.length;
+
     return {
       'results': tasks,
-      'next'   : next,
-      'count'  : count,
+      'next'   : data is Map<String, dynamic> ? data['next'] as String? : null,
+      'count'  : data is Map<String, dynamic> && data['count'] is int 
+                   ? data['count'] as int 
+                   : tasks.length,
     };
+  }
+  
+  /// Update the current user's profile (e.g. timezone).
+  Future<User> updateCurrentUser({ required String timezone }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/users/me/');
+    final res = await http.patch(
+      uri,
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type' : 'application/json',
+      },
+      body: jsonEncode({'timezone': timezone}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to update user (${res.statusCode}): ${res.body}');
+    }
+
+    return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
   Future<void> deleteTaskImage(int taskId, int imageId) async {
