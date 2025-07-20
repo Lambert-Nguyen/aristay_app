@@ -41,6 +41,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
   DateTime?      _dateFrom;
   DateTime?      _dateTo;
 
+  bool _showOverdue = false;   // ← new
+
+
   // controller to drive infinite scroll
   late final ScrollController _scrollCtrl;
 
@@ -105,6 +108,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           assignedTo: _assigneeFilter,
           dateFrom:   _dateFrom,
           dateTo:     _dateTo,
+          overdue:    _showOverdue,
         );
         // if not appending, clear out the old list
         _tasks = [];
@@ -160,17 +164,20 @@ class _TaskListScreenState extends State<TaskListScreen> {
           selectedAssignee: _assigneeFilter,
           dateFrom:         _dateFrom,
           dateTo:           _dateTo,
+          overdue:          _showOverdue,
           onApply: ({
             int? property,
             int? assignedTo,
             DateTime? dateFrom,
             DateTime? dateTo,
+            bool? overdue,
           }) {
             setState(() {
               _propertyFilter = property;
               _assigneeFilter = assignedTo;
               _dateFrom       = dateFrom;
               _dateTo         = dateTo;
+              _showOverdue    = overdue ?? false;
             });
             _load();
           },
@@ -193,10 +200,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 _load().then((_) => _loadCounts());
               }
             },
-            child: Text(
-              'All($_totalCount)',
-              style: const TextStyle(color: Colors.white),
+            style: TextButton.styleFrom(
+              // use the same color AppBar uses for its icons/text:
+              foregroundColor: Theme.of(context).iconTheme.color,
+              // shrink the padding to match IconButtons more closely:
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
+            child: Text('All($_totalCount)'),
           ),
           if (_search.isNotEmpty)
             IconButton(
