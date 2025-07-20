@@ -127,6 +127,23 @@ class TaskImage(models.Model):
     def __str__(self):
         return f"Image for {self.task.title}"
 
+class Profile(models.Model):
+    user     = models.OneToOneField(settings.AUTH_USER_MODEL,
+                                    on_delete=models.CASCADE)
+    timezone = models.CharField(
+        max_length=32,
+        choices=[(tz, tz) for tz in sorted(available_timezones())],
+        default='UTC'
+    )
+
+    def __str__(self):
+        return f"{self.user.username} profile"
+
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
 class Device(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')
     token = models.CharField(max_length=255, unique=True)
