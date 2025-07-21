@@ -4,7 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
 
-import '../services/local_notification_service.dart'; //REMOVE LATER
+import '../services/notification_service.dart'; //REMOVE LATER
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
             ElevatedButton(
-              onPressed: () => LocalNotificationService.showTestNotification(),
+              onPressed: () => NotificationService.showLocalTestNotification(),
               child: const Text('🔔 Test Local Notification'),
             ),
           ],

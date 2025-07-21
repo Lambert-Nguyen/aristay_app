@@ -20,7 +20,7 @@ import 'screens/admin_reset_password_screen.dart';
 import 'screens/admin_user_list_screen.dart';
 import 'screens/admin_user_create_screen.dart';
 
-import 'services/local_notification_service.dart'; // TODO: REMOVE LATER
+import 'services/notification_service.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -32,7 +32,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await LocalNotificationService.init(); // ← Add this line, TODO: REMOVE LATER
+  await NotificationService.init();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
