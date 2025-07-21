@@ -1,9 +1,7 @@
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 from datetime import timedelta
-import os
-
 from django.contrib.auth import get_user_model
 from api.models import Task
 
@@ -22,37 +20,39 @@ class EmailDigestService:
             if not recent_tasks.exists():
                 continue
 
-            # Safely get user's name
+            task_lines = [f"[{task.status.capitalize()}] {task.title}" for task in recent_tasks]
+            task_html = "".join(f"<li><strong>{task.status.capitalize()}</strong>: {task.title}</li>" for task in recent_tasks)
+
             name = (
-                getattr(user, 'get_full_name', lambda: None)()
+                (callable(getattr(user, 'get_full_name', None)) and user.get_full_name())
                 or getattr(user, 'full_name', None)
-                or getattr(user, 'username', None)
+                or user.username
                 or "there"
             )
 
-            # Format task list
-            body = "\n".join(
-                f"• [{task.status.title()}] {task.title}" for task in recent_tasks
+            subject = "🧹 Daily Task Digest – Aristay"
+            from_email = settings.DEFAULT_FROM_EMAIL
+            to_email = [user.email]
+
+            text_content = (
+                f"Hi {name},\n\n"
+                f"Here are your updated tasks from the past day:\n\n"
+                + "\n".join(f"• {line}" for line in task_lines) +
+                "\n\nBest,\nAristay Task Management Team"
             )
 
-            message = f"""Hi {name},
-
-Here are your updated tasks from the past day:
-
-{body}
-
-Best,
-Aristay Task Management Team"""
+            html_content = (
+                f"<p>Hi {name},</p>"
+                f"<p>Here are your updated tasks from the past day:</p>"
+                f"<ul>{task_html}</ul>"
+                f"<p>Best,<br>Aristay Task Management Team</p>"
+            )
 
             if test_mode:
                 print("To:", user.email)
-                print(message)
-                print("="*40)
+                print(text_content)
+                print("=" * 40)
             else:
-                send_mail(
-                    subject="🧹 Daily Task Digest – Aristay",
-                    message=message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=False,
-                )
+                msg = EmailMultiAlternatives(subject, text_content, from_email, to_email)
+                msg.attach_alternative(html_content, "text/html")
+                msg.send()
