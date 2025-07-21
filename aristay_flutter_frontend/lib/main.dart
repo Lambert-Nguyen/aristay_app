@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
 import 'models/task.dart';
@@ -19,11 +20,22 @@ import 'screens/admin_reset_password_screen.dart';
 import 'screens/admin_user_list_screen.dart';
 import 'screens/admin_user_create_screen.dart';
 
+import 'services/local_notification_service.dart'; // TODO: REMOVE LATER
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('🔕 Background Message: ${message.messageId}');
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await LocalNotificationService.init(); // ← Add this line, TODO: REMOVE LATER
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   runApp(const MyApp());
 }
 

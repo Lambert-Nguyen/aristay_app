@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
+
+import '../services/local_notification_service.dart'; //REMOVE LATER
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -12,6 +16,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   bool _isAdmin = false;
   String? _error;
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
@@ -25,8 +31,14 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isAdmin = user.isStaff == true;
       });
+
+      try {
+        await setupPushNotifications(); // run but don't block UI
+      } catch (e) {
+        print('⚠️ Push setup failed (expected on simulator): $e');
+      }
     } catch (e) {
-      _error = e.toString();
+      _error = e.toString(); // only block if user fetch fails
     } finally {
       setState(() => _loading = false);
     }
@@ -94,9 +106,57 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () => Navigator.pushNamed(context, '/admin/users'),
               ),
             ],
+            ElevatedButton(
+              onPressed: () => LocalNotificationService.showTestNotification(),
+              child: const Text('🔔 Test Local Notification'),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> setupPushNotifications() async {
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('✅ User granted push notification permission');
+
+      // iOS-specific: initialize local notifications
+      const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
+
+      const InitializationSettings initSettings = InitializationSettings(
+        iOS: iosSettings,
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      );
+
+      await _localNotificationsPlugin.initialize(initSettings);
+
+      // Listen for foreground messages
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        RemoteNotification? notification = message.notification;
+        if (notification != null) {
+          _localNotificationsPlugin.show(
+            notification.hashCode,
+            notification.title,
+            notification.body,
+            const NotificationDetails(
+              android: AndroidNotificationDetails('default_channel', 'Default'),
+              iOS: DarwinNotificationDetails(),
+            ),
+          );
+        }
+      });
+
+      // Print FCM token (used for sending messages)
+      String? token = await _firebaseMessaging.getToken();
+      print('📲 FCM Token: $token');
+    } else {
+      print('❌ Push notification permission denied');
+    }
   }
 }
