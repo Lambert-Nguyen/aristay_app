@@ -171,6 +171,14 @@ DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
 FRONTEND_URL = "http://localhost:3000"
 
 # during development, just dump emails to the console instead of real SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.mailersend.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = 'MS_uxUXNv@test-2p0347zxzxplzdrn.mlsender.net'
+EMAIL_HOST_PASSWORD = 'mssp.armkACH.yzkq3403mek4d796.dTB0Fb9'
+
+DEFAULT_FROM_EMAIL = 'noreply@test-2p0347zxzxplzdrn.mlsender.net'
 
 FCM_SERVER_KEY = "your-firebase-server-key-here"
