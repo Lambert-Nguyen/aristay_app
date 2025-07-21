@@ -74,8 +74,15 @@ class TaskViewSet(viewsets.ModelViewSet):
     def count_by_status(self, request):
         qs = self.filter_queryset(self.get_queryset())
         total = qs.count()
-        by_status = dict(qs.values_list('status')
-                           .annotate(count=Count('id')))
+
+        counts = (
+            qs.values('status')
+            .annotate(count=Count('id'))
+            .order_by()  # avoid implicit GROUP BY ordering issues
+        )
+
+        by_status = {entry['status']: entry['count'] for entry in counts}
+
         return Response({
             'total': total,
             'by_status': by_status,
