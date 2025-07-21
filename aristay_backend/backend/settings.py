@@ -176,9 +176,9 @@ EMAIL_HOST = 'smtp.mailersend.net'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = 'MS_uxUXNv@test-2p0347zxzxplzdrn.mlsender.net'
-EMAIL_HOST_PASSWORD = 'mssp.armkACH.yzkq3403mek4d796.dTB0Fb9'
+EMAIL_HOST_USER = 'MS_T2FlZ8@aristay-internal.cloud'
+EMAIL_HOST_PASSWORD = 'mssp.Yun5OWw.v69oxl53kzkg785k.9UyPJrd'
 
-DEFAULT_FROM_EMAIL = 'noreply@test-2p0347zxzxplzdrn.mlsender.net'
+DEFAULT_FROM_EMAIL = 'noreply@aristay-internal.cloud'
 
 FCM_SERVER_KEY = "your-firebase-server-key-here"
