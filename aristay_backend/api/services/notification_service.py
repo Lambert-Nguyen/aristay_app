@@ -1,6 +1,8 @@
-from api.models import Notification
+from api.models import Notification, Task
 from django.conf import settings
+from django.utils import timezone
 import requests
+import json
 
 class NotificationService:
     @staticmethod
@@ -16,6 +18,12 @@ class NotificationService:
         )
 
         NotificationService.push_to_device(task.assigned_to, task, "assigned or status_changed")
+
+        # Log to task.history
+        history = json.loads(task.history or '[]')
+        timestamp = timezone.now().isoformat()
+        history.append(f"{timestamp}: System notified {task.assigned_to.username} (push)")
+        Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
 
     @staticmethod
     def push_to_device(user, task, verb):

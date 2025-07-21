@@ -35,6 +35,7 @@ from .serializers import (
     NotificationSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
+from .services.notification_service import NotificationService
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -60,10 +61,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     ordering        = ['due_date']
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, modified_by=self.request.user)
+        task = serializer.save(created_by=self.request.user, modified_by=self.request.user)
+        NotificationService.process_task_change(task)
 
     def perform_update(self, serializer):
-        serializer.save(modified_by=self.request.user)
+        task = serializer.save(modified_by=self.request.user)
+        NotificationService.process_task_change(task)
         
     @action(
         detail=False,
