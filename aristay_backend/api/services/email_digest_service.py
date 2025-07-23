@@ -1,7 +1,12 @@
+# api/services/email_digest_service.py
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from django.utils import timezone
 from datetime import timedelta
+from collections import defaultdict
+
 from django.contrib.auth import get_user_model
 from api.models import Task
 
@@ -12,47 +17,46 @@ class EmailDigestService:
         User = get_user_model()
 
         for user in User.objects.all():
-            recent_tasks = Task.objects.filter(
+            tasks = Task.objects.filter(
                 assigned_to=user,
                 modified_at__gte=yesterday
-            )
+            ).select_related("property")
 
-            if not recent_tasks.exists():
+            if not tasks.exists():
                 continue
 
-            task_lines = [f"[{task.status.capitalize()}] {task.title}" for task in recent_tasks]
-            task_html = "".join(f"<li><strong>{task.status.capitalize()}</strong>: {task.title}</li>" for task in recent_tasks)
+            # Group tasks by property
+            grouped = defaultdict(list)
+            for task in tasks:
+                property_name = task.property.name if task.property else "Unassigned"
+                grouped[property_name].append(task)
+            grouped_tasks = list(grouped.items())
 
             name = (
-                (callable(getattr(user, 'get_full_name', None)) and user.get_full_name())
-                or getattr(user, 'full_name', None)
+                (user.get_full_name() if callable(user.get_full_name) else None)
+                or getattr(user, "full_name", None)
                 or user.username
                 or "there"
             )
+
+            context = {
+                "name": name,
+                "grouped_tasks": grouped_tasks,
+            }
 
             subject = "🧹 Daily Task Digest – Aristay"
             from_email = settings.DEFAULT_FROM_EMAIL
             to_email = [user.email]
 
-            text_content = (
-                f"Hi {name},\n\n"
-                f"Here are your updated tasks from the past day:\n\n"
-                + "\n".join(f"• {line}" for line in task_lines) +
-                "\n\nBest,\nAristay Task Management Team"
-            )
-
-            html_content = (
-                f"<p>Hi {name},</p>"
-                f"<p>Here are your updated tasks from the past day:</p>"
-                f"<ul>{task_html}</ul>"
-                f"<p>Best,<br>Aristay Task Management Team</p>"
-            )
+            text_body = render_to_string("emails/digest.txt", context)
+            html_body = render_to_string("emails/digest.html", context)
 
             if test_mode:
-                print("To:", user.email)
-                print(text_content)
+                print(f"To: {user.email}")
+                print(text_body)
                 print("=" * 40)
-            else:
-                msg = EmailMultiAlternatives(subject, text_content, from_email, to_email)
-                msg.attach_alternative(html_content, "text/html")
-                msg.send()
+                continue
+
+            msg = EmailMultiAlternatives(subject, text_body, from_email, to_email)
+            msg.attach_alternative(html_body, "text/html")
+            msg.send()

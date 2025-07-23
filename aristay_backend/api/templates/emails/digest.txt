@@ -1,0 +1,13 @@
+Hi {{ name }},
+
+Here’s a quick summary of your tasks updated in the last 24 hours:
+
+{% for prop_name, tasks in grouped_tasks %}
+🏠 {{ prop_name }}:
+{% for task in tasks %}
+• [{{ task.status|title }}] {{ task.title }}{% if task.due_date %} (Due: {{ task.due_date|date:"M d, H:i" }}){% endif %}
+{% endfor %}
+{% endfor %}
+
+Best,  
+Aristay Task Management Team

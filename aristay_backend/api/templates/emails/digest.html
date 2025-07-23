@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; }
+    h2 { color: #2c3e50; }
+    .property { margin-top: 20px; }
+    .task { margin-left: 15px; }
+    .footer { margin-top: 30px; font-size: 13px; color: #999; }
+  </style>
+</head>
+<body>
+    <h2 style="font-family: sans-serif; color: #333;">Hi {{ name }},</h2>
+  <p style="font-family: sans-serif;">Here’s a summary of your tasks updated in the last 24 hours:</p>
+
+  {% for property, tasks in grouped_tasks %}
+    <h3 style="font-family: sans-serif;">🏠 {{ property }}</h3>
+    <ul>
+      {% for task in tasks %}
+        <li style="font-family: sans-serif;">[{{ task.status|title }}] {{ task.title }}</li>
+      {% empty %}
+        <li style="font-family: sans-serif; color: #888;">No tasks updated.</li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+
+  <p style="font-family: sans-serif;">Best,<br>Aristay Task Management Team</p>
+</body>
+</html>
