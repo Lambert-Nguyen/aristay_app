@@ -4,7 +4,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/api_service.dart';
 import '../models/user.dart';
 
-import '../services/notification_service.dart'; //REMOVE LATER
+import 'dart:convert';                         // for jsonEncode
+import 'package:http/http.dart' as http;       // for http.post
+import 'package:shared_preferences/shared_preferences.dart'; // for SharedPreferences
+
+import '../services/notification_service.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -153,8 +157,35 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       // Print FCM token (used for sending messages)
-      String? token = await _firebaseMessaging.getToken();
-      print('📲 FCM Token: $token');
+      String? apnsToken = await _firebaseMessaging.getAPNSToken();
+      print('🍎 APNs Token: $apnsToken');
+
+      String? fcmToken = await _firebaseMessaging.getToken();
+      print('📲 FCM Token: $fcmToken');
+      if (fcmToken != null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('auth_token');
+          final response = await http.post(
+            Uri.parse('http://192.168.2.25:8000/api/devices/'),
+            headers: {
+              'Authorization': 'Token $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'token': fcmToken}),
+          );
+
+          if (response.statusCode == 200) {
+            print('✅ Device token registered');
+          } else {
+            print('❌ Failed to register device token: ${response.statusCode}, ${response.body}');
+          }
+        } catch (e) {
+          print('❌ Error sending device token: $e');
+        }
+      } else {
+        print('⚠️ FCM token was null');
+      }
     } else {
       print('❌ Push notification permission denied');
     }

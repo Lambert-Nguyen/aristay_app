@@ -248,10 +248,26 @@ class DeviceRegisterView(generics.CreateAPIView):
     serializer_class = DeviceSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        # Avoid duplicate tokens for same user
-        Device.objects.filter(token=serializer.validated_data['token']).delete()
-        serializer.save(user=self.request.user)
+    def post(self, request, *args, **kwargs):
+        token = request.data.get("token")
+
+        if not token:
+            return Response({"error": "No FCM token provided."}, status=400)
+
+        # Step 1: remove any devices with this token (could be from another user)
+        Device.objects.filter(token=token).delete()
+
+        # Step 2: update existing device for user or create new one
+        device, created = Device.objects.update_or_create(
+            user=request.user,
+            defaults={"token": token}
+        )
+
+        return Response({
+            "status": "registered",
+            "token": device.token,
+            "created": created
+        })
 
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer

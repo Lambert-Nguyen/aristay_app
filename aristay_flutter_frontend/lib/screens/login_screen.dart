@@ -25,8 +25,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = null;
       });
       // Replace with your actual endpoint and IP address
-      // final url = Uri.parse('http://192.168.1.41:8000/api-token-auth/');
-      final url = Uri.parse('http://127.0.0.1:8000/api-token-auth/');
+      final url = Uri.parse('http://192.168.2.25:8000/api-token-auth/');
+      // final url = Uri.parse('http://127.0.0.1:8000/api-token-auth/');
 
       try {
         final response = await http.post(

@@ -3,10 +3,11 @@ from django.utils import timezone
 from django.utils.html import format_html
 import json
 
+
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin
 
-from .models import Task, Property, TaskImage, Profile, Notification
+from .models import Task, Property, TaskImage, Profile, Notification, Device
 
 class TaskImageInline(admin.TabularInline):
     model = TaskImage
@@ -155,3 +156,9 @@ class NotificationAdmin(admin.ModelAdmin):
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "timezone", "digest_opt_out")
     list_editable = ("digest_opt_out",)
+
+@admin.register(Device)
+class DeviceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'token', 'created_at', 'updated_at')
+    search_fields = ('user__username', 'token')
+    readonly_fields = ('created_at', 'updated_at')
