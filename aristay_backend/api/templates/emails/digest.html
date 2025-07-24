@@ -11,20 +11,21 @@
   </style>
 </head>
 <body>
-    <h2 style="font-family: sans-serif; color: #333;">Hi {{ name }},</h2>
-  <p style="font-family: sans-serif;">Here’s a summary of your tasks updated in the last 24 hours:</p>
+    <h2>Hi {{ name }},</h2>
+    <p>Here’s a quick summary of your tasks updated in the last 24 hours:</p>
 
-  {% for property, tasks in grouped_tasks %}
-    <h3 style="font-family: sans-serif;">🏠 {{ property }}</h3>
-    <ul>
-      {% for task in tasks %}
-        <li style="font-family: sans-serif;">[{{ task.status|title }}] {{ task.title }}</li>
-      {% empty %}
-        <li style="font-family: sans-serif; color: #888;">No tasks updated.</li>
+    {% for property, status_dict in grouped_tasks %}
+      <h3>🏠 {{ property }}</h3>
+      {% for status, tasks in status_dict.items %}
+        <strong>{{ status|title }}:</strong>
+        <ul>
+          {% for task in tasks %}
+            <li>{{ task.title }}</li>
+          {% endfor %}
+        </ul>
       {% endfor %}
-    </ul>
-  {% endfor %}
+    {% endfor %}
 
-  <p style="font-family: sans-serif;">Best,<br>Aristay Task Management Team</p>
+    <p>Best,<br>Aristay Task Management Team</p>
 </body>
 </html>

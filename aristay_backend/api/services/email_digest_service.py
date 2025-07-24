@@ -8,29 +8,38 @@ from datetime import timedelta
 from collections import defaultdict
 
 from django.contrib.auth import get_user_model
-from api.models import Task
+from api.models import Task, Profile
 
 class EmailDigestService:
     @staticmethod
     def send_daily_digest(test_mode=False):
-        yesterday = timezone.now() - timedelta(days=1)
         User = get_user_model()
 
         for user in User.objects.all():
+            try:
+                user_tz = ZoneInfo(user.profile.timezone)
+            except Exception:
+                user_tz = timezone.utc  # fallback
+
+            local_now = timezone.now().astimezone(user_tz)
+            local_yesterday = local_now - timedelta(days=1)
+            utc_cutoff = local_yesterday.astimezone(timezone.utc)
+
             tasks = Task.objects.filter(
                 assigned_to=user,
-                modified_at__gte=yesterday
+                modified_at__gte=utc_cutoff
             ).select_related("property")
 
             if not tasks.exists():
                 continue
 
-            # Group tasks by property
-            grouped = defaultdict(list)
+            # Group tasks by property and status
+            grouped = defaultdict(lambda: defaultdict(list))
             for task in tasks:
-                property_name = task.property.name if task.property else "Unassigned"
-                grouped[property_name].append(task)
-            grouped_tasks = list(grouped.items())
+                prop = task.property.name if task.property else "Unassigned"
+                grouped[prop][task.status].append(task)
+
+            grouped_tasks = grouped.items()
 
             name = (
                 (user.get_full_name() if callable(user.get_full_name) else None)

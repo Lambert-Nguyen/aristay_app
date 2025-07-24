@@ -2,12 +2,16 @@ Hi {{ name }},
 
 Here’s a quick summary of your tasks updated in the last 24 hours:
 
-{% for prop_name, tasks in grouped_tasks %}
-🏠 {{ prop_name }}:
+{% for property, status_dict in grouped_tasks %}
+🏠 {{ property }}:
+
+{% for status, tasks in status_dict.items %}
+• {{ status|title }}:
 {% for task in tasks %}
-• [{{ task.status|title }}] {{ task.title }}{% if task.due_date %} (Due: {{ task.due_date|date:"M d, H:i" }}){% endif %}
+  - {{ task.title }}
 {% endfor %}
 {% endfor %}
 
+{% endfor %}
 Best,  
 Aristay Task Management Team
