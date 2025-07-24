@@ -2,8 +2,8 @@ from django.core.management.base import BaseCommand
 from api.services.email_digest_service import EmailDigestService
 
 class Command(BaseCommand):
-    help = "Send daily digest emails to users"
+    help = "Send daily task email digest"
 
-    def handle(self, *args, **kwargs):
+    def handle(self, *args, **options):
         EmailDigestService.send_daily_digest()
-        self.stdout.write(self.style.SUCCESS("✅ Digest sent!"))
+        self.stdout.write(self.style.SUCCESS("Digest email sent."))

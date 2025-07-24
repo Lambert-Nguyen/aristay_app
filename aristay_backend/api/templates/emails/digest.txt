@@ -1,4 +1,5 @@
-Hi {{ name }},
+Hi {{ name }}, your updated tasks across:
+{% for property, _ in grouped_tasks %}- {{ property }}{% endfor %}
 
 Here’s a quick summary of your tasks updated in the last 24 hours:
 

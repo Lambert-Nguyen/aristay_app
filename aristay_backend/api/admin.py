@@ -117,7 +117,7 @@ class PropertyAdmin(admin.ModelAdmin):
 class ProfileInline(admin.StackedInline):
     model = Profile
     fk_name = 'user'
-    fields = ('timezone',)
+    fields = ('timezone', 'digest_opt_out')
     extra = 1        # always show one blank form if none exists
     max_num = 1      # never allow more than one
     can_delete = False
@@ -150,3 +150,8 @@ class NotificationAdmin(admin.ModelAdmin):
     list_filter = ('read', 'verb', 'timestamp')
     search_fields = ('task__title', 'recipient__username', 'verb')
     readonly_fields = ('read_at', 'timestamp')
+    
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "timezone", "digest_opt_out")
+    list_editable = ("digest_opt_out",)

@@ -17,10 +17,19 @@
     {% for property, status_dict in grouped_tasks %}
       <h3>🏠 {{ property }}</h3>
       {% for status, tasks in status_dict.items %}
-        <strong>{{ status|title }}:</strong>
+        <strong>{% if status == "in-progress" %}🚧 In Progress{% elif status == "completed" %}✅ Completed{% else %}{{ status|title }}{% endif %}:</strong>
         <ul>
           {% for task in tasks %}
-            <li>{{ task.title }}</li>
+            <li style="color: {{ task.status_color }}">
+              {{ task.title }}
+              {% if task.due_date %}
+                {% if task.due_date < now %}
+                  – <span style="color: red;">OVERDUE (due {{ task.due_date|date:"M d, Y H:i" }})</span>
+                {% else %}
+                  – due {{ task.due_date|date:"M d, Y H:i" }}
+                {% endif %}
+              {% endif %}
+            </li>
           {% endfor %}
         </ul>
       {% endfor %}
@@ -28,4 +37,8 @@
 
     <p>Best,<br>Aristay Task Management Team</p>
 </body>
+<span style="display:none; font-size:0; line-height:0;">
+  {{ name }}, updated tasks across properties like
+  {% for property, _ in grouped_tasks %}{{ property }}{% if not forloop.last %}, {% endif %}{% endfor %}
+</span>
 </html>

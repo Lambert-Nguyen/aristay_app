@@ -15,10 +15,20 @@ class EmailDigestService:
     @staticmethod
     def send_daily_digest(test_mode=False):
         User = get_user_model()
+        
+        status_colors = {
+            'pending': '#e67e22',       # orange
+            'in-progress': '#3498db',   # blue
+            'completed': '#2ecc71',     # green
+            'canceled': '#e74c3c',      # red
+        }
 
         for user in User.objects.all():
+            profile, _ = Profile.objects.get_or_create(user=user)
+            if profile.digest_opt_out:
+                continue  # Skip if user opted out
             try:
-                user_tz = ZoneInfo(user.profile.timezone)
+                user_tz = ZoneInfo(profile.timezone)
             except Exception:
                 user_tz = dt_timezone.utc    # fallback
 
@@ -40,6 +50,8 @@ class EmailDigestService:
             for task in tasks:
                 print(f"- {task.title} | {task.status} | {task.property} | modified at {task.modified_at}")
                 prop = task.property.name if task.property else "Unassigned"
+                color = status_colors.get(task.status, '#333')
+                task.status_color = color
                 grouped[prop][task.status].append(task)
 
             grouped_tasks = {
@@ -57,6 +69,8 @@ class EmailDigestService:
             context = {
                 "name": name,
                 "grouped_tasks": grouped_tasks,
+                "status_colors": status_colors,
+                "now": timezone.now(),
             }
 
             subject = "🧹 Daily Task Digest – Aristay"

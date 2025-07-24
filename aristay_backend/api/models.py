@@ -135,6 +135,7 @@ class Profile(models.Model):
         choices=[(tz, tz) for tz in sorted(available_timezones())],
         default='UTC'
     )
+    digest_opt_out = models.BooleanField(default=False)  # opt out email digest
 
     def __str__(self):
         return f"{self.user.username} profile"
