@@ -23,10 +23,9 @@
             <li style="color: {{ task.status_color }}">
               {{ task.title }}
               {% if task.due_date %}
+                – due {{ task.due_date|date:"M d, Y H:i" }}
                 {% if task.due_date < now %}
-                  – <span style="color: red;">OVERDUE (due {{ task.due_date|date:"M d, Y H:i" }})</span>
-                {% else %}
-                  – due {{ task.due_date|date:"M d, Y H:i" }}
+                  <strong style="color: red;"> (OVERDUE)</strong>
                 {% endif %}
               {% endif %}
             </li>
