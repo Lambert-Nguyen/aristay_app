@@ -1,12 +1,13 @@
 # api/services/email_digest_service.py
 
+from datetime import timedelta, timezone as dt_timezone
+from collections import defaultdict
+from zoneinfo import ZoneInfo
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
-from datetime import timedelta
-from collections import defaultdict
-
 from django.contrib.auth import get_user_model
 from api.models import Task, Profile
 
@@ -19,11 +20,11 @@ class EmailDigestService:
             try:
                 user_tz = ZoneInfo(user.profile.timezone)
             except Exception:
-                user_tz = timezone.utc  # fallback
+                user_tz = dt_timezone.utc    # fallback
 
             local_now = timezone.now().astimezone(user_tz)
             local_yesterday = local_now - timedelta(days=1)
-            utc_cutoff = local_yesterday.astimezone(timezone.utc)
+            utc_cutoff = local_yesterday.astimezone(dt_timezone.utc)
 
             tasks = Task.objects.filter(
                 assigned_to=user,
