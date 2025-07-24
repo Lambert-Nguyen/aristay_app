@@ -52,6 +52,22 @@ class EmailDigestService:
                 prop = task.property.name if task.property else "Unassigned"
                 color = status_colors.get(task.status, '#333')
                 task.status_color = color
+                # Format relative due delta like "in 2 days" or "3 hours ago"
+                if task.due_date:
+                    delta = task.due_date.astimezone(user_tz) - local_now
+                    seconds = delta.total_seconds()
+                    if seconds < -86400:
+                        task.due_delta = f"{int(abs(seconds)//86400)} days ago"
+                    elif seconds < -3600:
+                        task.due_delta = f"{int(abs(seconds)//3600)} hours ago"
+                    elif seconds < 0:
+                        task.due_delta = "just overdue"
+                    elif seconds < 3600:
+                        task.due_delta = f"in {int(seconds//60)} minutes"
+                    elif seconds < 86400:
+                        task.due_delta = f"in {int(seconds//3600)} hours"
+                    else:
+                        task.due_delta = f"in {int(seconds//86400)} days"
                 grouped[prop][task.status].append(task)
 
             grouped_tasks = {
@@ -70,7 +86,8 @@ class EmailDigestService:
                 "name": name,
                 "grouped_tasks": grouped_tasks,
                 "status_colors": status_colors,
-                "now": timezone.now(),
+                "timezone_name": user_tz.key,
+                "now": local_now,
             }
 
             subject = "🧹 Daily Task Digest – Aristay"

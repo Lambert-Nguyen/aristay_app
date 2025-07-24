@@ -13,6 +13,9 @@
 <body>
     <h2>Hi {{ name }},</h2>
     <p>Here’s a quick summary of your tasks updated in the last 24 hours:</p>
+    <p style="color: #777; font-size: 14px;">
+      All times shown are in your local timezone: <strong>{{ timezone_name }}</strong>
+    </p>
 
     {% for property, status_dict in grouped_tasks %}
       <h3>🏠 {{ property }}</h3>
@@ -23,7 +26,8 @@
             <li style="color: {{ task.status_color }}">
               {{ task.title }}
               {% if task.due_date %}
-                – due {{ task.due_date|date:"M d, Y H:i" }}
+                – due {{ task.due_date|date:"M d, Y H:i" }} 
+                <span style="color: #999;">({{ task.due_delta }})</span>
                 {% if task.due_date < now %}
                   <strong style="color: red;"> (OVERDUE)</strong>
                 {% endif %}
