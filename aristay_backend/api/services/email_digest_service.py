@@ -36,11 +36,16 @@ class EmailDigestService:
 
             # Group tasks by property and status
             grouped = defaultdict(lambda: defaultdict(list))
+            print(f"[{user.email}] Tasks modified since cutoff ({utc_cutoff.isoformat()}):")
             for task in tasks:
+                print(f"- {task.title} | {task.status} | {task.property} | modified at {task.modified_at}")
                 prop = task.property.name if task.property else "Unassigned"
                 grouped[prop][task.status].append(task)
 
-            grouped_tasks = grouped.items()
+            grouped_tasks = {
+                prop: dict(status_dict)
+                for prop, status_dict in grouped.items()
+            }.items()
 
             name = (
                 (user.get_full_name() if callable(user.get_full_name) else None)
