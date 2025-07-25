@@ -29,3 +29,4 @@ aristay_flutter_frontend/.packages
 *.iml
 .idea/
 /aristay_backend/api/migrations
+aristay_backend/firebase_credentials.json

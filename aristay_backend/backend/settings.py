@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import socket
 from pathlib import Path
+import os
 
 
 
@@ -182,3 +183,5 @@ EMAIL_HOST_PASSWORD = 'mssp.Yun5OWw.v69oxl53kzkg785k.9UyPJrd'
 DEFAULT_FROM_EMAIL = 'noreply@aristay-internal.cloud'
 
 FCM_SERVER_KEY = "your-firebase-server-key-here"
+FIREBASE_PROJECT_ID = 'aristayapp'
+FIREBASE_CREDENTIALS_FILE = BASE_DIR / 'firebase_credentials.json'

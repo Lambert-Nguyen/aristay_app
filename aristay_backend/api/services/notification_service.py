@@ -4,6 +4,9 @@ from django.utils import timezone
 import requests
 import json
 
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request
+
 class NotificationService:
     @staticmethod
     def process_task_change(task):
@@ -28,19 +31,39 @@ class NotificationService:
     @staticmethod
     def push_to_device(user, task, verb):
         tokens = user.devices.values_list('token', flat=True)
+
+        credentials = service_account.Credentials.from_service_account_file(
+            settings.FIREBASE_CREDENTIALS_FILE,
+            scopes=['https://www.googleapis.com/auth/firebase.messaging'],
+        )
+        credentials.refresh(Request())  # get valid access token
+
+        access_token = credentials.token
+        project_id = settings.FIREBASE_PROJECT_ID
+        url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
+
         for token in tokens:
-            requests.post(
-                'https://fcm.googleapis.com/fcm/send',
-                headers={
-                    'Authorization': f'key={settings.FCM_SERVER_KEY}',
-                    'Content-Type': 'application/json',
-                },
-                json={
-                    'to': token,
-                    'notification': {
-                        'title': f'Task {verb}',
-                        'body': f'Task "{task.title}" has been {verb.replace("_", " ")}.',
+            payload = {
+                "message": {
+                    "token": token,
+                    "notification": {
+                        "title": f"Task {verb}",
+                        "body": f'Task "{task.title}" has been {verb.replace("_", " ")}.',
                     },
-                    'data': {'task_id': task.id}
+                    "data": {
+                        "task_id": str(task.id),
+                        "click_action": "FLUTTER_NOTIFICATION_CLICK",
+                    }
                 }
-            )
+            }
+
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            }
+
+            response = requests.post(url, headers=headers, json=payload)
+            print('📤 Sent push to:', token)
+            print('📦 Payload:', json.dumps(payload, indent=2))
+            print('📩 FCM status:', response.status_code)
+            print('📩 FCM response:', response.text)
