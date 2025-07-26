@@ -202,7 +202,7 @@ class PropertyListCreate(generics.ListCreateAPIView):
         return super().get_permissions()
 
 class UserList(generics.ListAPIView):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('id')  # ← Add ordering to fix pagination warning
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
