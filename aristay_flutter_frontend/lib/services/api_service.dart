@@ -14,7 +14,7 @@ class ValidationException implements Exception {
 
 class ApiService {
   // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'http://192.168.2.25:8000/api';
+  static const String baseUrl = 'http://192.168.100.219:8000/api';
 
   Future<List<Property>> fetchProperties() async {
     final prefs = await SharedPreferences.getInstance();
@@ -417,5 +417,21 @@ class ApiService {
       throw Exception('Failed to load task counts (${res.statusCode})');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Marks a notification as read.
+  Future<void> markNotificationAsRead(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/notifications/$id/read/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to mark notification $id as read (${res.statusCode})');
+    }
   }
 }

@@ -167,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final prefs = await SharedPreferences.getInstance();
           final token = prefs.getString('auth_token');
           final response = await http.post(
-            Uri.parse('http://192.168.2.25:8000/api/devices/'),
+            Uri.parse('http://192.168.100.219:8000/api/devices/'),
             headers: {
               'Authorization': 'Token $token',
               'Content-Type': 'application/json',

@@ -14,13 +14,13 @@ class NotificationService:
         if not task.assigned_to:
             return
 
-        Notification.objects.create(
+        notif = Notification.objects.create(
             recipient=task.assigned_to,
             task=task,
             verb='assigned or status_changed'
         )
 
-        NotificationService.push_to_device(task.assigned_to, task, "assigned or status_changed")
+        NotificationService.push_to_device(task.assigned_to, task, "assigned or status_changed", notif.id)
 
         # Log to task.history
         history = json.loads(task.history or '[]')
@@ -29,7 +29,7 @@ class NotificationService:
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
 
     @staticmethod
-    def push_to_device(user, task, verb):
+    def push_to_device(user, task, verb, notification_id):
         tokens = user.devices.values_list('token', flat=True)
 
         credentials = service_account.Credentials.from_service_account_file(
@@ -52,6 +52,7 @@ class NotificationService:
                     },
                     "data": {
                         "task_id": str(task.id),
+                        "notification_id": str(notification_id),
                         "click_action": "FLUTTER_NOTIFICATION_CLICK",
                     }
                 }
