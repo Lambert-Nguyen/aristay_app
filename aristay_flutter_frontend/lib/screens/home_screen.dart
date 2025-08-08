@@ -1,64 +1,50 @@
+import 'dart:async';                              // ← NEW
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 import '../services/api_service.dart';
+import '../services/notification_service.dart';   // ← navStream
 import '../models/user.dart';
-
-import 'dart:convert';                         // for jsonEncode
-import 'package:http/http.dart' as http;       // for http.post
-import 'package:shared_preferences/shared_preferences.dart'; // for SharedPreferences
-
-import '../services/notification_service.dart'; 
+import '../services/navigation_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _loading = true;
-  bool _isAdmin = false;
+  bool   _loading  = true;
+  bool   _isAdmin  = false;
   String? _error;
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  late final StreamSubscription<Map<String, dynamic>> _navSub;
 
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
-  }
 
-  Future<void> _loadCurrentUser() async {
-    try {
-      final user = await ApiService().fetchCurrentUser();
-      setState(() {
-        _isAdmin = user.isStaff == true;
-      });
-
-      try {
-        await setupPushNotifications(); // run but don't block UI
-      } catch (e) {
-        print('⚠️ Push setup failed (expected on simulator): $e');
-      }
-    } catch (e) {
-      _error = e.toString(); // only block if user fetch fails
-    } finally {
-      setState(() => _loading = false);
-    }
+    // listen for deep-links emitted by NotificationService
+    _navSub = NotificationService.navStream.listen(_handlePushNav);
   }
 
   @override
+  void dispose() {
+    _navSub.cancel();                               // tidy up
+    super.dispose();
+  }
+
+  // ────────────────────────────────────────────────────────────
+  //  UI
+  // ────────────────────────────────────────────────────────────
+  @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_error != null) {
-      return Scaffold(
-        body: Center(child: Text('Error: $_error')),
-      );
+      return Scaffold(body: Center(child: Text('Error: $_error')));
     }
 
     return Scaffold(
@@ -68,9 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
-            },
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
           ),
         ],
       ),
@@ -87,8 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-                final created =
-                    await Navigator.pushNamed(context, '/create-task');
+                final created = await Navigator.pushNamed(context, '/create-task');
                 if (created == true) {
                   Navigator.pushReplacementNamed(context, '/tasks');
                 }
@@ -100,8 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () => Navigator.pushNamed(context, '/properties'),
               child: const Text('Manage Properties'),
             ),
-
-            // ← only show to admins
             if (_isAdmin) ...[
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -120,74 +101,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> setupPushNotifications() async {
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✅ User granted push notification permission');
-
-      // iOS-specific: initialize local notifications
-      const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
-
-      const InitializationSettings initSettings = InitializationSettings(
-        iOS: iosSettings,
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      );
-
-      await _localNotificationsPlugin.initialize(initSettings);
-
-      // Listen for foreground messages
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        RemoteNotification? notification = message.notification;
-        if (notification != null) {
-          _localNotificationsPlugin.show(
-            notification.hashCode,
-            notification.title,
-            notification.body,
-            const NotificationDetails(
-              android: AndroidNotificationDetails('default_channel', 'Default'),
-              iOS: DarwinNotificationDetails(),
-            ),
-          );
-        }
-      });
-
-      // Print FCM token (used for sending messages)
-      String? apnsToken = await _firebaseMessaging.getAPNSToken();
-      print('🍎 APNs Token: $apnsToken');
-
-      String? fcmToken = await _firebaseMessaging.getToken();
-      print('📲 FCM Token: $fcmToken');
-      if (fcmToken != null) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('auth_token');
-          final response = await http.post(
-            Uri.parse('http://192.168.100.219:8000/api/devices/'),
-            headers: {
-              'Authorization': 'Token $token',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'token': fcmToken}),
-          );
-
-          if (response.statusCode == 200) {
-            print('✅ Device token registered');
-          } else {
-            print('❌ Failed to register device token: ${response.statusCode}, ${response.body}');
-          }
-        } catch (e) {
-          print('❌ Error sending device token: $e');
-        }
-      } else {
-        print('⚠️ FCM token was null');
-      }
-    } else {
-      print('❌ Push notification permission denied');
+  // ────────────────────────────────────────────────────────────
+  //  Private helpers
+  // ────────────────────────────────────────────────────────────
+  Future<void> _loadCurrentUser() async {
+    try {
+      final User user = await ApiService().fetchCurrentUser();
+      setState(() => _isAdmin = user.isStaff == true);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      setState(() => _loading = false);
     }
+  }
+
+  /// React to a nav event coming from NotificationService.
+  void _handlePushNav(Map<String, dynamic> data) {
+    final String? taskId = data['task_id']?.toString();
+    if (taskId == null) return;
+
+    navigatorKey.currentState
+        ?.pushNamed('/task-detail', arguments: int.parse(taskId));
   }
 }

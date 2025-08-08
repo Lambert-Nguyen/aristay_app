@@ -6,8 +6,16 @@ import '../models/task.dart';
 import '../services/api_service.dart';
 
 class TaskDetailScreen extends StatefulWidget {
-  final Task initialTask;
-  const TaskDetailScreen({Key? key, required this.initialTask}) : super(key: key);
+  final Task? initialTask;          // when coming from list / edit
+  final int?  taskId;               // when coming from push-notification
+
+  const TaskDetailScreen({
+    Key? key,
+    this.initialTask,
+    this.taskId,
+  }) : assert(initialTask != null || taskId != null,
+       'Either initialTask or taskId must be supplied'),
+       super(key: key);
 
   @override
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
@@ -20,8 +28,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _task = widget.initialTask;
-    _refresh();
+    if (widget.initialTask != null) {
+      _task = widget.initialTask!;
+      _refresh();                      // still refresh for freshness
+    } else {
+      // build a very small placeholder while we fetch the real record
+      _task = Task(
+        id:          widget.taskId!,
+        propertyId:  0,
+        propertyName:'Loading…',
+        taskType:    '',
+        title:       'Loading…',
+        description: '',
+        status:      '',
+        createdAt:   DateTime.now().toUtc(),
+        modifiedAt:  DateTime.now().toUtc(),
+      );
+      _refresh();                      // fetch from API
+    }
   }
 
   Future<void> _refresh() async {

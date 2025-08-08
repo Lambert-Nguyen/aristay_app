@@ -43,6 +43,7 @@ dependencies:
   firebase_messaging: ^15.2.9
   flutter_local_notifications: ^19.3.1
   flutterfire_cli: ^1.0.0
+  rxdart: ^0.27.7
 
 dev_dependencies:
   flutter_test:

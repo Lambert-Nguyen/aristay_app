@@ -34,7 +34,6 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await NotificationService.init();
-  await NotificationService.getInitialMessage();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -67,8 +66,15 @@ class MyApp extends StatelessWidget {
           return EditTaskScreen(task: task);
         },
         '/task-detail': (c) {
-          final task = ModalRoute.of(c)!.settings.arguments as Task;
-          return TaskDetailScreen(initialTask: task);
+          final args = ModalRoute.of(c)!.settings.arguments;
+          if (args is Task) {
+            return TaskDetailScreen(initialTask: args);
+          } else if (args is int) {
+            return TaskDetailScreen(taskId: args);
+          } else if (args is Map && args['taskId'] is int) {
+            return TaskDetailScreen(taskId: args['taskId'] as int);
+          }
+          throw ArgumentError('Invalid arguments for /task-detail: $args');
         },
         // Admin user management
         '/admin/users': (c) => const AdminUserListScreen(),

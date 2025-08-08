@@ -14,7 +14,7 @@ class ValidationException implements Exception {
 
 class ApiService {
   // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'http://192.168.100.219:8000/api';
+  static const String baseUrl = 'http://192.168.1.31:8000/api';
 
   Future<List<Property>> fetchProperties() async {
     final prefs = await SharedPreferences.getInstance();
@@ -417,6 +417,26 @@ class ApiService {
       throw Exception('Failed to load task counts (${res.statusCode})');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Registers (or updates) the device’s FCM token with the backend.
+  Future<void> registerDeviceToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    final auth  = prefs.getString('auth_token');
+    if (auth == null) throw Exception('No auth token saved');
+
+    final res = await http.post(
+      Uri.parse('$baseUrl/devices/'),
+      headers: {
+        'Authorization': 'Token $auth',
+        'Content-Type'  : 'application/json',
+      },
+      body: jsonEncode({'token': token}),
+    );
+
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception('Failed to register device token (${res.statusCode}): ${res.body}');
+    }
   }
 
   /// Marks a notification as read.

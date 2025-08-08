@@ -1,96 +1,121 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:rxdart/rxdart.dart';
 
-import '../models/task.dart';
-import 'navigation_service.dart';
 import 'api_service.dart';
 
+/// Centralised wrapper around Firebase Messaging + local notifications.
+/// Exposes a [navStream] so feature screens can decide how to react to a
+/// push-notification tap without tight coupling.
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
-  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-
+  // ──────────────────────────────────────────────────────────────────────
+  //  Public API
+  // ──────────────────────────────────────────────────────────────────────
   static Future<void> init() async {
-    // Local notification setup
-    const ios = DarwinInitializationSettings();
-    const settings = InitializationSettings(iOS: ios);
-
-    final initialized = await _local.initialize(settings);
-    debugPrint('✅ Local notification initialized: $initialized');
-
-    // Request permissions (iOS only)
-    final settingsAuth = await _messaging.requestPermission();
-    debugPrint('🔐 Permissions granted: ${settingsAuth.authorizationStatus == AuthorizationStatus.authorized}');
-
-    try {
-      final token = await _messaging.getToken();
-      debugPrint('📲 FCM Token: $token');
-    } catch (e) {
-      debugPrint('⚠️ Push setup failed (expected on simulator): $e');
-    }
-
-    // Handle foreground push
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      final notification = message.notification;
-      if (notification != null) {
-        _local.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          const NotificationDetails(iOS: DarwinNotificationDetails()),
-        );
-      }
-    });
-
-    // Handle tapping notification when app is already open
-    FirebaseMessaging.onMessageOpenedApp.listen(_handlePushNavigation);
+    await _setupLocalPlugin();
+    await _requestPermissionsAndPresentation();
+    await _registerFcmToken();
+    _wireForegroundListener();
+    _wireTapListeners();
   }
 
-  static Future<void> getInitialMessage() async {
-    final message = await _messaging.getInitialMessage();
-    if (message != null) {
-      await _handlePushNavigation(message);
-    }
-  }
+  /// Delivers a map of push `data` payloads when the user taps a notification
+  /// (from background / terminated / foreground).
+  static Stream<Map<String, dynamic>> get navStream => _navController.stream;
 
-  static Future<void> _handlePushNavigation(RemoteMessage message) async {
-    final data = message.data;
-    final taskId = data['task_id'];
-    final notifId = data['notification_id'];
-
-    if (notifId != null) {
-      try {
-        await ApiService().markNotificationAsRead(notifId);
-        debugPrint('✅ Notification $notifId marked as read');
-      } catch (e) {
-        debugPrint('❌ Failed to mark notification read: $e');
-      }
-    }
-
-    if (taskId != null) {
-      navigatorKey.currentState?.pushNamed(
-        '/task-detail',
-        arguments: Task(
-          id: int.parse(taskId),
-          propertyId: 0,
-          propertyName: 'Unknown',
-          taskType: 'cleaning',
-          title: 'Loading...',
-          description: '',
-          status: 'pending',
-          createdAt: DateTime.now(),
-          modifiedAt: DateTime.now(),
+  /// Tiny helper to throw a local banner manually from anywhere.
+  static Future<void> showLocalTestNotification() => _showLocal(
+        const RemoteNotification(
+          title: '🔔 Aristay Test Notification',
+          body:  'This is just a local test.',
         ),
       );
-    }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  Implementation
+  // ──────────────────────────────────────────────────────────────────────
+  static final _local     = FlutterLocalNotificationsPlugin();
+  static final _messaging = FirebaseMessaging.instance;
+  static final _navController = PublishSubject<Map<String, dynamic>>();
+
+  static Future<void> _setupLocalPlugin() async {
+    const ios     = DarwinInitializationSettings();
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const settings = InitializationSettings(iOS: ios, android: android);
+
+    await _local.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (details) {
+        // If you ever add a `payload` when calling _local.show(...),
+        // you can decode/forward it here.
+      },
+    );
   }
 
-  static Future<void> showLocalTestNotification() async {
+  static Future<void> _requestPermissionsAndPresentation() async {
+    final auth = await _messaging.requestPermission();
+    debugPrint('🔐 Push permission: ${auth.authorizationStatus}');
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true, badge: true, sound: true,
+    );
+  }
+
+  static Future<void> _registerFcmToken() async {
+    Future<void> send(String? token) async {
+      if (token == null) return;
+      try {
+        await ApiService().registerDeviceToken(token);
+        debugPrint('✅ Device token registered with backend');
+      } catch (e) {
+        debugPrint('❌ Device token registration failed: $e');
+      }
+    }
+
+    // initial token
+    await send(await _messaging.getToken());
+    // future refreshes
+    _messaging.onTokenRefresh.listen(send);
+  }
+
+  static void _wireForegroundListener() {
+    FirebaseMessaging.onMessage.listen((msg) => _showLocal(msg.notification));
+  }
+
+  static void _wireTapListeners() {
+    // App in background → user taps banner
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleTap);
+    // App terminated → launched via tap
+    _messaging.getInitialMessage().then((msg) {
+      if (msg != null) _handleTap(msg);
+    });
+  }
+
+  static Future<void> _handleTap(RemoteMessage msg) async {
+    final Map<String, dynamic> data = msg.data;
+    final notifId = data['notification_id'];
+
+    // fire-and-forget - marking read should never block navigation
+    if (notifId != null) unawaited(ApiService().markNotificationAsRead(notifId));
+
+    // push the payload to listeners ─ the UI decides what to do
+    _navController.add(data);          // <- now type-safe
+  }
+
+  static Future<void> _showLocal(RemoteNotification? n) async {
+    if (n == null) return;
     await _local.show(
-      0,
-      '🔔 Aristay Test Notification',
-      'This is just a local test.',
-      const NotificationDetails(iOS: DarwinNotificationDetails()),
+      n.hashCode,
+      n.title,
+      n.body,
+      const NotificationDetails(
+        iOS:     DarwinNotificationDetails(),
+        android: AndroidNotificationDetails(
+          'default', 'Default',
+          importance: Importance.high,
+        ),
+      ),
     );
   }
 }
