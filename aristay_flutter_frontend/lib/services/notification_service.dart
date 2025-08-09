@@ -66,7 +66,7 @@ class NotificationService {
     Future<void> send(String? token) async {
       if (token == null) return;
       try {
-        await ApiService().registerDeviceToken(token);
+        await ApiService().registerDeviceTokenWithRetry(token);
         debugPrint('✅ Device token registered with backend');
       } catch (e) {
         debugPrint('❌ Device token registration failed: $e');
@@ -93,15 +93,20 @@ class NotificationService {
   }
 
   static Future<void> _handleTap(RemoteMessage msg) async {
-    final Map<String, dynamic> data = msg.data;
-    final notifId = data['notification_id'];
+    final data = Map<String, dynamic>.from(msg.data);
 
-    // fire-and-forget - marking read should never block navigation
+    // Fire-and-forget: mark read
+    final notifId = data['notification_id'];
     if (notifId != null) unawaited(ApiService().markNotificationAsRead(notifId));
 
-    // push the payload to listeners ─ the UI decides what to do
-    _navController.add(data);          // <- now type-safe
-  }
+    /* Normalise payload --------------------------------------------
+       We’ll inject a 'type' field so the UI can switch easily. */
+    if (data.containsKey('task_id'))      data['type'] = 'task';
+    else if (data.containsKey('property_id')) data['type'] = 'property';
+    else if (data.containsKey('user_id'))     data['type'] = 'user';
+
+    _navController.add(data);
+   }
 
   static Future<void> _showLocal(RemoteNotification? n) async {
     if (n == null) return;

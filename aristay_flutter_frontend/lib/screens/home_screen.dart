@@ -87,8 +87,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 icon: const Icon(Icons.admin_panel_settings),
-                label: const Text('Admin Dashboard'),
-                onPressed: () => Navigator.pushNamed(context, '/admin/users'),
+                label: const Text('Manage Users'),
+                onPressed: () =>
+                    Navigator.pushNamed(context, '/admin/users'),
               ),
             ],
             ElevatedButton(
@@ -117,10 +118,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// React to a nav event coming from NotificationService.
   void _handlePushNav(Map<String, dynamic> data) {
-    final String? taskId = data['task_id']?.toString();
-    if (taskId == null) return;
-
-    navigatorKey.currentState
-        ?.pushNamed('/task-detail', arguments: int.parse(taskId));
+    switch (data['type']) {
+      case 'task':
+        final id = int.parse(data['task_id'].toString());
+        navigatorKey.currentState?.pushNamed('/task-detail', arguments: id);
+        break;
+      case 'property':
+        final id = int.parse(data['property_id'].toString());
+        navigatorKey.currentState?.pushNamed('/properties/edit', arguments: id);
+        break;
+      case 'user':
+        final id = int.parse(data['user_id'].toString());
+        navigatorKey.currentState?.pushNamed(
+          '/admin/users',
+          arguments: {'highlightUserId': id},
+        );
+        break;
+      default:
+        // Optional future 'url' deep-link could be handled here
+        break;
+    }
   }
 }

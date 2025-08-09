@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/property.dart';
@@ -420,7 +421,7 @@ class ApiService {
   }
 
   /// Registers (or updates) the device’s FCM token with the backend.
-  Future<void> registerDeviceToken(String token) async {
+  Future<void> _registerDeviceTokenOnce(String token) async {
     final prefs = await SharedPreferences.getInstance();
     final auth  = prefs.getString('auth_token');
     if (auth == null) throw Exception('No auth token saved');
@@ -436,6 +437,22 @@ class ApiService {
 
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception('Failed to register device token (${res.statusCode}): ${res.body}');
+    }
+  }
+
+  /// Same as [_registerDeviceTokenOnce] but retries 3× with 2/4/8 s back-off (+ jitter).
+  Future<void> registerDeviceTokenWithRetry(String token) async {
+    const delays = [2, 4, 8]; // seconds
+    for (var i = 0; i < delays.length; i++) {
+      try {
+        await _registerDeviceTokenOnce(token);
+        return; // ✅ success
+      } catch (e) {
+        if (i == delays.length - 1) rethrow;     // give up
+        final jitter = Random().nextInt(500); /* ms */ 
+        await Future.delayed(Duration(
+          milliseconds: delays[i] * 1000 + jitter));
+      }
     }
   }
 
