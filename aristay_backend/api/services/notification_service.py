@@ -9,18 +9,29 @@ from google.auth.transport.requests import Request
 
 class NotificationService:
     @staticmethod
-    def process_task_change(task):
-        # You may want to refactor and pass in old state too
+    def process_task_change(task, verb='assigned or status_changed'):
+        """Create + push only if *no* UNREAD row exists for this user-task pair."""
         if not task.assigned_to:
+            return
+
+        already_unread = Notification.objects.filter(
+            recipient=task.assigned_to,
+            task=task,
+            read=False          # still in the inbox
+        ).exists()
+
+        if already_unread:
+            # Don’t spam – user hasn’t opened the previous one yet.
             return
 
         notif = Notification.objects.create(
             recipient=task.assigned_to,
             task=task,
-            verb='assigned or status_changed'
+            verb=verb,
         )
-
-        NotificationService.push_to_device(task.assigned_to, task, "assigned or status_changed", notif.id)
+        NotificationService.push_to_device(
+            task.assigned_to, task, verb, notif.id
+        )
 
         # Log to task.history
         history = json.loads(task.history or '[]')
