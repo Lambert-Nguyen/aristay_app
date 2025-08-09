@@ -150,7 +150,19 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ('task', 'recipient', 'verb', 'read', 'read_at', 'timestamp')
     list_filter = ('read', 'verb', 'timestamp')
     search_fields = ('task__title', 'recipient__username', 'verb')
-    readonly_fields = ('read_at', 'timestamp')
+    readonly_fields = ('read_at', 'timestamp', 'push_sent')
+
+    actions = ['resend_push']
+
+    def resend_push(self, request, queryset):
+        unsent = queryset.filter(push_sent=False)
+        sent   = 0
+        for n in unsent:
+            if NotificationService.push_to_device(n.recipient, n.task, n.verb, n.id):
+                n.mark_pushed(commit=True)
+                sent += 1
+        self.message_user(request, f"Successfully resent {sent} notification(s).")
+    resend_push.short_description = "Resend push for selected (unsent) notifications"
     
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):

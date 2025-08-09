@@ -164,6 +164,10 @@ class Notification(models.Model):
     verb = models.CharField(max_length=100)  # e.g. "assigned", "status_changed"
     read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)  # ← new
+    # ------------------------------------------------------------------
+    # was the push already sent?  (prevents duplicates if a staff member
+    # edits the row or we retry after an outage)
+    push_sent = models.BooleanField(default=False, editable=False)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -171,4 +175,13 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.verb} → {self.task.title} for {self.recipient.username}"
+    
+
+    # convenience helper – not strictly required, but nice
+    def mark_pushed(self, commit: bool = True):
+        """Flip push_sent ↦ True (idempotent)."""
+        if not self.push_sent:
+            self.push_sent = True
+            if commit:
+                self.save(update_fields=["push_sent"])
     

@@ -29,7 +29,7 @@ class NotificationService:
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
 
     @staticmethod
-    def push_to_device(user, task, verb, notification_id):
+    def push_to_device(user, task, verb, notification_id) -> bool:
         tokens = user.devices.values_list('token', flat=True)
 
         credentials = service_account.Credentials.from_service_account_file(
@@ -41,7 +41,8 @@ class NotificationService:
         access_token = credentials.token
         project_id = settings.FIREBASE_PROJECT_ID
         url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
-
+        
+        ok = True
         for token in tokens:
             payload = {
                 "message": {
@@ -68,3 +69,6 @@ class NotificationService:
             print('📦 Payload:', json.dumps(payload, indent=2))
             print('📩 FCM status:', response.status_code)
             print('📩 FCM response:', response.text)
+            if response.status_code != 200:
+                ok = False
+        return ok
