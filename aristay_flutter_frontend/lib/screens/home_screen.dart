@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../services/notification_service.dart';   // ← navStream
-import '../models/user.dart';
 import '../services/navigation_service.dart';
+
+import '../models/user.dart';
+
+import '../widgets/unread_badge.dart';   // new import
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -27,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // listen for deep-links emitted by NotificationService
     _navSub = NotificationService.navStream.listen(_handlePushNav);
+    
+    _fetchUnread();  // ← fire-and-forget helper below
   }
 
   @override
@@ -55,6 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
             onPressed: () => Navigator.pushNamed(context, '/settings'),
+          ),
+          UnreadBadge(
+            icon: const Icon(Icons.notifications),
+            onTap: () => Navigator.pushNamed(context, '/notifications'),
           ),
         ],
       ),
@@ -118,14 +128,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// React to a nav event coming from NotificationService.
   void _handlePushNav(Map<String, dynamic> data) {
+    final current = navigatorKey.currentState?.widget.toString();
+    final openFromInbox = current?.contains('NotificationListScreen') ?? false;
+
+    // when already in inbox ➜ just push
+    // otherwise (banner tap) ➜ pop to home first
+    void go(int id) {
+      if (!openFromInbox) {
+        navigatorKey.currentState?.popUntil(ModalRoute.withName('/home'));
+      }
+      navigatorKey.currentState?.pushNamed('/task-detail', arguments: id);
+    }
     switch (data['type']) {
       case 'task':
-        final id = int.parse(data['task_id'].toString());
-        navigatorKey.currentState?.pushNamed('/task-detail', arguments: id);
+        go(int.parse(data['task_id'].toString()));
         break;
       case 'property':
-        final id = int.parse(data['property_id'].toString());
-        navigatorKey.currentState?.pushNamed('/properties/edit', arguments: id);
+        go(int.parse(data['property_id'].toString()));
         break;
       case 'user':
         final id = int.parse(data['user_id'].toString());
@@ -137,6 +156,15 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         // Optional future 'url' deep-link could be handled here
         break;
+    }
+  }
+  
+  Future<void> _fetchUnread() async {
+    try {
+      final resp = await ApiService().fetchNotifications(unreadOnly: true);
+      unreadCount.value = resp['count'] as int;
+    } catch (_) {
+      // swallow – don’t block the home screen
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/property.dart';
 import '../models/task.dart';
 import '../models/user.dart';
+import '../models/notification.dart';
 
 /// Throws when the server returns a 400 with field‐level errors.
 class ValidationException implements Exception {
@@ -469,6 +470,56 @@ class ApiService {
     );
     if (res.statusCode != 200) {
       throw Exception('Failed to mark notification $id as read (${res.statusCode})');
+    }
+  }
+
+  // =============  🔔 NOTIFICATIONS  =============
+  Future<Map<String, dynamic>> fetchNotifications({
+    String? url,
+    bool unreadOnly = false,
+  }) async {
+    final prefs  = await SharedPreferences.getInstance();
+    final token  = prefs.getString('auth_token')!;
+    final uri    = url != null
+        ? Uri.parse(url)
+        : Uri.parse('$baseUrl/notifications/')
+            .replace(queryParameters: unreadOnly ? {'read': 'false'} : null);
+
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load notifications (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return {
+      'results':
+          (data['results'] as List).map((e) => AppNotification.fromJson(e)).toList(),
+      'next': data['next'] as String?,
+      'count': data['count'] as int,
+    };
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/notifications/$id/read/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to mark notification read (${res.statusCode})');
+    }
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/notifications/mark-all/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to mark all notifications read (${res.statusCode})');
     }
   }
 }

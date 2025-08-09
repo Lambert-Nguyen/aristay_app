@@ -185,3 +185,5 @@ DEFAULT_FROM_EMAIL = 'noreply@aristay-internal.cloud'
 FCM_SERVER_KEY = "your-firebase-server-key-here"
 FIREBASE_PROJECT_ID = 'aristayapp'
 FIREBASE_CREDENTIALS_FILE = BASE_DIR / 'firebase_credentials.json'
+
+EMAIL_DIGEST_ENABLED = os.getenv('EMAIL_DIGEST_ENABLED', 'false').lower() == 'true'

@@ -4,6 +4,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../widgets/unread_badge.dart';
+
 import 'api_service.dart';
 
 /// Centralised wrapper around Firebase Messaging + local notifications.
@@ -106,6 +108,9 @@ class NotificationService {
     else if (data.containsKey('user_id'))     data['type'] = 'user';
 
     _navController.add(data);
+    if (data['notification_id'] != null) {
+      unreadCount.value = (unreadCount.value + 1).clamp(0, 999);
+    }
    }
 
   static Future<void> _showLocal(RemoteNotification? n) async {
