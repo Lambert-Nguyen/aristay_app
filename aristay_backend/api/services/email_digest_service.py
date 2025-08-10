@@ -13,7 +13,15 @@ from api.models import Task, Profile
 
 class EmailDigestService:
     @staticmethod
-    def send_daily_digest(test_mode=False):
+    def send_daily_digest(test_mode: bool = False) -> int:
+        """
+        Sends the digest to every user **iff** the global flag is enabled.
+        Returns True if the digest actually ran; False otherwise.
+        """
+        if not settings.EMAIL_DIGEST_ENABLED:
+            return 0
+        sent = 0
+        # ------------------------------------------------------------------
         User = get_user_model()
         
         status_colors = {
@@ -106,3 +114,5 @@ class EmailDigestService:
             msg = EmailMultiAlternatives(subject, text_body, from_email, to_email)
             msg.attach_alternative(html_body, "text/html")
             msg.send()
+            sent += 1 
+        return sent
