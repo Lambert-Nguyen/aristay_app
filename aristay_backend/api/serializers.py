@@ -75,6 +75,9 @@ class TaskSerializer(serializers.ModelSerializer):
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
     modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
     images = TaskImageSerializer(many=True, read_only=True)
+    
+    # NEW: “is_muted” for **current** user (read-only)
+    is_muted = serializers.SerializerMethodField(read_only=True)
 
 
     # Replace ListField with a proper JSON parser:
@@ -106,8 +109,15 @@ class TaskSerializer(serializers.ModelSerializer):
           'due_date',
           'images',
           'history',
+          'is_muted',
         ]
         
+    def get_is_muted(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.muted_by.filter(pk=request.user.pk).exists()
+        return False
+    
     # ------------ New validator ------------
     def validate_due_date(self, value):
         """

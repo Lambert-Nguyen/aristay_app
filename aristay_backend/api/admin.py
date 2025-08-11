@@ -27,14 +27,19 @@ class TaskImageInline(admin.TabularInline):
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
         'title', 'task_type', 'property', 'status',
-        'created_by', 'created_at_local',
-        'modified_by', 'modified_at_local',
+        'created_by', 'assigned_to',        # add assignee column
+        'created_at_local', 'modified_at_local',
         'due_date',
     )
     readonly_fields = (
         'created_at', 'modified_at',
         'created_at_local', 'modified_at_local',
     )
+    # ─────────────────────────────────────────────────────────────
+    # Make the Many-to-Many user-friendly
+    # ─────────────────────────────────────────────────────────────
+    filter_horizontal = ('muted_by',)
+    
     inlines = [TaskImageInline]
 
     class Media:

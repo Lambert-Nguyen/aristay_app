@@ -11,6 +11,7 @@ from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework import status
 
 from rest_framework.authentication import TokenAuthentication
@@ -90,6 +91,24 @@ class TaskViewSet(viewsets.ModelViewSet):
             'total': total,
             'by_status': by_status,
         })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mute(self, request, pk=None):
+        """
+        POST /api/tasks/<id>/mute/
+        """
+        task = self.get_object()
+        task.muted_by.add(request.user)
+        return Response({'muted': True})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unmute(self, request, pk=None):
+        """
+        POST /api/tasks/<id>/unmute/
+        """
+        task = self.get_object()
+        task.muted_by.remove(request.user)
+        return Response({'muted': False})
         
 
 

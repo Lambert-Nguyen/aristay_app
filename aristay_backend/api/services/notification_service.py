@@ -54,25 +54,33 @@ class NotificationService:
         is **newer than** the current modification – i.e. the user still
         hasn’t opened the very last banner we sent for this task.
         """
-        if not task.assigned_to:
-            return
+        recipients = set()
 
-        duplicate = Notification.objects.filter(
-            recipient=task.assigned_to,
-            task=task,
-            read=False,
-            timestamp__gte=task.modified_at      # ← key line
-        ).exists()
+        if task.assigned_to:
+            recipients.add(task.assigned_to)
+        if task.created_by and task.created_by != task.assigned_to:
+            recipients.add(task.created_by)
 
-        if duplicate:
-            # They haven’t opened the very latest banner yet → skip.
-            return
+        # drop everyone who muted this task
+        recipients -= set(task.muted_by.all())
 
-        notif = Notification.objects.create(
-            recipient=task.assigned_to,
-            task=task,
-            verb=verb,
-        )
+        for user in recipients:
+            duplicate = Notification.objects.filter(
+                recipient=user,
+                task=task,
+                verb=verb,
+                read=False,
+                timestamp__gte=task.modified_at
+            ).exists()
+
+            if duplicate:
+                continue
+
+            Notification.objects.create(
+                recipient=user,
+                task=task,
+                verb=verb,
+            )
 
     # ------------------------------------------------------------------ #
     #   3)  LOW-LEVEL PUSH SENDER                                        #

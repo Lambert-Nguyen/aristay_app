@@ -61,6 +61,14 @@ class Task(models.Model):
         help_text="Optional deadline for task (stored in UTC)"
     )
     history      = models.TextField(blank=True, default='[]')
+    
+    # users that do **not** want pushes for *this* task
+    muted_by     = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='muted_tasks',
+        blank=True,
+        help_text="Users that muted notifications for this task"
+    )
 
 
     def __str__(self):
