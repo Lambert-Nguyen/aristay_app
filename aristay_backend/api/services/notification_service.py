@@ -29,9 +29,6 @@ class NotificationService:
             task=task,
             verb=verb,
         )
-        NotificationService.push_to_device(
-            task.assigned_to, task, verb, notif.id
-        )
 
         # Log to task.history
         history = json.loads(task.history or '[]')
@@ -41,8 +38,12 @@ class NotificationService:
 
     @staticmethod
     def push_to_device(user, task, verb, notification_id) -> bool:
-        tokens = user.devices.values_list('token', flat=True)
-
+        tokens = (
+            user.devices
+                .values_list('token', flat=True)
+                .order_by()        # strip any default ordering
+                .distinct()        # ← de-dupe at the DB level
+        )
         credentials = service_account.Credentials.from_service_account_file(
             settings.FIREBASE_CREDENTIALS_FILE,
             scopes=['https://www.googleapis.com/auth/firebase.messaging'],

@@ -82,7 +82,13 @@ class NotificationService {
   }
 
   static void _wireForegroundListener() {
-    FirebaseMessaging.onMessage.listen((msg) => _showLocal(msg.notification));
+    FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
+      // 📌 iOS/Android already displayed the system banner
+      if (msg.notification != null) return;    // <-- ADD THIS LINE
+
+      // your existing local-notification code ↓
+      await _showLocal(msg.notification);
+    });
   }
 
   static void _wireTapListeners() {
@@ -108,9 +114,7 @@ class NotificationService {
     else if (data.containsKey('user_id'))     data['type'] = 'user';
 
     _navController.add(data);
-    if (data['notification_id'] != null) {
-      unreadCount.value = (unreadCount.value + 1).clamp(0, 999);
-    }
+
    }
 
   static Future<void> _showLocal(RemoteNotification? n) async {

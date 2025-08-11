@@ -16,10 +16,9 @@ def task_updated(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Notification)
 def push_notification(sender, instance: Notification, created, **kwargs):
     """
-    Whenever a Notification row is created (or saved with push_sent=False),
-    fan-out the FCM push, then mark it as sent.
+    Fan-out a push **only once**, right after the row is INSERTed.
     """
-    if instance.push_sent:
+    if not created or instance.push_sent:      # ← fire only on first save
         return                               # already done
 
     # attempt the push
