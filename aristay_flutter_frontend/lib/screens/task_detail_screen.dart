@@ -181,12 +181,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // Assignee
+            // People (creator → assignee)
             Row(
               children: [
                 const Icon(Icons.person_outline, size: 18),
                 const SizedBox(width: 6),
-                Expanded(child: Text(_task.assignedToUsername ?? 'Not assigned')),
+                Flexible( // prevents overflows on small iPhones
+                  child: Text(
+                    '${_task.createdBy ?? "unknown"}  →  ${_task.assignedToUsername ?? "Not assigned"}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -401,7 +407,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (diff == 1) return 'Due tomorrow';
     return 'Due ${DateFormat.MMMd().format(d)}';
   }
-  
+
   Widget _dueChip(DateTime? due) {
     if (due == null) return const SizedBox.shrink();
     Color bg, fg;
