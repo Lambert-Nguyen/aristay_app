@@ -1,0 +1,8 @@
+(venv) (base) duylam1407@MacBookPro aristay_backend % python manage.py send_digest
+
+from api.services.email_digest_service import EmailDigestService
+EmailDigestService.send_daily_digest(test_mode=True)
+
+
+from api.services.email_digest_service import EmailDigestService
+EmailDigestService.send_daily_digest()

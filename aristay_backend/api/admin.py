@@ -3,10 +3,11 @@ from django.utils import timezone
 from django.utils.html import format_html
 import json
 
+
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin
 
-from .models import Task, Property, TaskImage, Profile
+from .models import Task, Property, TaskImage, Profile, Notification, Device
 
 class TaskImageInline(admin.TabularInline):
     model = TaskImage
@@ -26,14 +27,19 @@ class TaskImageInline(admin.TabularInline):
 class TaskAdmin(admin.ModelAdmin):
     list_display = (
         'title', 'task_type', 'property', 'status',
-        'created_by', 'created_at_local',
-        'modified_by', 'modified_at_local',
+        'created_by', 'assigned_to',        # add assignee column
+        'created_at_local', 'modified_at_local',
         'due_date',
     )
     readonly_fields = (
         'created_at', 'modified_at',
         'created_at_local', 'modified_at_local',
     )
+    # ─────────────────────────────────────────────────────────────
+    # Make the Many-to-Many user-friendly
+    # ─────────────────────────────────────────────────────────────
+    filter_horizontal = ('muted_by',)
+    
     inlines = [TaskImageInline]
 
     class Media:
@@ -43,11 +49,13 @@ class TaskAdmin(admin.ModelAdmin):
         local_dt = obj.created_at.astimezone(timezone.get_current_timezone())
         return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
     created_at_local.short_description = 'Created (Local)'
+    created_at_local.admin_order_field = 'created_at'  # ← this makes it sortable
 
     def modified_at_local(self, obj):
         local_dt = obj.modified_at.astimezone(timezone.get_current_timezone())
         return local_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
     modified_at_local.short_description = 'Modified (Local)'
+    modified_at_local.admin_order_field = 'modified_at'  # ← sortable
 
     def save_model(self, request, obj, form, change):
         user = request.user
@@ -115,7 +123,7 @@ class PropertyAdmin(admin.ModelAdmin):
 class ProfileInline(admin.StackedInline):
     model = Profile
     fk_name = 'user'
-    fields = ('timezone',)
+    fields = ('timezone', 'digest_opt_out')
     extra = 1        # always show one blank form if none exists
     max_num = 1      # never allow more than one
     can_delete = False
@@ -141,3 +149,33 @@ class UserAdmin(DefaultUserAdmin):
 # swap out Django’s built-in UserAdmin for ours
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('task', 'recipient', 'verb', 'read', 'read_at', 'timestamp')
+    list_filter = ('read', 'verb', 'timestamp')
+    search_fields = ('task__title', 'recipient__username', 'verb')
+    readonly_fields = ('read_at', 'timestamp', 'push_sent')
+
+    actions = ['resend_push']
+
+    def resend_push(self, request, queryset):
+        unsent = queryset.filter(push_sent=False)
+        sent   = 0
+        for n in unsent:
+            if NotificationService.push_to_device(n.recipient, n.task, n.verb, n.id):
+                n.mark_pushed(commit=True)
+                sent += 1
+        self.message_user(request, f"Successfully resent {sent} notification(s).")
+    resend_push.short_description = "Resend push for selected (unsent) notifications"
+    
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "timezone", "digest_opt_out")
+    list_editable = ("digest_opt_out",)
+
+@admin.register(Device)
+class DeviceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'token', 'created_at', 'updated_at')
+    search_fields = ('user__username', 'token')
+    readonly_fields = ('created_at', 'updated_at')

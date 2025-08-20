@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/property.dart';
 import '../models/task.dart';
 import '../models/user.dart';
+import '../models/notification.dart';
 
 /// Throws when the server returns a 400 with field‐level errors.
 class ValidationException implements Exception {
@@ -13,7 +15,33 @@ class ValidationException implements Exception {
 }
 
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  // static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'http://192.168.1.40:8000/api';
+
+  // ─────────────  Task mute / un-mute  ─────────────
+  Future<bool> _postMute(int id, { required bool mute }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/tasks/$id/${mute ? "mute" : "unmute"}/');
+
+    final res = await http.post(uri, headers: {
+      'Authorization': 'Token $token',
+      'Content-Type' : 'application/json',
+    });
+
+    if (res.statusCode != 200) return false;
+
+    try {
+      final obj = jsonDecode(res.body) as Map<String, dynamic>;
+      // backend returns { "muted": true/false }
+      return (obj['muted'] == true) == mute; // sanity check
+    } catch (_) {
+      return true; // keep previous behavior if parsing fails
+    }
+  }
+
+  Future<bool> muteTask  (int id) => _postMute(id, mute: true);
+  Future<bool> unmuteTask(int id) => _postMute(id, mute: false);
 
   Future<List<Property>> fetchProperties() async {
     final prefs = await SharedPreferences.getInstance();
@@ -416,5 +444,107 @@ class ApiService {
       throw Exception('Failed to load task counts (${res.statusCode})');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Registers (or updates) the device’s FCM token with the backend.
+  Future<void> _registerDeviceTokenOnce(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    final auth  = prefs.getString('auth_token');
+    if (auth == null) throw Exception('No auth token saved');
+
+    final res = await http.post(
+      Uri.parse('$baseUrl/devices/'),
+      headers: {
+        'Authorization': 'Token $auth',
+        'Content-Type'  : 'application/json',
+      },
+      body: jsonEncode({'token': token}),
+    );
+
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      throw Exception('Failed to register device token (${res.statusCode}): ${res.body}');
+    }
+  }
+
+  /// Same as [_registerDeviceTokenOnce] but retries 3× with 2/4/8 s back-off (+ jitter).
+  Future<void> registerDeviceTokenWithRetry(String token) async {
+    const delays = [2, 4, 8]; // seconds
+    for (var i = 0; i < delays.length; i++) {
+      try {
+        await _registerDeviceTokenOnce(token);
+        return; // ✅ success
+      } catch (e) {
+        if (i == delays.length - 1) rethrow;     // give up
+        final jitter = Random().nextInt(500); /* ms */ 
+        await Future.delayed(Duration(
+          milliseconds: delays[i] * 1000 + jitter));
+      }
+    }
+  }
+
+  /// Marks a notification as read.
+  Future<void> markNotificationAsRead(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/notifications/$id/read/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to mark notification $id as read (${res.statusCode})');
+    }
+  }
+
+  // =============  🔔 NOTIFICATIONS  =============
+  Future<Map<String, dynamic>> fetchNotifications({
+    String? url,
+    bool unreadOnly = false,
+  }) async {
+    final prefs  = await SharedPreferences.getInstance();
+    final token  = prefs.getString('auth_token')!;
+    final uri    = url != null
+        ? Uri.parse(url)
+        : Uri.parse('$baseUrl/notifications/')
+            .replace(queryParameters: unreadOnly ? {'read': 'false'} : null);
+
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load notifications (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return {
+      'results':
+          (data['results'] as List).map((e) => AppNotification.fromJson(e)).toList(),
+      'next': data['next'] as String?,
+      'count': data['count'] as int,
+    };
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/notifications/$id/read/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to mark notification read (${res.statusCode})');
+    }
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.post(
+      Uri.parse('$baseUrl/notifications/mark-all/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to mark all notifications read (${res.statusCode})');
+    }
   }
 }

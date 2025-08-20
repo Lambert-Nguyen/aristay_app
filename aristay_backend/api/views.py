@@ -9,6 +9,11 @@ from .filters import TaskFilter
 
 from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
+from rest_framework import status
+
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,7 +22,7 @@ from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
 
-from .models import Task, Property, TaskImage
+from .models import Task, Property, TaskImage, Device, Notification
 from .serializers import (
     TaskSerializer,
     PropertySerializer,
@@ -27,8 +32,11 @@ from .serializers import (
     AdminInviteSerializer,
     AdminPasswordResetSerializer,
     AdminUserCreateSerializer,
+    DeviceSerializer,
+    NotificationSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
+from .services.notification_service import NotificationService
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -54,10 +62,12 @@ class TaskViewSet(viewsets.ModelViewSet):
     ordering        = ['due_date']
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, modified_by=self.request.user)
+        task = serializer.save(created_by=self.request.user, modified_by=self.request.user)
+        NotificationService.process_task_change(task)
 
     def perform_update(self, serializer):
-        serializer.save(modified_by=self.request.user)
+        task = serializer.save(modified_by=self.request.user)
+        NotificationService.process_task_change(task)
         
     @action(
         detail=False,
@@ -68,12 +78,37 @@ class TaskViewSet(viewsets.ModelViewSet):
     def count_by_status(self, request):
         qs = self.filter_queryset(self.get_queryset())
         total = qs.count()
-        by_status = dict(qs.values_list('status')
-                           .annotate(count=Count('id')))
+
+        counts = (
+            qs.values('status')
+            .annotate(count=Count('id'))
+            .order_by()  # avoid implicit GROUP BY ordering issues
+        )
+
+        by_status = {entry['status']: entry['count'] for entry in counts}
+
         return Response({
             'total': total,
             'by_status': by_status,
         })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mute(self, request, pk=None):
+        """
+        POST /api/tasks/<id>/mute/
+        """
+        task = self.get_object()
+        task.muted_by.add(request.user)
+        return Response({'muted': True})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unmute(self, request, pk=None):
+        """
+        POST /api/tasks/<id>/unmute/
+        """
+        task = self.get_object()
+        task.muted_by.remove(request.user)
+        return Response({'muted': False})
         
 
 
@@ -186,7 +221,7 @@ class PropertyListCreate(generics.ListCreateAPIView):
         return super().get_permissions()
 
 class UserList(generics.ListAPIView):
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by('id')  # ← Add ordering to fix pagination warning
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -227,3 +262,60 @@ class AdminUserCreateView(generics.CreateAPIView):
     """
     permission_classes = [IsAdminUser]
     serializer_class   = AdminUserCreateSerializer
+
+class DeviceRegisterView(generics.CreateAPIView):
+    serializer_class = DeviceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        token = request.data.get("token")
+
+        if not token:
+            return Response({"error": "No FCM token provided."}, status=400)
+
+        # Step 1: remove any devices with this token (could be from another user)
+        Device.objects.filter(token=token).delete()
+
+        # Step 2: update existing device for user or create new one
+        device, created = Device.objects.update_or_create(
+            user=request.user,
+            defaults={"token": token}
+        )
+
+        return Response({
+            "status": "registered",
+            "token": device.token,
+            "created": created
+        })
+
+class NotificationListView(generics.ListAPIView):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['read']  # ← enables ?read=true / ?read=false
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user)
+    
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def mark_notification_read(request, pk):
+    try:
+        notif = Notification.objects.get(pk=pk, recipient=request.user)
+    except Notification.DoesNotExist:
+        return Response({'detail': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    notif.read = True
+    notif.read_at = timezone.now()
+    notif.save()
+
+    return Response({'success': True, 'read_at': notif.read_at})
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_all_notifications_read(request):
+    count = Notification.objects.filter(recipient=request.user, read=False).update(
+        read=True,
+        read_at=timezone.now()
+    )
+    return Response({'success': True, 'marked_count': count})

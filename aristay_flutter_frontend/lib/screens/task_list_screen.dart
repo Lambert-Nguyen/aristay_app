@@ -195,10 +195,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
           // show “All(##)” and reset the status filter
           TextButton(
             onPressed: () {
-              if (_status != 'all') {
-                setState(() => _status = 'all');
-                _load().then((_) => _loadCounts());
-              }
+              setState(() {
+                _status         = 'all';
+                _search         = '';
+                _propertyFilter = null;
+                _assigneeFilter = null;
+                _dateFrom       = null;
+                _dateTo         = null;
+                _showOverdue    = false;
+              });
+              _load().then((_) => _loadCounts());
             },
             style: TextButton.styleFrom(
               // use the same color AppBar uses for its icons/text:
@@ -379,8 +385,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
           child: ListTile(
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            title: Text(t.title,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(t.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (t.isMuted)
+                  const Icon(Icons.notifications_off, size: 16, color: Colors.grey),
+              ],
+            ),
             subtitle: Text(
               "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
             ),
@@ -388,8 +402,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
               label: Text(t.status.replaceAll('-', ' ')),
               backgroundColor: _statusColor(t.status),
             ),
-            onTap: () =>
-                Navigator.pushNamed(ctx, '/task-detail', arguments: t),
+            onTap: () async {
+              final result = await Navigator.pushNamed(ctx, '/task-detail', arguments: t);
+              if (!mounted) return;
+              if (result is Task) {
+                final idx = _tasks.indexWhere((x) => x.id == result.id);
+                if (idx != -1) setState(() => _tasks[idx] = result); // no full reload, keep scroll
+              }
+            },
           ),
         );
       },

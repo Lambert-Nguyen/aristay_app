@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; }
+    h2 { color: #2c3e50; }
+    .property { margin-top: 20px; }
+    .task { margin-left: 15px; }
+    .footer { margin-top: 30px; font-size: 13px; color: #999; }
+  </style>
+</head>
+<body>
+    <h2>Hi {{ name }},</h2>
+    <p>Here’s a quick summary of your tasks updated in the last 24 hours:</p>
+    <p style="color: #777; font-size: 14px;">
+      All times shown are in your local timezone: <strong>{{ timezone_name }}</strong>
+    </p>
+
+    {% for property, status_dict in grouped_tasks %}
+      <h3>🏠 {{ property }}</h3>
+      {% for status, tasks in status_dict.items %}
+        <strong>{% if status == "in-progress" %}🚧 In Progress{% elif status == "completed" %}✅ Completed{% else %}{{ status|title }}{% endif %}:</strong>
+        <ul>
+          {% for task in tasks %}
+            <li style="color: {{ task.status_color }}">
+              {{ task.title }}
+              {% if task.due_date %}
+                – due {{ task.due_date|date:"M d, Y H:i" }} 
+                <span style="color: #999;">({{ task.due_delta }})</span>
+                {% if task.due_date < now %}
+                  <strong style="color: red;"> (OVERDUE)</strong>
+                {% endif %}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    {% endfor %}
+
+    <p>Best,<br>Aristay Task Management Team</p>
+</body>
+<span style="display:none; font-size:0; line-height:0;">
+  {{ name }}, updated tasks across properties like
+  {% for property, _ in grouped_tasks %}{{ property }}{% if not forloop.last %}, {% endif %}{% endfor %}
+</span>
+</html>

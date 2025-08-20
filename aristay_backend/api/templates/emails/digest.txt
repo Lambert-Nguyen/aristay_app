@@ -1,0 +1,18 @@
+Hi {{ name }}, your updated tasks across:
+{% for property, _ in grouped_tasks %}- {{ property }}{% endfor %}
+
+Here’s a quick summary of your tasks updated in the last 24 hours:
+
+{% for property, status_dict in grouped_tasks %}
+🏠 {{ property }}:
+
+{% for status, tasks in status_dict.items %}
+• {{ status|title }}:
+{% for task in tasks %}
+  - {{ task.title }}
+{% endfor %}
+{% endfor %}
+
+{% endfor %}
+Best,  
+Aristay Task Management Team

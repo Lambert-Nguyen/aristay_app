@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import socket
 from pathlib import Path
+import os
 
 
 
@@ -53,8 +54,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
-    "api",
+    "api.apps.ApiConfig",
     "django_filters",
+    "django_crontab",
 ]
 
 MIDDLEWARE = [
@@ -171,4 +173,38 @@ DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
 FRONTEND_URL = "http://localhost:3000"
 
 # during development, just dump emails to the console instead of real SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.mailersend.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = 'MS_T2FlZ8@aristay-internal.cloud'
+EMAIL_HOST_PASSWORD = 'mssp.Yun5OWw.v69oxl53kzkg785k.9UyPJrd'
+
+DEFAULT_FROM_EMAIL = 'noreply@aristay-internal.cloud'
+
+FCM_SERVER_KEY = "your-firebase-server-key-here"
+FIREBASE_PROJECT_ID = 'aristayapp'
+FIREBASE_CREDENTIALS_FILE = BASE_DIR / 'firebase_credentials.json'
+
+# --- Email digest feature flag ---------------------------------
+# Default: OFF.  Turn ON with   export EMAIL_DIGEST_ENABLED=true
+EMAIL_DIGEST_ENABLED = os.getenv("EMAIL_DIGEST_ENABLED", "false").lower() == "true"
+
+# Run the digest at this UTC hour (0-23).  Overridable per env.
+EMAIL_DIGEST_HOUR_UTC = int(os.getenv("EMAIL_DIGEST_HOUR_UTC", "12"))
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+CRONJOBS = [
+    (
+        f"0 {EMAIL_DIGEST_HOUR_UTC} * * *",
+        "django.core.management.call_command",
+        ["send_digest"],
+        {"stdout": str(LOG_DIR / "digest.log"),
+         "stderr": str(LOG_DIR / "digest_err.log")},
+    ),
+]
+
+CRONTAB_DJANGO_SETTINGS = "backend.settings"

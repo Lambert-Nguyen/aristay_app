@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from rest_framework import serializers
-from .models import Task, Property, TaskImage, Profile
+from .models import Task, Property, TaskImage, Profile, Device, Notification
 import json
 import pytz
 
@@ -75,6 +75,9 @@ class TaskSerializer(serializers.ModelSerializer):
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
     modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
     images = TaskImageSerializer(many=True, read_only=True)
+    
+    # NEW: “is_muted” for **current** user (read-only)
+    is_muted = serializers.SerializerMethodField(read_only=True)
 
 
     # Replace ListField with a proper JSON parser:
@@ -106,8 +109,15 @@ class TaskSerializer(serializers.ModelSerializer):
           'due_date',
           'images',
           'history',
+          'is_muted',
         ]
         
+    def get_is_muted(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.muted_by.filter(pk=request.user.pk).exists()
+        return False
+    
     # ------------ New validator ------------
     def validate_due_date(self, value):
         """
@@ -270,3 +280,18 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         user.is_staff = validated_data.get('is_staff', False)
         user.save()
         return user
+    
+class DeviceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Device
+        fields = ['id', 'token']
+
+class NotificationSerializer(serializers.ModelSerializer):
+    task_title = serializers.CharField(source='task.title', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'task', 'task_title', 'verb',
+            'read', 'read_at', 'timestamp'  # ← added read_at
+        ]

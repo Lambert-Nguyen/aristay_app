@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
+
 import 'models/task.dart';
 import 'models/property.dart';
 
@@ -15,9 +19,27 @@ import 'screens/admin_invite_screen.dart';
 import 'screens/admin_reset_password_screen.dart';
 import 'screens/admin_user_list_screen.dart';
 import 'screens/admin_user_create_screen.dart';
+import 'screens/notification_list_screen.dart';
 
+import 'services/notification_service.dart';
+import 'services/navigation_service.dart';
 
-void main() => runApp(const MyApp());
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('🔕 Background Message: ${message.messageId}');
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await NotificationService.init();
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -26,6 +48,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Aristay App',
+      navigatorKey: navigatorKey,
       initialRoute: '/',
       routes: {
         '/': (c) => const LoginScreen(),
@@ -44,14 +67,22 @@ class MyApp extends StatelessWidget {
           return EditTaskScreen(task: task);
         },
         '/task-detail': (c) {
-          final task = ModalRoute.of(c)!.settings.arguments as Task;
-          return TaskDetailScreen(initialTask: task);
+          final args = ModalRoute.of(c)!.settings.arguments;
+          if (args is Task) {
+            return TaskDetailScreen(initialTask: args);
+          } else if (args is int) {
+            return TaskDetailScreen(taskId: args);
+          } else if (args is Map && args['taskId'] is int) {
+            return TaskDetailScreen(taskId: args['taskId'] as int);
+          }
+          throw ArgumentError('Invalid arguments for /task-detail: $args');
         },
         // Admin user management
         '/admin/users': (c) => const AdminUserListScreen(),
         '/admin/invite': (c) => const AdminInviteScreen(),
         '/admin/reset-password': (c) => const AdminResetPasswordScreen(),
         '/admin/create-user': (c) => const AdminUserCreateScreen(),
+        '/notifications': (c) => const NotificationListScreen(),
       },
     );
   }

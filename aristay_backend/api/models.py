@@ -61,6 +61,14 @@ class Task(models.Model):
         help_text="Optional deadline for task (stored in UTC)"
     )
     history      = models.TextField(blank=True, default='[]')
+    
+    # users that do **not** want pushes for *this* task
+    muted_by     = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='muted_tasks',
+        blank=True,
+        help_text="Users that muted notifications for this task"
+    )
 
 
     def __str__(self):
@@ -135,6 +143,7 @@ class Profile(models.Model):
         choices=[(tz, tz) for tz in sorted(available_timezones())],
         default='UTC'
     )
+    digest_opt_out = models.BooleanField(default=False)  # opt out email digest
 
     def __str__(self):
         return f"{self.user.username} profile"
@@ -143,3 +152,44 @@ class Profile(models.Model):
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
+
+class Device(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+        
+    def __str__(self):
+        return f"Device {self.token} for {self.user.username}"
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='notifications')
+    verb = models.CharField(max_length=100)  # e.g. "assigned", "status_changed"
+    read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)  # ← new
+    # ------------------------------------------------------------------
+    # was the push already sent?  (prevents duplicates if a staff member
+    # edits the row or we retry after an outage)
+    push_sent = models.BooleanField(default=False, editable=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.verb} → {self.task.title} for {self.recipient.username}"
+    
+
+    # convenience helper – not strictly required, but nice
+    def mark_pushed(self, commit: bool = True):
+        """Flip push_sent ↦ True (idempotent)."""
+        if not self.push_sent:
+            self.push_sent = True
+            if commit:
+                self.save(update_fields=["push_sent"])
+    
