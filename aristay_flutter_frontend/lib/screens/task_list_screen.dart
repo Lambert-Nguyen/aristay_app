@@ -420,22 +420,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
 
-            // Tapping anywhere opens details
             onTap: () async {
               final result = await Navigator.pushNamed(ctx, '/task-detail', arguments: t);
               if (!mounted) return;
               if (result is Task) {
                 final idx = _tasks.indexWhere((x) => x.id == result.id);
-                if (idx != -1) setState(() => _tasks[idx] = result); // keep scroll, no full reload
+                if (idx != -1) setState(() => _tasks[idx] = result);
               }
             },
 
-            // Title (kept the muted icon)
             title: Row(
               children: [
                 Expanded(
                   child: Text(
                     t.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -444,58 +444,70 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ],
             ),
 
-            // Subtitle with creator → assignee and due pill (your current content)
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("${t.propertyName} • ${_dateFmt.format(t.createdAt)}"),
+                // line 1: property • created (ellipsize)
+                Text(
+                  "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.person_outline, size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      (t.createdBy ?? 'unknown'),
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        (t.assignedToUsername ?? 'Not assigned'),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (t.dueAt != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _dueBg(t.dueAt!),
-                          borderRadius: BorderRadius.circular(999),
+
+                // line 2: creator → assignee + due pill (wrap on small screens)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+                        Text(
+                          (t.createdBy ?? 'unknown'),
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.event, size: 14, color: _dueFg(t.dueAt!)),
-                            const SizedBox(width: 4),
-                            Text(
-                              _dueLabel(t.dueAt!),
-                              style: TextStyle(fontSize: 12, color: _dueFg(t.dueAt!)),
+                        const Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
+
+                        // cap assignee width so the due pill can wrap
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.6),
+                          child: Text(
+                            (t.assignedToUsername ?? 'Not assigned'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
+
+                        if (t.dueAt != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _dueBg(t.dueAt!),
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.event, size: 14, color: _dueFg(t.dueAt!)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _dueLabel(t.dueAt!),
+                                  style: TextStyle(fontSize: 12, color: _dueFg(t.dueAt!)),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
 
-            // Bring back the status chip on the right
+            // status chip stays on the right
             trailing: Chip(
               label: Text(t.status.replaceAll('-', ' ')),
               backgroundColor: _statusColor(t.status),
