@@ -139,6 +139,41 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  Color _dueBg(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final overdue = d.isBefore(now);
+    final days = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (overdue) return Colors.red.shade100;
+    if (days <= 2) return Colors.orange.shade100;
+    return Colors.grey.shade200;
+  }
+
+  Color _dueFg(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final overdue = d.isBefore(now);
+    final days = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (overdue) return Colors.red.shade800;
+    if (days <= 2) return Colors.orange.shade800;
+    return Colors.grey.shade800;
+  }
+
+  String _dueLabel(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final diff = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (d.isBefore(now)) {
+      final od = DateTime(now.year, now.month, now.day)
+          .difference(DateTime(d.year, d.month, d.day))
+          .inDays;
+      return od == 0 ? 'Overdue' : 'Overdue ${od}d';
+    }
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    return 'Due ${DateFormat.MMMd().format(d)}';
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'pending':     return Colors.orange.shade100;
@@ -383,34 +418,90 @@ class _TaskListScreenState extends State<TaskListScreen> {
             borderRadius: BorderRadius.circular(10),
           ),
           child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(t.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                if (t.isMuted)
-                  const Icon(Icons.notifications_off, size: 16, color: Colors.grey),
-              ],
-            ),
-            subtitle: Text(
-              "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
-            ),
-            trailing: Chip(
-              label: Text(t.status.replaceAll('-', ' ')),
-              backgroundColor: _statusColor(t.status),
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+            // Tapping anywhere opens details
             onTap: () async {
               final result = await Navigator.pushNamed(ctx, '/task-detail', arguments: t);
               if (!mounted) return;
               if (result is Task) {
                 final idx = _tasks.indexWhere((x) => x.id == result.id);
-                if (idx != -1) setState(() => _tasks[idx] = result); // no full reload, keep scroll
+                if (idx != -1) setState(() => _tasks[idx] = result); // keep scroll, no full reload
               }
             },
-          ),
+
+            // Title (kept the muted icon)
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (t.isMuted)
+                  const Icon(Icons.notifications_off, size: 16, color: Colors.grey),
+              ],
+            ),
+
+            // Subtitle with creator → assignee and due pill (your current content)
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${t.propertyName} • ${_dateFmt.format(t.createdAt)}"),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      (t.createdBy ?? 'unknown'),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        (t.assignedToUsername ?? 'Not assigned'),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (t.dueAt != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _dueBg(t.dueAt!),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.event, size: 14, color: _dueFg(t.dueAt!)),
+                            const SizedBox(width: 4),
+                            Text(
+                              _dueLabel(t.dueAt!),
+                              style: TextStyle(fontSize: 12, color: _dueFg(t.dueAt!)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+
+            // Bring back the status chip on the right
+            trailing: Chip(
+              label: Text(t.status.replaceAll('-', ' ')),
+              backgroundColor: _statusColor(t.status),
+              side: const BorderSide(color: Colors.black12),
+            ),
+          )
         );
       },
     );

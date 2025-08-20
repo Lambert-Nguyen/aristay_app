@@ -20,6 +20,7 @@ class EditTaskScreen extends StatefulWidget {
 
 class _EditTaskScreenState extends State<EditTaskScreen> {
   final _formKey = GlobalKey<FormState>();
+  DateTime? _dueAt;
 
   // controllers
   late final TextEditingController _titleCtrl;
@@ -56,6 +57,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     _descCtrl  = TextEditingController(text: widget.task.description);
     _taskType  = widget.task.taskType;
     _status    = widget.task.status;
+    _dueAt = widget.task.dueAt;
     _loadDropdowns();
   }
 
@@ -117,12 +119,13 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     });
 
     final payload = {
-      'property': _selectedProperty!.id,
-      'task_type': _taskType,
-      'title': _titleCtrl.text.trim(),
-      'description': _descCtrl.text.trim(),
-      'status': _status,
-      'assigned_to': _selectedAssignee?.id,
+      'property'    : _selectedProperty!.id,
+      'task_type'   : _taskType,
+      'title'       : _titleCtrl.text.trim(),
+      'description' : _descCtrl.text.trim(),
+      'status'      : _status,
+      'assigned_to' : _selectedAssignee?.id,
+      'due_at'      : _dueAt?.toIso8601String(),   // ← NEW
     };
 
     try {
@@ -269,6 +272,21 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                 Text(_selectedAssignee?.username ?? (widget.task.assignedToUsername ?? 'Not assigned')),
               ],
             ),
+            // in _summaryCard(), after the Wrap(...) and before the Divider:
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.event, size: 18),
+                const SizedBox(width: 6),
+                _dueAt == null
+                    ? const Text('No due date', style: TextStyle(color: Colors.grey))
+                    : Chip(
+                        label: Text(_dueLabel(_dueAt!)),
+                        backgroundColor: _dueBg(_dueAt!),
+                        side: const BorderSide(color: Colors.black12),
+                      ),
+              ],
+            ),
             const Divider(height: 24),
             Text('Created:  ${_fmtLocal(widget.task.createdAt)}',
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
@@ -368,6 +386,47 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                     .toList(),
                 onChanged: (u) => setState(() => _selectedAssignee = u),
                 validator: (u) => u == null ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              // Due date picker (date-only for now)
+              TextFormField(
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: 'Due date',
+                  hintText: 'Select a due date',
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_dueAt != null)
+                        IconButton(
+                          tooltip: 'Clear',
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => setState(() => _dueAt = null),
+                        ),
+                      IconButton(
+                        tooltip: 'Pick date',
+                        icon: const Icon(Icons.event),
+                        onPressed: () async {
+                          final now = DateTime.now();
+                          final init = _dueAt ?? DateTime(now.year, now.month, now.day);
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: init,
+                            firstDate: DateTime(now.year - 3),
+                            lastDate: DateTime(now.year + 5),
+                          );
+                          if (picked != null) {
+                            // store as midnight local (backend can treat as date-only)
+                            setState(() => _dueAt = DateTime(picked.year, picked.month, picked.day));
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                controller: TextEditingController(
+                  text: _dueAt == null ? '' : DateFormat.yMMMd().format(_dueAt!.toLocal()),
+                ),
               ),
             ],
           ),
@@ -579,5 +638,30 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       case 'canceled':    return Colors.red.shade100;
       default:            return Colors.grey.shade200;
     }
+  }
+  Color _dueBg(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final overdue = d.isBefore(now);
+    final days = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (overdue) return Colors.red.shade100;
+    if (days <= 2) return Colors.orange.shade100;
+    return Colors.grey.shade200;
+  }
+
+  String _dueLabel(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(d.year, d.month, d.day);
+
+    if (d.isBefore(now)) {
+      final od = today.difference(dueDay).inDays;
+      return od == 0 ? 'Overdue' : 'Overdue ${od}d';
+    }
+    final diff = dueDay.difference(today).inDays;
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    return 'Due ${DateFormat.MMMd().format(d)}';
   }
 }

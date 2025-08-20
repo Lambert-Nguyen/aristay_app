@@ -189,6 +189,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Expanded(child: Text(_task.assignedToUsername ?? 'Not assigned')),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.event, size: 18),
+                const SizedBox(width: 6),
+                _dueChip(_task.dueAt),
+              ],
+            ),
             const Divider(height: 24),
             // Dates
             Text('Created:  ${_formatLocal(_task.createdAt)}',
@@ -376,5 +384,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       case 'canceled':    return Colors.red.shade100;
       default:            return Colors.grey.shade200;
     }
+  }
+
+  String _dueLabel(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(d.year, d.month, d.day);
+
+    if (d.isBefore(now)) {
+      final od = today.difference(dueDay).inDays;
+      return od == 0 ? 'Overdue' : 'Overdue ${od}d';
+    }
+    final diff = dueDay.difference(today).inDays;
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    return 'Due ${DateFormat.MMMd().format(d)}';
+  }
+  
+  Widget _dueChip(DateTime? due) {
+    if (due == null) return const SizedBox.shrink();
+    Color bg, fg;
+    final now = DateTime.now();
+    final d = due.toLocal();
+    if (d.isBefore(now)) { bg = Colors.red.shade100;    fg = Colors.red.shade800; }
+    else if (d.difference(DateTime(now.year, now.month, now.day)).inDays <= 2) {
+      bg = Colors.orange.shade100; fg = Colors.orange.shade800;
+    } else { bg = Colors.grey.shade200; fg = Colors.grey.shade800; }
+    final label = _dueLabel(due); // reuse same logic from list screen if you like
+    return Chip(
+      avatar: Icon(Icons.event, size: 16, color: fg),
+      label: Text(label, style: TextStyle(color: fg)),
+      backgroundColor: bg,
+      side: const BorderSide(color: Colors.black12),
+    );
   }
 }

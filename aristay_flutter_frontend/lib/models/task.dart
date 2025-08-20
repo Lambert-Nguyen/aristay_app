@@ -20,6 +20,7 @@ class Task {
   // new fields:
   final DateTime createdAt;
   final DateTime modifiedAt;
+  final DateTime? dueAt;
 
   Task({
     required this.id,
@@ -36,6 +37,7 @@ class Task {
     this.history        = const [],
     required this.createdAt,
     required this.modifiedAt,
+    this.dueAt,
     this.imageUrls      = const [],
     this.imageIds       = const [],
     this.isMuted        = false,
@@ -59,6 +61,7 @@ class Task {
     bool? isMuted,
     DateTime? createdAt,
     DateTime? modifiedAt,
+    DateTime? dueAt, 
   }) {
     return Task(
       id: id ?? this.id,
@@ -78,6 +81,7 @@ class Task {
       isMuted: isMuted ?? this.isMuted,
       createdAt: createdAt ?? this.createdAt,
       modifiedAt: modifiedAt ?? this.modifiedAt,
+      dueAt: dueAt ?? this.dueAt,
     );
   }
 
@@ -88,6 +92,13 @@ class Task {
     final modifiedAtStr = json['modified_at'] as String?;
     final createdAt  = createdAtStr  != null ? DateTime.parse(createdAtStr)  : DateTime.now().toUtc();
     final modifiedAt = modifiedAtStr != null ? DateTime.parse(modifiedAtStr) : createdAt;
+
+    //due date (supports `due_at` or `due_date`)
+    DateTime? dueAt;
+    final rawDue = (json['due_at'] ?? json['due_date']);
+    if (rawDue is String && rawDue.isNotEmpty) {
+      dueAt = DateTime.parse(rawDue);
+    }
 
     // build lists for images
     final urls = <String>[];
@@ -142,6 +153,7 @@ class Task {
       history:               history,
       createdAt:             createdAt,
       modifiedAt:            modifiedAt,
+      dueAt: dueAt,
       imageUrls:             urls,
       imageIds:              ids,
       isMuted:               (json['is_muted']  as bool?) ?? false,
@@ -156,6 +168,7 @@ class Task {
       'description': description,
       'status':      status,
       'assigned_to': assignedToId,
+      'due_at'      : dueAt?.toIso8601String(),
       // note: isMuted is server-only
     };
   }
