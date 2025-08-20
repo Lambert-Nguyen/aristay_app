@@ -245,7 +245,11 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                   ),
                 ),
-                Chip(label: Text(_status.replaceAll('-', ' '))),
+                Chip(
+                  label: Text(_status.replaceAll('-', ' ')),
+                  backgroundColor: _statusColor(_status),
+                  side: const BorderSide(color: Colors.black12),
+                )
               ],
             ),
             const SizedBox(height: 8),
@@ -565,5 +569,15 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'pending':     return Colors.orange.shade100;
+      case 'in-progress': return Colors.blue.shade100;
+      case 'completed':   return Colors.green.shade100;
+      case 'canceled':    return Colors.red.shade100;
+      default:            return Colors.grey.shade200;
+    }
   }
 }

@@ -163,7 +163,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
                 Chip(
                   label: Text(_task.status.replaceAll('-', ' ')),
-                ),
+                  backgroundColor: _statusColor(_task.status),
+                )
               ],
             ),
             const SizedBox(height: 8),
@@ -365,5 +366,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
       ),
     );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'pending':     return Colors.orange.shade100;
+      case 'in-progress': return Colors.blue.shade100;
+      case 'completed':   return Colors.green.shade100;
+      case 'canceled':    return Colors.red.shade100;
+      default:            return Colors.grey.shade200;
+    }
   }
 }
