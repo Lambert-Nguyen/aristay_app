@@ -1,3 +1,4 @@
+// lib/screens/task_detail_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,15 +7,15 @@ import '../models/task.dart';
 import '../services/api_service.dart';
 
 class TaskDetailScreen extends StatefulWidget {
-  final Task? initialTask;          // when coming from list / edit
-  final int?  taskId;               // when coming from push-notification
+  final Task? initialTask;
+  final int?  taskId;
 
   const TaskDetailScreen({
     Key? key,
     this.initialTask,
     this.taskId,
   }) : assert(initialTask != null || taskId != null,
-       'Either initialTask or taskId must be supplied'),
+        'Either initialTask or taskId must be supplied'),
        super(key: key);
 
   @override
@@ -24,16 +25,17 @@ class TaskDetailScreen extends StatefulWidget {
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late Task _task;
   bool _loading = false;
-  bool _dirty   = false; // mark when something changed
+  bool _dirty   = false;
+
+  final _fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
   @override
   void initState() {
     super.initState();
     if (widget.initialTask != null) {
       _task = widget.initialTask!;
-      _refresh();                      // still refresh for freshness
+      _refresh();
     } else {
-      // build a very small placeholder while we fetch the real record
       _task = Task(
         id:          widget.taskId!,
         propertyId:  0,
@@ -45,7 +47,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         createdAt:   DateTime.now().toUtc(),
         modifiedAt:  DateTime.now().toUtc(),
       );
-      _refresh();                      // fetch from API
+      _refresh();
     }
   }
 
@@ -53,7 +55,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     setState(() => _loading = true);
     try {
       final updated = await ApiService().fetchTask(_task.id);
-      setState(() { _task = updated; });
+      setState(() => _task = updated);
     } catch (e) {
       debugPrint('Failed to refresh task: $e');
     } finally {
@@ -63,8 +65,66 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   String _formatLocal(DateTime utcDt) {
     final local = utcDt.toLocal();
-    final fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
-    return '${fmt.format(local)} ${local.timeZoneName}';
+    return '${_fmt.format(local)} ${local.timeZoneName}';
+  }
+
+  Future<void> _toggleMute(bool next) async {
+    final old = _task.isMuted;
+    setState(() => _task = _task.copyWith(isMuted: next));
+    bool ok;
+    try {
+      ok = next
+        ? await ApiService().muteTask(_task.id)
+        : await ApiService().unmuteTask(_task.id);
+    } catch (_) {
+      ok = false;
+    }
+    if (!ok && mounted) {
+      setState(() => _task = _task.copyWith(isMuted: old)); // rollback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to ${next ? "mute" : "un-mute"} task')),
+      );
+    } else if (ok) {
+      _dirty = true;
+    }
+  }
+
+  Future<void> _attachPhoto() async {
+    final img = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (img == null) return;
+    setState(() => _loading = true);
+    try {
+      await ApiService().uploadTaskImage(_task.id, File(img.path));
+      await _refresh();
+      _dirty = true;
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete task?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true),  child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (yes != true) return;
+
+    final ok = await ApiService().deleteTask(_task.id);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.popUntil(context, ModalRoute.withName('/tasks'));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delete failed')),
+      );
+    }
   }
 
   void _openImage(String url) {
@@ -72,170 +132,237 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       builder: (_) => Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(backgroundColor: Colors.black),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            return InteractiveViewer(
-              // Constrain to the full available space
-              constrained: true,           
-              // Allow a little extra for panning when zoomed
-              boundaryMargin: const EdgeInsets.all(80),
-              minScale: 1.0,
-              maxScale: 4.0,
-              child: SizedBox(
-                width: constraints.maxWidth,
-                height: constraints.maxHeight,
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,    // scale to fit entire area
-                ),
-              ),
-            );
-          },
+        body: Center(
+          child: InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: Image.network(url, fit: BoxFit.contain),
+          ),
         ),
       ),
     ));
   }
 
+  Widget _headerCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title + status chip
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(_task.title,
+                    style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700)),
+                ),
+                Chip(
+                  label: Text(_task.status.replaceAll('-', ' ')),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Property & type
+            Row(
+              children: [
+                const Icon(Icons.home_outlined, size: 18),
+                const SizedBox(width: 6),
+                Expanded(child: Text(_task.propertyName)),
+                const SizedBox(width: 8),
+                const Icon(Icons.build_outlined, size: 18),
+                const SizedBox(width: 6),
+                Text(_task.taskType),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Assignee
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 18),
+                const SizedBox(width: 6),
+                Expanded(child: Text(_task.assignedToUsername ?? 'Not assigned')),
+              ],
+            ),
+            const Divider(height: 24),
+            // Dates
+            Text('Created:  ${_formatLocal(_task.createdAt)}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text('Modified: ${_formatLocal(_task.modifiedAt)}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _descriptionCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          _task.description.isEmpty ? 'No description' : _task.description,
+          style: const TextStyle(fontSize: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _notificationsCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: SwitchListTile(
+        dense: false,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        title: const Text('Mute notifications for this task'),
+        subtitle: Text(_task.isMuted ? 'Muted for you' : 'Enabled for you'),
+        secondary: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
+        value: _task.isMuted,
+        onChanged: (v) => _toggleMute(v),
+      ),
+    );
+  }
+
+  Widget _photosCard() {
+    if (_task.imageUrls.isEmpty) {
+      return Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: const ListTile(
+          leading: Icon(Icons.photo_outlined),
+          title: Text('No photos attached'),
+        ),
+      );
+    }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: SizedBox(
+          height: 110,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _task.imageUrls.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final url = _task.imageUrls[i];
+              return GestureDetector(
+                onTap: () => _openImage(url),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(url, height: 110, width: 140, fit: BoxFit.cover),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _historyCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        leading: const Icon(Icons.timelapse),
+        title: const Text('History'),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        children: _task.history.isEmpty
+            ? [const Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text('No history available'),
+                ),
+              )]
+            : _task.history.map((h) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('• $h'),
+                  ),
+                )).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-  return PopScope(
-    canPop: false,
-    onPopInvokedWithResult: (didPop, result) {
-      if (didPop) return;                 // system/app already popped
-      Navigator.pop(context, _dirty ? _task : null);
-    },
-    child: Scaffold(
-      appBar: AppBar(
-        title: const Text('Task Details'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context, _dirty ? _task : null),
-        ),
-        actions: [
-          IconButton(
-            tooltip: _task.isMuted ? 'Un-mute' : 'Mute',
-            icon: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
-            onPressed: () async {
-              final old = _task.isMuted;
-              setState(() => _task = _task.copyWith(isMuted: !old));
-              bool ok;
-              try {
-                ok = old
-                    ? await ApiService().unmuteTask(_task.id)
-                    : await ApiService().muteTask(_task.id);
-              } catch (_) {
-                ok = false;
-              }
-              if (!ok && mounted) {
-                setState(() => _task = _task.copyWith(isMuted: old)); // rollback
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to ${old ? "un-mute" : "mute"} task')),
-                );
-              } else if (ok) {
-                _dirty = true; // make sure list updates on return
-              }
-            },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        Navigator.pop(context, _dirty ? _task : null);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Task Details'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context, _dirty ? _task : null),
           ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final result = await Navigator.pushNamed(context, '/edit-task', arguments: _task);
-              if (result == true) await _refresh();
-              _dirty = true;
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () async {
-              final ok = await ApiService().deleteTask(_task.id);
-              if (ok) Navigator.popUntil(context, ModalRoute.withName('/tasks'));
-              else ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Delete failed')));
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.photo_camera),
-            onPressed: () async {
-              final img = await ImagePicker().pickImage(source: ImageSource.gallery);
-              if (img == null) return;
-              setState(() => _loading = true);
-              await ApiService().uploadTaskImage(_task.id, File(img.path));
-              await _refresh();
-              _dirty = true;
-            },
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView(
-                children: [
-                  Text('Task Type: ${_task.taskType}', style: const TextStyle(fontSize: 18)),
-                  const SizedBox(height: 8),
-                  Text('Title: ${_task.title}', style: const TextStyle(fontSize: 18)),
-                  const SizedBox(height: 8),
-                  Text('Description: ${_task.description}', style: const TextStyle(fontSize: 16)),
-                  const Divider(height: 32),
-                  Text('Property: ${_task.propertyName}', style: const TextStyle(fontSize: 16)),
-                  const SizedBox(height: 8),
-                  Text('Status: ${_task.status}', style: const TextStyle(fontSize: 16)),
-                  const Divider(height: 32),
-                  Text('Created At (Local): ${_formatLocal(_task.createdAt)}',
-                      style: const TextStyle(fontSize: 14)),
-                  Text('Modified At (Local): ${_formatLocal(_task.modifiedAt)}',
-                      style: const TextStyle(fontSize: 14)),
-                  const Divider(height: 32),
-                  Text('Created by: ${_task.createdBy ?? "unknown"}',
-                      style: const TextStyle(fontSize: 16)),
-                  const SizedBox(height: 8),
-                  Text('Assigned to: ${_task.assignedToUsername ?? "Not assigned"}',
-                      style: const TextStyle(fontSize: 16)),
-                  const SizedBox(height: 8),
-                  Text('Modified by: ${_task.modifiedBy ?? _task.createdBy ?? "n/a"}',
-                      style: const TextStyle(fontSize: 16)),
-                  const Divider(height: 32),
-                  const Text('History:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  if (_task.history.isEmpty)
-                    const Text('No history available', style: TextStyle(fontSize: 16))
-                  else
-                    ..._task.history.map((h) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text('• $h', style: const TextStyle(fontSize: 16)),
-                        )),
-                  const Divider(height: 32),
-                  const Text('Photos:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  if (_task.imageUrls.isEmpty)
-                    const Text('No photos attached')
-                  else
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _task.imageUrls.length,
-                        itemBuilder: (_, i) {
-                          final url = _task.imageUrls[i];
-                          return GestureDetector(
-                            onTap: () => _openImage(url),
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Image.network(
-                                url,
-                                height: 100,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (val) async {
+                switch (val) {
+                  case 'edit':
+                    final result = await Navigator.pushNamed(context, '/edit-task', arguments: _task);
+                    if (result == true) {
+                      await _refresh();
+                      _dirty = true;
+                    }
+                    break;
+                  case 'photo':
+                    await _attachPhoto();
+                    break;
+                  case 'refresh':
+                    await _refresh();
+                    break;
+                  case 'delete':
+                    await _confirmDelete();
+                    break;
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'edit',    child: ListTile(leading: Icon(Icons.edit),          title: Text('Edit'))),
+                const PopupMenuItem(value: 'photo',   child: ListTile(leading: Icon(Icons.photo_camera),   title: Text('Add photo'))),
+                const PopupMenuItem(value: 'refresh', child: ListTile(leading: Icon(Icons.refresh),        title: Text('Refresh'))),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                  ),
+                ),
+              ],
             ),
+          ],
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _refresh,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _headerCard(),
+                    _descriptionCard(),
+                    _notificationsCard(), // ← mute/unmute lives here now
+                    _photosCard(),
+                    _historyCard(),
+                  ],
+                ),
+              ),
       ),
     );
   }
