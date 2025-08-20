@@ -209,6 +209,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
             Text('Modified: ${_formatLocal(_task.modifiedAt)}',
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            if ((_task.modifiedBy ?? '').isNotEmpty)
+              Text('Modified by: ${_task.modifiedBy!}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),
