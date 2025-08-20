@@ -24,6 +24,7 @@ class TaskDetailScreen extends StatefulWidget {
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late Task _task;
   bool _loading = false;
+  bool _dirty   = false; // mark when something changed
 
   @override
   void initState() {
@@ -97,32 +98,41 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  return PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) {
+      if (didPop) return;                 // system/app already popped
+      Navigator.pop(context, _dirty ? _task : null);
+    },
+    child: Scaffold(
       appBar: AppBar(
         title: const Text('Task Details'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context, _dirty ? _task : null),
+        ),
         actions: [
-          // 🔕 mute / un-mute
           IconButton(
             tooltip: _task.isMuted ? 'Un-mute' : 'Mute',
             icon: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
             onPressed: () async {
               final old = _task.isMuted;
               setState(() => _task = _task.copyWith(isMuted: !old));
-
-              bool ok = false;
+              bool ok;
               try {
                 ok = old
                     ? await ApiService().unmuteTask(_task.id)
-                    : await ApiService().muteTask  (_task.id);
+                    : await ApiService().muteTask(_task.id);
               } catch (_) {
                 ok = false;
               }
-
               if (!ok && mounted) {
                 setState(() => _task = _task.copyWith(isMuted: old)); // rollback
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Failed to ${old ? "un-mute" : "mute"} task')),
                 );
+              } else if (ok) {
+                _dirty = true; // make sure list updates on return
               }
             },
           ),
@@ -132,6 +142,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             onPressed: () async {
               final result = await Navigator.pushNamed(context, '/edit-task', arguments: _task);
               if (result == true) await _refresh();
+              _dirty = true;
             },
           ),
           IconButton(
@@ -151,6 +162,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               setState(() => _loading = true);
               await ApiService().uploadTaskImage(_task.id, File(img.path));
               await _refresh();
+              _dirty = true;
             },
           ),
         ],
@@ -224,6 +236,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 }

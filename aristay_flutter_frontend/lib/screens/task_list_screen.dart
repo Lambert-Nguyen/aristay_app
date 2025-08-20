@@ -402,8 +402,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
               label: Text(t.status.replaceAll('-', ' ')),
               backgroundColor: _statusColor(t.status),
             ),
-            onTap: () =>
-                Navigator.pushNamed(ctx, '/task-detail', arguments: t),
+            onTap: () async {
+              final result = await Navigator.pushNamed(ctx, '/task-detail', arguments: t);
+              if (!mounted) return;
+              if (result is Task) {
+                final idx = _tasks.indexWhere((x) => x.id == result.id);
+                if (idx != -1) setState(() => _tasks[idx] = result); // no full reload, keep scroll
+              }
+            },
           ),
         );
       },
