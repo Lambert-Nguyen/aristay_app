@@ -385,8 +385,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
           child: ListTile(
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            title: Text(t.title,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(t.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (t.isMuted)
+                  const Icon(Icons.notifications_off, size: 16, color: Colors.grey),
+              ],
+            ),
             subtitle: Text(
               "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
             ),

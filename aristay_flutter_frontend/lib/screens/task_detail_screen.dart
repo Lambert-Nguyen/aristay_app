@@ -101,6 +101,31 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       appBar: AppBar(
         title: const Text('Task Details'),
         actions: [
+          // 🔕 mute / un-mute
+          IconButton(
+            tooltip: _task.isMuted ? 'Un-mute' : 'Mute',
+            icon: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
+            onPressed: () async {
+              final old = _task.isMuted;
+              setState(() => _task = _task.copyWith(isMuted: !old));
+
+              bool ok = false;
+              try {
+                ok = old
+                    ? await ApiService().unmuteTask(_task.id)
+                    : await ApiService().muteTask  (_task.id);
+              } catch (_) {
+                ok = false;
+              }
+
+              if (!ok && mounted) {
+                setState(() => _task = _task.copyWith(isMuted: old)); // rollback
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to ${old ? "un-mute" : "mute"} task')),
+                );
+              }
+            },
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
           IconButton(
             icon: const Icon(Icons.edit),

@@ -16,7 +16,32 @@ class ValidationException implements Exception {
 
 class ApiService {
   // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'http://192.168.1.31:8000/api';
+  static const String baseUrl = 'http://192.168.1.40:8000/api';
+
+  // ─────────────  Task mute / un-mute  ─────────────
+  Future<bool> _postMute(int id, { required bool mute }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/tasks/$id/${mute ? "mute" : "unmute"}/');
+
+    final res = await http.post(uri, headers: {
+      'Authorization': 'Token $token',
+      'Content-Type' : 'application/json',
+    });
+
+    if (res.statusCode != 200) return false;
+
+    try {
+      final obj = jsonDecode(res.body) as Map<String, dynamic>;
+      // backend returns { "muted": true/false }
+      return (obj['muted'] == true) == mute; // sanity check
+    } catch (_) {
+      return true; // keep previous behavior if parsing fails
+    }
+  }
+
+  Future<bool> muteTask  (int id) => _postMute(id, mute: true);
+  Future<bool> unmuteTask(int id) => _postMute(id, mute: false);
 
   Future<List<Property>> fetchProperties() async {
     final prefs = await SharedPreferences.getInstance();
