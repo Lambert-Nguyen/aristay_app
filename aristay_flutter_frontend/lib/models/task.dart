@@ -168,7 +168,7 @@ class Task {
       'description': description,
       'status':      status,
       'assigned_to': assignedToId,
-      'due_at'      : dueAt?.toIso8601String(),
+      'due_date'   : dueAt?.toUtc().toIso8601String(),  // was due_at
       // note: isMuted is server-only
     };
   }

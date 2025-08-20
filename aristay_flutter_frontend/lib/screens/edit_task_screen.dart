@@ -118,6 +118,14 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       _fieldErrors.clear();
     });
 
+    // Build due_date (null, or end-of-day local -> UTC)
+    String? _dueIso() {
+      if (_dueAt == null) return null;
+      // treat the picker as a date-only: end of that day local time
+      final localEnd = DateTime(_dueAt!.year, _dueAt!.month, _dueAt!.day, 23, 59, 59);
+      return localEnd.toUtc().toIso8601String();
+    }
+
     final payload = {
       'property'    : _selectedProperty!.id,
       'task_type'   : _taskType,
@@ -125,7 +133,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       'description' : _descCtrl.text.trim(),
       'status'      : _status,
       'assigned_to' : _selectedAssignee?.id,
-      'due_at'      : _dueAt?.toIso8601String(),   // ← NEW
+      'due_date'    : _dueIso(),   // ← was 'due_at'
     };
 
     try {

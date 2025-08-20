@@ -193,7 +193,7 @@ class TaskSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user = self.context['request'].user
         changes = []
-        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property', 'due_date'):
             if field in validated_data:
                 old = getattr(instance, field)
                 new = validated_data[field]
