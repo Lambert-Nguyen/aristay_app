@@ -270,26 +270,27 @@ class ApiService {
     };
   }
   
-  // Update the current user's profile (timezone and/or email).
-  Future<User> updateCurrentUser({ String? timezone, String? email }) async {
+  // Update the current user's profile (timezone, email, first/last name).
+  Future<User> updateCurrentUser({
+    String? timezone,
+    String? email,
+    String? firstName,
+    String? lastName,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final uri   = Uri.parse('$baseUrl/users/me/');
 
     final body = <String, dynamic>{};
-    if (timezone != null) body['timezone'] = timezone; // maps to profile.timezone via serializer
-    if (email != null)    body['email']    = email;
-
-    if (body.isEmpty) {
-      throw Exception('Nothing to update');
-    }
+    if (timezone != null) body['timezone']   = timezone;   // serializer maps to profile.timezone
+    if (email    != null) body['email']      = email;
+    if (firstName!= null) body['first_name'] = firstName;
+    if (lastName != null) body['last_name']  = lastName;
+    if (body.isEmpty) throw Exception('Nothing to update');
 
     final res = await http.patch(
       uri,
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type' : 'application/json',
-      },
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
       body: jsonEncode(body),
     );
 

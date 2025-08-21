@@ -16,26 +16,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _api = ApiService();
   final _formKey = GlobalKey<FormState>();
 
-  User?   _me;
+  User? _me;
   String? _selectedTz;
   late final TextEditingController _emailCtrl;
+  late final TextEditingController _firstCtrl;  // ← add
+  late final TextEditingController _lastCtrl;   // ← add
 
-  bool    _loading = true;
-  bool    _saving  = false;
+  bool _loading = true;
+  bool _saving  = false;
   String? _error;
-
   List<String> _timezones = [];
 
   @override
   void initState() {
     super.initState();
     _emailCtrl = TextEditingController();
+    _firstCtrl = TextEditingController();   // ← add
+    _lastCtrl  = TextEditingController();   // ← add
     _initTimezones().then((_) => _loadUser());
   }
 
   @override
   void dispose() {
     _emailCtrl.dispose();
+    _firstCtrl.dispose();   // ← add
+    _lastCtrl.dispose();    // ← add
     super.dispose();
   }
 
@@ -48,10 +53,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final me = await _api.fetchCurrentUser();
       setState(() {
-        _me         = me;
-        _selectedTz = me.timezone;
+        _me           = me;
+        _selectedTz   = me.timezone;
         _emailCtrl.text = me.email ?? '';
-        _error      = null;
+        _firstCtrl.text = me.firstName;   // ← add
+        _lastCtrl.text  = me.lastName;    // ← add
+        _error        = null;
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -64,7 +71,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_me == null) return false;
     final emailChanged = (_emailCtrl.text.trim() != (_me!.email ?? ''));
     final tzChanged    = (_selectedTz != _me!.timezone);
-    return emailChanged || tzChanged;
+    final firstChanged = (_firstCtrl.text.trim() != _me!.firstName); // ← add
+    final lastChanged  = (_lastCtrl.text.trim()  != _me!.lastName);  // ← add
+    return emailChanged || tzChanged || firstChanged || lastChanged;
   }
 
   Future<void> _save() async {
@@ -73,20 +82,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() { _saving = true; _error = null; });
     try {
-      final payloadTz = (_selectedTz != _me!.timezone) ? _selectedTz : null;
       final emailTrim = _emailCtrl.text.trim();
-      final payloadEmail = (emailTrim != (_me!.email ?? '')) ? emailTrim : null;
+      final firstTrim = _firstCtrl.text.trim();
+      final lastTrim  = _lastCtrl.text.trim();
+
+      final payloadTz   = (_selectedTz != _me!.timezone) ? _selectedTz : null;
+      final payloadEmail= (emailTrim != (_me!.email ?? '')) ? emailTrim : null;
+      final payloadFirst= (firstTrim != _me!.firstName) ? firstTrim : null; // ← add
+      final payloadLast = (lastTrim  != _me!.lastName)  ? lastTrim  : null; // ← add
 
       final updated = await _api.updateCurrentUser(
         timezone: payloadTz,
         email:    payloadEmail,
+        firstName: payloadFirst,   // ← add
+        lastName:  payloadLast,    // ← add
       );
 
       if (!mounted) return;
       setState(() {
-        _me         = updated;
-        _selectedTz = updated.timezone;
+        _me           = updated;
+        _selectedTz   = updated.timezone;
         _emailCtrl.text = updated.email ?? '';
+        _firstCtrl.text = updated.firstName;  // ← add
+        _lastCtrl.text  = updated.lastName;   // ← add
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Profile updated')));
@@ -138,6 +156,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle: Text(_me!.username),
                         ),
                       const SizedBox(height: 8),
+                      // First name
+                      TextFormField(
+                        controller: _firstCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'First name',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: (_) => setState(() {}),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Last name
+                      TextFormField(
+                        controller: _lastCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Last name',
+                          prefixIcon: Icon(Icons.badge),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: (_) => setState(() {}),
+                      ),
+
+                      const SizedBox(height: 16),
 
                       // Email (editable)
                       TextFormField(
