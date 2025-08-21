@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
+            tooltip: 'Profile', // was 'Settings'
             onPressed: () => Navigator.pushNamed(context, '/settings'),
           ),
           UnreadBadge(
