@@ -518,4 +518,93 @@ class _TaskListScreenState extends State<TaskListScreen> {
       },
     );
   }
+  bool get _hasActiveFilters =>
+      _propertyFilter != null ||
+      _assigneeFilter != null ||
+      _dateFrom != null ||
+      _dateTo != null ||
+      _showOverdue;
+
+  Widget _filterChip({required String label, required VoidCallback onClear}) {
+    return Chip(
+      label: Text(label, overflow: TextOverflow.ellipsis),
+      deleteIcon: const Icon(Icons.close, size: 16),
+      onDeleted: onClear,
+    );
+  }
+
+  String _propertyName(int id) {
+    try {
+      return _properties.firstWhere((p) => p.id == id).name;
+    } catch (_) {
+      return 'Property #$id';
+    }
+  }
+
+  String _assigneeName(int id) {
+    try {
+      return _assignees.firstWhere((u) => u.id == id).username;
+    } catch (_) {
+      return 'User #$id';
+    }
+  }
+
+  Widget _activeFiltersChips() {
+    final chips = <Widget>[];
+
+    if (_propertyFilter != null) {
+      chips.add(_filterChip(
+        label: _propertyName(_propertyFilter!),
+        onClear: () { setState(() => _propertyFilter = null); _load(); },
+      ));
+    }
+
+    if (_assigneeFilter != null) {
+      chips.add(_filterChip(
+        label: _assigneeName(_assigneeFilter!),
+        onClear: () { setState(() => _assigneeFilter = null); _load(); },
+      ));
+    }
+
+    if (_dateFrom != null || _dateTo != null) {
+      final from = _dateFrom != null ? DateFormat.yMMMd().format(_dateFrom!) : '…';
+      final to   = _dateTo   != null ? DateFormat.yMMMd().format(_dateTo!)   : '…';
+      chips.add(_filterChip(
+        label: '$from → $to',
+        onClear: () { setState(() { _dateFrom = null; _dateTo = null; }); _load(); },
+      ));
+    }
+
+    if (_showOverdue) {
+      chips.add(_filterChip(
+        label: 'Overdue only',
+        onClear: () { setState(() => _showOverdue = false); _load(); },
+      ));
+    }
+
+    // trailing all-in reset (optional)
+    chips.add(
+      OutlinedButton.icon(
+        icon: const Icon(Icons.clear_all, size: 16),
+        label: const Text('Reset'),
+        onPressed: () {
+          setState(() {
+            _status         = 'all';
+            _search         = '';
+            _propertyFilter = null;
+            _assigneeFilter = null;
+            _dateFrom       = null;
+            _dateTo         = null;
+            _showOverdue    = false;
+          });
+          _load();
+        },
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
+    );
+  }
 }
