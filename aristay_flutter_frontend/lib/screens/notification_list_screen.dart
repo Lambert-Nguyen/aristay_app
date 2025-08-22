@@ -94,25 +94,27 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
-          TextButton(
-            child: const Text('Mark all read', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              await ApiService().markAllNotificationsRead();
-              unreadCount.value = 0;
-              setState(() {
-                for (var i = 0; i < _notifs.length; i++) {
-                  _notifs[i] = AppNotification(
-                    id: _notifs[i].id,
-                    taskId: _notifs[i].taskId,
-                    taskTitle: _notifs[i].taskTitle,
-                    verb: _notifs[i].verb,
-                    read: true,
-                    timestamp: _notifs[i].timestamp,
-                    readAt: DateTime.now(),
-                  );
-                }
-              });
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : () => _load(),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'mark-all') _markAllRead();
             },
+            itemBuilder: (_) => [
+              PopupMenuItem<String>(
+                value: 'mark-all',
+                enabled: _hasUnread, // disable when nothing to do
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.done_all,
+                      color: _hasUnread ? null : Colors.grey),
+                  title: const Text('Mark all read'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -134,12 +136,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                 fallbackIcon: Icons.notifications_none,
                                 primaryActionLabel: 'Refresh',
                                 onPrimaryAction: () => _load(),
-                                secondaryActionLabel: 'Mark all read',
-                                onSecondaryAction: () async {
-                                  await ApiService().markAllNotificationsRead();
-                                  unreadCount.value = 0;
-                                  setState(() {}); // no items anyway
-                                },
+                                // Only surface this if there are unread items on device state.
+                                secondaryActionLabel: _hasUnread ? 'Mark all read' : null,
+                                onSecondaryAction: _hasUnread ? _markAllRead : null,
                               ),
                             ),
                           ],
@@ -188,5 +187,37 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
         },
       ),
     );
+  }
+
+  bool get _hasUnread => _notifs.any((n) => !n.read);
+
+  Future<void> _markAllRead() async {
+    try {
+      await ApiService().markAllNotificationsRead();
+      unreadCount.value = 0;
+      setState(() {
+        for (var i = 0; i < _notifs.length; i++) {
+          final n = _notifs[i];
+          _notifs[i] = AppNotification(
+            id: n.id,
+            taskId: n.taskId,
+            taskTitle: n.taskTitle,
+            verb: n.verb,
+            read: true,
+            timestamp: n.timestamp,
+            readAt: DateTime.now(),
+          );
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('All notifications marked as read')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed: $e')));
+      }
+    }
   }
 }
