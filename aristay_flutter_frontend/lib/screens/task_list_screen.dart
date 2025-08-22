@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../widgets/task_advanced_filter_sheet.dart';  // ← new
+import '../widgets/task_advanced_filter_sheet.dart';
+import '../widgets/empty_state.dart';
 import '../models/property.dart';
 import '../models/user.dart';
 import '../models/task.dart';
@@ -357,16 +358,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
       );
 
-  Widget _buildEmpty() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.inbox, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('No tasks found.', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      );
+  Widget _buildEmpty() {
+    return EmptyState(
+      title: 'No tasks found',
+      message: _hasActiveFilters
+          ? 'Try clearing some filters or adjust your search.'
+          : 'You haven’t created any tasks yet. Tap the button below to add one.',
+      illustrationAsset: 'assets/illustrations/empty_tasks.png',
+      fallbackIcon: Icons.inbox,
+      primaryActionLabel: 'Create a task',
+      onPrimaryAction: () => Navigator.pushNamed(context, '/create-task').then((_) => _load()),
+      secondaryActionLabel: _hasActiveFilters ? 'Reset filters' : null,
+      onSecondaryAction: _hasActiveFilters
+          ? () {
+              setState(() {
+                _status         = 'all';
+                _search         = '';
+                _propertyFilter = null;
+                _assigneeFilter = null;
+                _dateFrom       = null;
+                _dateTo         = null;
+                _showOverdue    = false;
+              });
+              _load();
+            }
+          : null,
+    );
+  }
 
   Widget _buildList() {
     // we're reserving index 0 for the "Updated at…" header, and

@@ -550,7 +550,7 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final res = await http.post(
-      Uri.parse('$baseUrl/notifications/mark-all/'),
+      Uri.parse('$baseUrl/notifications/mark-all-read/'),
       headers: {'Authorization': 'Token $token'},
     );
     if (res.statusCode != 200) {
