@@ -409,18 +409,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
       itemBuilder: (ctx, i) {
         // ── HEADER ─────────────────────────────────────────────────────
         if (i == 0) {
-          final label = _updatedAgo();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (label.isNotEmpty)
-                  Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                if (_hasActiveFilters) const SizedBox(height: 8),
-                if (_hasActiveFilters) _activeFiltersChips(),
-              ],
-            ),
+          final time = _lastUpdated == null ? '' : DateFormat.jm().format(_lastUpdated!);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (time.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 4,
+                    bottom: (_hasActiveFilters || _search.isNotEmpty) ? 4 : 8,
+                  ),
+                  child: Text('Updated at $time',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                ),
+              if (_hasActiveFilters || _search.isNotEmpty)
+                _activeFiltersChips(), // ← now visible above the list
+            ],
           );
         }
 
