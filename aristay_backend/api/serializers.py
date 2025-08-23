@@ -292,10 +292,11 @@ class DeviceSerializer(serializers.ModelSerializer):
 
 class NotificationSerializer(serializers.ModelSerializer):
     task_title = serializers.CharField(source='task.title', read_only=True)
+    verb_label = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
-        fields = [
-            'id', 'task', 'task_title', 'verb',
-            'read', 'read_at', 'timestamp'  # ← added read_at
-        ]
+        fields = ['id','task','task_title','verb','verb_label','read','read_at','timestamp']
+
+    def get_verb_label(self, obj):
+        return obj.get_verb_display()
