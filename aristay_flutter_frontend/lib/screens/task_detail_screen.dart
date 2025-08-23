@@ -27,6 +27,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   bool _loading = false;
   bool _dirty   = false;
   bool _muting = false;
+  String? _meUsername;
 
   final _fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
@@ -50,6 +51,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
       _refresh();
     }
+    _loadMe();
   }
 
   Future<void> _refresh() async {
@@ -61,6 +63,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       debugPrint('Failed to refresh task: $e');
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMe() async {
+    try {
+      final me = await ApiService().fetchCurrentUser();
+      if (!mounted) return;
+      setState(() => _meUsername = me.username);
+    } catch (_) {
+      // ignore; hint just won’t show until available
     }
   }
 
@@ -241,6 +253,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _notificationsCard() {
+    final subtle = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: Colors.grey[600]);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -248,8 +265,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         dense: false,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         title: const Text('Mute notifications (for you)'),
-        subtitle: Text(_notifSubtitle()),
-        secondary: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_notifSubtitle()),
+            if (_meUsername != null && !_isAssigneeOrCreator)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text('You aren’t assigned to this task.', style: subtle),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        secondary:
+            Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
         value: _task.isMuted,
         onChanged: _muting ? null : (v) => _toggleMute(v),
       ),
@@ -424,6 +459,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return 'Muted — you won’t receive push notifications for this task.';
     }
     return 'On — you’ll receive push notifications if you’re a recipient (e.g., creator, assignee).';
+  }
+
+  bool get _isAssigneeOrCreator {
+    final me = _meUsername?.trim().toLowerCase();
+    if (me == null || me.isEmpty) return false;
+    final creator  = (_task.createdBy ?? '').trim().toLowerCase();
+    final assignee = (_task.assignedToUsername ?? '').trim().toLowerCase();
+    return me == creator || me == assignee;
   }
 
 
