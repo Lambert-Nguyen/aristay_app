@@ -325,7 +325,6 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final uri = Uri.parse(url ?? '$baseUrl/users/');
-    print('fetchUsers → $uri');
     final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
     if (res.statusCode != 200) throw Exception('Failed to load users');
 
@@ -335,8 +334,8 @@ class ApiService {
 
     return {
       'results': users,
-      'next':    data['next'] as String?,
-      'count':   (data['count'] as int?) ?? users.length, // ← NEW
+      'next'   : data['next'] as String?,
+      'count'  : (data['count'] as int?) ?? users.length,
     };
   }
   

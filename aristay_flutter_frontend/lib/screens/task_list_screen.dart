@@ -222,6 +222,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
   }
 
+  String _updatedAgo() {
+    if (_lastUpdated == null) return '';
+    final d = DateTime.now().difference(_lastUpdated!);
+    if (d.inSeconds < 60) return 'Updated just now';
+    if (d.inMinutes < 60) return 'Updated ${d.inMinutes}m ago';
+    if (d.inHours   < 24) return 'Updated ${d.inHours}h ago';
+    return 'Updated ${DateFormat.yMMMd().add_jm().format(_lastUpdated!.toLocal())}';
+  }
+
   @override
   Widget build(BuildContext ctx) {
     return Scaffold(
@@ -400,14 +409,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
       itemBuilder: (ctx, i) {
         // ── HEADER ─────────────────────────────────────────────────────
         if (i == 0) {
-          final time = _lastUpdated == null
-              ? ''
-              : DateFormat.jm().format(_lastUpdated!);
+          final label = _updatedAgo();
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              time.isEmpty ? '' : 'Updated at $time',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (label.isNotEmpty)
+                  Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                if (_hasActiveFilters) const SizedBox(height: 8),
+                if (_hasActiveFilters) _activeFiltersChips(),
+              ],
             ),
           );
         }

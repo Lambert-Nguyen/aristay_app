@@ -73,6 +73,18 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
     }
   }
 
+  void _maybeTopUp() {
+    if (!mounted) return;
+    if (!_scrollCtrl.hasClients) return;
+    if (_loadingMore || _nextPageUrl == null) return;
+
+    // If there's no scrollable content yet, grab another page.
+    final canScroll = _scrollCtrl.position.maxScrollExtent > 0;
+    if (!canScroll) {
+      _load(url: _nextPageUrl, append: true);
+    }
+  }
+
   // ────────────────── load / paginate ──────────────────
   Future<void> _load({String? url, bool append = false}) async {
     setState(() {
@@ -114,6 +126,8 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
         _loading      = false;
         _loadingMore  = false;
       });
+      // 👇 after the frame, see if we should auto-fetch the next page
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeTopUp());
     }
   }
 
@@ -164,6 +178,7 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollCtrl,
+                        physics: const AlwaysScrollableScrollPhysics(),
                         itemCount: _users.length + (_loadingMore ? 1 : 0),
                         itemBuilder: (_, i) {
                           if (i >= _users.length) {
@@ -177,11 +192,19 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                             tileColor: u.id == _highlightId
                                 ? Colors.yellow.withOpacity(0.30)
                                 : null,
-                            title: Text(u.username),
-                            subtitle: Text(u.email ?? ''),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.lock_reset),
-                              onPressed: () => _reset(u),
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(u.username)),
+                                if (u.isStaff)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Chip(
+                                      label: const Text('Admin'),
+                                      visualDensity: VisualDensity.compact,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                              ],
                             ),
                           );
                         },

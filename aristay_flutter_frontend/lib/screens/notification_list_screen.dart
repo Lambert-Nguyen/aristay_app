@@ -1,6 +1,7 @@
 // lib/screens/notification_list_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/notification.dart';
 import '../widgets/unread_badge.dart';
 import '../widgets/empty_state.dart';
@@ -175,7 +176,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       onDismissed: (_) => _markRead(n, i),
       child: ListTile(
         title: Text(subtitle),
-        subtitle: Text(n.timestamp.toLocal().toString().split('.').first),
+        subtitle: Text(_relTime(n.timestamp)),
         leading: Icon(
           n.read ? Icons.mark_email_read : Icons.markunread,
           color: n.read ? Colors.grey : Colors.blue,
@@ -219,5 +220,12 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
           .showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     }
+  }
+  String _relTime(DateTime t) {
+    final d = DateTime.now().difference(t.toLocal());
+    if (d.inSeconds < 60) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours   < 24) return '${d.inHours}h ago';
+    return DateFormat.yMMMd().add_jm().format(t.toLocal());
   }
 }

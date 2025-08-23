@@ -1,11 +1,13 @@
+// lib/widgets/empty_state.dart (replace file contents)
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 
 class EmptyState extends StatelessWidget {
   final String title;
   final String message;
-  final String? illustrationAsset;        // e.g. assets/illustrations/empty_tasks.png
-  final IconData? fallbackIcon;           // e.g. Icons.inbox
+  final String? illustrationAsset;    // e.g. assets/illustrations/empty_tasks.png
+  final double illustrationHeight;
+  final String? semanticsLabel;       // optional accessibility label
+  final IconData? fallbackIcon;       // e.g. Icons.inbox
   final String? primaryActionLabel;
   final VoidCallback? onPrimaryAction;
   final String? secondaryActionLabel;
@@ -16,6 +18,8 @@ class EmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.illustrationAsset,
+    this.illustrationHeight = 160,
+    this.semanticsLabel,
     this.fallbackIcon,
     this.primaryActionLabel,
     this.onPrimaryAction,
@@ -23,18 +27,28 @@ class EmptyState extends StatelessWidget {
     this.onSecondaryAction,
   });
 
-  Future<bool> _assetExists(String path) async {
-    try {
-      await rootBundle.load(path);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    Widget illustration() {
+      if (illustrationAsset == null) {
+        return Icon(fallbackIcon ?? Icons.insert_photo, size: 96, color: Colors.grey[400]);
+      }
+      final isSvg = illustrationAsset!.toLowerCase().endsWith('.svg');
+      if (isSvg) {
+        // If you later add flutter_svg, swap this with SvgPicture.asset(...)
+        return Icon(fallbackIcon ?? Icons.insert_photo, size: 96, color: Colors.grey[400]);
+      }
+      return Image.asset(
+        illustrationAsset!,
+        height: illustrationHeight,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) =>
+            Icon(fallbackIcon ?? Icons.insert_photo, size: 96, color: Colors.grey[400]),
+      );
+    }
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -42,31 +56,16 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (illustrationAsset != null)
-              FutureBuilder<bool>(
-                future: _assetExists(illustrationAsset!),
-                builder: (_, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return const SizedBox(height: 160); // reserve space
-                  }
-                  if (snap.data == true) {
-                    final isSvg = illustrationAsset!.toLowerCase().endsWith('.svg');
-                    if (isSvg) {
-                      // If you later add flutter_svg, you can swap this block:
-                      // return SvgPicture.asset(illustrationAsset!, height: 160);
-                      return Icon(fallbackIcon ?? Icons.insert_photo, size: 96, color: Colors.grey[400]);
-                    }
-                    return Image.asset(illustrationAsset!, height: 160, fit: BoxFit.contain);
-                  }
-                  // fallback icon if asset not found
-                  return Icon(fallbackIcon ?? Icons.insert_photo, size: 96, color: Colors.grey[400]);
-                },
-              )
-            else
-              Icon(fallbackIcon ?? Icons.insert_photo, size: 96, color: Colors.grey[400]),
-
+            Semantics(
+              label: semanticsLabel ?? title,
+              image: true,
+              child: illustration(),
+            ),
             const SizedBox(height: 16),
-            Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text(
               message,
@@ -74,7 +73,6 @@ class EmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-
             if (primaryActionLabel != null && onPrimaryAction != null)
               SizedBox(
                 width: double.infinity,
