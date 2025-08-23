@@ -339,6 +339,20 @@ class ApiService {
     };
   }
   
+  Future<int> fetchUnreadNotificationCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.get(
+      Uri.parse('$baseUrl/notifications/unread-count/'),
+      headers: {'Authorization': 'Token $token'},
+    );
+    if (res.statusCode != 200) {
+      throw Exception('Failed to fetch unread count (${res.statusCode})');
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return (body['unread'] as num).toInt();
+  }
+  
   /// Invites a new user (admin only). Throws ValidationException on 400.
   Future<void> inviteUser(String username, String email) async {
     final prefs = await SharedPreferences.getInstance();

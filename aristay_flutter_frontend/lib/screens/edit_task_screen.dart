@@ -61,6 +61,19 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     _loadDropdowns();
   }
 
+  bool _sameDate(DateTime? a, DateTime? b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    final ad = DateTime(a.year, a.month, a.day);
+    final bd = DateTime(b.year, b.month, b.day);
+    return ad == bd;
+  }
+
+  String _endOfDayIso(DateTime d) {
+    final localEnd = DateTime(d.year, d.month, d.day, 23, 59, 59);
+    return localEnd.toUtc().toIso8601String();
+  }
+
   Future<void> _loadDropdowns() async {
   setState(() => _loading = true);
   try {
@@ -118,30 +131,44 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       _fieldErrors.clear();
     });
 
-    // Build due_date (null, or end-of-day local -> UTC)
-    String? _dueIso() {
-      if (_dueAt == null) return null;
-      // treat the picker as a date-only: end of that day local time
-      final localEnd = DateTime(_dueAt!.year, _dueAt!.month, _dueAt!.day, 23, 59, 59);
-      return localEnd.toUtc().toIso8601String();
+    // Client-side guard only if user changed the date
+    if (!_sameDate(_dueAt, widget.task.dueAt)) {
+      final today = DateUtils.dateOnly(DateTime.now());
+      if (_dueAt != null && DateUtils.dateOnly(_dueAt!).isBefore(today)) {
+        setState(() => _fieldErrors['due_date'] = 'Due date cannot be in the past.');
+        _saving = false; // allow retry
+        return;
+      }
     }
 
-    final payload = {
+    // Build PATCH payload
+    final payload = <String, dynamic>{
       'property'    : _selectedProperty!.id,
       'task_type'   : _taskType,
       'title'       : _titleCtrl.text.trim(),
       'description' : _descCtrl.text.trim(),
       'status'      : _status,
       'assigned_to' : _selectedAssignee?.id,
-      'due_date'    : _dueIso(),   // ← was 'due_at'
     };
+
+    // Only include due_date if changed
+    if (!_sameDate(_dueAt, widget.task.dueAt)) {
+      payload['due_date'] = _dueAt == null ? null : _endOfDayIso(_dueAt!);
+    }
 
     try {
       await ApiService().updateTask(widget.task.id, payload);
       if (!mounted) return;
       Navigator.pop(context, true);
     } on ValidationException catch (ve) {
-      setState(() => _fieldErrors = ve.errors);
+      if (!mounted) return;
+      setState(() {
+        _fieldErrors = ve.errors;
+        _error = 'Please fix the highlighted fields.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Can’t save: please fix errors.')),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -402,6 +429,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                 decoration: InputDecoration(
                   labelText: 'Due date',
                   hintText: 'Select a due date',
+                  errorText: _fieldErrors['due_date'],       // show server/client error
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -420,7 +448,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: init,
-                            firstDate: DateTime(now.year - 3),
+                            firstDate: DateUtils.dateOnly(now),
                             lastDate: DateTime(now.year + 5),
                           );
                           if (picked != null) {
@@ -582,12 +610,12 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       appBar: AppBar(
         title: const Text('Edit Task'),
         actions: [
-          TextButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: const Icon(Icons.save),
-            label: const Text('Save'),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: const Icon(Icons.save),
+              label: const Text('Save'),
             ),
           ),
         ],

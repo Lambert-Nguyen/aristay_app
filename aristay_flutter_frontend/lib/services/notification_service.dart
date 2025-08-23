@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/unread_badge.dart';
 
@@ -67,6 +68,17 @@ class NotificationService {
   static Future<void> _registerFcmToken() async {
     Future<void> send(String? token) async {
       if (token == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final auth  = prefs.getString('auth_token');
+
+      // Not logged in yet → stash token for later.
+      if (auth == null) {
+        await prefs.setString('pending_fcm_token', token);
+        debugPrint('ℹ️ FCM token saved to send after login');
+        return;
+      }
+
       try {
         await ApiService().registerDeviceTokenWithRetry(token);
         debugPrint('✅ Device token registered with backend');
@@ -75,19 +87,37 @@ class NotificationService {
       }
     }
 
-    // initial token
-    await send(await _messaging.getToken());
-    // future refreshes
+    try {
+      // iOS: don’t call getToken() until APNs token is available.
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final apns = await _messaging.getAPNSToken();
+        if (apns == null) {
+          debugPrint('⏳ APNs token not ready yet; will wait for refresh.');
+          _messaging.onTokenRefresh.listen(send);
+          return;
+        }
+      }
+
+      // Others (or iOS once APNs exists): fetch current token and send.
+      await send(await _messaging.getToken());
+    } catch (e) {
+      // e.g. [firebase_messaging/apns-token-not-set] on simulator
+      debugPrint('⚠️ getToken failed (will retry on refresh): $e');
+    }
+
+    // Always listen for future refreshes.
     _messaging.onTokenRefresh.listen(send);
   }
 
   static void _wireForegroundListener() {
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-      // 📌 iOS/Android already displayed the system banner
-      if (msg.notification != null) return;    // <-- ADD THIS LINE
-
-      // your existing local-notification code ↓
-      await _showLocal(msg.notification);
+      // On Android, FCM notification payloads don't display in-foreground.
+      final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+      if (isAndroid && msg.notification != null) {
+        await _showLocal(msg.notification);
+      }
+      // increase unread badge locally
+      unreadCount.value = (unreadCount.value + 1).clamp(0, 999);
     });
   }
 
@@ -103,19 +133,45 @@ class NotificationService {
   static Future<void> _handleTap(RemoteMessage msg) async {
     final data = Map<String, dynamic>.from(msg.data);
 
-    // Fire-and-forget: mark read
+    // Fire-and-forget: mark read (if backend sent an id)
     final notifId = data['notification_id'];
-    if (notifId != null) unawaited(ApiService().markNotificationAsRead(notifId));
+    if (notifId != null) {
+      unawaited(ApiService().markNotificationAsRead('$notifId'));
+      // optimistically decrement badge
+      unreadCount.value = (unreadCount.value - 1).clamp(0, 999);
+    }
 
-    /* Normalise payload --------------------------------------------
-       We’ll inject a 'type' field so the UI can switch easily. */
+    // Normalise a 'type' for navigation
     if (data.containsKey('task_id'))      data['type'] = 'task';
     else if (data.containsKey('property_id')) data['type'] = 'property';
     else if (data.containsKey('user_id'))     data['type'] = 'user';
 
     _navController.add(data);
+  }
 
-   }
+  // Handy helper you can call after login / on app resume
+  static Future<void> hydrateUnreadCount() async {
+    try {
+      final resp = await ApiService().fetchNotifications(unreadOnly: true);
+      unreadCount.value = (resp['count'] as num).toInt();
+    } catch (e) {
+      debugPrint('🔕 hydrateUnreadCount failed: $e');
+    }
+  }
+
+  static Future<void> registerPendingTokenIfAny() async {
+    final prefs   = await SharedPreferences.getInstance();
+    final pending = prefs.getString('pending_fcm_token');
+    if (pending == null) return;
+
+    try {
+      await ApiService().registerDeviceTokenWithRetry(pending);
+      await prefs.remove('pending_fcm_token');
+      debugPrint('✅ Pending FCM token registered post-login');
+    } catch (e) {
+      debugPrint('❌ Failed to send pending token: $e');
+    }
+  }
 
   static Future<void> _showLocal(RemoteNotification? n) async {
     if (n == null) return;

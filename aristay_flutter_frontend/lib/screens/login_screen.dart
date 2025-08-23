@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:firebase_messaging/firebase_messaging.dart';
+import '../services/notification_service.dart';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -42,9 +44,21 @@ class _LoginScreenState extends State<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('auth_token', token);
         await prefs.setString('username', _usernameController.text);
-        print('Logged in successfully, token: $token, username: ${_usernameController.text}');
+
+        // 🔔 Prime unread badge immediately
+        await NotificationService.hydrateUnreadCount();
+
+        // 📱 Make sure the device token is registered now that we have auth
+        try {
+          final fcm = await FirebaseMessaging.instance.getToken();
+          if (fcm != null) {
+            await ApiService().registerDeviceTokenWithRetry(fcm);
+          }
+        } catch (_) { /* non-fatal */ }
+        // after storing token & username
+        await NotificationService.registerPendingTokenIfAny();
         Navigator.pushReplacementNamed(context, '/home');
-      } else {
+      }  else {
         setState(() {
           _errorMessage = 'Login failed. Please check your credentials.';
         });

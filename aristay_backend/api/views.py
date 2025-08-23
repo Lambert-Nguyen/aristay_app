@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count
+from .services.notification_service import NotificationService
+from .models import NotificationVerb
 
 import json
 
@@ -63,11 +65,13 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         task = serializer.save(created_by=self.request.user, modified_by=self.request.user)
-        NotificationService.process_task_change(task)
+        NotificationService.notify_on_create(task, actor=self.request.user)
 
     def perform_update(self, serializer):
+        # capture old BEFORE saving
+        old = Task.objects.get(pk=serializer.instance.pk)
         task = serializer.save(modified_by=self.request.user)
-        NotificationService.process_task_change(task)
+        NotificationService.notify_on_update(old, task, actor=self.request.user)
         
     @action(
         detail=False,
@@ -126,13 +130,12 @@ class TaskImageCreateView(generics.CreateAPIView):
         task = generics.get_object_or_404(Task, pk=self.kwargs['task_pk'])
         # 2) save the new TaskImage
         image = serializer.save(task=task)
-        # 3) append an "added photo" entry to task.history
+        # history (kept as you have)
         history = json.loads(task.history or '[]')
-        timestamp = timezone.now().isoformat()
-        user = self.request.user.username
-        url = image.image.url
-        history.append(f"{timestamp}: {user} added photo {url}")
+        history.append(f"{timezone.now().isoformat()}: {self.request.user.username} added photo {image.image.url}")
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
+        # notify
+        NotificationService.notify_task_photo(task, added=True, actor=self.request.user)
 
 
 class TaskImageDetailView(generics.RetrieveDestroyAPIView):
@@ -148,15 +151,15 @@ class TaskImageDetailView(generics.RetrieveDestroyAPIView):
     def perform_destroy(self, instance):
         # 1) capture metadata before deletion
         task = instance.task
-        timestamp = timezone.now().isoformat()
-        user = self.request.user.username
         url = instance.image.url
         # 2) delete the TaskImage record (and its file)
         instance.delete()
         # 3) append a "deleted photo" entry to task.history
         history = json.loads(task.history or '[]')
-        history.append(f"{timestamp}: {user} deleted photo {url}")
+        history.append(f"{timezone.now().isoformat()}: {self.request.user.username} deleted photo {url}")
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
+        # notify
+        NotificationService.notify_task_photo(task, added=False, actor=self.request.user)
 
 
 class UserRegistrationView(generics.CreateAPIView):
@@ -296,6 +299,12 @@ class NotificationListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def unread_notification_count(request):
+    count = Notification.objects.filter(recipient=request.user, read=False).count()
+    return Response({'unread': count})
     
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])

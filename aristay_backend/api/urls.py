@@ -16,6 +16,7 @@ from .views import (
     AdminPasswordResetView,
     mark_all_notifications_read,
     mark_notification_read,
+    unread_notification_count,
 )
 
 router = DefaultRouter()
@@ -44,6 +45,7 @@ urlpatterns = [
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
+    path('notifications/unread-count/', unread_notification_count, name='notification-unread-count'),
     path('notifications/<int:pk>/read/', mark_notification_read, name='notification-mark-read'),
     path('notifications/mark-all-read/', mark_all_notifications_read, name='notification-mark-all-read'),
 ]
