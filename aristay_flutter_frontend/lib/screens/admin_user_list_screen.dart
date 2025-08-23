@@ -31,6 +31,8 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
   // ←─── NEW: flag so we only read args once
   bool _didReadArgs = false;
 
+  int _totalCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +86,7 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
       setState(() {
         append ? _users.addAll(results) : _users = results;
         _nextPageUrl = resp['next'] as String?;
+        _totalCount  = (resp['count'] as int?) ?? _users.length;
       });
 
       // scroll-to & tint once we know where the row is
@@ -154,6 +157,9 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                         },
                       ),
                     ),
+
+                    _countHeader(), // ← NEW
+
                     // ─── list ───
                     Expanded(
                       child: ListView.builder(
@@ -193,4 +199,12 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
       ),
     );
   }
+
+  Widget _countHeader() => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    child: Text(
+      'Loaded ${_users.length} of $_totalCount',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+    ),
+  );
 }

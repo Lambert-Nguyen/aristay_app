@@ -325,20 +325,18 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final uri = Uri.parse(url ?? '$baseUrl/users/');
-    print('fetchUsers → $uri');            // ← add this to debug
-    final res = await http.get(uri,
-      headers: {'Authorization': 'Token $token'},
-    );
+    print('fetchUsers → $uri');
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
     if (res.statusCode != 200) throw Exception('Failed to load users');
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data  = jsonDecode(res.body) as Map<String, dynamic>;
     final raw   = data['results'] as List<dynamic>;
-    final users = raw
-        .map((e) => User.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final users = raw.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
+
     return {
       'results': users,
       'next':    data['next'] as String?,
+      'count':   (data['count'] as int?) ?? users.length, // ← NEW
     };
   }
   
