@@ -26,6 +26,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late Task _task;
   bool _loading = false;
   bool _dirty   = false;
+  bool _muting = false;
 
   final _fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
@@ -69,16 +70,23 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Future<void> _toggleMute(bool next) async {
+    if (_muting) return;
+    _muting = true;
+
     final old = _task.isMuted;
     setState(() => _task = _task.copyWith(isMuted: next));
+
     bool ok;
     try {
       ok = next
-        ? await ApiService().muteTask(_task.id)
-        : await ApiService().unmuteTask(_task.id);
+          ? await ApiService().muteTask(_task.id)
+          : await ApiService().unmuteTask(_task.id);
     } catch (_) {
       ok = false;
+    } finally {
+      _muting = false;
     }
+
     if (!ok && mounted) {
       setState(() => _task = _task.copyWith(isMuted: old)); // rollback
       ScaffoldMessenger.of(context).showSnackBar(
@@ -236,14 +244,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: SwitchListTile(
+      child: SwitchListTile.adaptive(
         dense: false,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        title: const Text('Mute notifications for this task'),
-        subtitle: Text(_task.isMuted ? 'Muted for you' : 'Enabled for you'),
+        title: const Text('Mute notifications (for you)'),
+        subtitle: Text(_notifSubtitle()),
         secondary: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
         value: _task.isMuted,
-        onChanged: (v) => _toggleMute(v),
+        onChanged: _muting ? null : (v) => _toggleMute(v),
       ),
     );
   }
@@ -410,6 +418,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     if (diff == 1) return 'Due tomorrow';
     return 'Due ${DateFormat.MMMd().format(d)}';
   }
+
+  String _notifSubtitle() {
+    if (_task.isMuted) {
+      return 'Muted — you won’t receive push notifications for this task.';
+    }
+    return 'On — you’ll receive push notifications if you’re a recipient (e.g., creator, assignee).';
+  }
+
 
   Widget _dueChip(DateTime? due) {
     if (due == null) return const SizedBox.shrink();
