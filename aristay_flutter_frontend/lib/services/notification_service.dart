@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show TargetPlatform, debugPrint, defaul
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/unread_badge.dart';
 
@@ -67,6 +68,17 @@ class NotificationService {
   static Future<void> _registerFcmToken() async {
     Future<void> send(String? token) async {
       if (token == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final auth  = prefs.getString('auth_token');
+
+      // Not logged in yet → stash token for later.
+      if (auth == null) {
+        await prefs.setString('pending_fcm_token', token);
+        debugPrint('ℹ️ FCM token saved to send after login');
+        return;
+      }
+
       try {
         await ApiService().registerDeviceTokenWithRetry(token);
         debugPrint('✅ Device token registered with backend');
@@ -75,9 +87,25 @@ class NotificationService {
       }
     }
 
-    // initial token
-    await send(await _messaging.getToken());
-    // future refreshes
+    try {
+      // iOS: don’t call getToken() until APNs token is available.
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final apns = await _messaging.getAPNSToken();
+        if (apns == null) {
+          debugPrint('⏳ APNs token not ready yet; will wait for refresh.');
+          _messaging.onTokenRefresh.listen(send);
+          return;
+        }
+      }
+
+      // Others (or iOS once APNs exists): fetch current token and send.
+      await send(await _messaging.getToken());
+    } catch (e) {
+      // e.g. [firebase_messaging/apns-token-not-set] on simulator
+      debugPrint('⚠️ getToken failed (will retry on refresh): $e');
+    }
+
+    // Always listen for future refreshes.
     _messaging.onTokenRefresh.listen(send);
   }
 
@@ -128,6 +156,20 @@ class NotificationService {
       unreadCount.value = (resp['count'] as num).toInt();
     } catch (e) {
       debugPrint('🔕 hydrateUnreadCount failed: $e');
+    }
+  }
+
+  static Future<void> registerPendingTokenIfAny() async {
+    final prefs   = await SharedPreferences.getInstance();
+    final pending = prefs.getString('pending_fcm_token');
+    if (pending == null) return;
+
+    try {
+      await ApiService().registerDeviceTokenWithRetry(pending);
+      await prefs.remove('pending_fcm_token');
+      debugPrint('✅ Pending FCM token registered post-login');
+    } catch (e) {
+      debugPrint('❌ Failed to send pending token: $e');
     }
   }
 

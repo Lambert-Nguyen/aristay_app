@@ -55,7 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
             await ApiService().registerDeviceTokenWithRetry(fcm);
           }
         } catch (_) { /* non-fatal */ }
-
+        // after storing token & username
+        await NotificationService.registerPendingTokenIfAny();
         Navigator.pushReplacementNamed(context, '/home');
       }  else {
         setState(() {
