@@ -27,7 +27,15 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         # include email so we can show it, and is_staff for “Admin” flag
-        fields = ['id','username','email','is_staff','timezone']
+        fields = [
+            'id',
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'is_staff',
+            'timezone',
+        ]
         
     def update(self, instance, validated_data):
         # 1) pull off any profile-specific data
@@ -36,11 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         # 2) if they sent a new timezone, write it on the Profile
         if tz is not None:
-            # ensure the profile exists
-            profile = getattr(instance, 'profile', None)
-            if profile is None:
-                # your post_save handler should have created one, but just in case:
-                profile = Profile.objects.create(user=instance)
+            profile = getattr(instance, 'profile', None) or Profile.objects.create(user=instance)
             profile.timezone = tz
             profile.save()
 
@@ -193,7 +197,7 @@ class TaskSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user = self.context['request'].user
         changes = []
-        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property', 'due_date'):
             if field in validated_data:
                 old = getattr(instance, field)
                 new = validated_data[field]

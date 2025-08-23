@@ -26,6 +26,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late Task _task;
   bool _loading = false;
   bool _dirty   = false;
+  bool _muting = false;
+  String? _meUsername;
 
   final _fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
 
@@ -49,6 +51,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       );
       _refresh();
     }
+    _loadMe();
   }
 
   Future<void> _refresh() async {
@@ -63,22 +66,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  Future<void> _loadMe() async {
+    try {
+      final me = await ApiService().fetchCurrentUser();
+      if (!mounted) return;
+      setState(() => _meUsername = me.username);
+    } catch (_) {
+      // ignore; hint just won’t show until available
+    }
+  }
+
   String _formatLocal(DateTime utcDt) {
     final local = utcDt.toLocal();
     return '${_fmt.format(local)} ${local.timeZoneName}';
   }
 
   Future<void> _toggleMute(bool next) async {
+    if (_muting) return;
+    _muting = true;
+
     final old = _task.isMuted;
     setState(() => _task = _task.copyWith(isMuted: next));
+
     bool ok;
     try {
       ok = next
-        ? await ApiService().muteTask(_task.id)
-        : await ApiService().unmuteTask(_task.id);
+          ? await ApiService().muteTask(_task.id)
+          : await ApiService().unmuteTask(_task.id);
     } catch (_) {
       ok = false;
+    } finally {
+      _muting = false;
     }
+
     if (!ok && mounted) {
       setState(() => _task = _task.copyWith(isMuted: old)); // rollback
       ScaffoldMessenger.of(context).showSnackBar(
@@ -163,7 +183,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
                 Chip(
                   label: Text(_task.status.replaceAll('-', ' ')),
-                ),
+                  backgroundColor: _statusColor(_task.status),
+                )
               ],
             ),
             const SizedBox(height: 8),
@@ -180,12 +201,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // Assignee
+            // People (creator → assignee)
             Row(
               children: [
                 const Icon(Icons.person_outline, size: 18),
                 const SizedBox(width: 6),
-                Expanded(child: Text(_task.assignedToUsername ?? 'Not assigned')),
+                Flexible( // prevents overflows on small iPhones
+                  child: Text(
+                    '${_task.createdBy ?? "unknown"}  →  ${_task.assignedToUsername ?? "Not assigned"}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.event, size: 18),
+                const SizedBox(width: 6),
+                _dueChip(_task.dueAt),
               ],
             ),
             const Divider(height: 24),
@@ -194,6 +229,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
             Text('Modified: ${_formatLocal(_task.modifiedAt)}',
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            if ((_task.modifiedBy ?? '').isNotEmpty)
+              Text('Modified by: ${_task.modifiedBy!}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
       ),
@@ -215,17 +253,40 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _notificationsCard() {
+    final subtle = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: Colors.grey[600]);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: SwitchListTile(
+      child: SwitchListTile.adaptive(
         dense: false,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        title: const Text('Mute notifications for this task'),
-        subtitle: Text(_task.isMuted ? 'Muted for you' : 'Enabled for you'),
-        secondary: Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
+        title: const Text('Mute notifications (for you)'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_notifSubtitle()),
+            if (_meUsername != null && !_isAssigneeOrCreator)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text('You aren’t assigned to this task.', style: subtle),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        secondary:
+            Icon(_task.isMuted ? Icons.notifications_off : Icons.notifications),
         value: _task.isMuted,
-        onChanged: (v) => _toggleMute(v),
+        onChanged: _muting ? null : (v) => _toggleMute(v),
       ),
     );
   }
@@ -364,6 +425,66 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
       ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'pending':     return Colors.orange.shade100;
+      case 'in-progress': return Colors.blue.shade100;
+      case 'completed':   return Colors.green.shade100;
+      case 'canceled':    return Colors.red.shade100;
+      default:            return Colors.grey.shade200;
+    }
+  }
+
+  String _dueLabel(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(d.year, d.month, d.day);
+
+    if (d.isBefore(now)) {
+      final od = today.difference(dueDay).inDays;
+      return od == 0 ? 'Overdue' : 'Overdue ${od}d';
+    }
+    final diff = dueDay.difference(today).inDays;
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    return 'Due ${DateFormat.MMMd().format(d)}';
+  }
+
+  String _notifSubtitle() {
+    if (_task.isMuted) {
+      return 'Muted — you won’t receive push notifications for this task.';
+    }
+    return 'On — you’ll receive push notifications if you’re a recipient (e.g., creator, assignee).';
+  }
+
+  bool get _isAssigneeOrCreator {
+    final me = _meUsername?.trim().toLowerCase();
+    if (me == null || me.isEmpty) return false;
+    final creator  = (_task.createdBy ?? '').trim().toLowerCase();
+    final assignee = (_task.assignedToUsername ?? '').trim().toLowerCase();
+    return me == creator || me == assignee;
+  }
+
+
+  Widget _dueChip(DateTime? due) {
+    if (due == null) return const SizedBox.shrink();
+    Color bg, fg;
+    final now = DateTime.now();
+    final d = due.toLocal();
+    if (d.isBefore(now)) { bg = Colors.red.shade100;    fg = Colors.red.shade800; }
+    else if (d.difference(DateTime(now.year, now.month, now.day)).inDays <= 2) {
+      bg = Colors.orange.shade100; fg = Colors.orange.shade800;
+    } else { bg = Colors.grey.shade200; fg = Colors.grey.shade800; }
+    final label = _dueLabel(due); // reuse same logic from list screen if you like
+    return Chip(
+      avatar: Icon(Icons.event, size: 16, color: fg),
+      label: Text(label, style: TextStyle(color: fg)),
+      backgroundColor: bg,
+      side: const BorderSide(color: Colors.black12),
     );
   }
 }

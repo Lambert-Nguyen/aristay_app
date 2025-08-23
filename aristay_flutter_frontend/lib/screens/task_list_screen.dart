@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../widgets/task_advanced_filter_sheet.dart';  // ← new
+import '../widgets/task_advanced_filter_sheet.dart';
+import '../widgets/empty_state.dart';
 import '../models/property.dart';
 import '../models/user.dart';
 import '../models/task.dart';
@@ -139,6 +140,41 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  Color _dueBg(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final overdue = d.isBefore(now);
+    final days = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (overdue) return Colors.red.shade100;
+    if (days <= 2) return Colors.orange.shade100;
+    return Colors.grey.shade200;
+  }
+
+  Color _dueFg(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final overdue = d.isBefore(now);
+    final days = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (overdue) return Colors.red.shade800;
+    if (days <= 2) return Colors.orange.shade800;
+    return Colors.grey.shade800;
+  }
+
+  String _dueLabel(DateTime due) {
+    final now = DateTime.now();
+    final d = due.toLocal();
+    final diff = d.difference(DateTime(now.year, now.month, now.day)).inDays;
+    if (d.isBefore(now)) {
+      final od = DateTime(now.year, now.month, now.day)
+          .difference(DateTime(d.year, d.month, d.day))
+          .inDays;
+      return od == 0 ? 'Overdue' : 'Overdue ${od}d';
+    }
+    if (diff == 0) return 'Due today';
+    if (diff == 1) return 'Due tomorrow';
+    return 'Due ${DateFormat.MMMd().format(d)}';
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'pending':     return Colors.orange.shade100;
@@ -184,6 +220,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
       ),
     );
+  }
+
+  String _updatedAgo() {
+    if (_lastUpdated == null) return '';
+    final d = DateTime.now().difference(_lastUpdated!);
+    if (d.inSeconds < 60) return 'Updated just now';
+    if (d.inMinutes < 60) return 'Updated ${d.inMinutes}m ago';
+    if (d.inHours   < 24) return 'Updated ${d.inHours}h ago';
+    return 'Updated ${DateFormat.yMMMd().add_jm().format(_lastUpdated!.toLocal())}';
   }
 
   @override
@@ -322,16 +367,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ),
       );
 
-  Widget _buildEmpty() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.inbox, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('No tasks found.', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      );
+  Widget _buildEmpty() {
+    return EmptyState(
+      title: 'No tasks found',
+      message: _hasActiveFilters
+          ? 'Try clearing some filters or adjust your search.'
+          : 'You haven’t created any tasks yet. Tap the button below to add one.',
+      illustrationAsset: 'assets/illustrations/empty_tasks.png',
+      fallbackIcon: Icons.inbox,
+      primaryActionLabel: 'Create a task',
+      onPrimaryAction: () => Navigator.pushNamed(context, '/create-task').then((_) => _load()),
+      secondaryActionLabel: _hasActiveFilters ? 'Reset filters' : null,
+      onSecondaryAction: _hasActiveFilters
+          ? () {
+              setState(() {
+                _status         = 'all';
+                _search         = '';
+                _propertyFilter = null;
+                _assigneeFilter = null;
+                _dateFrom       = null;
+                _dateTo         = null;
+                _showOverdue    = false;
+              });
+              _load();
+            }
+          : null,
+    );
+  }
 
   Widget _buildList() {
     // we're reserving index 0 for the "Updated at…" header, and
@@ -347,15 +409,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
       itemBuilder: (ctx, i) {
         // ── HEADER ─────────────────────────────────────────────────────
         if (i == 0) {
-          final time = _lastUpdated == null
-              ? ''
-              : DateFormat.jm().format(_lastUpdated!);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              time.isEmpty ? '' : 'Updated at $time',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
+          final time = _lastUpdated == null ? '' : DateFormat.jm().format(_lastUpdated!);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (time.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 4,
+                    bottom: (_hasActiveFilters || _search.isNotEmpty) ? 4 : 8,
+                  ),
+                  child: Text('Updated at $time',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                ),
+              if (_hasActiveFilters || _search.isNotEmpty)
+                _activeFiltersChips(), // ← now visible above the list
+            ],
           );
         }
 
@@ -383,36 +452,193 @@ class _TaskListScreenState extends State<TaskListScreen> {
             borderRadius: BorderRadius.circular(10),
           ),
           child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(t.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                if (t.isMuted)
-                  const Icon(Icons.notifications_off, size: 16, color: Colors.grey),
-              ],
-            ),
-            subtitle: Text(
-              "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
-            ),
-            trailing: Chip(
-              label: Text(t.status.replaceAll('-', ' ')),
-              backgroundColor: _statusColor(t.status),
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
             onTap: () async {
               final result = await Navigator.pushNamed(ctx, '/task-detail', arguments: t);
               if (!mounted) return;
               if (result is Task) {
                 final idx = _tasks.indexWhere((x) => x.id == result.id);
-                if (idx != -1) setState(() => _tasks[idx] = result); // no full reload, keep scroll
+                if (idx != -1) setState(() => _tasks[idx] = result);
               }
             },
-          ),
+
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (t.isMuted)
+                  const Icon(Icons.notifications_off, size: 16, color: Colors.grey),
+              ],
+            ),
+
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // line 1: property • created (ellipsize)
+                Text(
+                  "${t.propertyName} • ${_dateFmt.format(t.createdAt)}",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+
+                // line 2: creator → assignee + due pill (wrap on small screens)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+                        Text(
+                          (t.createdBy ?? 'unknown'),
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const Icon(Icons.arrow_forward, size: 14, color: Colors.grey),
+
+                        // cap assignee width so the due pill can wrap
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.6),
+                          child: Text(
+                            (t.assignedToUsername ?? 'Not assigned'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
+
+                        if (t.dueAt != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _dueBg(t.dueAt!),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.event, size: 14, color: _dueFg(t.dueAt!)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _dueLabel(t.dueAt!),
+                                  style: TextStyle(fontSize: 12, color: _dueFg(t.dueAt!)),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            // status chip stays on the right
+            trailing: Chip(
+              label: Text(t.status.replaceAll('-', ' ')),
+              backgroundColor: _statusColor(t.status),
+              side: const BorderSide(color: Colors.black12),
+            ),
+          )
         );
       },
+    );
+  }
+  bool get _hasActiveFilters =>
+      _propertyFilter != null ||
+      _assigneeFilter != null ||
+      _dateFrom != null ||
+      _dateTo != null ||
+      _showOverdue;
+
+  Widget _filterChip({required String label, required VoidCallback onClear}) {
+    return Chip(
+      label: Text(label, overflow: TextOverflow.ellipsis),
+      deleteIcon: const Icon(Icons.close, size: 16),
+      onDeleted: onClear,
+    );
+  }
+
+  String _propertyName(int id) {
+    try {
+      return _properties.firstWhere((p) => p.id == id).name;
+    } catch (_) {
+      return 'Property #$id';
+    }
+  }
+
+  String _assigneeName(int id) {
+    try {
+      return _assignees.firstWhere((u) => u.id == id).username;
+    } catch (_) {
+      return 'User #$id';
+    }
+  }
+
+  Widget _activeFiltersChips() {
+    final chips = <Widget>[];
+
+    if (_propertyFilter != null) {
+      chips.add(_filterChip(
+        label: _propertyName(_propertyFilter!),
+        onClear: () { setState(() => _propertyFilter = null); _load(); },
+      ));
+    }
+
+    if (_assigneeFilter != null) {
+      chips.add(_filterChip(
+        label: _assigneeName(_assigneeFilter!),
+        onClear: () { setState(() => _assigneeFilter = null); _load(); },
+      ));
+    }
+
+    if (_dateFrom != null || _dateTo != null) {
+      final from = _dateFrom != null ? DateFormat.yMMMd().format(_dateFrom!) : '…';
+      final to   = _dateTo   != null ? DateFormat.yMMMd().format(_dateTo!)   : '…';
+      chips.add(_filterChip(
+        label: '$from → $to',
+        onClear: () { setState(() { _dateFrom = null; _dateTo = null; }); _load(); },
+      ));
+    }
+
+    if (_showOverdue) {
+      chips.add(_filterChip(
+        label: 'Overdue only',
+        onClear: () { setState(() => _showOverdue = false); _load(); },
+      ));
+    }
+
+    // trailing all-in reset (optional)
+    chips.add(
+      OutlinedButton.icon(
+        icon: const Icon(Icons.clear_all, size: 16),
+        label: const Text('Reset'),
+        onPressed: () {
+          setState(() {
+            _status         = 'all';
+            _search         = '';
+            _propertyFilter = null;
+            _assigneeFilter = null;
+            _dateFrom       = null;
+            _dateTo         = null;
+            _showOverdue    = false;
+          });
+          _load();
+        },
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
     );
   }
 }

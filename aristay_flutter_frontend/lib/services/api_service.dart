@@ -270,18 +270,28 @@ class ApiService {
     };
   }
   
-  /// Update the current user's profile (e.g. timezone).
-  Future<User> updateCurrentUser({ required String timezone }) async {
+  // Update the current user's profile (timezone, email, first/last name).
+  Future<User> updateCurrentUser({
+    String? timezone,
+    String? email,
+    String? firstName,
+    String? lastName,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final uri   = Uri.parse('$baseUrl/users/me/');
+
+    final body = <String, dynamic>{};
+    if (timezone != null) body['timezone']   = timezone;   // serializer maps to profile.timezone
+    if (email    != null) body['email']      = email;
+    if (firstName!= null) body['first_name'] = firstName;
+    if (lastName != null) body['last_name']  = lastName;
+    if (body.isEmpty) throw Exception('Nothing to update');
+
     final res = await http.patch(
       uri,
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type' : 'application/json',
-      },
-      body: jsonEncode({'timezone': timezone}),
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
+      body: jsonEncode(body),
     );
 
     if (res.statusCode != 200) {
@@ -315,20 +325,17 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final uri = Uri.parse(url ?? '$baseUrl/users/');
-    print('fetchUsers → $uri');            // ← add this to debug
-    final res = await http.get(uri,
-      headers: {'Authorization': 'Token $token'},
-    );
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
     if (res.statusCode != 200) throw Exception('Failed to load users');
 
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final data  = jsonDecode(res.body) as Map<String, dynamic>;
     final raw   = data['results'] as List<dynamic>;
-    final users = raw
-        .map((e) => User.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final users = raw.map((e) => User.fromJson(e as Map<String, dynamic>)).toList();
+
     return {
       'results': users,
-      'next':    data['next'] as String?,
+      'next'   : data['next'] as String?,
+      'count'  : (data['count'] as int?) ?? users.length,
     };
   }
   
@@ -540,7 +547,7 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
     final res = await http.post(
-      Uri.parse('$baseUrl/notifications/mark-all/'),
+      Uri.parse('$baseUrl/notifications/mark-all-read/'),
       headers: {'Authorization': 'Token $token'},
     );
     if (res.statusCode != 200) {

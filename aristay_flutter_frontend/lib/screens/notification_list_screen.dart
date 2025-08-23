@@ -1,8 +1,10 @@
 // lib/screens/notification_list_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/notification.dart';
 import '../widgets/unread_badge.dart';
+import '../widgets/empty_state.dart';
 
 import '../services/api_service.dart';
 import '../services/navigation_service.dart';
@@ -93,25 +95,27 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
-          TextButton(
-            child: const Text('Mark all read', style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              await ApiService().markAllNotificationsRead();
-              unreadCount.value = 0;
-              setState(() {
-                for (var i = 0; i < _notifs.length; i++) {
-                  _notifs[i] = AppNotification(
-                    id: _notifs[i].id,
-                    taskId: _notifs[i].taskId,
-                    taskTitle: _notifs[i].taskTitle,
-                    verb: _notifs[i].verb,
-                    read: true,
-                    timestamp: _notifs[i].timestamp,
-                    readAt: DateTime.now(),
-                  );
-                }
-              });
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : () => _load(),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              if (v == 'mark-all') _markAllRead();
             },
+            itemBuilder: (_) => [
+              PopupMenuItem<String>(
+                value: 'mark-all',
+                enabled: _hasUnread, // disable when nothing to do
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.done_all,
+                      color: _hasUnread ? null : Colors.grey),
+                  title: const Text('Mark all read'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -121,55 +125,107 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
               ? Center(child: Text(_error!))
               : RefreshIndicator(
                   onRefresh: () => _load(),
-                  child: ListView.builder(
-                    controller: _scrollCtrl,
-                    itemCount: _notifs.length + (_loadingMore ? 1 : 0),
-                    itemBuilder: (_, i) {
-                      if (i >= _notifs.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      final n = _notifs[i];
-                      final subtitle =
-                          '${n.verb.replaceAll("_", " ")} • ${n.taskTitle}';
-                      return Dismissible(
-                        key: ValueKey(n.id),
-                        direction: n.read
-                            ? DismissDirection.none
-                            : DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.green,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 16),
-                          child: const Icon(Icons.done, color: Colors.white),
+                  child: _notifs.isEmpty
+                      ? ListView( // keep pull-to-refresh working
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.7,
+                              child: EmptyState(
+                                title: 'Nothing to see (yet)',
+                                message: 'You’ll find task updates and assignments here.',
+                                illustrationAsset: 'assets/illustrations/empty_notifications.png',
+                                fallbackIcon: Icons.notifications_none,
+                                primaryActionLabel: 'Refresh',
+                                onPrimaryAction: () => _load(),
+                                // Only surface this if there are unread items on device state.
+                                secondaryActionLabel: _hasUnread ? 'Mark all read' : null,
+                                onSecondaryAction: _hasUnread ? _markAllRead : null,
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          controller: _scrollCtrl,
+                          itemCount: _notifs.length + (_loadingMore ? 1 : 0),
+                          itemBuilder: _buildNotifRow, // factor out your existing builder into a method if you like
                         ),
-                        onDismissed: (_) => _markRead(n, i),
-                        child: ListTile(
-                          title: Text(subtitle),
-                          subtitle: Text(
-                            n.timestamp.toLocal().toString().split('.').first,
-                          ),
-                          leading: Icon(
-                            n.read ? Icons.mark_email_read : Icons.markunread,
-                            color: n.read ? Colors.grey : Colors.blue,
-                          ),
-                            onTap: () async {
-                            // mark as read immediately for better UX
-                            await _markRead(n, i);
-                            await Navigator.pushNamed(
-                              context,
-                              '/task-detail',
-                              arguments: n.taskId,
-                            );
-                            // no extra work needed on return
-                          },
-                        ),
-                      );
-                    },
-                  ),
                 ),
     );
+  }
+  Widget _buildNotifRow(BuildContext context, int i) {
+    // Footer spinner when loading more
+    if (i >= _notifs.length) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final n = _notifs[i];
+    final subtitle = '${n.verb.replaceAll("_", " ")} • ${n.taskTitle}';
+
+    return Dismissible(
+      key: ValueKey(n.id),
+      direction: n.read ? DismissDirection.none : DismissDirection.endToStart,
+      background: Container(
+        color: Colors.green,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        child: const Icon(Icons.done, color: Colors.white),
+      ),
+      onDismissed: (_) => _markRead(n, i),
+      child: ListTile(
+        title: Text(subtitle),
+        subtitle: Text(_relTime(n.timestamp)),
+        leading: Icon(
+          n.read ? Icons.mark_email_read : Icons.markunread,
+          color: n.read ? Colors.grey : Colors.blue,
+        ),
+        onTap: () async {
+          // mark as read immediately for better UX
+          await _markRead(n, i);
+          await Navigator.pushNamed(context, '/task-detail', arguments: n.taskId);
+        },
+      ),
+    );
+  }
+
+  bool get _hasUnread => _notifs.any((n) => !n.read);
+
+  Future<void> _markAllRead() async {
+    try {
+      await ApiService().markAllNotificationsRead();
+      unreadCount.value = 0;
+      setState(() {
+        for (var i = 0; i < _notifs.length; i++) {
+          final n = _notifs[i];
+          _notifs[i] = AppNotification(
+            id: n.id,
+            taskId: n.taskId,
+            taskTitle: n.taskTitle,
+            verb: n.verb,
+            read: true,
+            timestamp: n.timestamp,
+            readAt: DateTime.now(),
+          );
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('All notifications marked as read')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Failed: $e')));
+      }
+    }
+  }
+  String _relTime(DateTime t) {
+    final d = DateTime.now().difference(t.toLocal());
+    if (d.inSeconds < 60) return 'just now';
+    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+    if (d.inHours   < 24) return '${d.inHours}h ago';
+    return DateFormat.yMMMd().add_jm().format(t.toLocal());
   }
 }
