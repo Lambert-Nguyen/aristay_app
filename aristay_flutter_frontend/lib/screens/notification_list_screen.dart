@@ -25,6 +25,22 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   String? _nextUrl;
   String? _error;
 
+
+  IconData _verbIcon(String v) {
+    switch (v) {
+      case 'assigned':             return Icons.person_add_alt;
+      case 'unassigned':           return Icons.person_remove_alt_1;
+      case 'status_changed':       return Icons.sync_alt;
+      case 'due_date_changed':     return Icons.event;
+      case 'title_changed':        return Icons.title;
+      case 'description_changed':  return Icons.description_outlined;
+      case 'photo_added':          return Icons.photo;
+      case 'photo_deleted':        return Icons.photo;
+      case 'created':              return Icons.add_circle_outline;
+      default:                     return Icons.notifications;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -152,8 +168,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                 ),
     );
   }
+
   Widget _buildNotifRow(BuildContext context, int i) {
-    // Footer spinner when loading more
     if (i >= _notifs.length) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
@@ -162,7 +178,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     }
 
     final n = _notifs[i];
-    final subtitle = '${n.verb.replaceAll("_", " ")} • ${n.taskTitle}';
+    final title = n.taskTitle;
+    final verbText = n.verb.replaceAll('_', ' ');
+    final when = _relTime(n.timestamp);
 
     return Dismissible(
       key: ValueKey(n.id),
@@ -175,14 +193,11 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       ),
       onDismissed: (_) => _markRead(n, i),
       child: ListTile(
-        title: Text(subtitle),
-        subtitle: Text(_relTime(n.timestamp)),
-        leading: Icon(
-          n.read ? Icons.mark_email_read : Icons.markunread,
-          color: n.read ? Colors.grey : Colors.blue,
-        ),
+        leading: Icon(_verbIcon(n.verb), color: n.read ? Colors.grey : Colors.blue),
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text('$verbText • $when'),
+        trailing: n.read ? const SizedBox.shrink() : const Icon(Icons.brightness_1, size: 8, color: Colors.blue),
         onTap: () async {
-          // mark as read immediately for better UX
           await _markRead(n, i);
           await Navigator.pushNamed(context, '/task-detail', arguments: n.taskId);
         },

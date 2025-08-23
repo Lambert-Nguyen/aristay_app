@@ -22,22 +22,30 @@ class _HomeScreenState extends State<HomeScreen> {
   bool   _isAdmin  = false;
   String? _error;
 
-  late final StreamSubscription<Map<String, dynamic>> _navSub;
+  StreamSubscription<Map<String, dynamic>>? _navSub;
 
   @override
   void initState() {
     super.initState();
-    _loadCurrentUser();
-
-    // listen for deep-links emitted by NotificationService
-    _navSub = NotificationService.navStream.listen(_handlePushNav);
-    
-    _fetchUnread();  // ← fire-and-forget helper below
+    _loadCurrentUser();                     // ← add this
+    NotificationService.hydrateUnreadCount();
+    _navSub = NotificationService.navStream.listen((data) {
+      final nav = navigatorKey.currentState;
+      if (nav == null) return;
+      switch (data['type']) {
+        case 'task':
+          final id = int.tryParse('${data['task_id']}');
+          if (id != null) nav.pushNamed('/task-detail', arguments: id);
+          break;
+        default:
+          nav.pushNamed('/notifications');
+      }
+    });
   }
 
   @override
   void dispose() {
-    _navSub.cancel();                               // tidy up
+    _navSub?.cancel();
     super.dispose();
   }
 
