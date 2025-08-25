@@ -42,7 +42,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   DateTime?      _dateFrom;
   DateTime?      _dateTo;
 
-  bool _showOverdue = false;   // ← new
+  bool _showOverdue = false;
+  bool _initializedFromArgs = false;
 
 
   // controller to drive infinite scroll
@@ -69,6 +70,32 @@ class _TaskListScreenState extends State<TaskListScreen> {
   void dispose() {
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initializedFromArgs) return;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      final String? status = args['status'] as String?;
+      final bool overdue = (args['overdue'] as bool?) ?? false;
+
+      if (status != null && ['pending','in-progress','completed','canceled','all'].contains(status)) {
+        _status = status == 'all' ? 'all' : status;
+      }
+      _showOverdue = overdue;
+      // reset other filters for clarity
+      _search = '';
+      _propertyFilter = null;
+      _assigneeFilter = null;
+      _dateFrom = null;
+      _dateTo = null;
+
+      _load().then((_) => _loadCounts());
+    }
+    _initializedFromArgs = true;
   }
 
   Future<void> _loadFilters() async {
