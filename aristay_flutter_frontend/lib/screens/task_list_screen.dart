@@ -324,57 +324,63 @@ class _TaskListScreenState extends State<TaskListScreen>
             onPressed: _openAdvancedFilters,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabCtrl,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          tabs: _tabs.map((k) {
-            final pretty = k.replaceAll('-', ' ');
-            final count = _countFor(k);
-            final selected = k == _status;
-            return Tab(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? theme.colorScheme.primary.withOpacity(.12)
-                      : theme.colorScheme.surfaceVariant.withOpacity(.6),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: selected
-                        ? theme.colorScheme.primary
-                        : Colors.black12,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Builder(builder: (context) {
+            final w = MediaQuery.sizeOf(context).width;
+            final compact = w < 380; // iPhone mini/SE style compaction
+
+            return TabBar(
+              controller: _tabCtrl,
+              isScrollable: true,
+              indicatorColor: Colors.transparent,
+              tabAlignment: TabAlignment.start,
+              // ↓ shrink the space between tabs
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+              dividerColor: Colors.transparent,
+              tabs: _tabs.map((k) {
+                final pretty = k.replaceAll('-', ' ');
+                final count  = _countFor(k);
+                final selected = k == _status;
+
+                return Tab(
+                  height: 36, // slightly shorter
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 8 : 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? Theme.of(context).colorScheme.primary.withOpacity(.12)
+                          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(.6),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: selected
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.black12,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          pretty,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontSize: compact ? 14 : 15,
+                              ),
+                        ),
+                        SizedBox(width: compact ? 4 : 6), // ↓ tighter gap
+                        _CountBubble(count: count, compact: compact),
+                      ],
+                    ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      pretty,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Text(
-                        '$count',
-                        style: theme.textTheme.labelMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                );
+              }).toList(),
             );
-          }).toList(),
+          }),
         ),
       ),
 
@@ -493,10 +499,7 @@ class _TaskListScreenState extends State<TaskListScreen>
         return _TaskRow(
           task: t,
           dateFmt: _dateFmt,
-          dueBg: _dueBg,
-          dueFg: _dueFg,
           dueLabel: _dueLabel,
-          statusBg: _statusColor(t.status),
           onTap: () async {
             final result =
                 await Navigator.pushNamed(ctx, '/task-detail', arguments: t);
@@ -652,6 +655,76 @@ class _TaskListScreenState extends State<TaskListScreen>
   }
 }
 
+class _CountBubble extends StatelessWidget {
+  const _CountBubble({required this.count, this.compact = false});
+  final int count;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 1.5 : 2,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Text(
+        '$count',
+        style: Theme.of(context)
+            .textTheme
+            .labelSmall
+            ?.copyWith(color: scheme.onSurface),
+      ),
+    );
+  }
+}
+
+class StatusPill extends StatelessWidget {
+  const StatusPill(this.status, {super.key});
+  final String status;
+
+  static const _bases = {
+    'pending'     : Color(0xFFFFC107), // amber
+    'in-progress' : Color(0xFF64B5F6), // blue 300
+    'completed'   : Color(0xFF81C784), // green 300
+    'canceled'    : Color(0xFFE57373), // red 300
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final base = _bases[status] ?? const Color(0xFFB0BEC5);
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    final bg     = isDark ? base.withOpacity(.18) : base.withOpacity(.20);
+    final border = isDark ? base.withOpacity(.55) : base.withOpacity(.35);
+    final label  = isDark ? base : base.withOpacity(.95);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        status.replaceAll('-', ' '),
+        style: TextStyle(
+          color: label,
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 //  A more spacious, overflow-safe task row
 // ─────────────────────────────────────────────────────────────
@@ -659,24 +732,21 @@ class _TaskRow extends StatelessWidget {
   const _TaskRow({
     required this.task,
     required this.dateFmt,
-    required this.dueBg,
-    required this.dueFg,
     required this.dueLabel,
-    required this.statusBg,
     required this.onTap,
   });
 
   final Task task;
   final DateFormat dateFmt;
-  final Color Function(DateTime) dueBg;
-  final Color Function(DateTime) dueFg;
   final String Function(DateTime) dueLabel;
-  final Color statusBg;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final onVar = scheme.onSurface.withOpacity(.72);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       elevation: 1,
@@ -709,9 +779,9 @@ class _TaskRow extends StatelessWidget {
                           ),
                         ),
                         if (task.isMuted)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 6),
-                            child: Icon(Icons.notifications_off, size: 16, color: Colors.grey),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Icon(Icons.notifications_off, size: 16, color: onVar),
                           ),
                       ],
                     ),
@@ -722,7 +792,10 @@ class _TaskRow extends StatelessWidget {
                       "${task.propertyName} • ${dateFmt.format(task.createdAt)}",
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 13.5),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 13.5,
+                        color: onVar,
+                      ),
                     ),
                     const SizedBox(height: 8),
 
@@ -734,12 +807,12 @@ class _TaskRow extends StatelessWidget {
                           runSpacing: 6,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                            Icon(Icons.person_outline, size: 16, color: onVar),
                             Text(
                               (task.createdBy ?? 'unknown'),
-                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              style: TextStyle(fontSize: 13, color: onVar),
                             ),
-                            const Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                            Icon(Icons.arrow_forward, size: 16, color: onVar),
 
                             ConstrainedBox(
                               constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.6),
@@ -747,7 +820,7 @@ class _TaskRow extends StatelessWidget {
                                 (task.assignedToUsername ?? 'Not assigned'),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                                style: TextStyle(fontSize: 13, color: onVar),
                               ),
                             ),
 
@@ -755,17 +828,26 @@ class _TaskRow extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: dueBg(task.dueAt!),
+                                  color: scheme.surface,
                                   borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(color: scheme.outlineVariant),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.event, size: 16, color: dueFg(task.dueAt!)),
+                                    Icon(
+                                      Icons.event,
+                                      size: 16,
+                                      color: scheme.onSurface.withOpacity(.85),
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       dueLabel(task.dueAt!),
-                                      style: TextStyle(fontSize: 13, color: dueFg(task.dueAt!)),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: scheme.onSurface,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -780,17 +862,8 @@ class _TaskRow extends StatelessWidget {
 
               const SizedBox(width: 10),
 
-              // trailing status chip
-              Chip(
-                label: Text(
-                  task.status.replaceAll('-', ' '),
-                  style: const TextStyle(fontSize: 13),
-                ),
-                backgroundColor: statusBg,
-                side: const BorderSide(color: Colors.black12),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-              ),
+              // trailing status pill
+              StatusPill(task.status),
             ],
           ),
         ),

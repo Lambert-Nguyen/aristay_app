@@ -1,9 +1,9 @@
+// lib/theme/app_theme.dart   (note: folder should be theme/, not "them/")
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Pick the brand blues you like (keep your current value if you already have one)
-  static const _brand     = Color(0xFF0E4B8F); // light mode seed
-  static const _brandDark = Color(0xFF0B3A6F); // dark mode seed
+  static const _brand     = Color(0xFF0E4B8F);
+  static const _brandDark = Color(0xFF0B3A6F);
 
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(
@@ -14,12 +14,11 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: const Color(0xFFF8FAFD),
-      appBarTheme: const AppBarTheme(
-        centerTitle: false,
-        elevation: 0,
-      ),
+      appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
       cardTheme: CardTheme(
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        color: scheme.surface, // subtle separation from scaffold
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: const InputDecorationTheme(
@@ -44,8 +43,11 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),
       ),
-      chipTheme: const ChipThemeData(
-        shape: StadiumBorder(side: BorderSide(color: Colors.black12)),
+      chipTheme: ChipThemeData(
+        shape: const StadiumBorder(),
+        side: BorderSide(color: scheme.outlineVariant),
+        labelStyle: TextStyle(color: scheme.onSurface),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
       progressIndicatorTheme: const ProgressIndicatorThemeData(strokeWidth: 3),
@@ -64,19 +66,51 @@ class AppTheme {
     final scheme = ColorScheme.fromSeed(
       seedColor: _brandDark,
       brightness: Brightness.dark,
+    ).copyWith(
+      surface: const Color(0xFF151922),
+      surfaceContainerLow: const Color(0xFF171C26),
+      surfaceContainerHigh: const Color(0xFF1D2330),
+      onSurface: const Color(0xFFEFF3F8),
+      onSurfaceVariant: const Color(0xFFCAD2E2),
+      outline: const Color(0xFF3B4456),
+      outlineVariant: const Color(0xFF2A3141),
+      primary: const Color(0xFF74A9FF),
     );
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xFF0F141C),
       appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
       cardTheme: CardTheme(
-        elevation: 0,
+        elevation: 1,
+        surfaceTintColor: Colors.transparent,
+        color: scheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: const InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
       ),
-      chipTheme: const ChipThemeData(shape: StadiumBorder()),
+      chipTheme: ChipThemeData(
+        shape: const StadiumBorder(),
+        side: BorderSide(color: scheme.outlineVariant),
+        labelStyle: TextStyle(color: scheme.onSurface),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        selectedColor: scheme.primary.withOpacity(.14),
+        backgroundColor: scheme.surfaceContainerLow,
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: scheme.onSurfaceVariant,
+        subtitleTextStyle: TextStyle(
+          color: scheme.onSurface.withOpacity(.72),
+          fontSize: 13,
+        ),
+        titleTextStyle: TextStyle(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w700,
+          fontSize: 16.5,
+        ),
+      ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
       progressIndicatorTheme: const ProgressIndicatorThemeData(strokeWidth: 3),
       dividerTheme: const DividerThemeData(thickness: 1, space: 24),
