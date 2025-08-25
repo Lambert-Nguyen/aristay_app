@@ -443,16 +443,34 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                         tooltip: 'Pick date',
                         icon: const Icon(Icons.event),
                         onPressed: () async {
-                          final now = DateTime.now();
-                          final init = _dueAt ?? DateTime(now.year, now.month, now.day);
+                          final now   = DateTime.now();
+                          final today = DateUtils.dateOnly(now);
+                          final last  = DateTime(now.year + 5);
+
+                          // Build a safe initial date: use due date if it exists, but clamp to [today, last].
+                          DateTime safeInitial;
+                          if (_dueAt == null) {
+                            safeInitial = today;
+                          } else {
+                            final dueOnly = DateUtils.dateOnly(_dueAt!);
+                            if (dueOnly.isBefore(today)) {
+                              safeInitial = today;
+                            } else if (dueOnly.isAfter(last)) {
+                              safeInitial = last;
+                            } else {
+                              safeInitial = dueOnly;
+                            }
+                          }
+
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: init,
-                            firstDate: DateUtils.dateOnly(now),
-                            lastDate: DateTime(now.year + 5),
+                            initialDate: safeInitial,
+                            firstDate: today,
+                            lastDate: last,
                           );
+
                           if (picked != null) {
-                            // store as midnight local (backend can treat as date-only)
+                            // store as date-only (midnight local)
                             setState(() => _dueAt = DateTime(picked.year, picked.month, picked.day));
                           }
                         },
