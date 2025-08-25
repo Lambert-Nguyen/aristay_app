@@ -111,12 +111,14 @@ class NotificationService {
 
   static void _wireForegroundListener() {
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-      // On Android, FCM notification payloads don't display in-foreground.
-      final isAndroid = defaultTargetPlatform == TargetPlatform.android;
-      if (isAndroid && msg.notification != null) {
-        await _showLocal(msg.notification);
+      final n = msg.notification;
+      if (defaultTargetPlatform == TargetPlatform.android || n == null) {
+        final title = n?.title ?? msg.data['title'];
+        final body  = n?.body  ?? msg.data['body'];
+        if (title != null || body != null) {
+          await _showLocal(RemoteNotification(title: title, body: body));
+        }
       }
-      // increase unread badge locally
       unreadCount.value = (unreadCount.value + 1).clamp(0, 999);
     });
   }

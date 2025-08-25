@@ -72,7 +72,8 @@ class Task(models.Model):
 
 
     def __str__(self):
-        return f"{self.title} ({self.task_type}) - {self.property.name}"
+        prop_name = self.property.name if self.property else "No property"
+        return f"{self.title} ({self.task_type}) - {prop_name}"
 
     def save(self, *args, **kwargs):
         # Only build history on updates, not on initial creation

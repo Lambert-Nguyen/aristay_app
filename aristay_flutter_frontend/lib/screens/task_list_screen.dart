@@ -235,6 +235,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
   Widget build(BuildContext ctx) {
     return Scaffold(
       appBar: AppBar(
+        leading: Navigator.canPop(context)
+            ? const BackButton()
+            : IconButton(
+                tooltip: 'Home',
+                icon: const Icon(Icons.home_outlined),
+                onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+              ),
         title: const Text('Tasks'),
         actions: [
           // show “All(##)” and reset the status filter

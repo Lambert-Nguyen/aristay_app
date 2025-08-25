@@ -298,8 +298,12 @@ class NotificationListView(generics.ListAPIView):
     filterset_fields = ['read']  # ← enables ?read=true / ?read=false
 
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user)
-
+        return (
+            Notification.objects
+            .filter(recipient=self.request.user)
+            .order_by('-timestamp', '-id')  # newest first, stable
+        )
+        
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def unread_notification_count(request):
