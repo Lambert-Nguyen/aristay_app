@@ -129,14 +129,28 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   }
 
   Future<void> _pickDueDate() async {
-    final now = DateTime.now();
+    final now   = DateTime.now();
+    final today = DateUtils.dateOnly(now);
+    final last  = DateTime(now.year + 3);
+
+    DateTime safeInitial;
+    if (_dueLocal == null) {
+      safeInitial = today;
+    } else {
+      final d = DateUtils.dateOnly(_dueLocal!);
+      if (d.isBefore(today))      safeInitial = today;
+      else if (d.isAfter(last))   safeInitial = last;
+      else                        safeInitial = d;
+    }
+
     final date = await showDatePicker(
       context: context,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 3),
-      initialDate: _dueLocal ?? now,
+      firstDate: today,
+      lastDate: last,
+      initialDate: safeInitial,
     );
     if (date == null) return;
+
     final time = await showTimePicker(
       context: context,
       initialTime: _dueLocal != null
@@ -144,6 +158,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           : TimeOfDay.now(),
     );
     if (time == null) return;
+
     setState(() {
       _dueLocal = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });

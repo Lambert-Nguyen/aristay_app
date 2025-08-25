@@ -303,6 +303,7 @@ class NotificationListView(generics.ListAPIView):
             .filter(recipient=self.request.user)
             .order_by('-timestamp', '-id')  # newest first, stable
         )
+        
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def unread_notification_count(request):
