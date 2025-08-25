@@ -90,8 +90,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ElevatedButton(
               onPressed: () async {
                 final created = await Navigator.pushNamed(context, '/create-task');
+                if (!mounted) return;
                 if (created == true) {
-                  Navigator.pushReplacementNamed(context, '/tasks');
+                  Navigator.pushNamed(context, '/tasks'); // ← keep Home underneath
                 }
               },
               child: const Text('Create New Task'),
