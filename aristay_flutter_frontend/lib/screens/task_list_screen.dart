@@ -80,18 +80,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map) {
       final String? status = args['status'] as String?;
-      final bool overdue = (args['overdue'] as bool?) ?? false;
+      final bool overdue   = (args['overdue'] as bool?) ?? false;
+      final int? assignedTo = args['assignedTo'] as int?;
 
-      if (status != null && ['pending','in-progress','completed','canceled','all'].contains(status)) {
-        _status = status == 'all' ? 'all' : status;
-      }
-      _showOverdue = overdue;
-      // reset other filters for clarity
+      if (status != null) _status = status == 'all' ? 'all' : status;
+      _showOverdue    = overdue;
+      _assigneeFilter = assignedTo;
+
       _search = '';
       _propertyFilter = null;
-      _assigneeFilter = null;
-      _dateFrom = null;
-      _dateTo = null;
+      _dateFrom = null; _dateTo = null;
 
       _load().then((_) => _loadCounts());
     }
