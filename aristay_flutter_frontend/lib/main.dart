@@ -6,6 +6,8 @@ import 'firebase_options.dart';
 import 'models/task.dart';
 import 'models/property.dart';
 
+import 'theme/app_theme.dart';
+
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
@@ -84,6 +86,9 @@ class MyApp extends StatelessWidget {
         '/admin/create-user': (c) => const AdminUserCreateScreen(),
         '/notifications': (c) => const NotificationListScreen(),
       },
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
     );
   }
 }
