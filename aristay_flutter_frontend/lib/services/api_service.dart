@@ -452,19 +452,40 @@ class ApiService {
 
     throw Exception('Failed to create user (${res.statusCode})');
   }
-  /// GET /api/tasks/count-by-status/
-  Future<Map<String, dynamic>> fetchTaskCounts() async {
+  
+  Future<Map<String, dynamic>> getJson(String path, {Map<String, String>? params}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final uri = Uri.parse('$baseUrl/tasks/count-by-status/');
-    final res = await http.get(
-      uri,
-      headers: {'Authorization': 'Token $token'},
-    );
+    final uri = Uri.parse(baseUrl).resolve(path).replace(queryParameters: params);
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
     if (res.statusCode != 200) {
-      throw Exception('Failed to load task counts (${res.statusCode})');
+      throw Exception('GET $uri failed (${res.statusCode}): ${res.body}');
     }
-    return jsonDecode(res.body) as Map<String, dynamic>;
+    final body = jsonDecode(res.body);
+    if (body is! Map<String, dynamic>) {
+      throw Exception('Unexpected JSON from $uri (expected object)');
+    }
+    return body;
+  }
+
+  /// GET /api/tasks/count-by-status/
+  Future<Map<String, dynamic>> fetchTaskCounts({
+    int? assignedTo,
+    int? property,
+    String? status,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    bool? overdue, // optional
+  }) async {
+    final params = <String, String>{};
+    if (assignedTo != null) params['assigned_to'] = '$assignedTo';
+    if (property != null)   params['property']    = '$property';
+    if (status != null)     params['status']      = status;
+    if (dateFrom != null)   params['date_from']   = dateFrom.toIso8601String();
+    if (dateTo != null)     params['date_to']     = dateTo.toIso8601String();
+    if (overdue == true)    params['overdue']     = 'true';
+
+    return await getJson('/api/tasks/count-by-status/', params: params);
   }
 
   /// Registers (or updates) the device’s FCM token with the backend.

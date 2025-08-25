@@ -72,6 +72,7 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/aristay_logo.jpg
+    - assets/aristay_banner.jpg
     - assets/illustrations/
 
   # An image asset can refer to one or more resolution-specific "variants", see

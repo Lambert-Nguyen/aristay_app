@@ -42,7 +42,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
   DateTime?      _dateFrom;
   DateTime?      _dateTo;
 
-  bool _showOverdue = false;   // ← new
+  bool _showOverdue = false;
+  bool _initializedFromArgs = false;
+  int _loadToken = 0;
 
 
   // controller to drive infinite scroll
@@ -61,14 +63,39 @@ class _TaskListScreenState extends State<TaskListScreen> {
         }
       });
     _loadFilters();
-    // first load tasks, then counts
-    _load().then((_) => _loadCounts());
   }
 
   @override
   void dispose() {
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initializedFromArgs) return;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    // Defaults first
+    _status         = 'all';
+    _showOverdue    = false;
+    _assigneeFilter = null;
+    _search         = '';
+    _propertyFilter = null;
+    _dateFrom = null; _dateTo = null;
+
+    if (args is Map) {
+      final String? status = args['status'] as String?;
+      final bool overdue   = (args['overdue'] as bool?) ?? false;
+      final int? assignedTo = args['assignedTo'] as int?;
+      if (status != null)   _status         = status;
+      _showOverdue          = overdue;
+      _assigneeFilter       = assignedTo;
+    }
+
+    _initializedFromArgs = true;
+    _load().then((_) => _loadCounts());   // 👈 first fetch happens here
   }
 
   Future<void> _loadFilters() async {
@@ -93,6 +120,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _load({bool append = false}) async {
+    final token = ++_loadToken;
     setState(() => append ? _isLoadingMore = true : _isLoading = true);
     try {
       // decide whether to page or to fetch fresh
@@ -115,23 +143,26 @@ class _TaskListScreenState extends State<TaskListScreen> {
         _tasks = [];
       }
 
+      // Drop stale response
+      if (token != _loadToken) return;
+
+      final page = res['results'] as List<Task>;
       setState(() {
-        // append or replace
-        final page = res['results'] as List<Task>;
         if (append) {
           _tasks.addAll(page);
         } else {
           _tasks = page;
           // record the fetch timestamp
           _lastUpdated = DateTime.now();
-
         }
         _nextUrl = res['next'] as String?;
         _error   = null;
       });
     } catch (e) {
+      if (token != _loadToken) return;
       setState(() => _error = e.toString());
     } finally {
+      if (token != _loadToken) return;
       if (!append) _loadCounts();
       setState(() {
         _isLoading     = false;
