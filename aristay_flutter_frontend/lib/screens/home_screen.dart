@@ -402,19 +402,22 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme  = Theme.of(context);
     final scheme = theme.colorScheme;
+    final isLight = scheme.brightness == Brightness.light;
+
+    final dotBg     = isLight ? scheme.primary.withOpacity(.10) : scheme.surface;
+    final dotBorder = isLight ? scheme.primary.withOpacity(.25) : scheme.outlineVariant;
+    final dotIcon   = isLight ? scheme.primary : scheme.onSurface;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Ink(
         decoration: BoxDecoration(
-          color: scheme.brightness == Brightness.dark
-            ? scheme.surfaceContainerHigh
-            : scheme.surface,
+          color: isLight ? scheme.surface : scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: scheme.outlineVariant),
+          border: Border.all(color: scheme.outlineVariant),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -422,21 +425,24 @@ class _StatCard extends StatelessWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: scheme.surface,                 // adapts to theme
+                  color: dotBg,
                   shape: BoxShape.circle,
-                  border: Border.all(color: scheme.outlineVariant),
+                  border: Border.all(color: dotBorder),
                 ),
                 padding: const EdgeInsets.all(10),
-                child: Icon(icon, size: 22, color: scheme.onSurface),
+                child: Icon(icon, size: 22, color: dotIcon),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: theme.textTheme.labelLarge?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    )),
+                    Text(
+                      title,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       '$value',
