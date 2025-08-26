@@ -8,6 +8,8 @@ import '../models/task.dart';
 import '../models/user.dart';
 import '../models/notification.dart';
 
+import '../utils/api_error.dart';
+
 /// Throws when the server returns a 400 with field‐level errors.
 class ValidationException implements Exception {
   final Map<String, String> errors;
@@ -15,8 +17,8 @@ class ValidationException implements Exception {
 }
 
 class ApiService {
-  // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'http://192.168.1.40:8000/api';
+  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  // static const String baseUrl = 'http://192.168.1.40:8000/api';
 
   // ─────────────  Task mute / un-mute  ─────────────
   Future<bool> _postMute(int id, { required bool mute }) async {
@@ -46,11 +48,12 @@ class ApiService {
   Future<List<Property>> fetchProperties() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final res = await http.get(
-      Uri.parse('$baseUrl/properties/'),
-      headers: {'Authorization': 'Token $token'},
-    );
-    if (res.statusCode != 200) throw Exception('Failed to load properties');
+    final uri = Uri.parse('$baseUrl/properties/');
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
+
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
     final body = jsonDecode(res.body);
     final raw = body is List
         ? body
@@ -62,42 +65,42 @@ class ApiService {
         .toList();
   }
 
-  Future<bool> createProperty(Map<String, dynamic> payload) async {
+  Future<void> createProperty(Map<String, dynamic> payload) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/properties/');
     final res = await http.post(
-      Uri.parse('$baseUrl/properties/'),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
+      uri,
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
       body: jsonEncode(payload),
     );
-    return res.statusCode == 201;
+    if (res.statusCode != 201) {
+      throw apiExceptionFromResponse(res);
+    }
   }
 
-  Future<bool> updateProperty(int id, Map<String, dynamic> payload) async {
+  Future<void> updateProperty(int id, Map<String, dynamic> payload) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/properties/$id/');
     final res = await http.patch(
-      Uri.parse('$baseUrl/properties/$id/'),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
+      uri,
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
       body: jsonEncode(payload),
     );
-    return res.statusCode == 200;
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
   }
 
-  Future<bool> deleteProperty(int id) async {
+  Future<void> deleteProperty(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final res = await http.delete(
-      Uri.parse('$baseUrl/properties/$id/'),
-      headers: {'Authorization': 'Token $token'},
-    );
-    return res.statusCode == 204;
+    final uri   = Uri.parse('$baseUrl/properties/$id/');
+    final res = await http.delete(uri, headers: {'Authorization': 'Token $token'});
+    if (res.statusCode != 204) {
+      throw apiExceptionFromResponse(res);
+    }
   }
 
   Future<void> uploadTaskImage(int taskId, File imageFile) async {

@@ -9,6 +9,7 @@ from .views import (
     TaskViewSet,
     TaskListCreate, TaskDetail,
     PropertyListCreate,
+    PropertyDetail,
     UserList,
     TaskImageCreateView,
     TaskImageDetailView,
@@ -36,6 +37,7 @@ urlpatterns = [
         name='taskimage-detail'
     ),
     path('properties/', PropertyListCreate.as_view(), name='property-list'),
+    path('properties/<int:pk>/', PropertyDetail.as_view(), name='property-detail'),
     path('users/', UserList.as_view(), name='user-list'),
     path('admin/invite/', AdminInviteUserView.as_view(), name='admin-invite'),
     path('admin/reset-password/',

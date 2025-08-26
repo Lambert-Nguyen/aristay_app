@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/property.dart';
 import '../services/api_service.dart';
+import '../utils/api_error.dart';
 
 class PropertyListScreen extends StatefulWidget {
   const PropertyListScreen({Key? key}) : super(key: key);
@@ -73,18 +74,18 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
     );
     if (yes != true) return;
 
-    final ok = await _api.deleteProperty(p.id);
-    if (ok) {
+    try {
+      await _api.deleteProperty(p.id);  // must be the backend PK
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Property deleted')),
       );
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delete failed')),
-      );
+    } on ApiException catch (e) {
+      // Treat 404 as "not found OR no permission" (DRF often masks perms as 404)
+      showFriendlyError(context, e, action: 'delete this property');
+    } catch (e) {
+      showFriendlyError(context, e);
     }
   }
 
@@ -200,7 +201,12 @@ class _PropertyCard extends StatelessWidget {
           property.name,
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5),
         ),
-        subtitle: Text('Property #${property.id}', style: TextStyle(color: onVar, fontSize: 13.5)),
+        subtitle: Text(
+          property.number != null
+            ? 'Code ${property.number} • ID ${property.id}'
+            : 'ID #${property.id}',
+          style: TextStyle(color: onVar, fontSize: 13.5),
+        ),
         trailing: PopupMenuButton<String>(
           onSelected: (v) {
             if (v == 'edit') {

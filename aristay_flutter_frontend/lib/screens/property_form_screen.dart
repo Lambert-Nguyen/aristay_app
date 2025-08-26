@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/property.dart';
 import '../services/api_service.dart';
+import '../utils/api_error.dart';
 
 class PropertyFormScreen extends StatefulWidget {
   final Property? property;
@@ -33,32 +34,37 @@ class _PropertyFormScreenState extends State<PropertyFormScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() {
-      _saving = true;
-      _pageError = null;
+      _saving = true;    
+      _pageError = null; 
     });
 
-    final api = ApiService();
     final payload = {'name': _nameCtrl.text.trim()};
+    final api = ApiService();
 
-    bool ok = false;
     try {
-      ok = _isEdit
-          ? await api.updateProperty(widget.property!.id, payload)
-          : await api.createProperty(payload);
-    } catch (e) {
-      _pageError = 'Save failed';
-    }
-
-    if (!mounted) return;
-
-    setState(() => _saving = false);
-
-    if (ok) {
+      if (_isEdit) {
+        await api.updateProperty(widget.property!.id, payload);
+      } else {
+        await api.createProperty(payload);
+      }
+      if (!mounted) return;
       Navigator.pop(context, true);
-    } else {
-      setState(() => _pageError ??= 'Save failed');
+    } on ApiException catch (e) {
+      // Friendly SnackBar
+      showFriendlyError(
+        context,
+        e,
+        action: _isEdit ? 'update this property' : 'create a property',
+      );
+      // (optional) also show inline card:
+      setState(() => _pageError = friendlyMessage(e,
+          action: _isEdit ? 'update this property' : 'create a property'));
+    } catch (e) {
+      showFriendlyError(context, e);
+      setState(() => _pageError = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 

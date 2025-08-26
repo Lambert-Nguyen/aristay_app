@@ -222,6 +222,17 @@ class PropertyListCreate(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return [IsAdminUser()]
         return super().get_permissions()
+    
+class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Property.objects.all()
+    serializer_class = PropertySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        # Only admins can modify/delete; reads remain open to authenticated (or read-only if you prefer)
+        if self.request.method in ('PUT', 'PATCH', 'DELETE'):
+            return [IsAdminUser()]
+        return super().get_permissions()
 
 class UserList(generics.ListAPIView):
     queryset = User.objects.all().order_by('id')  # ← Add ordering to fix pagination warning
