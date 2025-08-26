@@ -3,8 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+
 import '../models/task.dart';
+
 import '../services/api_service.dart';
+
+import '../widgets/status_pill.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task? initialTask;
@@ -183,10 +187,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700)),
                 ),
-                Chip(
-                  label: Text(_task.status.replaceAll('-', ' ')),
-                  backgroundColor: _statusColor(_task.status),
-                )
+                StatusPill(_task.status),
               ],
             ),
             const SizedBox(height: 8),
@@ -427,16 +428,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               ),
       ),
     );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'pending':     return Colors.orange.shade100;
-      case 'in-progress': return Colors.blue.shade100;
-      case 'completed':   return Colors.green.shade100;
-      case 'canceled':    return Colors.red.shade100;
-      default:            return Colors.grey.shade200;
-    }
   }
 
   String _dueLabel(DateTime due) {

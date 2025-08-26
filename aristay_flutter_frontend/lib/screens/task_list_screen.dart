@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../widgets/task_advanced_filter_sheet.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_pill.dart';
+
 import '../models/property.dart';
 import '../models/user.dart';
 import '../models/task.dart';
+
 import '../services/api_service.dart';
+
 import 'task_search_delegate.dart';
 
 class TaskListScreen extends StatefulWidget {
@@ -687,47 +692,6 @@ class _CountBubble extends StatelessWidget {
 class _DueChipColors {
   final Color bg, border, fg;
   const _DueChipColors({required this.bg, required this.border, required this.fg});
-}
-
-class StatusPill extends StatelessWidget {
-  const StatusPill(this.status, {super.key});
-  final String status;
-
-  static const _bases = {
-    'pending'     : Color(0xFFFFC107), // amber
-    'in-progress' : Color(0xFF64B5F6), // blue 300
-    'completed'   : Color(0xFF81C784), // green 300
-    'canceled'    : Color(0xFFE57373), // red 300
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final base = _bases[status] ?? const Color(0xFFB0BEC5);
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = scheme.brightness == Brightness.dark;
-
-    final bg     = isDark ? base.withValues(alpha: .18) : base.withValues(alpha: .20);
-    final border = isDark ? base.withValues(alpha: .55) : base.withValues(alpha: .35);
-    final label  = isDark ? base : base.withValues(alpha: .95);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border),
-      ),
-      child: Text(
-        status.replaceAll('-', ' '),
-        style: TextStyle(
-          color: label,
-          fontWeight: FontWeight.w700,
-          fontSize: 12.5,
-          height: 1.1,
-        ),
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────
