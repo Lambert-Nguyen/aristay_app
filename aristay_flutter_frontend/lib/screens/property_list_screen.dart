@@ -150,6 +150,7 @@ class _PropertyListScreenState extends State<PropertyListScreen> {
                               },
                               onDelete: () => _confirmDelete(p),
                             )),
+                        SizedBox(height: MediaQuery.of(context).padding.bottom + 68),
                     ],
                   ),
                 ),
