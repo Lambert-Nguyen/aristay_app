@@ -684,6 +684,11 @@ class _CountBubble extends StatelessWidget {
   }
 }
 
+class _DueChipColors {
+  final Color bg, border, fg;
+  const _DueChipColors({required this.bg, required this.border, required this.fg});
+}
+
 class StatusPill extends StatelessWidget {
   const StatusPill(this.status, {super.key});
   final String status;
@@ -740,6 +745,40 @@ class _TaskRow extends StatelessWidget {
   final DateFormat dateFmt;
   final String Function(DateTime) dueLabel;
   final VoidCallback onTap;
+
+  // Returns bg/border/fg for the due pill, tuned for light & dark themes
+  _DueChipColors _dueColors(DateTime due, ColorScheme scheme) {
+    final now     = DateTime.now();
+    final isDark  = scheme.brightness == Brightness.dark;
+    final dLocal  = due.toLocal();
+    final today   = DateTime(now.year, now.month, now.day);
+    final dueDay  = DateTime(dLocal.year, dLocal.month, dLocal.day);
+
+    // Overdue
+    if (dLocal.isBefore(now)) {
+      return _DueChipColors(
+        bg:     isDark ? Colors.red.withOpacity(.22)     : Colors.red.shade100,
+        border: isDark ? Colors.red.withOpacity(.55)     : Colors.red.withOpacity(.35),
+        fg:     isDark ? (Colors.red[300] ?? Colors.red) : Colors.red.shade800,
+      );
+    }
+
+    // Due within 2 days
+    if (dueDay.difference(today).inDays <= 2) {
+      return _DueChipColors(
+        bg:     isDark ? Colors.orange.withOpacity(.22)      : Colors.orange.shade100,
+        border: isDark ? Colors.orange.withOpacity(.55)      : Colors.orange.withOpacity(.35),
+        fg:     isDark ? (Colors.orange[300] ?? Colors.orange) : Colors.orange.shade800,
+      );
+    }
+
+    // Neutral/default
+    return _DueChipColors(
+      bg:     scheme.surface,
+      border: scheme.outlineVariant,
+      fg:     scheme.onSurface,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -824,34 +863,30 @@ class _TaskRow extends StatelessWidget {
                               ),
                             ),
 
-                            if (task.dueAt != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: scheme.surface,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: scheme.outlineVariant),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.event,
-                                      size: 16,
-                                      color: scheme.onSurface.withOpacity(.85),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      dueLabel(task.dueAt!),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: scheme.onSurface,
-                                        fontWeight: FontWeight.w600,
+                            if (task.dueAt != null) ...[
+                              Builder(builder: (_) {
+                                final c = _dueColors(task.dueAt!, scheme);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: c.bg,
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: c.border),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.event, size: 16, color: c.fg),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        dueLabel(task.dueAt!),
+                                        style: TextStyle(fontSize: 13, color: c.fg, fontWeight: FontWeight.w600),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
                           ],
                         );
                       },
