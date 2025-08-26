@@ -190,7 +190,7 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                           final u = _users[i];
                           return ListTile(
                             tileColor: u.id == _highlightId
-                                ? Colors.yellow.withOpacity(0.30)
+                                ? Colors.yellow.withValues(alpha: 0.30)
                                 : null,
                             title: Row(
                               children: [

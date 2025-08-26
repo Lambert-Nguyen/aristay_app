@@ -164,6 +164,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _headerCard() {
+    final onVar = Theme.of(context).colorScheme.onSurface.withValues(alpha: .65);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -226,12 +228,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             const Divider(height: 24),
             // Dates
             Text('Created:  ${_formatLocal(_task.createdAt)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                style: TextStyle(fontSize: 12, color: onVar)),
             Text('Modified: ${_formatLocal(_task.modifiedAt)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                style: TextStyle(fontSize: 12, color: onVar)),
             if ((_task.modifiedBy ?? '').isNotEmpty)
               Text('Modified by: ${_task.modifiedBy!}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: onVar)),
           ],
         ),
       ),
@@ -253,10 +255,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _notificationsCard() {
-    final subtle = Theme.of(context)
-        .textTheme
-        .bodySmall
-        ?.copyWith(color: Colors.grey[600]);
+    final scheme = Theme.of(context).colorScheme;
+    final onVar  = scheme.onSurface.withValues(alpha: .72);
+    final subtle = Theme.of(context).textTheme.bodySmall?.copyWith(color: onVar);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -275,7 +276,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.info_outline, size: 14, color: Colors.grey[600]),
+                    Icon(Icons.info_outline, size: 14, color: onVar),
                     const SizedBox(width: 6),
                     Text('You aren’t assigned to this task.', style: subtle),
                   ],

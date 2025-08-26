@@ -1,4 +1,4 @@
-// lib/theme/app_theme.dart   (note: folder should be theme/, not "them/")
+// lib/theme/app_theme.dart
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -10,31 +10,19 @@ class AppTheme {
       seedColor: _brand,
       brightness: Brightness.light,
     );
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
+    final base   = ThemeData(useMaterial3: true, colorScheme: scheme);
+
+    return base.copyWith(
       scaffoldBackgroundColor: const Color(0xFFF8FAFD),
       appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
       cardTheme: CardTheme(
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        color: scheme.surface, // subtle separation from scaffold
+        color: scheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: const InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
@@ -49,6 +37,23 @@ class AppTheme {
         labelStyle: TextStyle(color: scheme.onSurface),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
+
+      // 👇 NEW: make ListTile styles explicit & with inherit:false
+      listTileTheme: ListTileThemeData(
+        iconColor: scheme.onSurfaceVariant,
+        titleTextStyle: base.textTheme.titleMedium!.copyWith(
+          inherit: false, // important: matches default
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w700,
+          fontSize: 16.5,
+        ),
+        subtitleTextStyle: base.textTheme.bodySmall!.copyWith(
+          inherit: false, // important
+          color: scheme.onSurface.withValues(alpha: .72),
+          fontSize: 13,
+        ),
+      ),
+
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
       progressIndicatorTheme: const ProgressIndicatorThemeData(strokeWidth: 3),
       dividerTheme: const DividerThemeData(thickness: 1, space: 24),
@@ -63,23 +68,26 @@ class AppTheme {
   }
 
   static ThemeData get dark {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _brandDark,
-      brightness: Brightness.dark,
-    ).copyWith(
-      surface: const Color(0xFF151922),
-      surfaceContainerLow: const Color(0xFF171C26),
-      surfaceContainerHigh: const Color(0xFF1D2330),
-      onSurface: const Color(0xFFEFF3F8),
-      onSurfaceVariant: const Color(0xFFCAD2E2),
-      outline: const Color(0xFF3B4456),
-      outlineVariant: const Color(0xFF2A3141),
-      primary: const Color(0xFF74A9FF),
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: _brandDark,
+        brightness: Brightness.dark,
+      ).copyWith(
+        surface: const Color(0xFF151922),
+        surfaceContainerLow: const Color(0xFF171C26),
+        surfaceContainerHigh: const Color(0xFF1D2330),
+        onSurface: const Color(0xFFEFF3F8),
+        onSurfaceVariant: const Color(0xFFCAD2E2),
+        outline: const Color(0xFF3B4456),
+        outlineVariant: const Color(0xFF2A3141),
+        primary: const Color(0xFF74A9FF),
+      ),
     );
 
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
+    final scheme = base.colorScheme;
+
+    return base.copyWith(
       scaffoldBackgroundColor: const Color(0xFF0F141C),
       appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
       cardTheme: CardTheme(
@@ -88,29 +96,31 @@ class AppTheme {
         color: scheme.surfaceContainerHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-      ),
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),
         side: BorderSide(color: scheme.outlineVariant),
         labelStyle: TextStyle(color: scheme.onSurface),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        selectedColor: scheme.primary.withOpacity(.14),
+        selectedColor: scheme.primary.withValues(alpha: .14),
         backgroundColor: scheme.surfaceContainerLow,
       ),
+
+      // 👇 Match light theme: inherit:false + same fields
       listTileTheme: ListTileThemeData(
         iconColor: scheme.onSurfaceVariant,
-        subtitleTextStyle: TextStyle(
-          color: scheme.onSurface.withOpacity(.72),
-          fontSize: 13,
-        ),
-        titleTextStyle: TextStyle(
+        titleTextStyle: base.textTheme.titleMedium!.copyWith(
+          inherit: false,
           color: scheme.onSurface,
           fontWeight: FontWeight.w700,
           fontSize: 16.5,
         ),
+        subtitleTextStyle: base.textTheme.bodySmall!.copyWith(
+          inherit: false,
+          color: scheme.onSurface.withValues(alpha: .72),
+          fontSize: 13,
+        ),
       ),
+
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
       progressIndicatorTheme: const ProgressIndicatorThemeData(strokeWidth: 3),
       dividerTheme: const DividerThemeData(thickness: 1, space: 24),

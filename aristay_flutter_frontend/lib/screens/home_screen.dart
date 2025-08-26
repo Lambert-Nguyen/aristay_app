@@ -406,8 +406,8 @@ class _StatCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isLight = scheme.brightness == Brightness.light;
 
-    final dotBg     = isLight ? scheme.primary.withOpacity(.10) : scheme.surface;
-    final dotBorder = isLight ? scheme.primary.withOpacity(.25) : scheme.outlineVariant;
+    final dotBg     = isLight ? scheme.primary.withValues(alpha: .10) : scheme.surface;
+    final dotBorder = isLight ? scheme.primary.withValues(alpha: .25) : scheme.outlineVariant;
     final dotIcon   = isLight ? scheme.primary : scheme.onSurface;
 
     return InkWell(

@@ -353,8 +353,8 @@ class _TaskListScreenState extends State<TaskListScreen>
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? Theme.of(context).colorScheme.primary.withOpacity(.12)
-                          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(.6),
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: .12)
+                          : Theme.of(context).colorScheme.surfaceVariant.withValues(alpha: .6),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: selected
@@ -706,9 +706,9 @@ class StatusPill extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
 
-    final bg     = isDark ? base.withOpacity(.18) : base.withOpacity(.20);
-    final border = isDark ? base.withOpacity(.55) : base.withOpacity(.35);
-    final label  = isDark ? base : base.withOpacity(.95);
+    final bg     = isDark ? base.withValues(alpha: .18) : base.withValues(alpha: .20);
+    final border = isDark ? base.withValues(alpha: .55) : base.withValues(alpha: .35);
+    final label  = isDark ? base : base.withValues(alpha: .95);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -757,8 +757,8 @@ class _TaskRow extends StatelessWidget {
     // Overdue
     if (dLocal.isBefore(now)) {
       return _DueChipColors(
-        bg:     isDark ? Colors.red.withOpacity(.22)     : Colors.red.shade100,
-        border: isDark ? Colors.red.withOpacity(.55)     : Colors.red.withOpacity(.35),
+        bg:     isDark ? Colors.red.withValues(alpha: .22)     : Colors.red.shade100,
+        border: isDark ? Colors.red.withValues(alpha: .55)     : Colors.red.withValues(alpha: .35),
         fg:     isDark ? (Colors.red[300] ?? Colors.red) : Colors.red.shade800,
       );
     }
@@ -766,8 +766,8 @@ class _TaskRow extends StatelessWidget {
     // Due within 2 days
     if (dueDay.difference(today).inDays <= 2) {
       return _DueChipColors(
-        bg:     isDark ? Colors.orange.withOpacity(.22)      : Colors.orange.shade100,
-        border: isDark ? Colors.orange.withOpacity(.55)      : Colors.orange.withOpacity(.35),
+        bg:     isDark ? Colors.orange.withValues(alpha: .22)      : Colors.orange.shade100,
+        border: isDark ? Colors.orange.withValues(alpha: .55)      : Colors.orange.withValues(alpha: .35),
         fg:     isDark ? (Colors.orange[300] ?? Colors.orange) : Colors.orange.shade800,
       );
     }
@@ -784,7 +784,7 @@ class _TaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final onVar = scheme.onSurface.withOpacity(.72);
+    final onVar = scheme.onSurface.withValues(alpha: .72);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
