@@ -199,7 +199,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             Text(
               'Here’s a quick snapshot of your workspace.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -401,36 +403,52 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Ink(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant.withOpacity(.35),
+          color: scheme.brightness == Brightness.dark
+            ? scheme.surfaceContainerHigh
+            : scheme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black12),
+        border: Border.all(color: scheme.outlineVariant),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Container(
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: scheme.surface,                 // adapts to theme
+                  shape: BoxShape.circle,
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
                 padding: const EdgeInsets.all(10),
-                child: Icon(icon, size: 22),
+                child: Icon(icon, size: 22, color: scheme.onSurface),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: theme.textTheme.labelLarge?.copyWith(color: Colors.black87)),
+                    Text(title, style: theme.textTheme.labelLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    )),
                     const SizedBox(height: 4),
-                    Text('$value', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                    Text(
+                      '$value',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
             ],
           ),
         ),
