@@ -1,0 +1,256 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans 'Site administration' %} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'manager_admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block extrastyle %}
+<style>
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #2c3e50;
+    line-height: 1.6;
+}
+
+.module h2, .module caption, .inline-group h2 {
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+    color: white;
+    padding: 12px 16px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.module {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.module table {
+    border-collapse: collapse;
+}
+
+.module th, .module td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.module tbody tr:hover {
+    background-color: #f8f9fa;
+}
+.dashboard-section {
+    background: linear-gradient(145deg, #ffffff, #f8f9fa);
+    border: 1px solid #e3e6f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: box-shadow 0.3s ease;
+}
+
+.dashboard-section:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+.dashboard-title {
+    color: #2c3e50;
+    font-size: 1.3em;
+    font-weight: 700;
+    margin-bottom: 18px;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.action-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 24px;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: block;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.action-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.action-card:hover::before {
+    left: 100%;
+}
+
+.action-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    text-decoration: none;
+    color: white;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+}
+
+.action-icon {
+    font-size: 2.5em;
+    margin-bottom: 12px;
+    display: block;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.action-label {
+    font-size: 1.2em;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+    border-left: 4px solid #007cba;
+}
+
+.stat-number {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #495057;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.85em;
+    margin-top: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Welcome to AriStay Manager Console</h1>
+
+<div class="dashboard-section">
+    <div class="dashboard-title">📊 Quick Actions</div>
+    <div class="quick-actions">
+        <a href="{% url 'manager_admin:manager_charts' %}" class="action-card">
+            <span class="action-icon">📈</span>
+            <span class="action-label">Analytics Dashboard</span>
+        </a>
+        <a href="{% url 'manager_admin:api_task_changelist' %}" class="action-card">
+            <span class="action-icon">📋</span>
+            <span class="action-label">Manage Tasks</span>
+        </a>
+        <a href="{% url 'manager_admin:api_property_changelist' %}" class="action-card">
+            <span class="action-icon">🏢</span>
+            <span class="action-label">Manage Properties</span>
+        </a>
+        <a href="{% url 'manager_admin:auth_user_changelist' %}" class="action-card">
+            <span class="action-icon">👥</span>
+            <span class="action-label">Manage Users</span>
+        </a>
+    </div>
+</div>
+
+{% if app_list %}
+<div class="dashboard-section">
+    <div class="dashboard-title">🛠️ Administration</div>
+    
+    {% for app in app_list %}
+        <div class="app-{{ app.app_label }} module">
+            <table>
+                <caption>
+                    <a href="{{ app.app_url }}" class="section" title="{% blocktrans with name=app.name %}Models in the {{ name }} application{% endblocktrans %}">{{ app.name }}</a>
+                </caption>
+                {% for model in app.models %}
+                    <tr class="model-{{ model.object_name|lower }}">
+                        {% if model.admin_url %}
+                            <th scope="row"><a href="{{ model.admin_url }}">{{ model.name }}</a></th>
+                        {% else %}
+                            <th scope="row">{{ model.name }}</th>
+                        {% endif %}
+
+                        {% if model.add_url %}
+                            <td><a href="{{ model.add_url }}" class="addlink">{% trans 'Add' %}</a></td>
+                        {% else %}
+                            <td>&nbsp;</td>
+                        {% endif %}
+
+                        {% if model.admin_url %}
+                            {% if model.view_only %}
+                                <td><a href="{{ model.admin_url }}" class="viewlink">{% trans 'View' %}</a></td>
+                            {% else %}
+                                <td><a href="{{ model.admin_url }}" class="changelink">{% trans 'Change' %}</a></td>
+                            {% endif %}
+                        {% else %}
+                            <td>&nbsp;</td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% endfor %}
+</div>
+{% else %}
+    <p>{% trans "You don't have permission to view or edit anything." %}</p>
+{% endif %}
+
+<div class="dashboard-section">
+    <div class="dashboard-title">ℹ️ System Information</div>
+    <p><strong>Role:</strong> 
+        {% if user.is_superuser %}
+            Owner
+        {% elif user.profile.role == 'manager' %}
+            Manager
+        {% else %}
+            Staff
+        {% endif %}
+    </p>
+    <p><strong>Last Login:</strong> {{ user.last_login|date:"M d, Y H:i" }}</p>
+    <p><strong>Current Time:</strong> <span id="current-time">{{ "now"|date:"M d, Y H:i" }}</span></p>
+</div>
+
+<script>
+// Update current time every minute
+setInterval(function() {
+    const now = new Date();
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    };
+    document.getElementById('current-time').textContent = now.toLocaleDateString('en-US', options);
+}, 60000);
+</script>
+{% endblock %}

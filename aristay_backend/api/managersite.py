@@ -1,11 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.urls import path
+from django.shortcuts import render
 from .models import Property, Task
 
 class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
     site_title  = "AriStay Manager"
     index_title = "Management Console"
+    index_template = 'manager_admin/index.html'
 
     def has_permission(self, request):
         if not (request.user and request.user.is_authenticated and request.user.is_active):
@@ -14,6 +17,19 @@ class ManagerAdminSite(admin.AdminSite):
             return True
         role = getattr(getattr(request.user, 'profile', None), 'role', 'staff')
         return role == 'manager'
+    
+    def get_urls(self):
+        """Add custom URLs to the manager admin site"""
+        urls = super().get_urls()
+        custom_urls = [
+            path('charts/', self.admin_view(self.charts_view), name='manager_charts'),
+        ]
+        return custom_urls + urls
+    
+    def charts_view(self, request):
+        """Custom charts dashboard view"""
+        from .views import manager_charts_dashboard
+        return manager_charts_dashboard(request)
 
 manager_site = ManagerAdminSite(name='manager_admin')
 

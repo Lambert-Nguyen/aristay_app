@@ -1,0 +1,461 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans 'Analytics Dashboard' %} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block extrastyle %}
+<style>
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px 20px;
+    margin: -20px -20px 20px -20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: linear-gradient(145deg, #ffffff, #f8f9fa);
+    border: 1px solid #e3e6f0;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.charts-grid-large {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.chart-card {
+    background: white;
+    border: 1px solid #e3e6f0;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: box-shadow 0.3s ease;
+}
+
+.chart-card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+.chart-title {
+    font-size: 1.2em;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #2c3e50;
+    text-align: center;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .charts-container,
+    .charts-grid-large {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .dashboard-stats {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+.admin-tools {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.admin-tools h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.admin-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.admin-link {
+    display: block;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    text-align: center;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.admin-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+    color: white;
+    text-decoration: none;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a> &rsaquo; Analytics Dashboard
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>📊 AriStay Analytics Dashboard</h1>
+    <p>Comprehensive insights into your task management system</p>
+    <p><small>Admin View - Full System Analytics</small></p>
+</div>
+
+<div class="admin-tools">
+    <h3>🛠️ Quick Administration</h3>
+    <div class="admin-links">
+        <a href="{% url 'admin:api_task_changelist' %}" class="admin-link">📋 Manage Tasks</a>
+        <a href="{% url 'admin:api_property_changelist' %}" class="admin-link">🏢 Manage Properties</a>
+        <a href="{% url 'admin:auth_user_changelist' %}" class="admin-link">👥 Manage Users</a>
+        <a href="{% url 'admin:index' %}" class="admin-link">⚙️ Admin Home</a>
+    </div>
+</div>
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_tasks }}</div>
+        <div class="stat-label">Total Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ overdue_count }}</div>
+        <div class="stat-label">Overdue Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ property_count }}</div>
+        <div class="stat-label">Active Properties</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ task_type_count }}</div>
+        <div class="stat-label">Task Types</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ active_users }}</div>
+        <div class="stat-label">Active Users</div>
+    </div>
+</div>
+
+<div class="charts-container">
+    <div class="chart-card">
+        <div class="chart-title">📈 Tasks by Status</div>
+        <div class="chart-container">
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <div class="chart-title">🔧 Tasks by Type</div>
+        <div class="chart-container">
+            <canvas id="taskTypeChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <div class="chart-title">🏢 Tasks by Property</div>
+        <div class="chart-container">
+            <canvas id="propertyChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid-large">
+    <div class="chart-card">
+        <div class="chart-title">👥 User Performance</div>
+        <div class="chart-container">
+            <canvas id="userPerformanceChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="chart-card">
+        <div class="chart-title">⚡ Recent User Activity (7 days)</div>
+        <div class="chart-container">
+            <canvas id="userActivityChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+// Status Chart (Doughnut)
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+const statusChart = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ status_chart_data.labels|safe }},
+        datasets: [{
+            data: {{ status_chart_data.data|safe }},
+            backgroundColor: {{ status_chart_data.colors|safe }},
+            borderWidth: 3,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    font: { size: 12, weight: 'bold' }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} (${percentage}%)`;
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Task Type Chart (Doughnut)
+const taskTypeCtx = document.getElementById('taskTypeChart').getContext('2d');
+const taskTypeChart = new Chart(taskTypeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ task_type_chart_data.labels|safe }},
+        datasets: [{
+            data: {{ task_type_chart_data.data|safe }},
+            backgroundColor: {{ task_type_chart_data.colors|safe }},
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} tasks (${percentage}%)`;
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Property Chart (Bar)
+const propertyCtx = document.getElementById('propertyChart').getContext('2d');
+const propertyChart = new Chart(propertyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ property_chart_data.labels|safe }},
+        datasets: [{
+            label: 'Number of Tasks',
+            data: {{ property_chart_data.data|safe }},
+            backgroundColor: 'rgba(52, 152, 219, 0.8)',
+            borderColor: 'rgba(52, 152, 219, 1)',
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 },
+                title: { display: true, text: 'Number of Tasks', font: { weight: 'bold' } }
+            },
+            x: {
+                title: { display: true, text: 'Properties', font: { weight: 'bold' } }
+            }
+        }
+    }
+});
+
+// User Performance Chart (Grouped Bar)
+const userPerformanceCtx = document.getElementById('userPerformanceChart').getContext('2d');
+const userPerformanceChart = new Chart(userPerformanceCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ user_performance_chart_data.labels|safe }},
+        datasets: [{
+            label: 'Completed Tasks',
+            data: {{ user_performance_chart_data.completed|safe }},
+            backgroundColor: 'rgba(46, 204, 113, 0.8)',
+            borderColor: 'rgba(46, 204, 113, 1)',
+            borderWidth: 2
+        }, {
+            label: 'Total Tasks',
+            data: {{ user_performance_chart_data.total|safe }},
+            backgroundColor: 'rgba(52, 152, 219, 0.6)',
+            borderColor: 'rgba(52, 152, 219, 1)',
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: { font: { size: 12, weight: 'bold' } }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 },
+                title: { display: true, text: 'Number of Tasks', font: { weight: 'bold' } }
+            },
+            x: {
+                title: { display: true, text: 'Users', font: { weight: 'bold' } }
+            }
+        }
+    }
+});
+
+// User Activity Chart (Doughnut)
+const userActivityCtx = document.getElementById('userActivityChart').getContext('2d');
+const userActivityChart = new Chart(userActivityCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ user_activity_chart_data.labels|safe }},
+        datasets: [{
+            data: {{ user_activity_chart_data.data|safe }},
+            backgroundColor: [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+            ],
+            borderWidth: 3,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { padding: 20, font: { size: 11 } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return `${context.label}: ${context.parsed} updates`;
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Auto-refresh every 10 minutes for admin
+setTimeout(function() {
+    location.reload();
+}, 600000); // 10 minutes
+</script>
+
+<div style="margin-top: 30px; padding: 20px; background: linear-gradient(145deg, #ffffff, #f8f9fa); border-radius: 12px; border-left: 4px solid #007cba;">
+    <h3>💡 Analytics Insights</h3>
+    <ul style="margin-top: 15px; color: #2c3e50;">
+        <li><strong>Most Active Property:</strong> 
+            {% if property_chart_data.labels %}
+                {{ property_chart_data.labels.0 }} with {{ property_chart_data.data.0 }} tasks
+            {% else %}
+                No data available
+            {% endif %}
+        </li>
+        <li><strong>System Health:</strong> 
+            {% if total_tasks > 0 %}
+                {% widthratio overdue_count total_tasks 100 %}% of tasks are overdue
+            {% else %}
+                No tasks to analyze
+            {% endif %}
+        </li>
+        <li><strong>Data Last Updated:</strong> {{ "now"|date:"M d, Y H:i" }}</li>
+    </ul>
+</div>
+{% endblock %}

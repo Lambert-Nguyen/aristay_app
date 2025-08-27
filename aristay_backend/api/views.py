@@ -1,9 +1,13 @@
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count
+from django.db.models import Count, Q
+from django.db import models
 from .services.notification_service import NotificationService
 from .models import NotificationVerb
+from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.decorators import method_decorator
 
 import json
 
@@ -426,3 +430,361 @@ class ManagerUserDetail(generics.RetrieveUpdateAPIView):
     serializer_class = ManagerUserSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsManagerOrOwner]
+
+# ---------- NEW: Manager Charts Dashboard ----------
+def _check_manager_permission(user):
+    """Helper to check if user has manager permissions"""
+    if not (user and user.is_authenticated and user.is_active):
+        return False
+    if user.is_superuser:
+        return True
+    role = getattr(getattr(user, 'profile', None), 'role', 'staff')
+    return role == 'manager'
+
+@staff_member_required
+def manager_charts_dashboard(request):
+    """
+    Charts dashboard view for managers accessible at /manager/charts/
+    Shows tasks by status, property, and task types with Chart.js visualizations
+    """
+    # Check manager permission
+    if not _check_manager_permission(request.user):
+        from django.contrib.auth.views import redirect_to_login
+        return redirect_to_login(request.get_full_path())
+    
+    # Get tasks by status
+    tasks_by_status = (
+        Task.objects
+        .values('status')
+        .annotate(count=Count('id'))
+        .order_by('status')
+    )
+    
+    # Get tasks by property
+    tasks_by_property = (
+        Task.objects
+        .select_related('property')
+        .values('property__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:10]  # Top 10 properties
+    )
+    
+    # Get tasks by task type (Cleaning, Maintenance, etc.)
+    tasks_by_type = (
+        Task.objects
+        .values('task_type')
+        .annotate(count=Count('id'))
+        .order_by('task_type')
+    )
+    
+    # Get overdue tasks
+    now = timezone.now()
+    overdue_count = (
+        Task.objects
+        .filter(due_date__isnull=False, due_date__lt=now)
+        .exclude(status__in=['completed', 'canceled'])
+        .count()
+    )
+    
+    # User Performance Analytics
+    user_performance = (
+        Task.objects
+        .select_related('assigned_to')
+        .values('assigned_to__username', 'assigned_to__first_name', 'assigned_to__last_name')
+        .annotate(
+            total_tasks=Count('id'),
+            completed_tasks=Count('id', filter=Q(status='completed')),
+            pending_tasks=Count('id', filter=Q(status='pending')),
+            in_progress_tasks=Count('id', filter=Q(status='in-progress'))
+        )
+        .exclude(assigned_to__isnull=True)
+        .order_by('-total_tasks')[:10]
+    )
+    
+    # Task completion trends (last 30 days)
+    from datetime import timedelta
+    thirty_days_ago = now - timedelta(days=30)
+    daily_completions = (
+        Task.objects
+        .filter(status='completed', modified_at__gte=thirty_days_ago)
+        .extra(select={'day': 'DATE(modified_at)'})
+        .values('day')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+    
+    # User activity (tasks created/modified in last 7 days)
+    seven_days_ago = now - timedelta(days=7)
+    user_activity = (
+        Task.objects
+        .filter(modified_at__gte=seven_days_ago)
+        .select_related('modified_by')
+        .values('modified_by__username', 'modified_by__first_name', 'modified_by__last_name')
+        .annotate(activity_count=Count('id'))
+        .exclude(modified_by__isnull=True)
+        .order_by('-activity_count')[:8]
+    )
+    
+    # Prepare data for charts
+    status_labels = []
+    status_data = []
+    status_colors = {
+        'pending': '#f39c12',      # orange
+        'in-progress': '#3498db',  # blue
+        'completed': '#27ae60',    # green
+        'canceled': '#e74c3c',     # red
+    }
+    
+    for item in tasks_by_status:
+        status_labels.append(item['status'].title())
+        status_data.append(item['count'])
+    
+    property_labels = []
+    property_data = []
+    
+    for item in tasks_by_property:
+        property_name = item['property__name'] or 'No Property'
+        property_labels.append(property_name)
+        property_data.append(item['count'])
+    
+    # Task type data
+    type_labels = []
+    type_data = []
+    type_colors = {
+        'cleaning': '#e74c3c',     # red
+        'maintenance': '#f39c12',  # orange
+        'inspection': '#9b59b6',   # purple
+        'repair': '#34495e',       # dark blue
+    }
+    
+    for item in tasks_by_type:
+        type_labels.append(item['task_type'].replace('_', ' ').title())
+        type_data.append(item['count'])
+    
+    # User performance data
+    user_performance_labels = []
+    user_performance_completed = []
+    user_performance_total = []
+    
+    for user in user_performance:
+        name = user['assigned_to__first_name'] or user['assigned_to__username']
+        if user['assigned_to__last_name']:
+            name += f" {user['assigned_to__last_name']}"
+        user_performance_labels.append(name)
+        user_performance_completed.append(user['completed_tasks'])
+        user_performance_total.append(user['total_tasks'])
+    
+    # User activity data
+    activity_labels = []
+    activity_data = []
+    
+    for user in user_activity:
+        name = user['modified_by__first_name'] or user['modified_by__username'] 
+        if user['modified_by__last_name']:
+            name += f" {user['modified_by__last_name']}"
+        activity_labels.append(name)
+        activity_data.append(user['activity_count'])
+    
+    # Total tasks
+    total_tasks = Task.objects.count()
+    
+    context = {
+        'title': 'Dashboard Charts',
+        'total_tasks': total_tasks,
+        'overdue_count': overdue_count,
+        'active_users': len(user_performance_labels),
+        'status_count': 4,  # Always 4 status types (pending, in-progress, completed, canceled)
+        'property_count': len(property_labels),
+        'task_type_count': len(type_labels),
+        'status_chart_data': {
+            'labels': json.dumps(status_labels),
+            'data': json.dumps(status_data),
+            'colors': json.dumps([status_colors.get(label.lower().replace(' ', '-'), '#95a5a6') for label in status_labels]),
+        },
+        'property_chart_data': {
+            'labels': json.dumps(property_labels),
+            'data': json.dumps(property_data),
+        },
+        'task_type_chart_data': {
+            'labels': json.dumps(type_labels),
+            'data': json.dumps(type_data),
+            'colors': json.dumps([type_colors.get(item['task_type'], '#95a5a6') for item in tasks_by_type]),
+        },
+        'user_performance_chart_data': {
+            'labels': json.dumps(user_performance_labels),
+            'completed': json.dumps(user_performance_completed),
+            'total': json.dumps(user_performance_total),
+        },
+        'user_activity_chart_data': {
+            'labels': json.dumps(activity_labels),
+            'data': json.dumps(activity_data),
+        },
+    }
+    
+    return render(request, 'admin/manager_charts.html', context)
+
+@staff_member_required
+def admin_charts_dashboard(request):
+    """
+    Regular admin charts dashboard at /api/admin/charts/
+    Shows same analytics but accessible to all Django admin users
+    """
+    # Get tasks by status
+    tasks_by_status = (
+        Task.objects
+        .values('status')
+        .annotate(count=Count('id'))
+        .order_by('status')
+    )
+    
+    # Get tasks by property
+    tasks_by_property = (
+        Task.objects
+        .select_related('property')
+        .values('property__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:10]  # Top 10 properties
+    )
+    
+    # Get tasks by task type (Cleaning, Maintenance, etc.)
+    tasks_by_type = (
+        Task.objects
+        .values('task_type')
+        .annotate(count=Count('id'))
+        .order_by('task_type')
+    )
+    
+    # Get overdue tasks
+    now = timezone.now()
+    overdue_count = (
+        Task.objects
+        .filter(due_date__isnull=False, due_date__lt=now)
+        .exclude(status__in=['completed', 'canceled'])
+        .count()
+    )
+    
+    # User Performance Analytics
+    user_performance = (
+        Task.objects
+        .select_related('assigned_to')
+        .values('assigned_to__username', 'assigned_to__first_name', 'assigned_to__last_name')
+        .annotate(
+            total_tasks=Count('id'),
+            completed_tasks=Count('id', filter=Q(status='completed')),
+            pending_tasks=Count('id', filter=Q(status='pending')),
+            in_progress_tasks=Count('id', filter=Q(status='in-progress'))
+        )
+        .exclude(assigned_to__isnull=True)
+        .order_by('-total_tasks')[:10]
+    )
+    
+    # User activity (tasks created/modified in last 7 days)
+    from datetime import timedelta
+    seven_days_ago = now - timedelta(days=7)
+    user_activity = (
+        Task.objects
+        .filter(modified_at__gte=seven_days_ago)
+        .select_related('modified_by')
+        .values('modified_by__username', 'modified_by__first_name', 'modified_by__last_name')
+        .annotate(activity_count=Count('id'))
+        .exclude(modified_by__isnull=True)
+        .order_by('-activity_count')[:8]
+    )
+    
+    # Prepare data for charts
+    status_labels = []
+    status_data = []
+    status_colors = {
+        'pending': '#f39c12',      # orange
+        'in-progress': '#3498db',  # blue
+        'completed': '#27ae60',    # green
+        'canceled': '#e74c3c',     # red
+    }
+    
+    for item in tasks_by_status:
+        status_labels.append(item['status'].title())
+        status_data.append(item['count'])
+    
+    property_labels = []
+    property_data = []
+    
+    for item in tasks_by_property:
+        property_name = item['property__name'] or 'No Property'
+        property_labels.append(property_name)
+        property_data.append(item['count'])
+    
+    # Task type data
+    type_labels = []
+    type_data = []
+    type_colors = {
+        'cleaning': '#e74c3c',     # red
+        'maintenance': '#f39c12',  # orange
+        'inspection': '#9b59b6',   # purple
+        'repair': '#34495e',       # dark blue
+    }
+    
+    for item in tasks_by_type:
+        type_labels.append(item['task_type'].replace('_', ' ').title())
+        type_data.append(item['count'])
+    
+    # User performance data
+    user_performance_labels = []
+    user_performance_completed = []
+    user_performance_total = []
+    
+    for user in user_performance:
+        name = user['assigned_to__first_name'] or user['assigned_to__username']
+        if user['assigned_to__last_name']:
+            name += f" {user['assigned_to__last_name']}"
+        user_performance_labels.append(name)
+        user_performance_completed.append(user['completed_tasks'])
+        user_performance_total.append(user['total_tasks'])
+    
+    # User activity data
+    activity_labels = []
+    activity_data = []
+    
+    for user in user_activity:
+        name = user['modified_by__first_name'] or user['modified_by__username'] 
+        if user['modified_by__last_name']:
+            name += f" {user['modified_by__last_name']}"
+        activity_labels.append(name)
+        activity_data.append(user['activity_count'])
+    
+    # Total tasks
+    total_tasks = Task.objects.count()
+    
+    context = {
+        'title': 'Admin Analytics Dashboard',
+        'total_tasks': total_tasks,
+        'overdue_count': overdue_count,
+        'active_users': len(user_performance_labels),
+        'status_count': 4,  # Always 4 status types (pending, in-progress, completed, canceled)
+        'property_count': len(property_labels),
+        'task_type_count': len(type_labels),
+        'status_chart_data': {
+            'labels': json.dumps(status_labels),
+            'data': json.dumps(status_data),
+            'colors': json.dumps([status_colors.get(label.lower().replace(' ', '-'), '#95a5a6') for label in status_labels]),
+        },
+        'property_chart_data': {
+            'labels': json.dumps(property_labels),
+            'data': json.dumps(property_data),
+        },
+        'task_type_chart_data': {
+            'labels': json.dumps(type_labels),
+            'data': json.dumps(type_data),
+            'colors': json.dumps([type_colors.get(item['task_type'], '#95a5a6') for item in tasks_by_type]),
+        },
+        'user_performance_chart_data': {
+            'labels': json.dumps(user_performance_labels),
+            'completed': json.dumps(user_performance_completed),
+            'total': json.dumps(user_performance_total),
+        },
+        'user_activity_chart_data': {
+            'labels': json.dumps(activity_labels),
+            'data': json.dumps(activity_data),
+        },
+    }
+    
+    return render(request, 'admin/charts_dashboard.html', context)

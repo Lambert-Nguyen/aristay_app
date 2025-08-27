@@ -22,7 +22,8 @@ from .views import (
     AdminUserDetailView,
     manager_overview,
     ManagerUserList,
-    ManagerUserDetail,    
+    ManagerUserDetail,
+    admin_charts_dashboard,    
 )
 
 router = DefaultRouter()
@@ -54,6 +55,7 @@ urlpatterns = [
     path('manager/overview/', manager_overview, name='manager-overview'),
     path('manager/users/',    ManagerUserList.as_view(),  name='manager-user-list'),
     path('manager/users/<int:pk>/', ManagerUserDetail.as_view(), name='manager-user-detail'),
+    path('admin/charts/', admin_charts_dashboard, name='admin-charts'),
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('notifications/unread-count/', unread_notification_count, name='notification-unread-count'),
