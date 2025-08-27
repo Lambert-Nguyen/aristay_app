@@ -1,4 +1,3 @@
-# api/managersite.py
 from django.contrib import admin
 from django.contrib.auth.models import User
 from .models import Property, Task
@@ -9,7 +8,7 @@ class ManagerAdminSite(admin.AdminSite):
     index_title = "Management Console"
 
     def has_permission(self, request):
-        if not request.user or not request.user.is_authenticated:
+        if not (request.user and request.user.is_authenticated and request.user.is_active):
             return False
         if request.user.is_superuser:
             return True
@@ -18,16 +17,45 @@ class ManagerAdminSite(admin.AdminSite):
 
 manager_site = ManagerAdminSite(name='manager_admin')
 
-class PropertyAdmin(admin.ModelAdmin):
+# --- NEW: centralize “is manager” permission logic for ModelAdmins ---
+class ManagerPermissionMixin:
+    def _is_manager(self, request):
+        if not (request.user and request.user.is_authenticated and request.user.is_active):
+            return False
+        if request.user.is_superuser:
+            return True
+        role = getattr(getattr(request.user, 'profile', None), 'role', 'staff')
+        return role == 'manager'
+
+    # Show app on index
+    def has_module_permission(self, request):
+        return self._is_manager(request)
+
+    # CRUD perms for the model
+    def has_view_permission(self, request, obj=None):
+        return self._is_manager(request)
+
+    def has_add_permission(self, request):
+        return self._is_manager(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._is_manager(request)
+
+    def has_delete_permission(self, request, obj=None):
+        # optional: managers can’t delete; return self._is_manager(request) to allow
+        return request.user.is_superuser  # tighten if you like
+# ---------------------------------------------------------------------
+
+class PropertyAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'created_at', 'modified_at')
     search_fields = ('name',)
 
-class TaskAdmin(admin.ModelAdmin):
+class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'title', 'task_type', 'status', 'property', 'created_at')
     search_fields = ('title', 'description')
     list_filter = ('status', 'task_type', 'created_at')
 
-class UserManagerAdmin(admin.ModelAdmin):
+class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display  = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     list_filter   = ('is_active', 'is_staff', 'is_superuser')
     search_fields = ('username', 'email', 'first_name', 'last_name')
@@ -35,11 +63,27 @@ class UserManagerAdmin(admin.ModelAdmin):
 
     actions = ['activate_users', 'deactivate_users']
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Managers shouldn’t see owner accounts
+        if not request.user.is_superuser:
+            qs = qs.exclude(is_superuser=True)
+        return qs
+
     def get_readonly_fields(self, request, obj=None):
         ro = list(super().get_readonly_fields(request, obj))
         if not request.user.is_superuser:
+            # prevent privilege escalation via admin
             ro += ['is_staff', 'is_superuser', 'user_permissions', 'groups']
         return ro
+
+    def save_model(self, request, obj, form, change):
+        # extra guardrails for managers
+        if not request.user.is_superuser:
+            obj.is_superuser = False
+            # optional: don’t let managers grant Django-staff
+            # obj.is_staff = obj.is_staff and obj.pk == request.user.pk
+        super().save_model(request, obj, form, change)
 
     def activate_users(self, request, queryset):
         updated = queryset.exclude(is_superuser=True).update(is_active=True)

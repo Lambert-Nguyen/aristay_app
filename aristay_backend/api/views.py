@@ -26,6 +26,7 @@ from rest_framework.permissions import (
 
 from .models import Task, Property, TaskImage, Device, Notification
 from .serializers import (
+    ManagerUserSerializer,
     TaskSerializer,
     PropertySerializer,
     UserSerializer,
@@ -38,7 +39,7 @@ from .serializers import (
     NotificationSerializer,
     AdminUserAdminSerializer,
 )
-from .permissions import IsOwnerOrAssignedOrReadOnly, IsOwner
+from .permissions import IsOwnerOrAssignedOrReadOnly, IsOwner, IsManagerOrOwner
 from .services.notification_service import NotificationService
 
 
@@ -371,3 +372,57 @@ def mark_all_notifications_read(request):
         read_at=timezone.now()
     )
     return Response({'success': True, 'marked_count': count})
+
+# ---------- Manager dashboard: overview ----------
+@api_view(['GET'])
+@permission_classes([IsManagerOrOwner])
+def manager_overview(request):
+    qs = Task.objects.all()
+    total = qs.count()
+    now = timezone.now()
+    overdue = (qs.filter(due_date__isnull=False, due_date__lt=now)
+                 .exclude(status__in=['completed', 'canceled'])
+                 .count())
+    by = qs.values('status').annotate(count=Count('id')).order_by()
+    by_status = {e['status']: e['count'] for e in by}
+
+    users = User.objects.filter(is_superuser=False)
+    managers  = users.filter(profile__role='manager').count()
+    employees = users.filter(profile__role='staff').count()
+    active    = users.filter(is_active=True).count()
+
+    return Response({
+        'tasks': {
+            'total': total,
+            'overdue': overdue,
+            'by_status': by_status,
+        },
+        'users': {
+            'total': users.count(),
+            'active': active,
+            'managers': managers,
+            'employees': employees,
+        }
+    })
+
+# ---------- Manager: list employees/managers (no owners) ----------
+class ManagerUserList(generics.ListAPIView):
+    serializer_class   = UserSerializer  # includes role (read-only)
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsManagerOrOwner]
+    filter_backends    = [filters.SearchFilter]
+    search_fields      = ['username', 'email', 'first_name', 'last_name']
+
+    def get_queryset(self):
+        qs = User.objects.filter(is_superuser=False).order_by('id')
+        role = self.request.query_params.get('role')
+        if role in ('staff','manager'):
+            qs = qs.filter(profile__role=role)
+        return qs
+
+# ---------- Manager: toggle active on employees only ----------
+class ManagerUserDetail(generics.RetrieveUpdateAPIView):
+    queryset = User.objects.filter(is_superuser=False)
+    serializer_class = ManagerUserSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsManagerOrOwner]
