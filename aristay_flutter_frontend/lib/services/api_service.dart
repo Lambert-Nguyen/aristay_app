@@ -420,8 +420,9 @@ class ApiService {
     return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
   
-  /// Admin: create a new user
-  Future<void> createUser({
+
+  /// Admin: create a new user -> returns the created user's id
+  Future<int> createUser({
     required String username,
     required String email,
     required String password,
@@ -442,20 +443,26 @@ class ApiService {
         'is_staff': isStaff,
       }),
     );
-    if (res.statusCode == 201) return;
+
+    if (res.statusCode == 201) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final id = (body['id'] as num?)?.toInt();
+      if (id == null) {
+        throw Exception('Create user succeeded but no id was returned.');
+      }
+      return id;
+    }
 
     if (res.statusCode == 400) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final errors = <String,String>{};
-      body.forEach((k,v) {
-        errors[k] = (v is List) ? v.join(' ') : v.toString();
-      });
+      final errors = <String, String>{};
+      body.forEach((k, v) => errors[k] = (v is List) ? v.join(' ') : v.toString());
       throw ValidationException(errors);
     }
 
-    throw Exception('Failed to create user (${res.statusCode})');
+    throw Exception('Failed to create user (${res.statusCode}): ${res.body}');
   }
-  
+
   Future<Map<String, dynamic>> getJson(String path, {Map<String, String>? params}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;

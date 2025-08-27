@@ -266,8 +266,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('username','email','password','is_staff')
-    
+        fields = ('id', 'username', 'email', 'password', 'is_staff')    
     
     def validate_password(self, pw):
         # raise a ValidationError if pw too weak
