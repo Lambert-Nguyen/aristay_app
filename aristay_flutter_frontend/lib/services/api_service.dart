@@ -409,6 +409,7 @@ class ApiService {
 
     throw Exception('Reset failed (${res.statusCode}): ${res.body}');
   }
+  
   Future<User> fetchCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
@@ -418,6 +419,32 @@ class ApiService {
     );
     if (res.statusCode != 200) throw Exception('Failed to load current user');
     return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
+
+  Future<void> setUserActive(int id, bool isActive) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/admin/users/$id/'),
+      headers: {'Authorization': 'Token $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'is_active': isActive}),
+    );
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
+  }
+
+  Future<void> setUserStaff(int id, bool isStaff) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/admin/users/$id/'),
+      headers: {'Authorization': 'Token $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'is_staff': isStaff}),
+    );
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
   }
   
 

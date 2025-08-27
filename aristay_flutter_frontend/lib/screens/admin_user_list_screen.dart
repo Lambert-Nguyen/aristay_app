@@ -180,6 +180,35 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
     }
   }
 
+  Future<void> _toggleActive(User u) async {
+    final next = !u.isActive;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(next ? 'Enable account?' : 'Disable account?'),
+        content: Text(next
+            ? 'User will be able to sign in again.'
+            : 'User will be signed out and cannot sign in until re-enabled.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true),  child: Text(next ? 'Enable' : 'Disable')),
+        ],
+      ),
+    );
+    if (yes != true) return;
+
+    try {
+      await ApiService().setUserActive(u.id, next);
+      final idx = _users.indexWhere((x) => x.id == u.id);
+      if (idx != -1) setState(() => _users[idx] = _users[idx].copyWith(isActive: next));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(next ? 'User enabled' : 'User disabled')),
+      );
+    } catch (e) {
+      showFriendlyError(context, e, action: next ? 'enable this user' : 'disable this user');
+    }
+  }
+
   // ─────────────────────── UI ───────────────────────
 
   @override
@@ -269,6 +298,7 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                               user: u,
                               highlight: u.id == _highlightId,
                               onReset: () => _resetPassword(u),
+                              onToggleActive: () => _toggleActive(u),
                               onCopyUsername: () => _copy(u.username, 'Username copied'),
                               onCopyEmail: (u.email ?? '').isEmpty
                                   ? null
@@ -322,6 +352,7 @@ class _UserCard extends StatelessWidget {
     required this.onReset,
     required this.onCopyUsername,
     this.onCopyEmail,
+    required this.onToggleActive,
     this.highlight = false,
   });
 
@@ -329,6 +360,7 @@ class _UserCard extends StatelessWidget {
   final VoidCallback onReset;
   final VoidCallback onCopyUsername;
   final VoidCallback? onCopyEmail;
+  final VoidCallback onToggleActive;
   final bool highlight;
 
   @override
@@ -399,6 +431,7 @@ class _UserCard extends StatelessWidget {
               case 'reset': onReset(); break;
               case 'copy_u': onCopyUsername(); break;
               case 'copy_e': if (onCopyEmail != null) onCopyEmail!(); break;
+              case 'toggle':  onToggleActive(); break;
             }
           },
           itemBuilder: (_) => [

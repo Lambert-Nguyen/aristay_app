@@ -24,6 +24,8 @@ from datetime import datetime
 
 class UserSerializer(serializers.ModelSerializer):
     timezone = serializers.CharField(source='profile.timezone')
+    is_active = serializers.BooleanField(read_only=True)  # show disabled state
+
     class Meta:
         model = User
         # include email so we can show it, and is_staff for “Admin” flag
@@ -34,6 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'is_staff',
+            'is_active',
             'timezone',
         ]
         
@@ -50,7 +53,13 @@ class UserSerializer(serializers.ModelSerializer):
 
         # 3) update the rest of the User fields (email, etc.)
         return super().update(instance, validated_data)
-        
+
+# Admin can PATCH is_staff / is_active
+class AdminUserAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = User
+        fields = ('id','username','email','first_name','last_name','is_staff','is_active')
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 

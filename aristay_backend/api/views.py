@@ -36,6 +36,7 @@ from .serializers import (
     AdminUserCreateSerializer,
     DeviceSerializer,
     NotificationSerializer,
+    AdminUserAdminSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly
 from .services.notification_service import NotificationService
@@ -242,6 +243,11 @@ class UserList(generics.ListAPIView):
     filter_backends = [filters.SearchFilter]
     search_fields  = ['username', 'email']
 
+class AdminUserDetailView(generics.RetrieveUpdateAPIView):
+    queryset           = User.objects.all()
+    serializer_class   = AdminUserAdminSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminUser]
 
 class AdminInviteUserView(generics.CreateAPIView):
     """
