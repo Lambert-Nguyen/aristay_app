@@ -269,10 +269,10 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                         runSpacing: 8,
                         children: [
                           FilterChip(
-                            label: const Text('Admins only'),
+                            label: const Text('Managers / Superusers'),
                             selected: _adminsOnly,
                             onSelected: (v) => setState(() => _adminsOnly = v),
-                          ),
+                          )
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -335,8 +335,14 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
     );
   }
 
-  List<User> get _visibleUsers =>
-      _adminsOnly ? _users.where((u) => u.isStaff).toList() : _users;
+  List<User> get _visibleUsers => _adminsOnly
+    ? _users.where((u) =>
+        u.isSuperuser ||
+        u.role == 'manager' ||
+        // ← fallback while backfilling backend:
+        (u.isStaff && !u.isSuperuser)
+      ).toList()
+    : _users;
 
   void _copy(String text, String toast) {
     Clipboard.setData(ClipboardData(text: text));
@@ -394,10 +400,13 @@ class _UserCard extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5),
               ),
             ),
-            if (!user.isActive)
-              _Badge('Disabled', color: Colors.redAccent),
-            if (user.isStaff)
-              _Badge('Admin', color: scheme.primary),
+            if (!user.isActive) _Badge('Disabled', color: Colors.redAccent),
+            if (user.isSuperuser)
+              _Badge('Superuser', color: Theme.of(context).colorScheme.tertiary)
+            else if (user.role == 'manager' || (user.isStaff && !user.isSuperuser))
+              _Badge('Manager', color: Theme.of(context).colorScheme.primary)
+            else
+              _Badge('Employee', color: Theme.of(context).colorScheme.outline),
           ],
         ),
         subtitle: Column(

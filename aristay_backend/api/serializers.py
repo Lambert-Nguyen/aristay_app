@@ -25,23 +25,27 @@ from datetime import datetime
 class UserSerializer(serializers.ModelSerializer):
     timezone = serializers.CharField(source='profile.timezone')
     is_active = serializers.BooleanField(read_only=True)  # show disabled state
-    role      = serializers.CharField(source='profile.role', read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
+    role         = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
         # include email so we can show it, and is_staff for “Admin” flag
         fields = [
-            'id',
-            'username',
-            'email',
-            'first_name',
-            'last_name',
-            'is_staff',
-            'is_active',
-            'role',
-            'timezone',
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'is_staff', 'is_superuser', 'is_active',   # ← include is_superuser
+            'role', 'timezone',
         ]
         
+    def get_role(self, obj):
+        # Owners are superusers; show “owner” regardless of stored profile.role
+        if obj.is_superuser:
+            return 'owner'
+        try:
+            return obj.profile.role
+        except Profile.DoesNotExist:
+            return 'staff'
+
     def update(self, instance, validated_data):
         # 1) pull off any profile-specific data
         profile_data = validated_data.pop('profile', {})
@@ -286,13 +290,22 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
+        is_staff = validated_data.get('is_staff', False)
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
         )
-        user.is_staff = validated_data.get('is_staff', False)
+        user.is_staff = is_staff
         user.save()
+
+        profile, _ = Profile.objects.get_or_create(user=user)
+        if user.is_superuser:
+            # leave profile.role as-is; serializer will report “owner”
+            pass
+        else:
+            profile.role = UserRole.MANAGER if is_staff else UserRole.STAFF
+            profile.save(update_fields=['role'])
         return user
     
 class DeviceSerializer(serializers.ModelSerializer):

@@ -194,7 +194,8 @@ class _AdminUserCreateScreenState extends State<AdminUserCreateScreen> {
                 title: 'Permissions',
                 child: SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('SuperStaff / Admin privileges'),
+                  title: const Text('Make this user a Manager'),
+                  subtitle: const Text('Managers can manage employees in the app'),
                   value: _isStaff,
                   onChanged: (v) => setState(() => _isStaff = v),
                 ),

@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.utils import timezone
 from django.dispatch import receiver
+from django.contrib.auth.models import User
 
 class Property(models.Model):
     name       = models.CharField(max_length=100, unique=True)
@@ -166,6 +167,17 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         # default role=staff; owners are superusers and can be marked owner later
         Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def sync_profile_role_on_user_save(sender, instance, **kwargs):
+    profile, _ = Profile.objects.get_or_create(user=instance)
+    if instance.is_superuser:
+        # we don’t force profile.role to 'owner'; serializer maps superusers → 'owner'
+        return
+    desired = UserRole.MANAGER if instance.is_staff else UserRole.STAFF
+    if profile.role != desired:
+        profile.role = desired
+        profile.save(update_fields=['role'])
 
 class Device(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')
