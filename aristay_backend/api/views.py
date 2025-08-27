@@ -38,7 +38,7 @@ from .serializers import (
     NotificationSerializer,
     AdminUserAdminSerializer,
 )
-from .permissions import IsOwnerOrAssignedOrReadOnly
+from .permissions import IsOwnerOrAssignedOrReadOnly, IsOwner
 from .services.notification_service import NotificationService
 
 
@@ -244,10 +244,25 @@ class UserList(generics.ListAPIView):
     search_fields  = ['username', 'email']
 
 class AdminUserDetailView(generics.RetrieveUpdateAPIView):
-    queryset           = User.objects.all()
-    serializer_class   = AdminUserAdminSerializer
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAdminUser]
+    """
+    GET/PATCH /api/admin/users/<id>/
+    Owner-only for updates. Safe fields: is_active, is_staff.
+    """
+    queryset = User.objects.all()
+    serializer_class = AdminUserAdminSerializer
+    permission_classes = [IsOwner]  # superuser only
+
+    # (Optional safety: forbid changing superusers except by self)
+    def perform_update(self, serializer):
+        target: User = self.get_object()
+        actor: User  = self.request.user
+        data = serializer.validated_data
+
+        # never allow anyone to toggle a superuser other than themselves
+        if target.is_superuser and target != actor:
+            raise PermissionDenied("Cannot modify another owner account.")
+
+        serializer.save()
 
 class AdminInviteUserView(generics.CreateAPIView):
     """

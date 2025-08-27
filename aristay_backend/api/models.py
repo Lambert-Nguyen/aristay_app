@@ -135,16 +135,28 @@ class TaskImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.task.title}"
+    
+class UserRole(models.TextChoices):
+    STAFF   = 'staff',   'Staff'
+    MANAGER = 'manager', 'Manager'
+    OWNER   = 'owner',   'Owner'   # display; source of truth is is_superuser
 
 class Profile(models.Model):
-    user     = models.OneToOneField(settings.AUTH_USER_MODEL,
-                                    on_delete=models.CASCADE)
+    user     = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     timezone = models.CharField(
         max_length=32,
         choices=[(tz, tz) for tz in sorted(available_timezones())],
         default='UTC'
     )
-    digest_opt_out = models.BooleanField(default=False)  # opt out email digest
+    digest_opt_out = models.BooleanField(default=False)
+
+    # NEW
+    role = models.CharField(
+        max_length=16,
+        choices=UserRole.choices,
+        default=UserRole.STAFF,
+        help_text="App role separate from Django is_staff/is_superuser."
+    )
 
     def __str__(self):
         return f"{self.user.username} profile"
@@ -152,6 +164,7 @@ class Profile(models.Model):
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
+        # default role=staff; owners are superusers and can be marked owner later
         Profile.objects.create(user=instance)
 
 class Device(models.Model):

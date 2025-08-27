@@ -373,7 +373,9 @@ class _UserCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: highlight ? scheme.primary.withValues(alpha: .08) : null,
+      color: !user.isActive
+          ? theme.colorScheme.errorContainer.withValues(alpha:.18)
+          : (highlight ? scheme.primary.withValues(alpha: .08) : null),
       child: ListTile(
         contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
         leading: CircleAvatar(
@@ -392,23 +394,10 @@ class _UserCard extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16.5),
               ),
             ),
+            if (!user.isActive)
+              _Badge('Disabled', color: Colors.redAccent),
             if (user.isStaff)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: scheme.primary),
-                ),
-                child: Text(
-                  'Admin',
-                  style: TextStyle(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
+              _Badge('Admin', color: scheme.primary),
           ],
         ),
         subtitle: Column(
@@ -457,6 +446,13 @@ class _UserCard extends StatelessWidget {
                 title: Text('Copy email'),
               ),
             ),
+            PopupMenuItem(
+              value: 'toggle',
+              child: ListTile(
+                leading: Icon(user.isActive ? Icons.person_off : Icons.person),
+                title: Text(user.isActive ? 'Disable account' : 'Enable account'),
+              ),
+            ),
           ],
         ),
       ),
@@ -471,6 +467,27 @@ class _UserCard extends StatelessWidget {
     }
     return u.username.isNotEmpty ? u.username[0].toUpperCase() : '?';
     }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge(this.text, {this.color});
+  final String text;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.withOpacity(.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: c),
+      ),
+      child: Text(text, style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 12)),
+    );
+  }
 }
 
 class _CountHeader extends StatelessWidget {

@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from rest_framework import serializers
-from .models import Task, Property, TaskImage, Profile, Device, Notification
+from .models import Task, Property, TaskImage, Profile, Device, Notification, UserRole
 import json
 import pytz
 
@@ -25,6 +25,7 @@ from datetime import datetime
 class UserSerializer(serializers.ModelSerializer):
     timezone = serializers.CharField(source='profile.timezone')
     is_active = serializers.BooleanField(read_only=True)  # show disabled state
+    role      = serializers.CharField(source='profile.role', read_only=True)
 
     class Meta:
         model = User
@@ -37,6 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
             'last_name',
             'is_staff',
             'is_active',
+            'role',
             'timezone',
         ]
         

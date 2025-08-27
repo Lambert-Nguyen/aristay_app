@@ -1,5 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .managersite import manager_site
+
 from .views import (
     AdminUserCreateView,
     CurrentUserView,
@@ -47,6 +49,7 @@ urlpatterns = [
     path('users/me/', CurrentUserView.as_view(), name='current-user'),
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     path('admin/users/<int:pk>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
+    path('manager/', manager_site.urls),  # ← NEW manager console
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('notifications/unread-count/', unread_notification_count, name='notification-unread-count'),

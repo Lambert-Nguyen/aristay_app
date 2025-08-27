@@ -420,17 +420,20 @@ class ApiService {
     if (res.statusCode != 200) throw Exception('Failed to load current user');
     return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
-
-  Future<void> setUserActive(int id, bool isActive) async {
+  
+  /// Owner-only: enable/disable a user
+  Future<void> setUserActive(int userId, bool active) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/admin/users/$userId/');
     final res = await http.patch(
-      Uri.parse('$baseUrl/admin/users/$id/'),
-      headers: {'Authorization': 'Token $token', 'Content-Type': 'application/json'},
-      body: jsonEncode({'is_active': isActive}),
+      uri,
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
+      body: jsonEncode({'is_active': active}),
     );
+
     if (res.statusCode != 200) {
-      throw apiExceptionFromResponse(res);
+      throw Exception('Failed to update user ($userId): ${res.statusCode} ${res.body}');
     }
   }
 
