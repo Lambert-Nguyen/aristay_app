@@ -8,6 +8,8 @@ import '../models/task.dart';
 import '../models/user.dart';
 import '../models/notification.dart';
 
+import '../utils/api_error.dart';
+
 /// Throws when the server returns a 400 with field‐level errors.
 class ValidationException implements Exception {
   final Map<String, String> errors;
@@ -15,8 +17,8 @@ class ValidationException implements Exception {
 }
 
 class ApiService {
-  // static const String baseUrl = 'http://127.0.0.1:8000/api';
-  static const String baseUrl = 'http://192.168.1.40:8000/api';
+  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  // static const String baseUrl = 'http://192.168.1.40:8000/api';
 
   // ─────────────  Task mute / un-mute  ─────────────
   Future<bool> _postMute(int id, { required bool mute }) async {
@@ -46,11 +48,12 @@ class ApiService {
   Future<List<Property>> fetchProperties() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final res = await http.get(
-      Uri.parse('$baseUrl/properties/'),
-      headers: {'Authorization': 'Token $token'},
-    );
-    if (res.statusCode != 200) throw Exception('Failed to load properties');
+    final uri = Uri.parse('$baseUrl/properties/');
+    final res = await http.get(uri, headers: {'Authorization': 'Token $token'});
+
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
     final body = jsonDecode(res.body);
     final raw = body is List
         ? body
@@ -62,42 +65,42 @@ class ApiService {
         .toList();
   }
 
-  Future<bool> createProperty(Map<String, dynamic> payload) async {
+  Future<void> createProperty(Map<String, dynamic> payload) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/properties/');
     final res = await http.post(
-      Uri.parse('$baseUrl/properties/'),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
+      uri,
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
       body: jsonEncode(payload),
     );
-    return res.statusCode == 201;
+    if (res.statusCode != 201) {
+      throw apiExceptionFromResponse(res);
+    }
   }
 
-  Future<bool> updateProperty(int id, Map<String, dynamic> payload) async {
+  Future<void> updateProperty(int id, Map<String, dynamic> payload) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/properties/$id/');
     final res = await http.patch(
-      Uri.parse('$baseUrl/properties/$id/'),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
+      uri,
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
       body: jsonEncode(payload),
     );
-    return res.statusCode == 200;
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
   }
 
-  Future<bool> deleteProperty(int id) async {
+  Future<void> deleteProperty(int id) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
-    final res = await http.delete(
-      Uri.parse('$baseUrl/properties/$id/'),
-      headers: {'Authorization': 'Token $token'},
-    );
-    return res.statusCode == 204;
+    final uri   = Uri.parse('$baseUrl/properties/$id/');
+    final res = await http.delete(uri, headers: {'Authorization': 'Token $token'});
+    if (res.statusCode != 204) {
+      throw apiExceptionFromResponse(res);
+    }
   }
 
   Future<void> uploadTaskImage(int taskId, File imageFile) async {
@@ -406,6 +409,7 @@ class ApiService {
 
     throw Exception('Reset failed (${res.statusCode}): ${res.body}');
   }
+  
   Future<User> fetchCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;
@@ -417,8 +421,38 @@ class ApiService {
     return User.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
   
-  /// Admin: create a new user
-  Future<void> createUser({
+  /// Owner-only: enable/disable a user
+  Future<void> setUserActive(int userId, bool active) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final uri   = Uri.parse('$baseUrl/admin/users/$userId/');
+    final res = await http.patch(
+      uri,
+      headers: {'Authorization': 'Token $token','Content-Type':'application/json'},
+      body: jsonEncode({'is_active': active}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to update user ($userId): ${res.statusCode} ${res.body}');
+    }
+  }
+
+  Future<void> setUserStaff(int id, bool isStaff) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token')!;
+    final res = await http.patch(
+      Uri.parse('$baseUrl/admin/users/$id/'),
+      headers: {'Authorization': 'Token $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'is_staff': isStaff}),
+    );
+    if (res.statusCode != 200) {
+      throw apiExceptionFromResponse(res);
+    }
+  }
+  
+
+  /// Admin: create a new user -> returns the created user's id
+  Future<int> createUser({
     required String username,
     required String email,
     required String password,
@@ -439,20 +473,26 @@ class ApiService {
         'is_staff': isStaff,
       }),
     );
-    if (res.statusCode == 201) return;
+
+    if (res.statusCode == 201) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final id = (body['id'] as num?)?.toInt();
+      if (id == null) {
+        throw Exception('Create user succeeded but no id was returned.');
+      }
+      return id;
+    }
 
     if (res.statusCode == 400) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final errors = <String,String>{};
-      body.forEach((k,v) {
-        errors[k] = (v is List) ? v.join(' ') : v.toString();
-      });
+      final errors = <String, String>{};
+      body.forEach((k, v) => errors[k] = (v is List) ? v.join(' ') : v.toString());
       throw ValidationException(errors);
     }
 
-    throw Exception('Failed to create user (${res.statusCode})');
+    throw Exception('Failed to create user (${res.statusCode}): ${res.body}');
   }
-  
+
   Future<Map<String, dynamic>> getJson(String path, {Map<String, String>? params}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token')!;

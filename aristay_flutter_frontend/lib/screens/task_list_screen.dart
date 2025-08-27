@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../widgets/task_advanced_filter_sheet.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/status_pill.dart';
+
 import '../models/property.dart';
 import '../models/user.dart';
 import '../models/task.dart';
+
 import '../services/api_service.dart';
+
 import 'task_search_delegate.dart';
 
 class TaskListScreen extends StatefulWidget {
@@ -353,8 +358,8 @@ class _TaskListScreenState extends State<TaskListScreen>
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? Theme.of(context).colorScheme.primary.withOpacity(.12)
-                          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(.6),
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: .12)
+                          : Theme.of(context).colorScheme.surfaceVariant.withValues(alpha: .6),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: selected
@@ -684,45 +689,9 @@ class _CountBubble extends StatelessWidget {
   }
 }
 
-class StatusPill extends StatelessWidget {
-  const StatusPill(this.status, {super.key});
-  final String status;
-
-  static const _bases = {
-    'pending'     : Color(0xFFFFC107), // amber
-    'in-progress' : Color(0xFF64B5F6), // blue 300
-    'completed'   : Color(0xFF81C784), // green 300
-    'canceled'    : Color(0xFFE57373), // red 300
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final base = _bases[status] ?? const Color(0xFFB0BEC5);
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = scheme.brightness == Brightness.dark;
-
-    final bg     = isDark ? base.withOpacity(.18) : base.withOpacity(.20);
-    final border = isDark ? base.withOpacity(.55) : base.withOpacity(.35);
-    final label  = isDark ? base : base.withOpacity(.95);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border),
-      ),
-      child: Text(
-        status.replaceAll('-', ' '),
-        style: TextStyle(
-          color: label,
-          fontWeight: FontWeight.w700,
-          fontSize: 12.5,
-          height: 1.1,
-        ),
-      ),
-    );
-  }
+class _DueChipColors {
+  final Color bg, border, fg;
+  const _DueChipColors({required this.bg, required this.border, required this.fg});
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -741,11 +710,45 @@ class _TaskRow extends StatelessWidget {
   final String Function(DateTime) dueLabel;
   final VoidCallback onTap;
 
+  // Returns bg/border/fg for the due pill, tuned for light & dark themes
+  _DueChipColors _dueColors(DateTime due, ColorScheme scheme) {
+    final now     = DateTime.now();
+    final isDark  = scheme.brightness == Brightness.dark;
+    final dLocal  = due.toLocal();
+    final today   = DateTime(now.year, now.month, now.day);
+    final dueDay  = DateTime(dLocal.year, dLocal.month, dLocal.day);
+
+    // Overdue
+    if (dLocal.isBefore(now)) {
+      return _DueChipColors(
+        bg:     isDark ? Colors.red.withValues(alpha: .22)     : Colors.red.shade100,
+        border: isDark ? Colors.red.withValues(alpha: .55)     : Colors.red.withValues(alpha: .35),
+        fg:     isDark ? (Colors.red[300] ?? Colors.red) : Colors.red.shade800,
+      );
+    }
+
+    // Due within 2 days
+    if (dueDay.difference(today).inDays <= 2) {
+      return _DueChipColors(
+        bg:     isDark ? Colors.orange.withValues(alpha: .22)      : Colors.orange.shade100,
+        border: isDark ? Colors.orange.withValues(alpha: .55)      : Colors.orange.withValues(alpha: .35),
+        fg:     isDark ? (Colors.orange[300] ?? Colors.orange) : Colors.orange.shade800,
+      );
+    }
+
+    // Neutral/default
+    return _DueChipColors(
+      bg:     scheme.surface,
+      border: scheme.outlineVariant,
+      fg:     scheme.onSurface,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final onVar = scheme.onSurface.withOpacity(.72);
+    final onVar = scheme.onSurface.withValues(alpha: .72);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -824,34 +827,30 @@ class _TaskRow extends StatelessWidget {
                               ),
                             ),
 
-                            if (task.dueAt != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: scheme.surface,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: scheme.outlineVariant),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.event,
-                                      size: 16,
-                                      color: scheme.onSurface.withOpacity(.85),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      dueLabel(task.dueAt!),
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: scheme.onSurface,
-                                        fontWeight: FontWeight.w600,
+                            if (task.dueAt != null) ...[
+                              Builder(builder: (_) {
+                                final c = _dueColors(task.dueAt!, scheme);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: c.bg,
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: c.border),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.event, size: 16, color: c.fg),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        dueLabel(task.dueAt!),
+                                        style: TextStyle(fontSize: 13, color: c.fg, fontWeight: FontWeight.w600),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
                           ],
                         );
                       },

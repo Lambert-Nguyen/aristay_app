@@ -56,8 +56,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _me           = me;
         _selectedTz   = me.timezone;
         _emailCtrl.text = me.email ?? '';
-        _firstCtrl.text = me.firstName;   // ← add
-        _lastCtrl.text  = me.lastName;    // ← add
+        _firstCtrl.text = me.firstName ?? '';
+        _lastCtrl.text  = me.lastName ?? ''; 
         _error        = null;
       });
     } catch (e) {
@@ -71,8 +71,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_me == null) return false;
     final emailChanged = (_emailCtrl.text.trim() != (_me!.email ?? ''));
     final tzChanged    = (_selectedTz != _me!.timezone);
-    final firstChanged = (_firstCtrl.text.trim() != _me!.firstName); // ← add
-    final lastChanged  = (_lastCtrl.text.trim()  != _me!.lastName);  // ← add
+    final firstChanged = (_firstCtrl.text.trim() != (_me!.firstName ?? ''));
+    final lastChanged  = (_lastCtrl.text.trim()  != (_me!.lastName  ?? ''));
     return emailChanged || tzChanged || firstChanged || lastChanged;
   }
 
@@ -88,14 +88,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       final payloadTz   = (_selectedTz != _me!.timezone) ? _selectedTz : null;
       final payloadEmail= (emailTrim != (_me!.email ?? '')) ? emailTrim : null;
-      final payloadFirst= (firstTrim != _me!.firstName) ? firstTrim : null; // ← add
-      final payloadLast = (lastTrim  != _me!.lastName)  ? lastTrim  : null; // ← add
+
+      final payloadFirst = (firstTrim != (_me!.firstName ?? '')) ? firstTrim : null; 
+      final payloadLast  = (lastTrim  != (_me!.lastName  ?? '')) ? lastTrim  : null; 
 
       final updated = await _api.updateCurrentUser(
         timezone: payloadTz,
         email:    payloadEmail,
-        firstName: payloadFirst,   // ← add
-        lastName:  payloadLast,    // ← add
+        firstName: payloadFirst,   
+        lastName:  payloadLast,    
       );
 
       if (!mounted) return;
@@ -103,8 +104,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _me           = updated;
         _selectedTz   = updated.timezone;
         _emailCtrl.text = updated.email ?? '';
-        _firstCtrl.text = updated.firstName;  // ← add
-        _lastCtrl.text  = updated.lastName;   // ← add
+        _firstCtrl.text = updated.firstName ?? ''; 
+        _lastCtrl.text  = updated.lastName  ?? ''; 
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Profile updated')));

@@ -1,16 +1,17 @@
 class Property {
-  final int id;
-  final String name;
+  final int id;          // database PK used in /properties/{id}/
+  final String name;     // display name (can be "5", "TEST", etc.)
+  final int? number;     // optional business number/code
 
   Property({
     required this.id,
     required this.name,
+    this.number
   });
 
-  factory Property.fromJson(Map<String, dynamic> json) {
-    return Property(
-      id: json['id'] as int,
-      name: json['name'] as String,
-    );
-  }
+  factory Property.fromJson(Map<String, dynamic> j) => Property(
+    id: j['id'] as int,               // <- MUST be PK
+    name: (j['name'] as String?) ?? '',
+    number: j['number'] as int?,      // if your API has this
+  );
 }

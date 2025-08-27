@@ -1,5 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .managersite import manager_site
+
 from .views import (
     AdminUserCreateView,
     CurrentUserView,
@@ -9,6 +11,7 @@ from .views import (
     TaskViewSet,
     TaskListCreate, TaskDetail,
     PropertyListCreate,
+    PropertyDetail,
     UserList,
     TaskImageCreateView,
     TaskImageDetailView,
@@ -17,6 +20,7 @@ from .views import (
     mark_all_notifications_read,
     mark_notification_read,
     unread_notification_count,
+    AdminUserDetailView,
 )
 
 router = DefaultRouter()
@@ -36,6 +40,7 @@ urlpatterns = [
         name='taskimage-detail'
     ),
     path('properties/', PropertyListCreate.as_view(), name='property-list'),
+    path('properties/<int:pk>/', PropertyDetail.as_view(), name='property-detail'),
     path('users/', UserList.as_view(), name='user-list'),
     path('admin/invite/', AdminInviteUserView.as_view(), name='admin-invite'),
     path('admin/reset-password/',
@@ -43,6 +48,8 @@ urlpatterns = [
          name='admin-reset-password'),
     path('users/me/', CurrentUserView.as_view(), name='current-user'),
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
+    path('admin/users/<int:pk>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
+    path('manager/', manager_site.urls),  # ← NEW manager console
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('notifications/unread-count/', unread_notification_count, name='notification-unread-count'),

@@ -25,6 +25,8 @@ import 'screens/notification_list_screen.dart';
 
 import 'services/notification_service.dart';
 import 'services/navigation_service.dart';
+import 'services/route_observer.dart';
+
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -37,6 +39,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await NotificationService.init();
+  await NotificationService.registerPendingTokenIfAny();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -51,6 +54,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Aristay App',
       navigatorKey: navigatorKey,
+      navigatorObservers: [routeObserver],
       initialRoute: '/',
       routes: {
         '/': (c) => const LoginScreen(),

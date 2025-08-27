@@ -7,6 +7,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.utils import timezone
 from django.dispatch import receiver
+from django.contrib.auth.models import User
 
 class Property(models.Model):
     name       = models.CharField(max_length=100, unique=True)
@@ -135,16 +136,28 @@ class TaskImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.task.title}"
+    
+class UserRole(models.TextChoices):
+    STAFF   = 'staff',   'Staff'
+    MANAGER = 'manager', 'Manager'
+    OWNER   = 'owner',   'Owner'   # display; source of truth is is_superuser
 
 class Profile(models.Model):
-    user     = models.OneToOneField(settings.AUTH_USER_MODEL,
-                                    on_delete=models.CASCADE)
+    user     = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     timezone = models.CharField(
         max_length=32,
         choices=[(tz, tz) for tz in sorted(available_timezones())],
         default='UTC'
     )
-    digest_opt_out = models.BooleanField(default=False)  # opt out email digest
+    digest_opt_out = models.BooleanField(default=False)
+
+    # NEW
+    role = models.CharField(
+        max_length=16,
+        choices=UserRole.choices,
+        default=UserRole.STAFF,
+        help_text="App role separate from Django is_staff/is_superuser."
+    )
 
     def __str__(self):
         return f"{self.user.username} profile"
@@ -152,7 +165,19 @@ class Profile(models.Model):
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
+        # default role=staff; owners are superusers and can be marked owner later
         Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def sync_profile_role_on_user_save(sender, instance, **kwargs):
+    profile, _ = Profile.objects.get_or_create(user=instance)
+    if instance.is_superuser:
+        # we don’t force profile.role to 'owner'; serializer maps superusers → 'owner'
+        return
+    desired = UserRole.MANAGER if instance.is_staff else UserRole.STAFF
+    if profile.role != desired:
+        profile.role = desired
+        profile.save(update_fields=['role'])
 
 class Device(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')

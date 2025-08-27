@@ -36,8 +36,9 @@ from .serializers import (
     AdminUserCreateSerializer,
     DeviceSerializer,
     NotificationSerializer,
+    AdminUserAdminSerializer,
 )
-from .permissions import IsOwnerOrAssignedOrReadOnly
+from .permissions import IsOwnerOrAssignedOrReadOnly, IsOwner
 from .services.notification_service import NotificationService
 
 
@@ -91,9 +92,16 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         by_status = {entry['status']: entry['count'] for entry in counts}
 
+        now = timezone.now()
+        overdue = qs.filter(
+            due_date__isnull=False,
+            due_date__lt=now
+        ).exclude(status__in=['completed', 'canceled']).count()
+    
         return Response({
             'total': total,
             'by_status': by_status,
+            'overdue': overdue,
         })
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
@@ -222,6 +230,17 @@ class PropertyListCreate(generics.ListCreateAPIView):
         if self.request.method == 'POST':
             return [IsAdminUser()]
         return super().get_permissions()
+    
+class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Property.objects.all()
+    serializer_class = PropertySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        # Only admins can modify/delete; reads remain open to authenticated (or read-only if you prefer)
+        if self.request.method in ('PUT', 'PATCH', 'DELETE'):
+            return [IsAdminUser()]
+        return super().get_permissions()
 
 class UserList(generics.ListAPIView):
     queryset = User.objects.all().order_by('id')  # ← Add ordering to fix pagination warning
@@ -231,6 +250,26 @@ class UserList(generics.ListAPIView):
     filter_backends = [filters.SearchFilter]
     search_fields  = ['username', 'email']
 
+class AdminUserDetailView(generics.RetrieveUpdateAPIView):
+    """
+    GET/PATCH /api/admin/users/<id>/
+    Owner-only for updates. Safe fields: is_active, is_staff.
+    """
+    queryset = User.objects.all()
+    serializer_class = AdminUserAdminSerializer
+    permission_classes = [IsOwner]  # superuser only
+
+    # (Optional safety: forbid changing superusers except by self)
+    def perform_update(self, serializer):
+        target: User = self.get_object()
+        actor: User  = self.request.user
+        data = serializer.validated_data
+
+        # never allow anyone to toggle a superuser other than themselves
+        if target.is_superuser and target != actor:
+            raise PermissionDenied("Cannot modify another owner account.")
+
+        serializer.save()
 
 class AdminInviteUserView(generics.CreateAPIView):
     """
