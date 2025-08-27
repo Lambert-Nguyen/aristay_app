@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/route_observer.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../services/navigation_service.dart';
@@ -15,7 +17,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   final _api = ApiService();
 
   bool _loading = true;
@@ -27,12 +29,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // counts (overall)
   int _total = 0;
+  int _overdue = 0;
+
   final Map<String, int> _byStatus = {
     'pending': 0,
     'in-progress': 0,
     'completed': 0,
     'canceled': 0,
   };
+
+  final Set<String> _justChanged = {};
 
   // counts (assigned to me)
   int _myTotal = 0;
@@ -64,10 +70,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) routeObserver.subscribe(this, route);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _navSub?.cancel();
     super.dispose();
   }
+
+  // When Home is shown or we return to it, refresh & highlight changes
+  @override
+  void didPush() => _refreshAndFlag();
+  @override
+  void didPopNext() => _refreshAndFlag();
 
   Future<void> _bootstrap() async {
     setState(() => _loading = true);
@@ -90,30 +110,64 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadCounts() async {
     final data = await _api.fetchTaskCounts();
-    _total = (data['total'] as num).toInt();
-    final m = Map<String, int>.from(data['by_status'] as Map);
-    for (final k in _byStatus.keys) {
-      _byStatus[k] = m[k] ?? 0;
-    }
+    _total   = (data['total'] as num).toInt();
+    final by = Map<String, dynamic>.from(data['by_status'] ?? {});
+    int v(String k) => (by[k] as num?)?.toInt() ?? 0;
+    _byStatus['pending']     = v('pending');
+    _byStatus['in-progress'] = v('in-progress');
+    _byStatus['completed']   = v('completed');
+    _byStatus['canceled']    = v('canceled');
+    _overdue = (data['overdue'] as num?)?.toInt() ?? 0;
   }
 
   Future<void> _loadMyCounts(int assigneeId) async {
     // requires the small ApiService patch below
     final data = await _api.fetchTaskCounts(assignedTo: assigneeId);
     _myTotal = (data['total'] as num).toInt();
-    final m = Map<String, int>.from(data['by_status'] as Map);
-    for (final k in _myByStatus.keys) {
-      _myByStatus[k] = m[k] ?? 0;
-    }
+    final by = Map<String, dynamic>.from(data['by_status'] ?? {});
+    int v(String k) => (by[k] as num?)?.toInt() ?? 0;
+    _myByStatus['pending']     = v('pending');
+    _myByStatus['in-progress'] = v('in-progress');
+    _myByStatus['completed']   = v('completed');
+    _myByStatus['canceled']    = v('canceled');
   }
 
-  Future<void> _onRefresh() async {
+  Future<void> _refreshAndFlag() async {
+    // snapshot before
+    final before = <String, int>{
+      'all'       : _total,
+      'pending'   : _byStatus['pending'] ?? 0,
+      'inprogress': _byStatus['in-progress'] ?? 0,
+      'completed' : _byStatus['completed'] ?? 0,
+      'overdue'   : _overdue,
+    };
     try {
       await _loadCounts();
       if (_me != null) await _loadMyCounts(_me!.id);
       await NotificationService.hydrateUnreadCount();
-      setState(() {});
     } catch (_) {}
+    // detect changes
+    final after = <String, int>{
+      'all'       : _total,
+      'pending'   : _byStatus['pending'] ?? 0,
+      'inprogress': _byStatus['in-progress'] ?? 0,
+      'completed' : _byStatus['completed'] ?? 0,
+      'overdue'   : _overdue,
+    };
+    final changed = after.keys.where((k) => before[k] != null && before[k] != after[k]).toSet();
+    if (!mounted) return;
+    setState(() => _justChanged
+      ..clear()
+      ..addAll(changed));
+    // fade highlight
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _justChanged.clear());
+    });
+  }
+
+
+  Future<void> _onRefresh() async {
+        await _refreshAndFlag();
   }
 
   String get _greetingName {
@@ -184,6 +238,16 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.notifications),
             onTap: () => Navigator.pushNamed(context, '/notifications'),
           ),
+          IconButton(
+            tooltip: 'Log out',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('auth_token');
+              if (!mounted) return;
+              Navigator.of(context).pushNamedAndRemoveUntil('/', (r) => false);
+            },
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -248,13 +312,15 @@ class _HomeScreenState extends State<HomeScreen> {
             _StatsGrid(
               tiles: [
                 _StatTile('All', _total, Icons.all_inbox_outlined,
-                    onTap: () => _goTasks()),
+                    onTap: () => _goTasks(),
+                    highlight: _justChanged.contains('all')),
                 _StatTile('Pending', _byStatus['pending']!, Icons.pause_circle_outline,
-                    onTap: () => _goTasks(status: 'pending')),
-                _StatTile('Overdue', 0, Icons.event_busy_outlined, // if you add server overdue count, plug it here
-                    onTap: () => _goTasks(overdueOnly: true)),
+                  onTap: () => _goTasks(status: 'pending')),
+                _StatTile('Overdue', _overdue, Icons.event_busy_outlined,
+                    onTap: () => _goTasks(overdueOnly: true),
+                    highlight: _justChanged.contains('overdue')),
                 _StatTile('In progress', _byStatus['in-progress']!, Icons.play_circle_outline,
-                    onTap: () => _goTasks(status: 'in-progress')),
+                  onTap: () => _goTasks(status: 'in-progress')),
                 _StatTile('Completed', _byStatus['completed']!, Icons.check_circle_outline,
                     onTap: () => _goTasks(status: 'completed')),
               ],
@@ -338,6 +404,7 @@ class _StatsGrid extends StatelessWidget {
                     title: t.title,
                     value: t.value,
                     onTap: t.onTap,
+                    highlight: t.highlight,
                   ),
                 ))
             .toList();
@@ -360,11 +427,12 @@ class _StatsGrid extends StatelessWidget {
 }
 
 class _StatTile {
-  const _StatTile(this.title, this.value, this.icon, {required this.onTap});
+  const _StatTile(this.title, this.value, this.icon, {required this.onTap, this.highlight = false});
   final String title;
   final int value;
   final IconData icon;
   final VoidCallback onTap;
+  final bool highlight;
 }
 
 class _QuickAction extends StatelessWidget {
@@ -393,12 +461,14 @@ class _StatCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.onTap,
+    this.highlight = false,
   });
 
   final IconData icon;
   final String title;
   final int value;
   final VoidCallback onTap;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -415,7 +485,9 @@ class _StatCard extends StatelessWidget {
       onTap: onTap,
       child: Ink(
         decoration: BoxDecoration(
-          color: isLight ? scheme.surface : scheme.surfaceContainerHigh,
+          color: (highlight
+                  ? scheme.primary.withValues(alpha: .10)
+                  : (isLight ? scheme.surface : scheme.surfaceContainerHigh)),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: scheme.outlineVariant),
         ),

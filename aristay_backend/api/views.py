@@ -92,9 +92,16 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         by_status = {entry['status']: entry['count'] for entry in counts}
 
+        now = timezone.now()
+        overdue = qs.filter(
+            due_date__isnull=False,
+            due_date__lt=now
+        ).exclude(status__in=['completed', 'canceled']).count()
+    
         return Response({
             'total': total,
             'by_status': by_status,
+            'overdue': overdue,
         })
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
