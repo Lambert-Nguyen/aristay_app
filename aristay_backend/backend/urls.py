@@ -20,9 +20,11 @@ from django.urls import path, include
 from rest_framework.authtoken.views import obtain_auth_token  # Import the token view
 from django.conf import settings
 from django.conf.urls.static import static
+from api.managersite import manager_site
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('manager/', manager_site.urls),   # Manager console
     path('api/', include('api.urls')),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
     # support password‐reset confirm, complete, etc.

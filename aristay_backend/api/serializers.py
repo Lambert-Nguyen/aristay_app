@@ -76,6 +76,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
 
+class ManagerUserSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='profile.role', read_only=True)
+
+    class Meta:
+        model  = User
+        fields = ('id','username','email','first_name','last_name','is_active','role')
+
+    def update(self, instance, validated_data):
+        # Managers may ONLY toggle is_active on Employees (role=staff), never owners.
+        if instance.is_superuser:
+            raise serializers.ValidationError("Cannot modify owner accounts.")
+        role = getattr(getattr(instance, 'profile', None), 'role', 'staff')
+        if role != 'staff':
+            raise serializers.ValidationError("Managers can only modify Employees.")
+        if 'is_active' in validated_data:
+            instance.is_active = validated_data['is_active']
+            instance.save(update_fields=['is_active'])
+        return instance
+
 
 class PropertySerializer(serializers.ModelSerializer):
     class Meta:
