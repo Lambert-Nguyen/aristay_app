@@ -2,7 +2,13 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.urls import path
 from django.shortcuts import render
-from .models import Property, Task, Notification, Booking, PropertyOwnership
+from .models import (
+    Property, Task, Notification, Booking, PropertyOwnership, Profile,
+    ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
+    InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
+    LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
+    BookingImportTemplate, BookingImportLog
+)
 
 class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
@@ -167,6 +173,55 @@ class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('recipient', 'task')
 
+# ============================================================================
+# MVP Phase 1: Manager Admin for new models (reuse admin classes from admin.py)
+# ============================================================================
+
+# Import admin classes from admin.py to maintain consistency
+from .admin import (
+    ChecklistTemplateAdmin, ChecklistResponseAdmin, TaskChecklistAdmin,
+    InventoryCategoryAdmin, InventoryItemAdmin, PropertyInventoryAdmin, InventoryTransactionAdmin,
+    LostFoundItemAdmin, ScheduleTemplateAdmin, GeneratedTaskAdmin,
+    BookingImportTemplateAdmin, BookingImportLogAdmin
+)
+
+# Create manager-permission wrapped versions
+class ChecklistTemplateManagerAdmin(ManagerPermissionMixin, ChecklistTemplateAdmin):
+    pass
+
+class ChecklistResponseManagerAdmin(ManagerPermissionMixin, ChecklistResponseAdmin):
+    pass
+
+class TaskChecklistManagerAdmin(ManagerPermissionMixin, TaskChecklistAdmin):
+    pass
+
+class InventoryCategoryManagerAdmin(ManagerPermissionMixin, InventoryCategoryAdmin):
+    pass
+
+class InventoryItemManagerAdmin(ManagerPermissionMixin, InventoryItemAdmin):
+    pass
+
+class PropertyInventoryManagerAdmin(ManagerPermissionMixin, PropertyInventoryAdmin):
+    pass
+
+class InventoryTransactionManagerAdmin(ManagerPermissionMixin, InventoryTransactionAdmin):
+    pass
+
+class LostFoundItemManagerAdmin(ManagerPermissionMixin, LostFoundItemAdmin):
+    pass
+
+class ScheduleTemplateManagerAdmin(ManagerPermissionMixin, ScheduleTemplateAdmin):
+    pass
+
+class GeneratedTaskManagerAdmin(ManagerPermissionMixin, GeneratedTaskAdmin):
+    pass
+
+class BookingImportTemplateManagerAdmin(ManagerPermissionMixin, BookingImportTemplateAdmin):
+    pass
+
+class BookingImportLogManagerAdmin(ManagerPermissionMixin, BookingImportLogAdmin):
+    pass
+
 # register on the manager site
 manager_site.register(Property, PropertyAdmin)
 manager_site.register(Task, TaskAdmin)
@@ -174,3 +229,17 @@ manager_site.register(User, UserManagerAdmin)
 manager_site.register(Notification, NotificationManagerAdmin)
 manager_site.register(Booking)
 manager_site.register(PropertyOwnership)
+
+# Register MVP Phase 1 models
+manager_site.register(ChecklistTemplate, ChecklistTemplateManagerAdmin)
+manager_site.register(ChecklistResponse, ChecklistResponseManagerAdmin)
+manager_site.register(TaskChecklist, TaskChecklistManagerAdmin)
+manager_site.register(InventoryCategory, InventoryCategoryManagerAdmin)
+manager_site.register(InventoryItem, InventoryItemManagerAdmin)
+manager_site.register(PropertyInventory, PropertyInventoryManagerAdmin)
+manager_site.register(InventoryTransaction, InventoryTransactionManagerAdmin)
+manager_site.register(LostFoundItem, LostFoundItemManagerAdmin)
+manager_site.register(ScheduleTemplate, ScheduleTemplateManagerAdmin)
+manager_site.register(GeneratedTask, GeneratedTaskManagerAdmin)
+manager_site.register(BookingImportTemplate, BookingImportTemplateManagerAdmin)
+manager_site.register(BookingImportLog, BookingImportLogManagerAdmin)
