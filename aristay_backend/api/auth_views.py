@@ -17,10 +17,10 @@ logger = logging.getLogger('api.security')
 
 class UnifiedLoginView(LoginView):
     """
-    Unified login view that routes users based on their role:
-    - Superusers/Staff → Admin site (/admin/)
-    - Managers → Manager site (/manager/)
-    - Regular users → Appropriate dashboard or error message
+    Unified login view that routes all authenticated users to the home screen:
+    - All users → Home screen (/api/portal/) with role-based navigation options
+    - Users can then choose to go to Admin, Manager, Properties, or Tasks
+    - Provides unified navigation experience across all user types
     """
     template_name = 'auth/unified_login.html'
     redirect_authenticated_user = True
@@ -57,40 +57,9 @@ class UnifiedLoginView(LoginView):
         if next_url and self._is_safe_url(next_url):
             return next_url
         
-        # Priority 2: Route based on Django permissions (Superuser/staff)
-        if user.is_superuser:
-            return '/admin/'
-        elif user.is_staff:
-            # Staff users could be either admin or manager
-            # Check profile role if available
-            if user_role == 'manager':
-                return '/manager/'
-            else:
-                return '/admin/'  # Default staff to admin
-        
-        # Priority 3: Route based on profile role
-        if user_role == 'manager':
-            return '/manager/'
-        elif user_role == 'owner':
-            # legacy label maps to Superuser; send to admin
-            return '/admin/'
-        
-        # Priority 4: Default fallback
-        # If user doesn't have admin/manager permissions, show an error
-        try:
-            messages.error(
-                self.request, 
-                "You don't have permission to access the admin or manager interface. "
-                "Please contact your administrator if you believe this is an error."
-            )
-        except Exception:
-            # Handle case where messages framework is not available
-            pass
-        
-        # Logout the user since they can't access any admin interface
-        from django.contrib.auth import logout
-        logout(self.request)
-        return reverse_lazy('unified_login')
+        # Priority 2: Route ALL authenticated users to portal home screen
+        # The portal will handle role-based access control and navigation
+        return '/api/portal/'
     
     def _is_safe_url(self, url):
         """

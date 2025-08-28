@@ -1,0 +1,106 @@
+{% extends "portal/base.html" %}
+
+{% block title %}AriStay Portal Home{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="section-title">Welcome to AriStay, {{ user.get_full_name|default:user.username }}! 👋</div>
+    
+    <div style="margin-bottom: 2rem;">
+        <p>Your role: <strong>{{ user.profile.get_role_display|default:"Staff" }}</strong></p>
+        <p>Choose where you'd like to go:</p>
+    </div>
+    
+    <div class="grid cols-3">
+        <!-- Properties Portal -->
+        <div class="card" style="text-align: center; padding: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🏠</div>
+            <h3>Properties</h3>
+            <p>View and manage properties, bookings, and tasks</p>
+            <a href="/api/portal/properties/" class="button" style="width: 100%; margin-top: 1rem;">
+                View Properties
+            </a>
+        </div>
+        
+        <!-- Staff Portal -->
+        {% if user.profile and user.profile.role and user.profile.role != 'viewer' %}
+        <div class="card" style="text-align: center; padding: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+            <h3>My Tasks</h3>
+            <p>Access your assigned tasks and workflows</p>
+            <a href="/api/staff/" class="button" style="width: 100%; margin-top: 1rem;">
+                Go to Tasks
+            </a>
+        </div>
+        {% endif %}
+        
+        <!-- Admin/Manager Portal -->
+        {% if user.is_staff %}
+        <div class="card" style="text-align: center; padding: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">
+                {% if user.is_superuser %}⚙️{% else %}👔{% endif %}
+            </div>
+            <h3>
+                {% if user.is_superuser %}Admin Panel{% else %}Manager Panel{% endif %}
+            </h3>
+            <p>Manage users, properties, and system settings</p>
+            <a href="{% if user.is_superuser %}/admin/{% else %}/manager/{% endif %}" class="button" style="width: 100%; margin-top: 1rem;">
+                {% if user.is_superuser %}Admin Dashboard{% else %}Manager Dashboard{% endif %}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% if user.profile.role == 'viewer' %}
+    <!-- Viewer-only content -->
+    <div style="margin-top: 2rem;">
+        <div class="tag">Read-only access</div>
+        <p style="margin-top: 1rem; color: #64748b;">
+            You have viewer access to property information and reports. 
+            Contact your administrator if you need additional permissions.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Stats -->
+<div class="grid cols-3">
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+            {{ accessible_properties_count|default:"0" }}
+        </div>
+        <div class="muted">Properties You Can Access</div>
+    </div>
+    
+    {% if user.profile.role and user.profile.role != 'viewer' %}
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+            {{ assigned_tasks_count|default:"0" }}
+        </div>
+        <div class="muted">Your Assigned Tasks</div>
+    </div>
+    
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+            {{ pending_tasks_count|default:"0" }}
+        </div>
+        <div class="muted">Pending Tasks</div>
+    </div>
+    {% else %}
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+            {{ total_bookings_count|default:"0" }}
+        </div>
+        <div class="muted">Total Bookings</div>
+    </div>
+    
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+            {{ recent_activity_count|default:"0" }}
+        </div>
+        <div class="muted">Recent Activities</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

@@ -84,11 +84,15 @@ class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
 
 class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
-    list_display  = ('username', 'email', 'timezone_display', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
+    list_display  = ('username', 'email', 'get_profile_role', 'timezone_display', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     list_filter   = ('is_active', 'is_staff', 'is_superuser')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     readonly_fields = ('last_login', 'date_joined',)
     exclude = ('password',)  # never show password hash
+
+    # Import ProfileInline from admin.py
+    from .admin import ProfileInline
+    inlines = [ProfileInline]
 
     actions = ['activate_users', 'deactivate_users']
 
@@ -148,6 +152,13 @@ class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
             tz = 'America/New_York'
         return tz
     timezone_display.short_description = 'Timezone'
+    
+    def get_profile_role(self, obj):
+        try:
+            return obj.profile.get_role_display()
+        except Exception:
+            return 'Staff'
+    get_profile_role.short_description = 'Role'
 
 class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at')

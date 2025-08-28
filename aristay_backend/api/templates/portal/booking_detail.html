@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load tz %}
 {% block title %}Booking · {{ property.name }} · AriStay Portal{% endblock %}
 {% block content %}
 <div class="card">
@@ -51,7 +52,7 @@
                 {% if t.due_date %}<span class="muted">· Due {{ t.due_date|date:"M d H:i" }}</span>{% endif %}
                 <div class="muted">Status: {{ t.status }}</div>
                 <div style="margin-top:6px; display:flex; gap:8px;">
-                  <a class="button" href="/admin/api/task/{{ t.id }}/change/">Open</a>
+                  <a class="button" href="/api/portal/tasks/{{ t.id }}/">View Task</a>
                   <form action="/api/tasks/{{ t.id }}/notify_manager/" method="post" style="display:inline;">
                     {% csrf_token %}
                     <button class="button" type="submit">Notify Manager</button>

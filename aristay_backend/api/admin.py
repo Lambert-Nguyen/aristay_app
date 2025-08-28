@@ -144,7 +144,12 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     fk_name = 'user'
-    fields = ('timezone',)
+    fields = ('role', 'timezone', 'digest_opt_out')
+    
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if db_field.name == 'role':
+            kwargs['help_text'] = 'Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool'
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
 
 class SuperuserUserAdmin(DjangoUserAdmin):
     inlines = [ProfileInline]

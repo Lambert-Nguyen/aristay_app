@@ -204,9 +204,14 @@ class TaskImage(models.Model):
         return f"Image for {self.task.title}"
     
 class UserRole(models.TextChoices):
-    STAFF   = 'staff',   'Staff'
-    MANAGER = 'manager', 'Manager'
-    OWNER   = 'owner',   'Superuser'   # display; source of truth is is_superuser
+    STAFF       = 'staff',       'Staff'
+    MANAGER     = 'manager',     'Manager'
+    OWNER       = 'owner',       'Superuser'   # display; source of truth is is_superuser
+    CLEANING    = 'cleaning',    'Cleaning'
+    MAINTENANCE = 'maintenance', 'Maintenance'
+    LAUNDRY     = 'laundry',     'Laundry'
+    LAWN_POOL   = 'lawn_pool',   'Lawn/Pool'
+    VIEWER      = 'viewer',      'Viewer'
 
 class Profile(models.Model):
     user     = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

@@ -1,0 +1,193 @@
+{% extends "staff/base.html" %}
+
+{% block title %}Inventory Lookup · AriStay{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        📦 Inventory Lookup
+    </div>
+    
+    <!-- Property Filter -->
+    <form method="get" style="margin-bottom: 1.5rem;">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <label for="property">Property:</label>
+            <select name="property" id="property" style="padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
+                <option value="">All Properties</option>
+                {% for prop in properties %}
+                <option value="{{ prop.id }}" {% if prop.id|stringformat:"s" == selected_property %}selected{% endif %}>
+                    {{ prop.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if selected_property %}
+            <a href="/api/staff/inventory/" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+    
+    {% if inventory_by_category %}
+        {% for category, items in inventory_by_category.items %}
+        <div style="margin-bottom: 2rem;">
+            <h3 style="color: #667eea; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem;">
+                📦 {{ category }}
+            </h3>
+            
+            <div class="grid grid-2">
+                {% for item in items %}
+                <div class="inventory-item" data-inventory-id="{{ item.id }}">
+                    <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 0.75rem;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">{{ item.item.name }}</div>
+                            <div style="font-size: 0.875rem; color: #666;">
+                                🏠 {{ item.property_ref.name }}
+                            </div>
+                            {% if item.item.description %}
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">
+                                {{ item.item.description }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div style="text-align: right;">
+                            <div class="status-badge status-{{ item.stock_status|cut:'_' }}" style="margin-bottom: 0.25rem;">
+                                {{ item.current_stock }} {{ item.item.get_unit_display }}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #666;">
+                                Par: {{ item.par_level }} · Max: {{ item.max_level|default:"N/A" }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Transaction Form -->
+                    {% if user.profile.role == 'maintenance' or user.is_staff %}
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 0.75rem;">
+                        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                            <select class="transaction-type" style="padding: 0.25rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.875rem;">
+                                <option value="stock_out">Use (-)</option>
+                                <option value="stock_in">Restock (+)</option>
+                                <option value="adjustment">Adjust</option>
+                                <option value="damage">Damage (-)</option>
+                            </select>
+                            
+                            <input type="number" 
+                                   class="transaction-quantity" 
+                                   min="0" 
+                                   step="0.1" 
+                                   placeholder="Qty"
+                                   style="width: 80px; padding: 0.25rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.875rem;">
+                            
+                            <button type="button" 
+                                    class="btn btn-primary btn-sm log-transaction"
+                                    onclick="logTransaction({{ item.id }}, this)">
+                                Log
+                            </button>
+                        </div>
+                        
+                        <input type="text" 
+                               class="transaction-notes" 
+                               placeholder="Notes (optional)"
+                               style="width: 100%; padding: 0.25rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.875rem;">
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+            <h3>No inventory found</h3>
+            {% if selected_property %}
+            <p>No inventory items found for the selected property.</p>
+            <a href="/api/staff/inventory/" class="btn btn-primary">View All Properties</a>
+            {% else %}
+            <p>No inventory items have been set up yet.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+{% if user.profile.role == 'maintenance' or user.is_staff %}
+<div class="card">
+    <div class="card-header">
+        🔧 Maintenance Tools
+    </div>
+    <div class="grid grid-3">
+        <a href="/api/staff/tasks/" class="btn btn-secondary">
+            📋 My Tasks
+        </a>
+        <a href="/api/staff/" class="btn btn-secondary">
+            🏠 Dashboard
+        </a>
+        {% if user.is_staff %}
+        <a href="/admin/api/propertyinventory/" class="btn btn-secondary">
+            ⚙️ Manage Inventory
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function logTransaction(inventoryId, button) {
+    const container = button.closest('.inventory-item');
+    const type = container.querySelector('.transaction-type').value;
+    const quantity = container.querySelector('.transaction-quantity').value;
+    const notes = container.querySelector('.transaction-notes').value;
+    
+    if (!quantity || quantity <= 0) {
+        alert('Please enter a valid quantity');
+        return;
+    }
+    
+    // Disable button during request
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner"></span>';
+    
+    fetch('/api/staff/inventory/transaction/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            inventory_id: inventoryId,
+            transaction_type: type,
+            quantity: parseFloat(quantity),
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update stock display
+            const stockBadge = container.querySelector('.status-badge');
+            stockBadge.textContent = data.new_stock + ' ' + stockBadge.textContent.split(' ').slice(1).join(' ');
+            stockBadge.className = 'status-badge status-' + data.status.replace('_', '');
+            
+            // Clear form
+            container.querySelector('.transaction-quantity').value = '';
+            container.querySelector('.transaction-notes').value = '';
+            
+            alert('Transaction logged successfully!');
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error logging transaction. Please try again.');
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = 'Log';
+    });
+}
+</script>
+{% endblock %}
+

@@ -200,14 +200,45 @@ from django.contrib.auth.decorators import login_required
 
 @login_required
 def portal_home(request):
-    from django.shortcuts import redirect
-    # Route portal entry depending on role: Superuser → admin index, Manager → manager index
-    if request.user.is_superuser:
-        return redirect('/admin/')
-    role = getattr(getattr(request.user, 'profile', None), 'role', 'staff')
-    if role == 'manager' or request.user.is_staff:
-        return redirect('/manager/')
-    return redirect('portal-properties')
+    from django.shortcuts import render
+    from django.db.models import Count
+    
+    # Get accessible properties and basic stats
+    accessible_properties = _accessible_properties_for(request.user)
+    accessible_properties_count = accessible_properties.count()
+    
+    # Get user-specific stats
+    assigned_tasks_count = 0
+    pending_tasks_count = 0
+    total_bookings_count = 0
+    
+    try:
+        if request.user.profile and request.user.profile.role != 'viewer':
+            # Get task counts for non-viewers
+            assigned_tasks = Task.objects.filter(assigned_to=request.user)
+            assigned_tasks_count = assigned_tasks.count()
+            pending_tasks_count = assigned_tasks.filter(status='pending').count()
+    except:
+        # User has no profile, still get basic task counts
+        assigned_tasks = Task.objects.filter(assigned_to=request.user)
+        assigned_tasks_count = assigned_tasks.count()
+        pending_tasks_count = assigned_tasks.filter(status='pending').count()
+        pass
+    
+    # Get booking counts for accessible properties
+    from .models import Booking
+    total_bookings_count = Booking.objects.filter(property__in=accessible_properties).count()
+    
+    context = {
+        'user': request.user,
+        'user_role': getattr(getattr(request.user, 'profile', None), 'role', 'staff'),
+        'accessible_properties_count': accessible_properties_count,
+        'assigned_tasks_count': assigned_tasks_count,
+        'pending_tasks_count': pending_tasks_count,
+        'total_bookings_count': total_bookings_count,
+        'recent_activity_count': 0,  # Could be implemented later
+    }
+    return render(request, 'portal/home.html', context)
 
 
 def _accessible_properties_for(user):
@@ -319,6 +350,88 @@ def portal_booking_detail(request, property_id, pk):
         'has_next': end < total,
         'has_prev': start > 0,
     })
+
+
+@login_required
+def portal_task_detail(request, task_id):
+    """User-friendly task detail view for portal users."""
+    from django.shortcuts import get_object_or_404
+    
+    task = get_object_or_404(Task.objects.select_related('property', 'booking', 'assigned_to', 'created_by'), id=task_id)
+    
+    # Check permissions - users can view tasks they're assigned to, or if they're staff, or if they have access to the property
+    accessible_properties = _accessible_properties_for(request.user)
+    if not (request.user.is_staff or 
+            task.assigned_to == request.user or 
+            task.property in accessible_properties):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("You don't have permission to view this task.")
+    
+    # Get checklist if it exists
+    checklist = None
+    responses_by_room = {}
+    try:
+        checklist = task.checklist
+        responses = checklist.responses.select_related('item').prefetch_related('photos')
+        
+        # Group responses by room type
+        for response in responses:
+            room = response.item.room_type or 'General'
+            if room not in responses_by_room:
+                responses_by_room[room] = []
+            responses_by_room[room].append(response)
+    except:
+        pass
+    
+    # Check if user can edit (assigned to them or staff)
+    can_edit = task.assigned_to == request.user or request.user.is_staff
+    
+    context = {
+        'task': task,
+        'checklist': checklist,
+        'responses_by_room': responses_by_room,
+        'can_edit': can_edit,
+    }
+    
+    return render(request, 'portal/task_detail.html', context)
+
+
+# DRF ViewSets and API Views start here
+# ============================================================================
+
+class TaskViewSet(viewsets.ModelViewSet):
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['status', 'task_type', 'property', 'assigned_to']
+    search_fields = ['title', 'description']
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
+
+    def perform_update(self, serializer):
+        old = Task.objects.get(pk=serializer.instance.pk)
+        instance = serializer.save(modified_by=self.request.user)
+
+        changes = []
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+            old_val = getattr(old, field)
+            new_val = getattr(instance, field)
+            if field == 'assigned_to':
+                old_val = old.assigned_to.username if old.assigned_to else None
+                new_val = instance.assigned_to.username if instance.assigned_to else None
+            if field == 'property':
+                old_val = old.property.name if old.property else None
+                new_val = instance.property.name if instance.property else None
+
+            if old_val != new_val:
+                changes.append(
+                    f"{timezone.now().isoformat()}: "
+                    f"{self.request.user.username} changed {field} "
+                    f"from '{old_val or ''}' to '{new_val or ''}'"
+                )
+
+        history = json.loads(old.history or '[]')
+        history.extend(changes)
+        Task.objects.filter(pk=instance.pk).update(history=json.dumps(history))
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def unmute(self, request, pk=None):

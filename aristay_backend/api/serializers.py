@@ -169,6 +169,17 @@ class TaskSerializer(serializers.ModelSerializer):
             return obj.muted_by.filter(pk=request.user.pk).exists()
         return False
     
+    def get_booking_window(self, obj):
+        """Return booking window as formatted string."""
+        if obj.booking:
+            try:
+                start = timezone.localtime(obj.booking.check_in_date).date().isoformat()
+                end = timezone.localtime(obj.booking.check_out_date).date().isoformat()
+                return f"{start} → {end}"
+            except Exception:
+                return None
+        return None
+    
     # ------------ New validator ------------
     def validate_due_date(self, value):
         """
@@ -215,17 +226,7 @@ class TaskSerializer(serializers.ModelSerializer):
                 # 3) write it back as ISO
                 ret['due_date'] = local_dt.isoformat()
 
-        # booking window display
-        booking = getattr(instance, 'booking', None)
-        if booking:
-            try:
-                start = timezone.localtime(booking.check_in_date).date().isoformat()
-                end   = timezone.localtime(booking.check_out_date).date().isoformat()
-                ret['booking_window'] = f"{start} → {end}"
-            except Exception:
-                ret['booking_window'] = None
-        else:
-            ret['booking_window'] = None
+
 
         return ret
 

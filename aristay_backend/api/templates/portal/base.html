@@ -33,6 +33,28 @@
         <div class="container brand">
             <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay">
             <h1>AriStay Portal</h1>
+            <div style="margin-left: auto; display: flex; gap: 12px; align-items: center;">
+                {% if user.is_authenticated %}
+                    <!-- Always show Home link -->
+                    <a href="/api/portal/" class="button">🏠 Home</a>
+                    
+                    <!-- Role-based navigation -->
+                    {% if user.is_superuser %}
+                        <a href="/admin/" class="button">⚙️ Admin</a>
+                    {% elif user.is_staff %}
+                        <a href="/manager/" class="button">👔 Manager</a>
+                    {% endif %}
+                    
+                    <!-- Staff Portal Access -->
+                    {% if user.profile and user.profile.role and user.profile.role != 'viewer' %}
+                        <a href="/api/staff/" class="button">📋 My Tasks</a>
+                    {% endif %}
+                    
+                    <!-- User info and logout -->
+                    <span style="color: rgba(255,255,255,0.8);">{{ user.get_full_name|default:user.username }}</span>
+                    <a href="{% url 'unified_logout' %}" class="button" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">Logout</a>
+                {% endif %}
+            </div>
         </div>
     </header>
     <main class="container">
