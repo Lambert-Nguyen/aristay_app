@@ -3,7 +3,7 @@ from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from .models import Property, Task, TaskImage, Notification
+from .models import Property, Task, TaskImage, Notification, Booking, PropertyOwnership
 
 class CustomAdminSite(admin.AdminSite):
     site_header = "AriStay Administration"
@@ -76,6 +76,18 @@ class PropertyAdmin(admin.ModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
 
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'property', 'check_in_date', 'check_out_date', 'status', 'guest_name')
+    list_filter = ('status', 'check_in_date', 'check_out_date', 'property')
+    search_fields = ('property__name', 'guest_name', 'guest_contact')
+    readonly_fields = ('created_at', 'modified_at')
+
+class PropertyOwnershipAdmin(admin.ModelAdmin):
+    list_display = ('id', 'property', 'user', 'ownership_type', 'can_edit', 'created_at')
+    list_filter = ('ownership_type', 'can_edit', 'property')
+    search_fields = ('property__name', 'user__username', 'user__email')
+    readonly_fields = ('created_at',)
+
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at', 'push_sent')
     list_filter = ('read', 'verb', 'push_sent', 'timestamp')
@@ -104,8 +116,12 @@ class NotificationAdmin(admin.ModelAdmin):
 admin_site.register(Task, TaskAdmin)
 admin_site.register(Property, PropertyAdmin)
 admin_site.register(Notification, NotificationAdmin)
+admin_site.register(Booking, BookingAdmin)
+admin_site.register(PropertyOwnership, PropertyOwnershipAdmin)
 
 # Also register with default admin for backward compatibility
 admin.site.register(Task, TaskAdmin)
 admin.site.register(Property, PropertyAdmin)
 admin.site.register(Notification, NotificationAdmin)
+admin.site.register(Booking, BookingAdmin)
+admin.site.register(PropertyOwnership, PropertyOwnershipAdmin)

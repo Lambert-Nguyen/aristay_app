@@ -33,11 +33,73 @@ class Property(models.Model):
         return self.name
 
 
-TASK_TYPE_CHOICES = [('cleaning', 'Cleaning'), ('maintenance', 'Maintenance')]
+# ----------------------------------------------------------------------------
+# Booking & Ownership domain (Property-centric design)
+# ----------------------------------------------------------------------------
+
+class Booking(models.Model):
+    """A booking window for a property. Tasks will typically be linked to a booking."""
+    STATUS_CHOICES = [
+        ('upcoming', 'Upcoming'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='bookings')
+    check_in_date = models.DateTimeField()
+    check_out_date = models.DateTimeField()
+    guest_name = models.CharField(max_length=200, blank=True)
+    guest_contact = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-check_in_date']
+
+    def __str__(self):
+        return f"Booking {self.property.name} {self.check_in_date:%Y-%m-%d} → {self.check_out_date:%Y-%m-%d}"
+
+
+class PropertyOwnership(models.Model):
+    """Maps users to properties as owners/viewers/managers with optional edit rights."""
+    OWNERSHIP_TYPE_CHOICES = [
+        ('owner', 'Owner'),
+        ('viewer', 'Viewer'),
+        ('manager', 'Manager'),
+    ]
+
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='ownerships')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='property_memberships')
+    ownership_type = models.CharField(max_length=20, choices=OWNERSHIP_TYPE_CHOICES, default='viewer')
+    can_edit = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('property', 'user', 'ownership_type')]
+
+    def __str__(self):
+        return f"{self.user} → {self.property} ({self.ownership_type})"
+
+
+# ----------------------------------------------------------------------------
+# Task domain
+# ----------------------------------------------------------------------------
+
+# Expanded task types to support all operations
+TASK_TYPE_CHOICES = [
+    ('administration', 'Administration'),
+    ('cleaning', 'Cleaning'),
+    ('maintenance', 'Maintenance'),
+    ('laundry', 'Laundry'),
+    ('lawn_pool', 'Lawn/Pool'),
+]
 
 class Task(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('waiting_dependency', 'Waiting for Dependency'),
         ('in-progress', 'In Progress'),
         ('completed', 'Completed'),
         ('canceled', 'Canceled'),
@@ -47,6 +109,8 @@ class Task(models.Model):
     title        = models.CharField(max_length=200)
     description  = models.TextField(blank=True)
     property     = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
+    booking      = models.ForeignKey('Booking', on_delete=models.SET_NULL, related_name='tasks', null=True, blank=True,
+                                     help_text="Optional link to a booking window for property")
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at   = models.DateTimeField(auto_now_add=True)
     created_by   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
@@ -62,6 +126,8 @@ class Task(models.Model):
         help_text="Optional deadline for task (stored in UTC)"
     )
     history      = models.TextField(blank=True, default='[]')
+    depends_on   = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='dependent_tasks',
+                                          help_text="This task is blocked by the selected prerequisite tasks")
     
     # users that do **not** want pushes for *this* task
     muted_by     = models.ManyToManyField(

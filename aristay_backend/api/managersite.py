@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.urls import path
 from django.shortcuts import render
-from .models import Property, Task, Notification
+from .models import Property, Task, Notification, Booking, PropertyOwnership
 
 class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
@@ -73,9 +73,9 @@ class PropertyAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     search_fields = ('name',)
 
 class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'created_at')
+    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'created_at')
     search_fields = ('title', 'description')
-    list_filter = ('status', 'task_type', 'created_at')
+    list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
 
 class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display  = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
@@ -144,3 +144,5 @@ manager_site.register(Property, PropertyAdmin)
 manager_site.register(Task, TaskAdmin)
 manager_site.register(User, UserManagerAdmin)
 manager_site.register(Notification, NotificationManagerAdmin)
+manager_site.register(Booking)
+manager_site.register(PropertyOwnership)
