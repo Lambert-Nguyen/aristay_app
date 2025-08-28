@@ -62,14 +62,22 @@ class JSONFormatter(logging.Formatter):
         # Add request information if available
         if hasattr(record, 'request'):
             request = record.request
-            log_data['request'] = {
-                'method': getattr(request, 'method', None),
-                'path': getattr(request, 'path', None),
-                'user_id': getattr(getattr(request, 'user', None), 'id', None),
-                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-                'remote_addr': self._get_client_ip(request),
-                'content_type': request.META.get('CONTENT_TYPE', ''),
-            }
+            # Check if this is actually a Django request object (not a socket)
+            if hasattr(request, 'META') and hasattr(request, 'method'):
+                log_data['request'] = {
+                    'method': getattr(request, 'method', None),
+                    'path': getattr(request, 'path', None),
+                    'user_id': getattr(getattr(request, 'user', None), 'id', None),
+                    'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                    'remote_addr': self._get_client_ip(request),
+                    'content_type': request.META.get('CONTENT_TYPE', ''),
+                }
+            else:
+                # Handle non-Django request objects (like sockets)
+                log_data['request'] = {
+                    'type': str(type(request).__name__),
+                    'note': 'Non-Django request object'
+                }
         
         # Add performance metrics if available
         if hasattr(record, 'duration'):
@@ -82,12 +90,16 @@ class JSONFormatter(logging.Formatter):
     
     def _get_client_ip(self, request):
         """Get the real client IP address"""
+        # Check if request has META attribute (Django request)
+        if not hasattr(request, 'META'):
+            return 'unknown'
+        
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip = x_forwarded_for.split(',')[0]
         else:
             ip = request.META.get('REMOTE_ADDR')
-        return ip
+        return ip or 'unknown'
 
 
 class SecurityFormatter(JSONFormatter):

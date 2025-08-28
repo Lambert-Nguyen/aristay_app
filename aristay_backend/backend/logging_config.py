@@ -117,6 +117,11 @@ def get_logging_config(debug=False, sentry_dsn=None):
                 'level': django_level,
                 'propagate': False,
             },
+            'django.server': {
+                'handlers': ['console'],  # Use simple console logging for Django server
+                'level': 'INFO',
+                'propagate': False,
+            },
             'django.request': {
                 'handlers': ['file_error', 'mail_admins'],
                 'level': 'ERROR',
