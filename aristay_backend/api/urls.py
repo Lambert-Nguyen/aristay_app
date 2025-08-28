@@ -26,6 +26,12 @@ from .views import (
     admin_charts_dashboard,    
 )
 
+from .monitoring import (
+    HealthCheckView,
+    DetailedHealthCheckView,
+    log_client_error,
+)
+
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
 
@@ -61,4 +67,9 @@ urlpatterns = [
     path('notifications/unread-count/', unread_notification_count, name='notification-unread-count'),
     path('notifications/<int:pk>/read/', mark_notification_read, name='notification-mark-read'),
     path('notifications/mark-all-read/', mark_all_notifications_read, name='notification-mark-all-read'),
+    
+    # Monitoring and health check endpoints
+    path('health/', HealthCheckView.as_view(), name='health-check'),
+    path('health/detailed/', DetailedHealthCheckView.as_view(), name='detailed-health-check'),
+    path('log-client-error/', log_client_error, name='log-client-error'),
 ]
