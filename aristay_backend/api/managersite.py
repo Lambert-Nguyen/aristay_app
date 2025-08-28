@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.urls import path
 from django.shortcuts import render
-from .models import Property, Task
+from .models import Property, Task, Notification
 
 class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
@@ -115,7 +115,32 @@ class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
         updated = queryset.exclude(is_superuser=True).update(is_active=False)
         self.message_user(request, f"Deactivated {updated} user(s).")
 
+class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
+    list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at')
+    list_filter = ('read', 'verb', 'timestamp')
+    search_fields = ('recipient__username', 'task__title')
+    readonly_fields = ('timestamp', 'push_sent')
+    list_per_page = 50
+    
+    fieldsets = (
+        (None, {
+            'fields': ('recipient', 'task', 'verb', 'read', 'read_at')
+        }),
+        ('System Info', {
+            'fields': ('timestamp', 'push_sent'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def task_title(self, obj):
+        return obj.task.title if obj.task else 'N/A'
+    task_title.short_description = 'Task Title'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('recipient', 'task')
+
 # register on the manager site
 manager_site.register(Property, PropertyAdmin)
 manager_site.register(Task, TaskAdmin)
 manager_site.register(User, UserManagerAdmin)
+manager_site.register(Notification, NotificationManagerAdmin)

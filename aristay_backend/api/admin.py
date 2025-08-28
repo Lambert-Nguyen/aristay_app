@@ -3,7 +3,7 @@ from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from .models import Property, Task, TaskImage
+from .models import Property, Task, TaskImage, Notification
 
 class CustomAdminSite(admin.AdminSite):
     site_header = "AriStay Administration"
@@ -76,10 +76,36 @@ class PropertyAdmin(admin.ModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
 
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at', 'push_sent')
+    list_filter = ('read', 'verb', 'push_sent', 'timestamp')
+    search_fields = ('recipient__username', 'task__title')
+    readonly_fields = ('timestamp', 'push_sent')
+    list_per_page = 50
+    
+    fieldsets = (
+        (None, {
+            'fields': ('recipient', 'task', 'verb', 'read', 'read_at')
+        }),
+        ('System Info', {
+            'fields': ('timestamp', 'push_sent'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def task_title(self, obj):
+        return obj.task.title if obj.task else 'N/A'
+    task_title.short_description = 'Task Title'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('recipient', 'task')
+
 # Register models with the custom admin site
 admin_site.register(Task, TaskAdmin)
 admin_site.register(Property, PropertyAdmin)
+admin_site.register(Notification, NotificationAdmin)
 
 # Also register with default admin for backward compatibility
 admin.site.register(Task, TaskAdmin)
 admin.site.register(Property, PropertyAdmin)
+admin.site.register(Notification, NotificationAdmin)
