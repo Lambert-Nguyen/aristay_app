@@ -1,0 +1,440 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ site_title|default:"AriStay Login" }}</title>
+    
+    <!-- AriStay Favicons -->
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicons/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/favicons/favicon-16x16.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
+    <meta name="theme-color" content="#8b5cf6">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Background banner overlay */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("{% static 'images/aristay_banner.jpg' %}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.1;
+            z-index: 1;
+        }
+
+        /* Animated background elements */
+        .bg-animation {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .bg-animation::before,
+        .bg-animation::after {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .bg-animation::before {
+            top: -150px;
+            left: -150px;
+            animation-delay: 0s;
+        }
+
+        .bg-animation::after {
+            bottom: -150px;
+            right: -150px;
+            animation-delay: 3s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            position: relative;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 15px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            color: #6b7280;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .role-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .role-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .role-badge.admin {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .role-badge.manager {
+            background: rgba(139, 92, 246, 0.1);
+            color: #7c3aed;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .form-input.error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .error-messages {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .error-messages ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .error-messages li {
+            margin-bottom: 5px;
+        }
+
+        .error-messages li:last-child {
+            margin-bottom: 0;
+        }
+
+        .success-messages {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #059669;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .help-text {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        .help-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .help-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive design */
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 20px;
+                padding: 30px 25px;
+                max-width: none;
+            }
+
+            .login-title {
+                font-size: 24px;
+            }
+
+            .role-indicators {
+                gap: 10px;
+            }
+
+            .role-badge {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+        }
+
+        /* Loading animation for form submission */
+        .login-button.loading {
+            background: #9ca3af;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .login-button.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <div class="login-container">
+        <div class="logo-section">
+            <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay Logo" class="logo">
+            <h1 class="login-title">{{ site_header|default:"AriStay" }}</h1>
+            <p class="login-subtitle">{{ site_description|default:"Access your dashboard" }}</p>
+            
+            <div class="role-indicators">
+                <span class="role-badge admin">Admin Portal</span>
+                <span class="role-badge manager">Manager Portal</span>
+            </div>
+        </div>
+
+        <!-- Display messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}error-messages{% else %}success-messages{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Display form errors -->
+        {% if form.errors %}
+            <div class="error-messages">
+                <ul>
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>
+                                {% if field != '__all__' %}<strong>{{ field|capfirst }}:</strong> {% endif %}
+                                {{ error }}
+                            </li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post" id="loginForm">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}" class="form-label">
+                    Username
+                </label>
+                <input 
+                    type="text" 
+                    name="{{ form.username.name }}" 
+                    id="{{ form.username.id_for_label }}"
+                    class="form-input {% if form.username.errors %}error{% endif %}"
+                    value="{{ form.username.value|default:'' }}"
+                    placeholder="Enter your username"
+                    required
+                    autocomplete="username"
+                    autofocus
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}" class="form-label">
+                    Password
+                </label>
+                <input 
+                    type="password" 
+                    name="{{ form.password.name }}" 
+                    id="{{ form.password.id_for_label }}"
+                    class="form-input {% if form.password.errors %}error{% endif %}"
+                    placeholder="Enter your password"
+                    required
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <!-- Hidden next parameter -->
+            {% if request.GET.next %}
+                <input type="hidden" name="next" value="{{ request.GET.next }}">
+            {% endif %}
+
+            <button type="submit" class="login-button" id="submitBtn">
+                Sign In
+            </button>
+        </form>
+
+        <div class="help-text">
+            <p>
+                <strong>Admins</strong> will be redirected to the admin panel<br>
+                <strong>Managers</strong> will be redirected to the manager console
+            </p>
+            <p style="margin-top: 10px;">
+                Need help? <a href="mailto:support@aristay.com" class="help-link">Contact Support</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Add loading animation on form submission
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.classList.add('loading');
+            submitBtn.textContent = 'Signing In...';
+            submitBtn.disabled = true;
+        });
+
+        // Clear error styling on input focus
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.classList.remove('error');
+            });
+        });
+
+        // Auto-focus on username field if empty
+        window.addEventListener('load', function() {
+            const usernameField = document.querySelector('input[name="username"]');
+            if (usernameField && !usernameField.value) {
+                usernameField.focus();
+            }
+        });
+    </script>
+</body>
+</html>

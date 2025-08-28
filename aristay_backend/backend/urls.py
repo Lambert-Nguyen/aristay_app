@@ -21,12 +21,17 @@ from rest_framework.authtoken.views import obtain_auth_token  # Import the token
 from django.conf import settings
 from django.conf.urls.static import static
 from api.managersite import manager_site
+from api.auth_views import UnifiedLoginView, logout_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('manager/', manager_site.urls),   # Manager console
     path('api/', include('api.urls')),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
+    # Unified login system
+    path('login/', UnifiedLoginView.as_view(), name='unified_login'),
+    path('logout/', logout_view, name='unified_logout'),
+    path('', UnifiedLoginView.as_view(), name='home'),  # Root URL redirects to login
     # support password‐reset confirm, complete, etc.
     path('api/auth/', include('django.contrib.auth.urls')),
 ]

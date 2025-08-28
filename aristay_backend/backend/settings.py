@@ -320,3 +320,12 @@ if not DEBUG:
 # Rate limiting settings
 RATELIMIT_ENABLE = not DEBUG
 RATELIMIT_USE_CACHE = 'default'
+
+# ============================================================================
+# UNIFIED LOGIN CONFIGURATION
+# ============================================================================
+
+# Redirect users to unified login/logout
+LOGIN_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/login/'
+LOGIN_REDIRECT_URL = '/login/'  # Will be overridden by our custom logic

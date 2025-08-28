@@ -9,6 +9,12 @@ class ManagerAdminSite(admin.AdminSite):
     site_title  = "AriStay Manager"
     index_title = "Management Console"
     index_template = 'manager_admin/index.html'
+    logout_template = None  # Use unified logout
+    
+    def logout(self, request, extra_context=None):
+        """Override logout to redirect to unified logout"""
+        from django.shortcuts import redirect
+        return redirect('unified_logout')
 
     def has_permission(self, request):
         if not (request.user and request.user.is_authenticated and request.user.is_active):
