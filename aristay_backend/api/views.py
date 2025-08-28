@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 from django.db import models
 from .services.notification_service import NotificationService
 from .models import NotificationVerb
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 
@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status
 
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
@@ -28,7 +28,7 @@ from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
 
-from .models import Task, Property, TaskImage, Device, Notification
+from .models import Task, Property, TaskImage, Device, Notification, Booking, PropertyOwnership
 from .serializers import (
     ManagerUserSerializer,
     TaskSerializer,
@@ -42,6 +42,8 @@ from .serializers import (
     DeviceSerializer,
     NotificationSerializer,
     AdminUserAdminSerializer,
+    BookingSerializer,
+    PropertyOwnershipSerializer,
 )
 from .permissions import IsOwnerOrAssignedOrReadOnly, IsOwner, IsManagerOrOwner
 from .services.notification_service import NotificationService
@@ -50,7 +52,7 @@ from .services.notification_service import NotificationService
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
    
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
@@ -117,6 +119,206 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         task.muted_by.add(request.user)
         return Response({'muted': True})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def notify_manager(self, request, pk=None):
+        """
+        POST /api/tasks/<id>/notify_manager/
+        Sends a high-priority notification to managers/owners about this task.
+        """
+        task = self.get_object()
+        # naive implementation: create Notification rows for staff managers + owners
+        from django.contrib.auth.models import User
+        managers = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+        created = 0
+        for user in managers.distinct():
+            if user == request.user:
+                continue
+            Notification.objects.create(
+                recipient=user,
+                task=task,
+                verb=NotificationVerb.STATUS_CHANGED,
+            )
+            created += 1
+        return Response({'notified': created})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unmute(self, request, pk=None):
+        task = self.get_object()
+        task.muted_by.remove(request.user)
+        return Response({'muted': False})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def assign_to_me(self, request, pk=None):
+        task = self.get_object()
+        old = Task.objects.get(pk=task.pk)
+        task.assigned_to = request.user
+        task.modified_by = request.user
+        task.save(update_fields=['assigned_to', 'modified_by', 'modified_at'])
+        NotificationService.notify_on_update(old, task, actor=request.user)
+        return Response({'assigned_to': request.user.username})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def set_status(self, request, pk=None):
+        task = self.get_object()
+        new_status = request.POST.get('status') or request.data.get('status')
+        valid = {s for s, _ in Task.STATUS_CHOICES}
+        if new_status not in valid:
+            return Response({'error': 'Invalid status'}, status=400)
+        old = Task.objects.get(pk=task.pk)
+        task.status = new_status
+        task.modified_by = request.user
+        task.save(update_fields=['status', 'modified_by', 'modified_at'])
+        NotificationService.notify_on_update(old, task, actor=request.user)
+        return Response({'status': new_status})
+
+
+class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.select_related('property').all()
+    serializer_class = BookingSerializer
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
+    search_fields = ['guest_name', 'guest_contact', 'property__name']
+    ordering_fields = ['check_in_date', 'check_out_date', 'status']
+    ordering = ['-check_in_date']
+
+
+class PropertyOwnershipViewSet(viewsets.ModelViewSet):
+    queryset = PropertyOwnership.objects.select_related('property', 'user').all()
+    serializer_class = PropertyOwnershipSerializer
+    authentication_classes = [TokenAuthentication, SessionAuthentication]
+    permission_classes = [IsManagerOrOwner]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    search_fields = ['property__name', 'user__username', 'user__email']
+
+# ----------------------------------------------------------------------------
+# Portal (web) views – property → bookings → tasks flow
+# ----------------------------------------------------------------------------
+from django.contrib.auth.decorators import login_required
+
+
+@login_required
+def portal_home(request):
+    from django.shortcuts import redirect
+    # Route portal entry depending on role: Superuser → admin index, Manager → manager index
+    if request.user.is_superuser:
+        return redirect('/admin/')
+    role = getattr(getattr(request.user, 'profile', None), 'role', 'staff')
+    if role == 'manager' or request.user.is_staff:
+        return redirect('/manager/')
+    return redirect('portal-properties')
+
+
+def _accessible_properties_for(user):
+    """Return a queryset of properties visible to this user."""
+    if user.is_superuser or user.is_staff:
+        return Property.objects.all().order_by('name')
+    # viewer/owner or crew: properties they own/view or have tasks on
+    owned = Property.objects.filter(ownerships__user=user)
+    assigned = Property.objects.filter(tasks__assigned_to=user)
+    return (owned | assigned).distinct().order_by('name')
+
+
+@login_required
+def portal_property_list(request):
+    from django.utils import timezone as djtz
+    now = djtz.now()
+    props = _accessible_properties_for(request.user)
+    q = request.GET.get('q')
+    if q:
+        props = props.filter(name__icontains=q)
+    # prefetch bookings for counts
+    props = props.prefetch_related('bookings')
+    property_cards = []
+    for p in props:
+        bookings = list(p.bookings.all())
+        past = sum(1 for b in bookings if b.check_out_date and b.check_out_date <= now)
+        current = sum(1 for b in bookings if b.check_in_date and b.check_out_date and b.check_in_date <= now < b.check_out_date)
+        future = sum(1 for b in bookings if b.check_in_date and b.check_in_date > now)
+        property_cards.append({
+            'obj': p,
+            'past_count': past,
+            'current_count': current,
+            'future_count': future,
+        })
+    return render(request, 'portal/property_list.html', {
+        'properties': property_cards,
+    })
+
+
+@login_required
+def portal_property_detail(request, pk):
+    from django.utils import timezone as djtz
+    now = djtz.now()
+    prop = get_object_or_404(_accessible_properties_for(request.user), pk=pk)
+    bookings = prop.bookings.all().order_by('-check_in_date')
+    groups = {
+        'current': [],
+        'future': [],
+        'past': [],
+    }
+    for b in bookings:
+        if b.check_in_date and b.check_out_date and b.check_in_date <= now < b.check_out_date:
+            groups['current'].append(b)
+        elif b.check_in_date and b.check_in_date > now:
+            groups['future'].append(b)
+        else:
+            groups['past'].append(b)
+    return render(request, 'portal/property_detail.html', {
+        'property': prop,
+        'groups': groups,
+    })
+
+
+@login_required
+def portal_booking_detail(request, property_id, pk):
+    prop = get_object_or_404(_accessible_properties_for(request.user), pk=property_id)
+    booking = get_object_or_404(Booking.objects.filter(property=prop), pk=pk)
+    tasks = Task.objects.filter(booking=booking).select_related('assigned_to')
+    # Optional filters
+    status = request.GET.get('status')
+    if status:
+        tasks = tasks.filter(status=status)
+    ttype = request.GET.get('type')
+    if ttype:
+        tasks = tasks.filter(task_type=ttype)
+    q = request.GET.get('q')
+    if q:
+        tasks = tasks.filter(Q(title__icontains=q) | Q(description__icontains=q))
+    # Pagination
+    try:
+        page = max(1, int(request.GET.get('page', '1')))
+    except ValueError:
+        page = 1
+    page_size = 50
+    start = (page - 1) * page_size
+    end = start + page_size
+    total = tasks.count()
+    tasks = tasks.order_by('task_type', 'due_date', 'id')[start:end]
+    # Group by task_type
+    by_type = {
+        'administration': [],
+        'cleaning': [],
+        'maintenance': [],
+        'laundry': [],
+        'lawn_pool': [],
+    }
+    for t in tasks:
+        by_type.get(t.task_type, by_type.setdefault('administration', [])).append(t)
+
+    return render(request, 'portal/booking_detail.html', {
+        'property': prop,
+        'booking': booking,
+        'by_type': by_type,
+        'all_statuses': [s for s, _ in Task.STATUS_CHOICES],
+        'active_status': status or '',
+        'active_type': ttype or '',
+        'search_q': q or '',
+        'page': page,
+        'has_next': end < total,
+        'has_prev': start > 0,
+    })
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def unmute(self, request, pk=None):

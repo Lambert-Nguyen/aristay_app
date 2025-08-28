@@ -206,7 +206,7 @@ class TaskImage(models.Model):
 class UserRole(models.TextChoices):
     STAFF   = 'staff',   'Staff'
     MANAGER = 'manager', 'Manager'
-    OWNER   = 'owner',   'Owner'   # display; source of truth is is_superuser
+    OWNER   = 'owner',   'Superuser'   # display; source of truth is is_superuser
 
 class Profile(models.Model):
     user     = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

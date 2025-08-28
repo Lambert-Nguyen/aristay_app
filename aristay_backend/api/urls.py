@@ -8,6 +8,8 @@ from .views import (
     NotificationListView,
     UserRegistrationView,
     TaskViewSet,
+    BookingViewSet,
+    PropertyOwnershipViewSet,
     TaskListCreate, TaskDetail,
     PropertyListCreate,
     PropertyDetail,
@@ -31,9 +33,12 @@ from .monitoring import (
     DetailedHealthCheckView,
     log_client_error,
 )
+from .views import portal_home, portal_property_list, portal_property_detail, portal_booking_detail
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
+router.register(r'bookings', BookingViewSet, basename='booking')
+router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
@@ -72,4 +77,10 @@ urlpatterns = [
     path('health/', HealthCheckView.as_view(), name='health-check'),
     path('health/detailed/', DetailedHealthCheckView.as_view(), name='detailed-health-check'),
     path('log-client-error/', log_client_error, name='log-client-error'),
+
+    # Portal (web) routes
+    path('portal/', portal_home, name='portal-home'),
+    path('portal/properties/', portal_property_list, name='portal-properties'),
+    path('portal/properties/<int:pk>/', portal_property_detail, name='portal-property-detail'),
+    path('portal/properties/<int:property_id>/bookings/<int:pk>/', portal_booking_detail, name='portal-booking-detail'),
 ]

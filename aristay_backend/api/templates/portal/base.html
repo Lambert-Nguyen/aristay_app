@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AriStay Portal{% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicons/favicon-32x32.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
+    <meta name="theme-color" content="#6366f1">
+    <style>
+        body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin:0; background:#f8fafc; color:#0f172a; }
+        .container{ max-width: 1100px; margin: 0 auto; padding: 24px; }
+        header{ background: linear-gradient(135deg,#6366f1,#8b5cf6); color:white; padding: 16px 0; }
+        .brand{ display:flex; align-items:center; gap:12px; }
+        .brand img{ width:40px; height:40px; border-radius:8px; object-fit:cover; }
+        .brand h1{ font-size:20px; margin:0; }
+        .card{ background:white; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 6px 16px rgba(0,0,0,.04); }
+        .grid{ display:grid; gap:16px; }
+        .grid.cols-3{ grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+        a.button{ display:inline-block; padding:10px 14px; border-radius:10px; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; text-decoration:none; font-weight:600; }
+        a.button:hover{ background:#e0e7ff; }
+        .muted{ color:#64748b; font-size:14px; }
+        .tag{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #e2e8f0; background:#f1f5f9; color:#334155; }
+        .section-title{ font-size:18px; font-weight:700; margin: 8px 0 16px; }
+    </style>
+    {% block head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="container brand">
+            <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay">
+            <h1>AriStay Portal</h1>
+        </div>
+    </header>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
+
+

@@ -150,7 +150,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/New_York"  # System default: Tampa, FL (Eastern Time)
 
 USE_I18N = True
 

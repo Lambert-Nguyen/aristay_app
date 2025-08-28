@@ -1,0 +1,39 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ property.name }} · AriStay Portal{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="section-title">{{ property.name }}</div>
+      {% if property.address %}<div class="muted">{{ property.address }}</div>{% endif %}
+    </div>
+    <div>
+      <a class="button" href="{% url 'portal-properties' %}">Back</a>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;" class="grid">
+    {% for label, items in groups.items %}
+      <div class="card">
+        <div class="section-title" style="text-transform:capitalize;">{{ label }} bookings</div>
+        {% if items %}
+          <ul style="margin:0; padding-left:18px;">
+            {% for b in items %}
+              <li style="margin:6px 0;">
+                {{ b.check_in_date|date:"M d, Y H:i" }} → {{ b.check_out_date|date:"M d, Y H:i" }}
+                <a class="button" style="margin-left:8px;" href="{% url 'portal-booking-detail' property.id b.id %}">Open</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="muted">No {{ label }} bookings.</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div style="margin-top:16px;">
+    <a class="button" href="/admin/api/booking/">Manage Bookings</a>
+  </div>
+</div>
+{% endblock %}
+

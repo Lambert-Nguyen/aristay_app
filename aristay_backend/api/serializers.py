@@ -16,6 +16,7 @@ from django.conf import settings
 
 from rest_framework import serializers
 from .models import Task, Property, TaskImage, Profile, Device, Notification, UserRole
+from .models import Booking, PropertyOwnership
 import json
 import pytz
 
@@ -24,6 +25,7 @@ from datetime import datetime
 
 class UserSerializer(serializers.ModelSerializer):
     timezone = serializers.CharField(source='profile.timezone')
+    system_timezone = serializers.SerializerMethodField(read_only=True)
     is_active = serializers.BooleanField(read_only=True)  # show disabled state
     is_superuser = serializers.BooleanField(read_only=True)
     role         = serializers.SerializerMethodField(read_only=True)
@@ -34,17 +36,20 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'is_staff', 'is_superuser', 'is_active',   # ← include is_superuser
-            'role', 'timezone',
+            'role', 'timezone', 'system_timezone',
         ]
         
     def get_role(self, obj):
-        # Owners are superusers; show “owner” regardless of stored profile.role
+        # Superusers override role; show “superuser” regardless of stored profile.role
         if obj.is_superuser:
-            return 'owner'
+            return 'superuser'
         try:
             return obj.profile.role
         except Profile.DoesNotExist:
             return 'staff'
+
+    def get_system_timezone(self, obj):
+        return settings.TIME_ZONE
 
     def update(self, instance, validated_data):
         # 1) pull off any profile-specific data
@@ -108,6 +113,8 @@ class TaskImageSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     property_name           = serializers.CharField(source='property.name',    read_only=True)
+    booking_id              = serializers.IntegerField(source='booking.id', read_only=True)
+    booking_window          = serializers.SerializerMethodField(read_only=True)
     property                = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
     created_by              = serializers.CharField(source='created_by.username',   read_only=True)
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
@@ -116,7 +123,6 @@ class TaskSerializer(serializers.ModelSerializer):
     
     # NEW: “is_muted” for **current** user (read-only)
     is_muted = serializers.SerializerMethodField(read_only=True)
-
 
     # Replace ListField with a proper JSON parser:
     history                 = serializers.SerializerMethodField()
@@ -128,12 +134,18 @@ class TaskSerializer(serializers.ModelSerializer):
         input_formats=None,    # accept ISO strings
     )
 
+    # Dependencies
+    depends_on = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all(), many=True, required=False)
+
     class Meta:
         model = Task
         fields = [
           'id',
           'property',
           'property_name',
+          'booking',
+          'booking_id',
+          'booking_window',
           'task_type',
           'title',
           'description',
@@ -148,6 +160,7 @@ class TaskSerializer(serializers.ModelSerializer):
           'images',
           'history',
           'is_muted',
+          'depends_on',
         ]
         
     def get_is_muted(self, obj):
@@ -201,6 +214,18 @@ class TaskSerializer(serializers.ModelSerializer):
 
                 # 3) write it back as ISO
                 ret['due_date'] = local_dt.isoformat()
+
+        # booking window display
+        booking = getattr(instance, 'booking', None)
+        if booking:
+            try:
+                start = timezone.localtime(booking.check_in_date).date().isoformat()
+                end   = timezone.localtime(booking.check_out_date).date().isoformat()
+                ret['booking_window'] = f"{start} → {end}"
+            except Exception:
+                ret['booking_window'] = None
+        else:
+            ret['booking_window'] = None
 
         return ret
 
@@ -342,3 +367,31 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     def get_verb_label(self, obj):
         return obj.get_verb_display()
+
+
+class BookingSerializer(serializers.ModelSerializer):
+    property_name = serializers.CharField(source='property.name', read_only=True)
+    tasks_count = serializers.IntegerField(source='tasks.count', read_only=True)
+
+    class Meta:
+        model = Booking
+        fields = [
+            'id', 'property', 'property_name', 'check_in_date', 'check_out_date',
+            'guest_name', 'guest_contact', 'status', 'created_at', 'modified_at',
+            'tasks_count'
+        ]
+        read_only_fields = ['created_at', 'modified_at', 'tasks_count']
+
+
+class PropertyOwnershipSerializer(serializers.ModelSerializer):
+    property_name = serializers.CharField(source='property.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+
+    class Meta:
+        model = PropertyOwnership
+        fields = [
+            'id', 'property', 'property_name', 'user', 'username', 'email',
+            'ownership_type', 'can_edit', 'created_at'
+        ]
+        read_only_fields = ['created_at']

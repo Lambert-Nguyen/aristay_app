@@ -57,7 +57,7 @@ class UnifiedLoginView(LoginView):
         if next_url and self._is_safe_url(next_url):
             return next_url
         
-        # Priority 2: Route based on Django permissions (superuser/staff)
+        # Priority 2: Route based on Django permissions (Superuser/staff)
         if user.is_superuser:
             return '/admin/'
         elif user.is_staff:
@@ -72,8 +72,8 @@ class UnifiedLoginView(LoginView):
         if user_role == 'manager':
             return '/manager/'
         elif user_role == 'owner':
-            # Owners can access manager interface
-            return '/manager/'
+            # legacy label maps to Superuser; send to admin
+            return '/admin/'
         
         # Priority 4: Default fallback
         # If user doesn't have admin/manager permissions, show an error

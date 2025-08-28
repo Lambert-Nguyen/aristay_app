@@ -3,13 +3,19 @@ from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from .models import Property, Task, TaskImage, Notification, Booking, PropertyOwnership
+from .models import Property, Task, TaskImage, Notification, Booking, PropertyOwnership, Profile
+from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 class CustomAdminSite(admin.AdminSite):
     site_header = "AriStay Administration"
     site_title = "AriStay Admin"
     index_title = "Welcome to AriStay Administration"
     
+    def has_permission(self, request):
+        # Restrict Superuser admin to Superusers only
+        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -38,14 +44,14 @@ class TaskImageInline(admin.TabularInline):
     preview.short_description = 'Image Preview'
 
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'assigned_to', 'created_at', 'due_date')
-    list_filter = ('status', 'task_type', 'created_at', 'property', 'assigned_to')
+    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'assigned_to', 'created_at', 'due_date')
+    list_filter = ('status', 'task_type', 'created_at', 'property', 'booking', 'assigned_to')
     search_fields = ('title', 'description')
     readonly_fields = ('created_at', 'modified_at', 'history')
     
     fieldsets = (
         (None, {
-            'fields': ('title', 'description', 'task_type', 'property', 'status', 'assigned_to', 'due_date')
+            'fields': ('title', 'description', 'task_type', 'property', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
         }),
         ('Tracking', {
             'fields': ('created_by', 'created_at', 'modified_by', 'modified_at'),
@@ -77,7 +83,7 @@ class PropertyAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'property', 'check_in_date', 'check_out_date', 'status', 'guest_name')
+    list_display = ('id', 'property', 'check_in_date', 'check_out_date', 'status', 'guest_name', 'guest_contact')
     list_filter = ('status', 'check_in_date', 'check_out_date', 'property')
     search_fields = ('property__name', 'guest_name', 'guest_contact')
     readonly_fields = ('created_at', 'modified_at')
@@ -125,3 +131,37 @@ admin.site.register(Property, PropertyAdmin)
 admin.site.register(Notification, NotificationAdmin)
 admin.site.register(Booking, BookingAdmin)
 admin.site.register(PropertyOwnership, PropertyOwnershipAdmin)
+
+# -------------------- User admin with Profile inline (Superuser admin and default admin) --------------------
+
+class ProfileInline(admin.StackedInline):
+    model = Profile
+    can_delete = False
+    fk_name = 'user'
+    fields = ('timezone',)
+
+class SuperuserUserAdmin(DjangoUserAdmin):
+    inlines = [ProfileInline]
+    exclude = ('password',)  # hide hashed password from change form
+    list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined', 'get_timezone')
+
+    def get_timezone(self, obj):
+        try:
+            return obj.profile.timezone
+        except Exception:
+            return ''
+    get_timezone.short_description = 'Timezone'
+
+# Register on default admin site with profile inline
+try:
+    admin.site.unregister(User)
+except admin.sites.NotRegistered:
+    pass
+admin.site.register(User, SuperuserUserAdmin)
+
+# Register on custom admin site as well
+try:
+    admin_site.unregister(User)
+except Exception:
+    pass
+admin_site.register(User, SuperuserUserAdmin)

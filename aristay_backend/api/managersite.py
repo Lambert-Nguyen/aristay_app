@@ -78,10 +78,11 @@ class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
 
 class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
-    list_display  = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
+    list_display  = ('username', 'email', 'timezone_display', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     list_filter   = ('is_active', 'is_staff', 'is_superuser')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     readonly_fields = ('last_login', 'date_joined',)
+    exclude = ('password',)  # never show password hash
 
     actions = ['activate_users', 'deactivate_users']
 
@@ -99,6 +100,25 @@ class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
             ro += ['is_staff', 'is_superuser', 'user_permissions', 'groups']
         return ro
 
+    actions = ['send_password_reset']
+
+    def send_password_reset(self, request, queryset):
+        # Trigger Django's password reset flow for selected users
+        from django.contrib.auth.forms import PasswordResetForm
+        sent = 0
+        for user in queryset:
+            if not user.email:
+                continue
+            form = PasswordResetForm(data={'email': user.email})
+            if form.is_valid():
+                form.save(
+                    email_template_name="registration/password_reset_email.html",
+                    request=request,
+                )
+                sent += 1
+        self.message_user(request, f"Password reset email sent to {sent} user(s).")
+    send_password_reset.short_description = "Send password reset email"
+
     def save_model(self, request, obj, form, change):
         # extra guardrails for managers
         if not request.user.is_superuser:
@@ -114,6 +134,14 @@ class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     def deactivate_users(self, request, queryset):
         updated = queryset.exclude(is_superuser=True).update(is_active=False)
         self.message_user(request, f"Deactivated {updated} user(s).")
+
+    def timezone_display(self, obj):
+        try:
+            tz = obj.profile.timezone
+        except Exception:
+            tz = 'America/New_York'
+        return tz
+    timezone_display.short_description = 'Timezone'
 
 class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at')
