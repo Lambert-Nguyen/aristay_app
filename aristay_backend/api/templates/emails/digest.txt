@@ -1,18 +1,31 @@
-Hi {{ name }}, your updated tasks across:
-{% for property, _ in grouped_tasks %}- {{ property }}{% endfor %}
+═══════════════════════════════════════════
+        🏠 ARISTAY TASK DIGEST
+═══════════════════════════════════════════
 
-Here’s a quick summary of your tasks updated in the last 24 hours:
+Hi {{ name }},
+
+Here's your daily task summary for the last 24 hours:
+
+📍 Timezone: {{ timezone_name }}
 
 {% for property, status_dict in grouped_tasks %}
-🏠 {{ property }}:
+────────────────────────────────────────────
+🏠 {{ property|upper }}
+────────────────────────────────────────────
 
 {% for status, tasks in status_dict.items %}
-• {{ status|title }}:
+{% if status == "in-progress" %}🚧 IN PROGRESS:{% elif status == "completed" %}✅ COMPLETED:{% elif status == "pending" %}⏳ PENDING:{% elif status == "canceled" %}❌ CANCELED:{% else %}📋 {{ status|upper }}:{% endif %}
 {% for task in tasks %}
-  - {{ task.title }}
-{% endfor %}
+  • {{ task.title }}{% if task.due_date %}
+    📅 Due: {{ task.due_date|date:"M d, Y H:i" }} ({{ task.due_delta }}){% if task.due_date < now %} ⚠️ OVERDUE{% endif %}{% endif %}
 {% endfor %}
 
 {% endfor %}
-Best,  
-Aristay Task Management Team
+{% endfor %}
+
+────────────────────────────────────────────
+Best regards,
+AriStay Task Management Team
+
+© 2025 AriStay. All rights reserved.
+────────────────────────────────────────────
