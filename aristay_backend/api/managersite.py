@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.urls import path
 from django.shortcuts import render
 from .models import (
@@ -83,37 +84,74 @@ class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     search_fields = ('title', 'description')
     list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
 
-class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
-    list_display  = ('username', 'email', 'get_profile_role', 'timezone_display', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
-    list_filter   = ('is_active', 'is_staff', 'is_superuser')
+class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
+    """
+    Manager version of UserAdmin - can modify groups but has restrictions:
+    - Can modify user groups/departments
+    - Cannot modify usernames
+    - Cannot modify is_staff/is_superuser
+    - Can trigger password reset emails
+    """
+    list_display = ('username', 'email', 'get_profile_role', 'get_departments', 'is_active', 'is_staff', 'date_joined')
+    list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
     search_fields = ('username', 'email', 'first_name', 'last_name')
-    readonly_fields = ('last_login', 'date_joined',)
-    exclude = ('password',)  # never show password hash
+    exclude = ('password',)  # hide hashed password
+    filter_horizontal = ('groups',)  # Allow editing groups/departments
+    readonly_fields = ('username', 'date_joined', 'last_login')  # Managers cannot modify usernames
+
+    # Override Django's default fieldsets to avoid field conflicts
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Permissions', {
+            'fields': ('is_active', 'is_staff', 'groups'),
+            'classes': ('collapse',)
+        }),
+        ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
+    )
+
+    def has_permission(self, request):
+        """Check if user has permission to access this admin interface"""
+        return self._is_manager(request)
 
     # Import ProfileInline from admin.py
     from .admin import ProfileInline
     inlines = [ProfileInline]
 
-    actions = ['activate_users', 'deactivate_users']
+    actions = ['activate_users', 'deactivate_users', 'send_password_reset']
 
     def get_queryset(self, request):
+        """Filter queryset to exclude superusers"""
         qs = super().get_queryset(request)
-        # Managers shouldn’t see owner accounts
-        if not request.user.is_superuser:
-            qs = qs.exclude(is_superuser=True)
-        return qs
+        return qs.exclude(is_superuser=True)
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Customize form for managers"""
+        form = super().get_form(request, obj, **kwargs)
+
+        # Managers should not be able to modify is_staff or is_superuser
+        if 'is_staff' in form.base_fields:
+            form.base_fields['is_staff'].disabled = True
+        if 'is_superuser' in form.base_fields:
+            form.base_fields['is_superuser'].disabled = True
+
+        # Remove password change fields for managers (they can only trigger resets)
+        if 'password1' in form.base_fields:
+            del form.base_fields['password1']
+        if 'password2' in form.base_fields:
+            del form.base_fields['password2']
+
+        return form
 
     def get_readonly_fields(self, request, obj=None):
+        """Make username readonly for managers"""
         ro = list(super().get_readonly_fields(request, obj))
-        if not request.user.is_superuser:
-            # prevent privilege escalation via admin
-            ro += ['is_staff', 'is_superuser', 'user_permissions', 'groups']
+        if hasattr(request, 'user') and request.user and not request.user.is_superuser:
+            ro.append('username')
         return ro
 
-    actions = ['send_password_reset']
-
     def send_password_reset(self, request, queryset):
-        # Trigger Django's password reset flow for selected users
+        """Trigger Django's password reset flow for selected users"""
         from django.contrib.auth.forms import PasswordResetForm
         sent = 0
         for user in queryset:
@@ -129,36 +167,124 @@ class UserManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
         self.message_user(request, f"Password reset email sent to {sent} user(s).")
     send_password_reset.short_description = "Send password reset email"
 
-    def save_model(self, request, obj, form, change):
-        # extra guardrails for managers
-        if not request.user.is_superuser:
-            obj.is_superuser = False
-            # optional: don’t let managers grant Django-staff
-            # obj.is_staff = obj.is_staff and obj.pk == request.user.pk
-        super().save_model(request, obj, form, change)
-
     def activate_users(self, request, queryset):
+        """Activate selected users"""
         updated = queryset.exclude(is_superuser=True).update(is_active=True)
         self.message_user(request, f"Activated {updated} user(s).")
 
     def deactivate_users(self, request, queryset):
+        """Deactivate selected users"""
         updated = queryset.exclude(is_superuser=True).update(is_active=False)
         self.message_user(request, f"Deactivated {updated} user(s).")
 
-    def timezone_display(self, obj):
+    def get_departments(self, obj):
+        """Display user's departments"""
         try:
-            tz = obj.profile.timezone
-        except Exception:
-            tz = 'America/New_York'
-        return tz
-    timezone_display.short_description = 'Timezone'
-    
+            return obj.profile.departments_display or 'No departments'
+        except:
+            return 'No profile'
+    get_departments.short_description = 'Departments'
+
     def get_profile_role(self, obj):
+        """Display user's role"""
         try:
             return obj.profile.get_role_display()
-        except Exception:
+        except:
             return 'Staff'
     get_profile_role.short_description = 'Role'
+
+    def has_delete_permission(self, request, obj=None):
+        """Managers cannot delete users"""
+        return False
+
+    def get_actions(self, request):
+        """Customize actions for managers"""
+        actions = super().get_actions(request)
+
+        # Remove bulk delete for managers
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+
+        # Add password reset action
+        actions['send_password_reset'] = (
+            self.send_password_reset,
+            'send_password_reset',
+            'Send password reset email to selected users'
+        )
+
+        return actions
+
+    def get_urls(self):
+        """Add password reset URL and override password change for managers"""
+        from django.urls import path
+        from django.contrib.admin.sites import AdminSite
+        urls = super().get_urls()
+        custom_urls = [
+            path('<id>/password-reset/', AdminSite.admin_view(self, self.password_reset_view), name='manager_user_password_reset'),
+            # Override password change URL to prevent managers from accessing it
+            path('<id>/password/', AdminSite.admin_view(self, self.blocked_password_change), name='manager_user_password_change'),
+        ]
+        return custom_urls + urls
+
+    def blocked_password_change(self, request, id):
+        """Block managers from accessing password change form"""
+        from django.contrib import messages
+        from django.shortcuts import redirect
+
+        messages.error(request, "You don't have permission to change user passwords. Use the 'Send Password Reset Email' button instead.")
+        return redirect('manager_admin:auth_user_change', id)
+
+    def password_reset_view(self, request, id):
+        """Password reset view for managers"""
+        from django.contrib.auth.forms import PasswordResetForm
+        from django.shortcuts import get_object_or_404, redirect
+        from django.contrib import messages
+
+        user = get_object_or_404(User, pk=id)
+
+        # Managers can only reset passwords for non-superuser accounts
+        if user.is_superuser:
+            messages.error(request, "You cannot reset passwords for superuser accounts.")
+            return redirect('manager_admin:auth_user_change', id)
+
+        if not user.email:
+            messages.error(request, f"User {user.username} doesn't have an email address.")
+            return redirect('manager_admin:auth_user_change', id)
+
+        try:
+            form = PasswordResetForm(data={'email': user.email})
+            if form.is_valid():
+                form.save(
+                    email_template_name="registration/password_reset_email.html",
+                    request=request,
+                )
+                messages.success(request, f"Password reset email sent to {user.username}.")
+            else:
+                messages.error(request, f"Failed to send password reset email to {user.username}.")
+        except Exception as e:
+            messages.error(request, f"Error sending password reset: {str(e)}")
+
+        return redirect('manager_admin:auth_user_change', id)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Add password reset button to manager change view"""
+        extra_context = extra_context or {}
+
+        # Add password reset URL for managers
+        if object_id:
+            from django.urls import reverse
+            try:
+                extra_context['password_reset_url'] = reverse('manager_admin:manager_user_password_reset', args=[object_id])
+            except:
+                pass
+
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def save_model(self, request, obj, form, change):
+        """Extra guardrails for managers"""
+        if not request.user.is_superuser:
+            obj.is_superuser = False  # Prevent privilege escalation
+        super().save_model(request, obj, form, change)
 
 class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at')

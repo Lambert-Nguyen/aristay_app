@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if password_reset_url %}
+    <li>
+        <a href="{{ password_reset_url }}" class="btn btn-primary" style="background: #28a745; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; display: inline-block; margin-left: 10px;">
+            🔄 Send Password Reset Email
+        </a>
+    </li>
+    {% endif %}
+{% endblock %}

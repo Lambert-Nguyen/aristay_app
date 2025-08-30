@@ -386,10 +386,268 @@ class ProfileInline(admin.StackedInline):
             kwargs['help_text'] = 'Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool'
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
-class SuperuserUserAdmin(DjangoUserAdmin):
+class AriStayUserAdmin(DjangoUserAdmin):
+    """
+    Custom UserAdmin with role-based permissions:
+    - Superusers: Full access (can modify passwords, usernames, groups)
+    - Managers: Can modify groups, trigger password reset, but cannot modify usernames
+    - Staff: Limited access
+    """
     inlines = [ProfileInline]
     exclude = ('password',)  # hide hashed password from change form
     list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined')
+
+    # Override Django's default fieldsets to avoid field conflicts
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Permissions', {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'classes': ('collapse',)
+        }),
+        ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
+    )
+
+    def has_permission(self, request):
+        """Check if user has permission to access this admin interface"""
+        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+
+    def get_readonly_fields(self, request, obj=None):
+        """Make certain fields readonly based on user permissions"""
+        readonly_fields = []
+
+        # If user is not superuser (i.e., is a manager), make username readonly
+        if hasattr(request, 'user') and request.user and not request.user.is_superuser:
+            readonly_fields.append('username')
+
+        return readonly_fields
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Customize form fields based on user permissions"""
+        form = super().get_form(request, obj, **kwargs)
+
+        # For managers (not superusers), remove password change capability
+        if not request.user.is_superuser:
+            # Remove password fields for managers
+            if 'password1' in form.base_fields:
+                del form.base_fields['password1']
+            if 'password2' in form.base_fields:
+                del form.base_fields['password2']
+
+        return form
+
+    def save_model(self, request, obj, form, change):
+        """Handle password changes and user creation"""
+        # Handle password changes for superusers only
+        if request.user.is_superuser:
+            # Check if password fields were provided
+            if form.cleaned_data.get('password1') and form.cleaned_data.get('password2'):
+                obj.set_password(form.cleaned_data['password1'])
+
+        super().save_model(request, obj, form, change)
+
+    def get_actions(self, request):
+        """Customize actions based on user permissions"""
+        actions = super().get_actions(request)
+
+        # Only superusers can bulk delete users
+        if not request.user.is_superuser:
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+
+        # Add password reset action for both superusers and managers
+        actions['send_password_reset'] = (
+            self.send_password_reset,
+            'send_password_reset',
+            'Send password reset email to selected users'
+        )
+
+        return actions
+
+    def send_password_reset(self, request, queryset):
+        """Send password reset emails to selected users"""
+        from django.contrib.auth.forms import PasswordResetForm
+        sent = 0
+        failed = 0
+
+        for user in queryset:
+            if not user.email:
+                failed += 1
+                continue
+
+            try:
+                form = PasswordResetForm(data={'email': user.email})
+                if form.is_valid():
+                    form.save(
+                        email_template_name="registration/password_reset_email.html",
+                        request=request,
+                    )
+                    sent += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                failed += 1
+
+        if sent > 0:
+            self.message_user(request, f"Password reset email sent to {sent} user(s).")
+        if failed > 0:
+            self.message_user(request, f"Failed to send password reset to {failed} user(s).", level='ERROR')
+
+    send_password_reset.short_description = "Send password reset email"
+
+    def get_urls(self):
+        """Add custom URLs and override password change for managers"""
+        from django.urls import path
+        from django.contrib.admin.sites import AdminSite
+        urls = super().get_urls()
+        custom_urls = [
+            path('<id>/password-reset/', AdminSite.admin_view(self, self.password_reset_view), name='user_password_reset'),
+            # Override the default password change URL to restrict managers
+            path('<id>/password/', AdminSite.admin_view(self, self.user_change_password), name='auth_user_password_change'),
+        ]
+        return custom_urls + urls
+
+    def user_change_password(self, request, id, form_url=''):
+        """Override password change to restrict managers"""
+        from django.contrib import messages
+        from django.shortcuts import get_object_or_404, redirect
+        from django.contrib.auth.forms import AdminPasswordChangeForm
+
+        user = get_object_or_404(User, pk=id)
+
+        # Only superusers can directly change passwords
+        if not request.user.is_superuser:
+            messages.error(request, "You don't have permission to change user passwords. Use the 'Send Password Reset Email' button instead.")
+            return redirect('admin:api_user_change', id)
+
+        # For superusers, use the normal Django password change form
+        if request.method == 'POST':
+            form = AdminPasswordChangeForm(user, request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, f"Password changed successfully for {user.username}.")
+                return redirect('admin:api_user_change', id)
+        else:
+            form = AdminPasswordChangeForm(user)
+
+        context = {
+            'form': form,
+            'user': user,
+            'title': f'Change password: {user.username}',
+            'is_popup': False,
+        }
+
+        from django.shortcuts import render
+        return render(request, 'admin/auth/user/change_password.html', context)
+
+    def password_reset_view(self, request, id):
+        """Custom password reset view for individual users"""
+        from django.contrib.auth.forms import PasswordResetForm
+        from django.shortcuts import get_object_or_404, redirect
+        from django.contrib import messages
+
+        user = get_object_or_404(User, pk=id)
+
+        # Check permissions
+        if not request.user.is_superuser and request.user != user:
+            messages.error(request, "You don't have permission to reset this user's password.")
+            return redirect('admin:auth_user_changelist')
+
+        if not user.email:
+            messages.error(request, f"User {user.username} doesn't have an email address.")
+            return redirect('admin:auth_user_change', id)
+
+        try:
+            form = PasswordResetForm(data={'email': user.email})
+            if form.is_valid():
+                form.save(
+                    email_template_name="registration/password_reset_email.html",
+                    request=request,
+                )
+                messages.success(request, f"Password reset email sent to {user.username}.")
+            else:
+                messages.error(request, f"Failed to send password reset email to {user.username}.")
+        except Exception as e:
+            messages.error(request, f"Error sending password reset: {str(e)}")
+
+        return redirect('admin:auth_user_change', id)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        """Customize the change view to add password reset button"""
+        extra_context = extra_context or {}
+
+        # Add password reset URL for both superusers and managers
+        if object_id:
+            from django.urls import reverse
+            try:
+                extra_context['password_reset_url'] = reverse('admin:user_password_reset', args=[object_id])
+            except:
+                pass
+
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def has_delete_permission(self, request, obj=None):
+        """Only superusers can delete users"""
+        if not request.user.is_superuser:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def changelist_view(self, request, extra_context=None):
+        """Customize changelist view based on permissions"""
+        # For managers, filter out superusers from the list
+        if not request.user.is_superuser:
+            self.list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
+            # Override queryset to exclude superusers
+            self.queryset = User.objects.exclude(is_superuser=True)
+
+        return super().changelist_view(request, extra_context)
+
+    def get_queryset(self, request):
+        """Filter queryset based on user permissions"""
+        qs = super().get_queryset(request)
+
+        # Managers can only see non-superuser accounts
+        if not request.user.is_superuser:
+            qs = qs.exclude(is_superuser=True)
+
+        return qs
+
+
+# Manager version of UserAdmin (more restricted)
+class ManagerUserAdmin(AriStayUserAdmin):
+    """
+    Manager version of UserAdmin with additional restrictions
+    """
+    # Managers can see and edit groups/departments
+    filter_horizontal = ('groups',)
+
+    def get_fieldsets(self, request, obj=None):
+        """Customize fieldsets for managers"""
+        fieldsets = super().get_fieldsets(request, obj)
+
+        # For managers, ensure they can see groups but not certain sensitive fields
+        for name, field_options in fieldsets:
+            if name == 'Permissions':
+                # Managers can edit groups but not user permissions
+                field_options['fields'] = ('groups',)
+
+        return fieldsets
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Customize form for managers"""
+        form = super().get_form(request, obj, **kwargs)
+
+        # Managers should not be able to modify is_staff or is_superuser
+        if 'is_staff' in form.base_fields:
+            form.base_fields['is_staff'].disabled = True
+        if 'is_superuser' in form.base_fields:
+            form.base_fields['is_superuser'].disabled = True
+
+        return form
+
+
+# Alias for backwards compatibility
+SuperuserUserAdmin = AriStayUserAdmin
 
 # Register on default admin site with profile inline
 try:

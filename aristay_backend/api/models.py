@@ -264,6 +264,19 @@ class Profile(models.Model):
     )
     digest_opt_out = models.BooleanField(default=False)
 
+    # Contact and location information
+    phone_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="User's phone number (optional)"
+    )
+    address = models.TextField(
+        blank=True,
+        null=True,
+        help_text="User's address (optional)"
+    )
+
     # NEW
     role = models.CharField(
         max_length=16,

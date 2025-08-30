@@ -25,7 +25,7 @@ from api.auth_views import UnifiedLoginView, logout_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('manager/', manager_site.urls),   # Manager console
+    path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
     path('api/', include('api.urls')),
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
     # Unified login system
