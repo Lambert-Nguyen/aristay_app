@@ -432,3 +432,139 @@ The AriStay logging system provides enterprise-grade monitoring with:
 - ✅ **Easy configuration** with environment variables
 
 Your backend is now ready for production deployment with comprehensive monitoring and alerting! 🚀
+
+---
+
+## 🆕 **Recent Updates & Fixes**
+
+### **Version: Enhanced Logging System (Latest)**
+
+#### **🔧 Critical Bug Fixes**
+
+**1. Password Reset System Logging**
+- ✅ **Admin Template Errors**: Fixed `NoReverseMatch: 'app_list'` errors in password change forms
+- ✅ **URL Namespace Resolution**: Corrected manager admin namespace logging
+- ✅ **Template Context Issues**: Fixed password reset button context logging
+- ✅ **Permission Boundary Logging**: Enhanced role-based access logging
+
+**2. Admin Site URL Pattern Logging**
+- ✅ **Namespace Conflict Resolution**: Fixed `NoReverseMatch` errors with proper namespace logging
+- ✅ **Custom Admin Class Logging**: Added logging for `AriStayUserAdmin` and `UserManagerAdmin`
+- ✅ **URL Pattern Consistency**: Standardized URL logging across admin sites
+- ✅ **Template Rendering Logs**: Enhanced template error logging and debugging
+
+**3. Enhanced Security Event Logging**
+- ✅ **Password Operation Audit**: All password changes and resets logged with user attribution
+- ✅ **Permission Violation Logging**: Unauthorized access attempts tracked
+- ✅ **Session Security Logging**: Enhanced authentication event logging
+- ✅ **Form Validation Logging**: Role-based form restriction logging
+
+#### **📊 New Log Categories Added**
+
+```json
+{
+  "timestamp": "2025-08-30T01:27:56.000Z",
+  "level": "INFO",
+  "logger": "api.admin",
+  "message": "Password reset email sent to user@example.com by admin",
+  "user_id": 1,
+  "target_user_id": 2,
+  "ip_address": "127.0.0.1",
+  "user_agent": "Mozilla/5.0..."
+}
+```
+
+```json
+{
+  "timestamp": "2025-08-30T01:27:56.000Z",
+  "level": "WARNING",
+  "logger": "api.admin",
+  "message": "Permission denied: Manager attempted direct password change",
+  "user_id": 3,
+  "user_role": "manager",
+  "attempted_action": "password_change",
+  "ip_address": "127.0.0.1"
+}
+```
+
+#### **🎯 Log Analysis Commands**
+
+**Password Management Logs**:
+```bash
+# View password reset operations
+grep "password.*reset" logs/security.log
+
+# Check permission violations
+grep "Permission denied" logs/error.log
+
+# Monitor admin operations
+grep "admin.*password" logs/info.log
+```
+
+**URL Resolution Logs**:
+```bash
+# Check namespace resolution
+grep "NoReverseMatch" logs/error.log
+
+# Monitor URL pattern usage
+grep "reverse.*admin" logs/debug.log
+```
+
+---
+
+## 📞 **Support & Troubleshooting**
+
+### **Common Issues & Solutions**
+
+**1. NoReverseMatch Errors**
+```bash
+# Check namespace configuration
+grep "namespace.*manager" logs/debug.log
+
+# Verify URL patterns
+python manage.py show_urls | grep "admin"
+```
+
+**2. Permission Errors**
+```bash
+# Check role assignments
+grep "role.*manager" logs/info.log
+
+# Monitor access attempts
+grep "Permission denied" logs/security.log
+```
+
+**3. Template Errors**
+```bash
+# Check template rendering
+grep "template.*error" logs/error.log
+
+# Verify template context
+grep "password_reset_url" logs/debug.log
+```
+
+For logging issues or configuration questions:
+- Check log file permissions and disk space
+- Verify log directory exists and is writable
+- Ensure all required Python packages are installed
+- Test logging configuration with management commands
+- Review recent error logs for pattern analysis
+
+---
+
+## 📋 **Change Log**
+
+### **Version History**
+- **Initial Release**: Basic logging system with file rotation
+- **Enhanced Release**: Advanced middleware and performance monitoring
+- **Latest Update**: Password reset logging, admin fixes, security enhancements
+
+### **Migration Status**
+- ✅ **All logging configurations**: Active and functional
+- ✅ **Log file rotation**: Working correctly
+- ✅ **Error tracking**: Integrated and operational
+- ✅ **Security logging**: Enhanced with password operations
+
+---
+
+*Last updated: August 2025 - Enhanced logging system with password management and admin fixes*

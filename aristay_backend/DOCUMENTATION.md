@@ -15,15 +15,15 @@ AriStay is a comprehensive property management system designed for cleaning, mai
 
 ### User Roles
 
-| Role | Access Level | Responsibilities |
-|------|-------------|------------------|
-| **Superuser** | Full system access | System configuration, user management, all data |
-| **Manager** | Property management | Staff coordination, task oversight, reporting |
-| **Cleaning Staff** | Assigned cleaning tasks | Room cleaning, checklists, photo uploads |
-| **Maintenance Staff** | Maintenance + inventory | Repairs, inspections, inventory management |
-| **Laundry Staff** | Laundry workflow | Linen handling, washing, restocking |
-| **Lawn/Pool** | Outdoor maintenance | Landscaping, pool care, equipment |
-| **Viewer** | Read-only access | Property owners, external stakeholders |
+| Role | Access Level | Responsibilities | Password Management |
+|------|-------------|------------------|-------------------|
+| **Superuser** | Full system access | System configuration, user management, all data | ✅ Direct password changes + email reset |
+| **Manager** | Property management | Staff coordination, task oversight, reporting | ❌ Email reset only (no direct changes) |
+| **Cleaning Staff** | Assigned cleaning tasks | Room cleaning, checklists, photo uploads | ❌ Email reset only |
+| **Maintenance Staff** | Maintenance + inventory | Repairs, inspections, inventory management | ❌ Email reset only |
+| **Laundry Staff** | Laundry workflow | Linen handling, washing, restocking | ❌ Email reset only |
+| **Lawn/Pool** | Outdoor maintenance | Landscaping, pool care, equipment | ❌ Email reset only |
+| **Viewer** | Read-only access | Property owners, external stakeholders | ❌ No password management access |
 
 ## 🎯 MVP Phase 1 Features
 
@@ -74,7 +74,102 @@ ChecklistItem.objects.create(
 - **Manager**: `/manager/api/checklisttemplate/` - Template oversight
 - Templates automatically create task checklists when tasks are assigned
 
-### 2. 📦 Inventory Management
+### 7. 🔐 Password Reset & User Management System
+
+**Purpose**: Secure, role-based password management with granular permissions and user-friendly reset workflows.
+
+#### Security Features
+- **Role-Based Access Control**: Different password management capabilities per user role
+- **Secure Email Reset**: Token-based password reset with expiration
+- **Permission Boundaries**: Managers cannot directly change passwords (email reset only)
+- **Audit Logging**: All password changes and reset requests are logged
+
+#### Password Management by Role
+
+**Superuser Admin (`/admin/`)**:
+- ✅ **Direct Password Changes**: Can set/modify passwords directly in admin interface
+- ✅ **Email Password Reset**: Can trigger password reset emails for any user
+- ✅ **Bulk Reset Actions**: "Send password reset email" for multiple users
+- ✅ **Individual Reset Button**: "🔄 Send Password Reset Email" on each user form
+- ✅ **Full User Management**: Complete CRUD operations on all users
+
+**Manager Admin (`/manager/`)**:
+- ❌ **No Direct Password Changes**: Cannot modify passwords directly
+- ✅ **Email Password Reset Only**: Can trigger password reset emails
+- ✅ **Bulk Reset Actions**: "Send password reset email" for managed users
+- ✅ **Individual Reset Button**: "🔄 Send Password Reset Email" on each user form
+- ✅ **Limited User Management**: Can modify groups, roles, but not sensitive fields
+
+**Staff/Portal Users**:
+- ✅ **Self-Service Reset**: Can request password reset via email
+- ✅ **Secure Token Process**: Time-limited reset links
+- ❌ **No Admin Access**: Cannot manage other users' passwords
+
+#### Implementation Details
+
+**Custom Admin Classes**:
+```python
+class AriStayUserAdmin(DjangoUserAdmin):
+    """Superuser admin with full password management capabilities"""
+
+class UserManagerAdmin(DjangoUserAdmin):
+    """Manager admin with restricted password management"""
+```
+
+**URL Patterns**:
+```python
+# Superuser admin
+path('<id>/password/', user_change_password),  # Direct password changes
+path('<id>/password-reset/', password_reset_view),  # Email reset
+
+# Manager admin
+path('<id>/password/', blocked_password_change),  # Blocks direct changes
+path('<id>/password-reset/', password_reset_view),  # Email reset only
+```
+
+**Custom Templates**:
+- `api/templates/admin/auth/user/change_form.html` - Superuser with reset button
+- `api/templates/manager_admin/auth/user/change_form.html` - Manager with reset button
+- `api/templates/admin/auth/user/change_password.html` - Custom password change form
+
+#### Usage Examples
+
+**Superuser Direct Password Change**:
+```python
+# In admin interface at /admin/auth/user/123/change/
+# Superuser can directly set new password via form
+```
+
+**Manager Email Reset**:
+```python
+# In admin interface at /manager/auth/user/123/change/
+# Manager can only trigger email reset
+# User receives secure reset link
+```
+
+**User Self-Reset**:
+```python
+# Via Django's standard password reset flow
+# POST to /api/auth/password_reset/
+# User receives email with reset link
+```
+
+#### Security Considerations
+- **Password Hashing**: All passwords stored as secure hashes
+- **Token Expiration**: Reset links expire after configurable time
+- **Rate Limiting**: Protection against brute force attacks
+- **Audit Trail**: All password operations logged with user attribution
+- **Permission Checks**: Role-based restrictions enforced at multiple levels
+
+#### Admin Interface Features
+- **Visual Indicators**: Clear buttons and form fields based on permissions
+- **Error Handling**: Graceful failure with informative messages
+- **Bulk Operations**: Mass password reset for multiple users
+- **Permission Feedback**: Clear messaging when actions are restricted
+
+This password management system provides enterprise-grade security while maintaining usability across different user roles and administrative levels.
+
+### 8. 📦 Inventory Management
 
 **Purpose**: Complete supply tracking with automatic alerts and usage monitoring.
 
@@ -118,7 +213,7 @@ InventoryTransaction.objects.create(
 - **Transaction history**: Complete movement tracking
 - **Alerts**: Automatic low-stock identification
 
-### 3. 👥 Workflow Specialization
+### 9. 👥 Workflow Specialization
 
 **Purpose**: Task-specific workflows optimized for different staff roles.
 
@@ -147,7 +242,7 @@ InventoryTransaction.objects.create(
 - Role-based task visibility in admin interfaces
 - Specialized reporting per workflow type
 
-### 4. 🔄 Recurring Schedules
+### 10. 🔄 Recurring Schedules
 
 **Purpose**: Automated task generation based on configurable schedules.
 
@@ -186,7 +281,7 @@ python manage.py generate_scheduled_tasks --dry-run
 0 6 * * * cd /path/to/aristay_backend && python manage.py generate_scheduled_tasks
 ```
 
-### 5. 🗂️ Lost & Found System
+### 11. 🗂️ Lost & Found System
 
 **Purpose**: Track guest items found during cleaning with full lifecycle management.
 
@@ -205,7 +300,7 @@ python manage.py generate_scheduled_tasks --dry-run
 - **Storage tracking**: Current location management
 - **Photo documentation**: Visual evidence and identification
 
-### 6. 📅 Booking Calendar Import
+### 12. 📅 Booking Calendar Import
 
 **Purpose**: External calendar integration with automatic task generation.
 
@@ -235,10 +330,13 @@ python manage.py generate_scheduled_tasks --dry-run
 - **Audit trails**: Created/modified tracking throughout
 
 ### Admin Integration
-- **Dual admin sites**: Superuser (`/admin/`) and Manager (`/manager/`)
-- **Permission boundaries**: Role-based access control
-- **Inline editing**: Related model management
-- **Visual indicators**: Color-coded status displays
+- **Dual admin sites**: Superuser (`/admin/`) and Manager (`/manager/`) with custom namespaces
+- **Password management**: Role-based password reset and change capabilities
+- **Permission boundaries**: Strict role-based access control with granular permissions
+- **Custom admin classes**: `AriStayUserAdmin` and `UserManagerAdmin` with specialized features
+- **URL pattern fixes**: Resolved namespace conflicts and NoReverseMatch errors
+- **Inline editing**: Related model management with security restrictions
+- **Visual indicators**: Color-coded status displays and permission-aware UI elements
 
 ### API Integration
 - **Django REST Framework**: Full CRUD operations
@@ -315,16 +413,24 @@ python manage.py migrate
 ## 🔒 Security & Permissions
 
 ### Role-Based Access
-- **Superuser**: Full system access, all models
-- **Manager**: Property management, staff oversight
-- **Staff roles**: Task-specific access only
-- **Viewer**: Read-only property viewing
+- **Superuser**: Full system access, all models, direct password management
+- **Manager**: Property management, staff oversight, email password reset only
+- **Staff roles**: Task-specific access only, self-service password reset
+- **Viewer**: Read-only property viewing, no password management access
+
+### Password Security
+- **Granular Permissions**: Superusers can change passwords directly, managers can only send reset emails
+- **Secure Email Reset**: Token-based password reset with configurable expiration
+- **Audit Logging**: All password operations tracked with user attribution
+- **Permission Enforcement**: Multiple layers of security checks
 
 ### Data Protection
-- **Field-level security**: Hide sensitive data (passwords)
+- **Field-level security**: Hide sensitive data (passwords, hashed fields)
+- **Role-based form restrictions**: Managers cannot modify username or password fields
+- **Custom admin templates**: Secure password change forms with proper validation
 - **Audit logging**: Track all changes with user attribution
-- **Permission boundaries**: Enforce role restrictions
-- **Session management**: Secure authentication
+- **Permission boundaries**: Enforce role restrictions at model, view, and template levels
+- **Session management**: Secure authentication with proper timeout handling
 
 ## 🚀 Production Deployment
 
@@ -438,4 +544,122 @@ This system metrics dashboard provides essential monitoring capabilities for mai
 
 ---
 
-This documentation covers the complete MVP Phase 1 implementation including system monitoring. All features are production-ready and include comprehensive admin interfaces for ongoing management.
+## 🆕 Recent Updates & Bug Fixes
+
+### Version: MVP Phase 1 - Enhanced (Latest)
+
+#### 🔧 Critical Bug Fixes (Latest)
+
+**1. Password Reset System Overhaul**
+- ✅ **Custom Admin Templates**: Fixed `NoReverseMatch: 'app_list'` errors with custom password change forms
+- ✅ **URL Namespace Resolution**: Corrected manager admin namespace from `manager` to `manager_admin`
+- ✅ **Permission Boundaries**: Enhanced role-based password management restrictions
+- ✅ **Template Compatibility**: Created Django-compatible password change templates
+
+**2. Admin Site URL Pattern Fixes**
+- ✅ **Namespace Conflicts**: Resolved `NoReverseMatch` errors in admin URL patterns
+- ✅ **Custom Admin Classes**: Implemented `AriStayUserAdmin` and `UserManagerAdmin` with proper inheritance
+- ✅ **URL Pattern Consistency**: Standardized URL patterns across superuser and manager admin sites
+- ✅ **Template Context**: Fixed template context issues with password reset buttons
+
+**3. Enhanced Security Features**
+- ✅ **Password Change Restrictions**: Managers cannot directly modify passwords (email reset only)
+- ✅ **Form Field Validation**: Role-based form field restrictions and validations
+- ✅ **Audit Trail Enhancement**: Improved logging of password operations
+- ✅ **Session Security**: Enhanced session management and timeout handling
+
+#### 🎨 UI/UX Improvements
+
+**Admin Interface Enhancements**:
+- ✅ **Password Reset Buttons**: Added "🔄 Send Password Reset Email" buttons to both admin interfaces
+- ✅ **Bulk Actions**: "Send password reset email to selected users" functionality
+- ✅ **Visual Indicators**: Clear permission-based UI elements and form restrictions
+- ✅ **Error Handling**: Improved error messages and user feedback
+
+**Template System Updates**:
+- ✅ **Custom Change Forms**: `api/templates/admin/auth/user/change_form.html`
+- ✅ **Manager Templates**: `api/templates/manager_admin/auth/user/change_form.html`
+- ✅ **Password Change Forms**: `api/templates/admin/auth/user/change_password.html`
+- ✅ **Breadcrumb Navigation**: Fixed navigation issues in custom templates
+
+#### 🛠️ Technical Implementation Details
+
+**URL Configuration**:
+```python
+# Fixed manager admin namespace
+path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),
+
+# Custom admin URL patterns
+path('<id>/password/', user_change_password),  # Superuser: direct changes
+path('<id>/password/', blocked_password_change),  # Manager: blocked
+path('<id>/password-reset/', password_reset_view),  # Both: email reset
+```
+
+**Permission Logic**:
+```python
+# Superuser: Full password management
+if request.user.is_superuser:
+    # Can change passwords directly
+    # Can send password reset emails
+
+# Manager: Restricted password management
+else:
+    # Cannot change passwords directly
+    # Can only send password reset emails
+    # Form fields restricted (username, password hidden)
+```
+
+**Template Security**:
+```html
+<!-- Superuser admin template -->
+{% if password_reset_url %}
+<a href="{{ password_reset_url }}" class="btn btn-primary">
+    🔄 Send Password Reset Email
+</a>
+{% endif %}
+
+<!-- Manager admin template -->
+{% if password_reset_url %}
+<a href="{{ password_reset_url }}" class="btn btn-primary">
+    🔄 Send Password Reset Email
+</a>
+{% endif %}
+```
+
+#### 📊 System Health Verification
+
+**Post-Fix Status**:
+- ✅ **Django System Check**: `python manage.py check` - No issues
+- ✅ **URL Pattern Tests**: All URL reversals working correctly
+- ✅ **Template Rendering**: Custom templates loading without errors
+- ✅ **Permission Enforcement**: Role-based restrictions functioning
+- ✅ **Error Logs**: Cleared and ready for fresh monitoring
+
+**Testing Results**:
+```bash
+✅ Admin changelist: /admin/auth/user/
+✅ Admin change: /admin/auth/user/1/change/
+✅ Admin password reset: /admin/auth/user/1/password-reset/
+✅ Manager changelist: /manager/auth/user/
+✅ Manager change: /manager/auth/user/1/change/
+✅ Manager password reset: /manager/auth/user/1/password-reset/
+```
+
+---
+
+## 📋 Change Log
+
+### Version History
+- **MVP Phase 1 - Initial Release**: Core property management system
+- **MVP Phase 1 - Enhanced**: Password reset system, admin fixes, security improvements
+- **Latest Update**: Namespace fixes, template compatibility, comprehensive documentation
+
+### Migration Status
+- ✅ **All migrations applied**: Database schema up-to-date
+- ✅ **Management commands**: All working correctly
+- ✅ **Dependencies**: All requirements satisfied
+- ✅ **Environment**: Production-ready configuration
+
+---
+
+This documentation covers the complete MVP Phase 1 implementation including all recent bug fixes and security enhancements. The system is now production-ready with enterprise-grade password management and comprehensive admin interfaces.
