@@ -50,17 +50,17 @@ class TaskImageInline(admin.TabularInline):
     preview.short_description = 'Image Preview'
 
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'assigned_to', 'created_at', 'due_date')
+    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
     list_filter = ('status', 'task_type', 'created_at', 'property', 'booking', 'assigned_to')
     search_fields = ('title', 'description')
-    readonly_fields = ('created_at', 'modified_at', 'history')
+    readonly_fields = ('created_at', 'modified_at', 'history', 'created_at_dual', 'modified_at_dual', 'due_date_dual')
     
     fieldsets = (
         (None, {
             'fields': ('title', 'description', 'task_type', 'property', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
         }),
         ('Tracking', {
-            'fields': ('created_by', 'created_at', 'modified_by', 'modified_at'),
+            'fields': ('created_by', 'created_at_dual', 'modified_by', 'modified_at_dual', 'due_date_dual'),
             'classes': ('collapse',)
         }),
         ('History', {
@@ -70,6 +70,118 @@ class TaskAdmin(admin.ModelAdmin):
     )
     
     inlines = [TaskImageInline]
+    
+    def created_at_display(self, obj):
+        """Display created time in Tampa timezone"""
+        from django.utils import timezone
+        import pytz
+        if obj.created_at:
+            tampa_tz = pytz.timezone('America/New_York')
+            tampa_time = obj.created_at.astimezone(tampa_tz)
+            return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+        return '-'
+    created_at_display.short_description = 'Created (Tampa, FL)'
+    
+    def due_date_display(self, obj):
+        """Display due date in Tampa timezone"""
+        from django.utils import timezone
+        import pytz
+        if obj.due_date:
+            tampa_tz = pytz.timezone('America/New_York')
+            tampa_time = obj.due_date.astimezone(tampa_tz)
+            return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+        return '-'
+    due_date_display.short_description = 'Due Date (Tampa, FL)'
+    
+    def created_at_dual(self, obj):
+        """Display created time in dual timezones for detail view"""
+        from django.utils import timezone
+        import pytz
+        if obj.created_at:
+            # Get user timezone from request if available
+            user_tz = self._get_user_timezone()
+            tampa_tz = pytz.timezone('America/New_York')
+            
+            user_time = obj.created_at.astimezone(user_tz)
+            tampa_time = obj.created_at.astimezone(tampa_tz)
+            
+            if str(user_tz) == str(tampa_tz):
+                return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+            else:
+                user_tz_name = self._get_timezone_name(str(user_tz))
+                return f"{user_time.strftime('%b %d, %Y %H:%M')} ({user_tz_name}) | {tampa_time.strftime('%b %d, %Y %H:%M')} (Tampa, FL)"
+        return '-'
+    created_at_dual.short_description = 'Created'
+    
+    def modified_at_dual(self, obj):
+        """Display modified time in dual timezones for detail view"""
+        from django.utils import timezone
+        import pytz
+        if obj.modified_at:
+            user_tz = self._get_user_timezone()
+            tampa_tz = pytz.timezone('America/New_York')
+            
+            user_time = obj.modified_at.astimezone(user_tz)
+            tampa_time = obj.modified_at.astimezone(tampa_tz)
+            
+            if str(user_tz) == str(tampa_tz):
+                return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+            else:
+                user_tz_name = self._get_timezone_name(str(user_tz))
+                return f"{user_time.strftime('%b %d, %Y %H:%M')} ({user_tz_name}) | {tampa_time.strftime('%b %d, %Y %H:%M')} (Tampa, FL)"
+        return '-'
+    modified_at_dual.short_description = 'Modified'
+    
+    def due_date_dual(self, obj):
+        """Display due date in dual timezones for detail view"""
+        from django.utils import timezone
+        import pytz
+        if obj.due_date:
+            user_tz = self._get_user_timezone()
+            tampa_tz = pytz.timezone('America/New_York')
+            
+            user_time = obj.due_date.astimezone(user_tz)
+            tampa_time = obj.due_date.astimezone(tampa_tz)
+            
+            if str(user_tz) == str(tampa_tz):
+                return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+            else:
+                user_tz_name = self._get_timezone_name(str(user_tz))
+                return f"{user_time.strftime('%b %d, %Y %H:%M')} ({user_tz_name}) | {tampa_time.strftime('%b %d, %Y %H:%M')} (Tampa, FL)"
+        return '-'
+    due_date_dual.short_description = 'Due Date'
+    
+    def _get_user_timezone(self):
+        """Get user timezone from profile or default to Tampa"""
+        import pytz
+        try:
+            # Try to get timezone from the current request user
+            if hasattr(self, 'request') and self.request and hasattr(self.request, 'user'):
+                user = self.request.user
+                if hasattr(user, 'profile') and user.profile and user.profile.timezone:
+                    return pytz.timezone(user.profile.timezone)
+        except:
+            pass
+        return pytz.timezone('America/New_York')  # Default to Tampa
+    
+    def _get_timezone_name(self, tz_string):
+        """Get friendly timezone name"""
+        timezone_names = {
+            'America/New_York': 'Tampa, FL',
+            'America/Los_Angeles': 'San Jose, CA', 
+            'America/Chicago': 'Chicago, IL',
+            'America/Denver': 'Denver, CO',
+            'America/Phoenix': 'Phoenix, AZ',
+            'Asia/Ho_Chi_Minh': 'Ho Chi Minh, Vietnam',
+            'Europe/London': 'London, UK',
+            'UTC': 'UTC',
+        }
+        return timezone_names.get(tz_string, tz_string)
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Store request for timezone access"""
+        self.request = request
+        return super().get_form(request, obj, **kwargs)
 
     def save_model(self, request, obj, form, change):
         if not change:  # If creating a new object
@@ -89,10 +201,101 @@ class PropertyAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'property', 'check_in_date', 'check_out_date', 'status', 'guest_name', 'guest_contact')
+    list_display = ('id', 'property', 'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact')
     list_filter = ('status', 'check_in_date', 'check_out_date', 'property')
     search_fields = ('property__name', 'guest_name', 'guest_contact')
-    readonly_fields = ('created_at', 'modified_at')
+    readonly_fields = ('created_at', 'modified_at', 'check_in_dual', 'check_out_dual', 'created_at_dual', 'modified_at_dual')
+    
+    def check_in_display(self, obj):
+        """Display check-in time in Tampa timezone"""
+        from django.utils import timezone
+        import pytz
+        if obj.check_in_date:
+            tampa_tz = pytz.timezone('America/New_York')
+            tampa_time = obj.check_in_date.astimezone(tampa_tz)
+            return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+        return '-'
+    check_in_display.short_description = 'Check-in (Tampa, FL)'
+    
+    def check_out_display(self, obj):
+        """Display check-out time in Tampa timezone"""
+        from django.utils import timezone
+        import pytz
+        if obj.check_out_date:
+            tampa_tz = pytz.timezone('America/New_York')
+            tampa_time = obj.check_out_date.astimezone(tampa_tz)
+            return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+        return '-'
+    check_out_display.short_description = 'Check-out (Tampa, FL)'
+    
+    def check_in_dual(self, obj):
+        """Display check-in time in dual timezones"""
+        return self._format_dual_timezone(obj.check_in_date)
+    check_in_dual.short_description = 'Check-in'
+    
+    def check_out_dual(self, obj):
+        """Display check-out time in dual timezones"""
+        return self._format_dual_timezone(obj.check_out_date)
+    check_out_dual.short_description = 'Check-out'
+    
+    def created_at_dual(self, obj):
+        """Display created time in dual timezones"""
+        return self._format_dual_timezone(obj.created_at)
+    created_at_dual.short_description = 'Created'
+    
+    def modified_at_dual(self, obj):
+        """Display modified time in dual timezones"""
+        return self._format_dual_timezone(obj.modified_at)
+    modified_at_dual.short_description = 'Modified'
+    
+    def _format_dual_timezone(self, dt):
+        """Helper method to format datetime in dual timezones"""
+        from django.utils import timezone
+        import pytz
+        if dt:
+            user_tz = self._get_user_timezone()
+            tampa_tz = pytz.timezone('America/New_York')
+            
+            user_time = dt.astimezone(user_tz)
+            tampa_time = dt.astimezone(tampa_tz)
+            
+            if str(user_tz) == str(tampa_tz):
+                return tampa_time.strftime('%b %d, %Y %H:%M (Tampa, FL)')
+            else:
+                user_tz_name = self._get_timezone_name(str(user_tz))
+                return f"{user_time.strftime('%b %d, %Y %H:%M')} ({user_tz_name}) | {tampa_time.strftime('%b %d, %Y %H:%M')} (Tampa, FL)"
+        return '-'
+    
+    def _get_user_timezone(self):
+        """Get user timezone from profile or default to Tampa"""
+        import pytz
+        try:
+            if hasattr(self, 'request') and self.request and hasattr(self.request, 'user'):
+                user = self.request.user
+                if hasattr(user, 'profile') and user.profile and user.profile.timezone:
+                    return pytz.timezone(user.profile.timezone)
+        except:
+            pass
+        return pytz.timezone('America/New_York')
+    
+    def _get_timezone_name(self, tz_string):
+        """Get friendly timezone name"""
+        timezone_names = {
+            'America/New_York': 'Tampa, FL',
+            'America/Los_Angeles': 'San Jose, CA', 
+            'America/Chicago': 'Chicago, IL',
+            'America/Denver': 'Denver, CO',
+            'America/Phoenix': 'Phoenix, AZ',
+            'Asia/Ho_Chi_Minh': 'Ho Chi Minh, Vietnam',
+            'Europe/London': 'London, UK',
+            'UTC': 'UTC',
+        }
+        return timezone_names.get(tz_string, tz_string)
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Store request for timezone access"""
+        self.request = request
+        return super().get_form(request, obj, **kwargs)
 
 class PropertyOwnershipAdmin(admin.ModelAdmin):
     list_display = ('id', 'property', 'user', 'ownership_type', 'can_edit', 'created_at')

@@ -1,0 +1,662 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load timezone_tags %}
+
+{% block title %}System Metrics Dashboard | AriStay Administration{% endblock %}
+
+{% block extrastyle %}
+<style>
+/* System Metrics Dashboard Styles */
+:root {
+    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --info-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    --border-radius: 16px;
+}
+
+body {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.metrics-header {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.metrics-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    z-index: 1;
+}
+
+.metrics-header > * {
+    position: relative;
+    z-index: 2;
+}
+
+.metrics-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.metrics-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.auto-refresh-indicator {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    backdrop-filter: blur(10px);
+}
+
+.metrics-grid {
+    display: grid;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.metrics-grid.cols-1 { grid-template-columns: 1fr; }
+.metrics-grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); }
+.metrics-grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.metrics-grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+.metric-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    border: 1px solid #e5e7eb;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+}
+
+.metric-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.metric-icon {
+    font-size: 1.5rem;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f3f4f6;
+}
+
+.metric-icon.success { background: rgba(16, 185, 129, 0.1); }
+.metric-icon.warning { background: rgba(245, 158, 11, 0.1); }
+.metric-icon.danger { background: rgba(239, 68, 68, 0.1); }
+.metric-icon.info { background: rgba(59, 130, 246, 0.1); }
+
+.metric-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 0.25rem;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f9fafb;
+}
+
+.metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-item-label {
+    font-weight: 500;
+    color: #374151;
+}
+
+.metric-item-value {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.health-status {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.health-status.healthy {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+.health-status.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.health-status.critical {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--success-gradient);
+    transition: width 0.3s ease;
+}
+
+.progress-fill.warning {
+    background: var(--warning-gradient);
+}
+
+.progress-fill.danger {
+    background: var(--danger-gradient);
+}
+
+.error-card {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f4f6;
+    border-radius: 50%;
+    border-top-color: #3b82f6;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .metrics-grid.cols-2,
+    .metrics-grid.cols-3,
+    .metrics-grid.cols-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics-title {
+        font-size: 2rem;
+    }
+    
+    .metric-card {
+        padding: 1rem;
+    }
+}
+
+/* Auto-refresh animation */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.refreshing {
+    animation: pulse 1s infinite;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    {% if error %}
+    <div class="error-card">
+        <h2>⚠️ Error Loading System Metrics</h2>
+        <p>{{ error }}</p>
+        <button onclick="location.reload()" style="background: #dc2626; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; margin-top: 1rem;">
+            🔄 Retry
+        </button>
+    </div>
+    {% else %}
+    
+    <!-- Header -->
+    <div class="metrics-header">
+        <div class="auto-refresh-indicator" id="refresh-status">
+            🔄 Auto-refresh: {{ refresh_mode|title }} ({{ refresh_interval }}s)
+        </div>
+        
+        <!-- Refresh Control Panel -->
+        <div style="position: absolute; top: 4rem; right: 1rem; background: rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 8px; backdrop-filter: blur(10px); font-size: 0.875rem;">
+            <div style="margin-bottom: 0.5rem; font-weight: 600;">Refresh Rate:</div>
+            {% for mode, interval in refresh_options.items %}
+                <a href="?refresh={{ mode }}" 
+                   style="display: inline-block; margin: 0 0.25rem; padding: 0.25rem 0.5rem; background: {% if refresh_mode == mode %}rgba(255,255,255,0.4){% else %}rgba(255,255,255,0.2){% endif %}; color: white; text-decoration: none; border-radius: 4px; font-size: 0.75rem;">
+                    {{ mode|title }}{% if interval > 0 %} ({{ interval }}s){% endif %}
+                </a>
+            {% endfor %}
+        </div>
+        
+        <!-- Quick Links -->
+        <div style="position: absolute; bottom: 1rem; left: 1rem; display: flex; gap: 0.5rem;">
+            <a href="/api/admin/logs/" style="background: rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem;">
+                📝 View Logs
+            </a>
+            <a href="/api/admin/recovery/" style="background: rgba(255,255,255,0.2); color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem;">
+                🚨 Crash Recovery
+            </a>
+        </div>
+        <h1 class="metrics-title">📊 System Metrics Dashboard</h1>
+        <p class="metrics-subtitle">Real-time monitoring and performance insights</p>
+        <p style="margin-top: 1rem; opacity: 0.8;">
+            Last updated: <span id="last-update">{{ metrics.timestamp|dual_timezone:user }}</span>
+        </p>
+        <p style="margin-top: 0.5rem; opacity: 0.7; font-size: 0.875rem;">
+            {% current_time_dual user %}
+        </p>
+    </div>
+
+    <!-- Health Status Overview -->
+    {% if metrics.health_status %}
+    <div class="metrics-grid cols-1">
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon {% if metrics.health_status.overall_status == 'healthy' %}success{% elif metrics.health_status.overall_status == 'warning' %}warning{% else %}danger{% endif %}">
+                    {% if metrics.health_status.overall_status == 'healthy' %}✅{% elif metrics.health_status.overall_status == 'warning' %}⚠️{% else %}❌{% endif %}
+                </div>
+                <div>
+                    <div class="metric-title">System Health Status</div>
+                    <div class="health-status {{ metrics.health_status.overall_status }}">
+                        {{ metrics.health_status.overall_status|title }}
+                    </div>
+                </div>
+            </div>
+            
+            {% if metrics.health_status.failed_checks %}
+            <div style="margin-bottom: 1rem;">
+                <strong>Failed Checks:</strong> {{ metrics.health_status.failed_checks|join:", " }}
+            </div>
+            {% endif %}
+            
+            <div class="metrics-grid cols-4">
+                {% for check_name, check_data in metrics.health_status.checks.items %}
+                <div style="text-align: center; padding: 0.75rem; background: #f8fafc; border-radius: 8px;">
+                    <div style="font-size: 1.5rem; margin-bottom: 0.25rem;">
+                        {% if check_data.healthy %}✅{% else %}❌{% endif %}
+                    </div>
+                    <div style="font-weight: 600; font-size: 0.875rem;">{{ check_name|title }}</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">{{ check_data.status|default:"Unknown" }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Performance Metrics -->
+    {% if metrics.performance %}
+    <div class="metrics-grid cols-3">
+        <!-- CPU Usage -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon info">🖥️</div>
+                <div class="metric-title">CPU Usage</div>
+            </div>
+            <div class="metric-value">{{ metrics.performance.cpu.usage_percent|floatformat:1 }}%</div>
+            <div class="progress-bar">
+                <div class="progress-fill {% if metrics.performance.cpu.usage_percent > 80 %}danger{% elif metrics.performance.cpu.usage_percent > 60 %}warning{% endif %}" 
+                     style="width: {{ metrics.performance.cpu.usage_percent }}%"></div>
+            </div>
+            <div class="metric-label">{{ metrics.performance.cpu.count }} cores available</div>
+        </div>
+
+        <!-- Memory Usage -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon warning">💾</div>
+                <div class="metric-title">Memory Usage</div>
+            </div>
+            <div class="metric-value">{{ metrics.performance.memory.used_percent|floatformat:1 }}%</div>
+            <div class="progress-bar">
+                <div class="progress-fill {% if metrics.performance.memory.used_percent > 85 %}danger{% elif metrics.performance.memory.used_percent > 70 %}warning{% endif %}" 
+                     style="width: {{ metrics.performance.memory.used_percent }}%"></div>
+            </div>
+            <div class="metric-label">{{ metrics.performance.memory.available_gb }} GB available</div>
+        </div>
+
+        <!-- Disk Usage -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon success">💿</div>
+                <div class="metric-title">Disk Usage</div>
+            </div>
+            <div class="metric-value">{{ metrics.performance.disk.used_percent|floatformat:1 }}%</div>
+            <div class="progress-bar">
+                <div class="progress-fill {% if metrics.performance.disk.used_percent > 90 %}danger{% elif metrics.performance.disk.used_percent > 75 %}warning{% endif %}" 
+                     style="width: {{ metrics.performance.disk.used_percent }}%"></div>
+            </div>
+            <div class="metric-label">{{ metrics.performance.disk.free_gb }} GB free</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Application Metrics -->
+    {% if metrics.application %}
+    <div class="metrics-grid cols-2">
+        <!-- Task Metrics -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon info">📋</div>
+                <div class="metric-title">Task Metrics</div>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Total Tasks</span>
+                <span class="metric-item-value">{{ metrics.application.task_metrics.total }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Pending</span>
+                <span class="metric-item-value">{{ metrics.application.task_metrics.pending }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">In Progress</span>
+                <span class="metric-item-value">{{ metrics.application.task_metrics.in_progress }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Completed</span>
+                <span class="metric-item-value">{{ metrics.application.task_metrics.completed }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Overdue</span>
+                <span class="metric-item-value" style="color: #dc2626;">{{ metrics.application.task_metrics.overdue }}</span>
+            </div>
+        </div>
+
+        <!-- User Metrics -->
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon success">👥</div>
+                <div class="metric-title">User Metrics</div>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Total Users</span>
+                <span class="metric-item-value">{{ metrics.application.user_metrics.total }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Active Users</span>
+                <span class="metric-item-value">{{ metrics.application.user_metrics.active }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Staff Members</span>
+                <span class="metric-item-value">{{ metrics.application.user_metrics.staff }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Superusers</span>
+                <span class="metric-item-value">{{ metrics.application.user_metrics.superusers }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Logged in (24h)</span>
+                <span class="metric-item-value">{{ metrics.application.user_metrics.logged_in_24h }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Database & System Info -->
+    <div class="metrics-grid cols-2">
+        <!-- Database Metrics -->
+        {% if metrics.database %}
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon info">🗄️</div>
+                <div class="metric-title">Database Metrics</div>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Database</span>
+                <span class="metric-item-value">{{ metrics.database.vendor|title }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Connection</span>
+                <span class="metric-item-value">{{ metrics.database.connection_status|title }}</span>
+            </div>
+            {% for table, count in metrics.database.table_counts.items %}
+            <div class="metric-item">
+                <span class="metric-item-label">{{ table|title }}</span>
+                <span class="metric-item-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- System Information -->
+        {% if metrics.system_info %}
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon success">⚙️</div>
+                <div class="metric-title">System Information</div>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Python Version</span>
+                <span class="metric-item-value">{{ metrics.system_info.python_version }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Platform</span>
+                <span class="metric-item-value">{{ metrics.system_info.platform }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Hostname</span>
+                <span class="metric-item-value">{{ metrics.system_info.hostname }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Debug Mode</span>
+                <span class="metric-item-value">{{ metrics.system_info.debug_mode|yesno:"On,Off" }}</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-item-label">Timezone</span>
+                <span class="metric-item-value">{{ metrics.system_info.timezone }}</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Logging Information -->
+    {% if metrics.logging %}
+    <div class="metrics-grid cols-1">
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon warning">📝</div>
+                <div class="metric-title">Logging Status</div>
+            </div>
+            
+            {% if metrics.logging.log_files %}
+            <div class="metrics-grid cols-4">
+                {% for log_file, log_data in metrics.logging.log_files.items %}
+                <div style="text-align: center; padding: 1rem; background: #f8fafc; border-radius: 8px;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem;">{{ log_file }}</div>
+                    {% if log_data.error %}
+                        <div style="color: #dc2626; font-size: 0.875rem;">{{ log_data.error }}</div>
+                    {% else %}
+                        <div style="font-size: 1.2rem; font-weight: 700; color: #374151;">{{ log_data.size_mb }} MB</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">{{ log_data.lines }} lines</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="text-align: center; color: #6b7280; margin: 2rem 0;">No log files found</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+<script>
+// Auto-refresh functionality
+let refreshInterval;
+let isRefreshing = false;
+
+function startAutoRefresh() {
+    const interval = {{ refresh_interval|default:30 }};
+    if (interval > 0) {
+        refreshInterval = setInterval(refreshMetrics, interval * 1000);
+        document.getElementById('refresh-status').textContent = `🔄 Auto-refresh: {{ refresh_mode|title }} (${interval}s)`;
+    } else {
+        document.getElementById('refresh-status').textContent = '⏸️ Auto-refresh: Manual Only';
+    }
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+    document.getElementById('refresh-status').textContent = '⏸️ Auto-refresh: OFF';
+}
+
+function refreshMetrics() {
+    if (isRefreshing) return;
+    
+    isRefreshing = true;
+    document.body.classList.add('refreshing');
+    
+    fetch('{% url "admin-metrics-api" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Metrics refresh error:', data.error);
+                return;
+            }
+            
+            // Update timestamp
+            const timestamp = new Date(data.timestamp);
+            document.getElementById('last-update').textContent = timestamp.toLocaleString();
+            
+            // Update CPU usage
+            updateProgressBar('cpu', data.performance?.cpu?.usage_percent);
+            
+            // Update Memory usage
+            updateProgressBar('memory', data.performance?.memory?.used_percent);
+            
+            // Update Disk usage
+            updateProgressBar('disk', data.performance?.disk?.used_percent);
+            
+            // Could add more specific updates here without full page reload
+            
+            console.log('Metrics refreshed successfully');
+        })
+        .catch(error => {
+            console.error('Metrics refresh failed:', error);
+        })
+        .finally(() => {
+            isRefreshing = false;
+            document.body.classList.remove('refreshing');
+        });
+}
+
+function updateProgressBar(type, value) {
+    const progressBar = document.querySelector(`[data-metric="${type}"] .progress-fill`);
+    if (progressBar && value !== undefined) {
+        progressBar.style.width = value + '%';
+        
+        // Update color classes
+        progressBar.className = 'progress-fill';
+        if (value > 85) {
+            progressBar.classList.add('danger');
+        } else if (value > 70) {
+            progressBar.classList.add('warning');
+        }
+    }
+}
+
+// Manual refresh button
+function manualRefresh() {
+    location.reload();
+}
+
+// Initialize auto-refresh
+document.addEventListener('DOMContentLoaded', function() {
+    startAutoRefresh();
+    
+    // Add manual refresh button
+    const header = document.querySelector('.metrics-header');
+    if (header) {
+        const refreshButton = document.createElement('button');
+        refreshButton.innerHTML = '🔄 Refresh Now';
+        refreshButton.style.cssText = 'position: absolute; top: 1rem; left: 1rem; background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; backdrop-filter: blur(10px);';
+        refreshButton.onclick = manualRefresh;
+        header.appendChild(refreshButton);
+    }
+    
+    // Pause auto-refresh when page is not visible
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            stopAutoRefresh();
+        } else {
+            startAutoRefresh();
+        }
+    });
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+
+console.log('🚀 AriStay System Metrics Dashboard loaded successfully!');
+</script>
+{% endblock %}

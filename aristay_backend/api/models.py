@@ -1,7 +1,7 @@
 # api/models.py
 
 import json
-from zoneinfo import available_timezones
+# Removed available_timezones import - using curated timezone choices instead
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
@@ -215,10 +215,25 @@ class UserRole(models.TextChoices):
 
 class Profile(models.Model):
     user     = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    # Curated timezone choices for AriStay locations
+    TIMEZONE_CHOICES = [
+        ('America/New_York', 'Eastern Time (Tampa, FL)'),
+        ('America/Los_Angeles', 'Pacific Time (San Jose, CA)'),
+        ('America/Chicago', 'Central Time (Chicago, IL)'),
+        ('America/Denver', 'Mountain Time (Denver, CO)'),
+        ('America/Phoenix', 'Arizona Time (Phoenix, AZ)'),
+        ('America/Anchorage', 'Alaska Time (Anchorage, AK)'),
+        ('Pacific/Honolulu', 'Hawaii Time (Honolulu, HI)'),
+        ('Asia/Ho_Chi_Minh', 'Vietnam Time (Ho Chi Minh City)'),
+        ('Europe/London', 'GMT/BST (London, UK)'),
+        ('UTC', 'UTC (Coordinated Universal Time)'),
+    ]
+    
     timezone = models.CharField(
         max_length=32,
-        choices=[(tz, tz) for tz in sorted(available_timezones())],
-        default='UTC'
+        choices=TIMEZONE_CHOICES,
+        default='America/New_York',  # Tampa, FL timezone as default
+        help_text="Your local timezone for displaying dates and times"
     )
     digest_opt_out = models.BooleanField(default=False)
 

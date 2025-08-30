@@ -1,4 +1,5 @@
 {% load static %}
+{% load timezone_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,8 +51,13 @@
                         <a href="/api/staff/" class="button">📋 My Tasks</a>
                     {% endif %}
                     
-                    <!-- User info and logout -->
-                    <span style="color: rgba(255,255,255,0.8);">{{ user.get_full_name|default:user.username }}</span>
+                                    <!-- Time display -->
+                <div style="color: rgba(255,255,255,0.8); font-size: 0.875rem; margin-right: 1rem;">
+                    {% current_time_dual user %}
+                </div>
+                
+                <!-- User info and logout -->
+                <span style="color: rgba(255,255,255,0.8);">{{ user.get_full_name|default:user.username }}</span>
                     <a href="{% url 'unified_logout' %}" class="button" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">Logout</a>
                 {% endif %}
             </div>

@@ -1,0 +1,611 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}System Crash Recovery | AriStay Administration{% endblock %}
+
+{% block extrastyle %}
+<style>
+/* Recovery Dashboard Styles */
+:root {
+    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    --border-radius: 16px;
+}
+
+body {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.recovery-header {
+    background: var(--danger-gradient);
+    color: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.recovery-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    z-index: 1;
+}
+
+.recovery-header > * {
+    position: relative;
+    z-index: 2;
+}
+
+.recovery-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.back-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+}
+
+.back-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.status-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.status-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    border: 1px solid #e5e7eb;
+    transition: transform 0.2s;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.status-icon {
+    font-size: 2rem;
+    width: 4rem;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.status-icon.operational {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.status-icon.warning {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.status-icon.critical {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.status-icon.error {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.status-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-badge.operational {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+.status-badge.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.status-badge.critical {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+.status-badge.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+.section-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 1.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.diagnostic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.diagnostic-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.diagnostic-label {
+    font-weight: 500;
+    color: #374151;
+}
+
+.diagnostic-value {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.error-log {
+    background: #1f2937;
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+}
+
+.error-line {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem;
+    border-radius: 4px;
+}
+
+.error-line.ERROR {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+}
+
+.error-line.WARNING {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fcd34d;
+}
+
+.error-line.CRITICAL {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    font-weight: 600;
+}
+
+.error-line.INFO {
+    color: #93c5fd;
+}
+
+.error-line.DEBUG {
+    color: #d1d5db;
+}
+
+.suggestions-list {
+    list-style: none;
+    padding: 0;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+}
+
+.suggestion-item.warning {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.suggestion-item.critical {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+}
+
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+    justify-content: center;
+}
+
+.action-button {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.action-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.action-button.warning {
+    background: var(--warning-gradient);
+}
+
+.action-button.success {
+    background: var(--success-gradient);
+}
+
+.action-button.danger {
+    background: var(--danger-gradient);
+}
+
+.no-errors {
+    text-align: center;
+    color: #6b7280;
+    padding: 2rem;
+    font-size: 1.1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .status-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .diagnostic-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .recovery-title {
+        font-size: 2rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Error log scrollbar */
+.error-log::-webkit-scrollbar {
+    width: 8px;
+}
+
+.error-log::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.error-log::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.error-log::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <!-- Header -->
+    <div class="recovery-header">
+        <a href="/api/admin/metrics/" class="back-link">
+            ← Back to Metrics
+        </a>
+        <h1 class="recovery-title">🚨 System Crash Recovery</h1>
+        <p style="opacity: 0.9; margin-top: 0.5rem;">
+            Emergency diagnostics and recovery assistance
+        </p>
+    </div>
+
+    {% if recovery_info.error %}
+    <div class="section-card">
+        <div class="section-title">❌ Recovery Analysis Error</div>
+        <div style="background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; padding: 1rem; border-radius: 8px;">
+            {{ recovery_info.error }}
+        </div>
+    </div>
+    {% else %}
+
+    <!-- System Status Overview -->
+    <div class="status-overview">
+        <div class="status-card">
+            <div class="status-header">
+                <div class="status-icon {{ recovery_info.system_status }}">
+                    {% if recovery_info.system_status == 'operational' %}✅
+                    {% elif recovery_info.system_status == 'warning' %}⚠️
+                    {% elif recovery_info.system_status == 'critical' %}❌
+                    {% else %}❓{% endif %}
+                </div>
+                <div>
+                    <div class="status-title">System Status</div>
+                    <div class="status-badge {{ recovery_info.system_status }}">
+                        {{ recovery_info.system_status|title }}
+                    </div>
+                </div>
+            </div>
+            <p style="color: #6b7280; margin: 0;">
+                {% if recovery_info.system_status == 'operational' %}
+                    System is running normally with no critical issues detected.
+                {% elif recovery_info.system_status == 'warning' %}
+                    Some warnings detected but system is functional.
+                {% elif recovery_info.system_status == 'critical' %}
+                    Critical issues detected requiring immediate attention.
+                {% else %}
+                    Unable to determine system status.
+                {% endif %}
+            </p>
+        </div>
+
+        {% if recovery_info.diagnostic_info %}
+        <div class="status-card">
+            <div class="status-header">
+                <div class="status-icon operational">🔧</div>
+                <div>
+                    <div class="status-title">Process Status</div>
+                    <div class="status-badge operational">
+                        {{ recovery_info.diagnostic_info.process_status|default:"Unknown"|title }}
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 1rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="color: #6b7280;">Memory Usage:</span>
+                    <span style="font-weight: 600;">{{ recovery_info.diagnostic_info.memory_usage_mb|default:"?" }} MB</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="color: #6b7280;">CPU Usage:</span>
+                    <span style="font-weight: 600;">{{ recovery_info.diagnostic_info.cpu_usage_percent|default:"?" }}%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #6b7280;">Threads:</span>
+                    <span style="font-weight: 600;">{{ recovery_info.diagnostic_info.threads|default:"?" }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Diagnostic Information -->
+    {% if recovery_info.diagnostic_info %}
+    <div class="section-card">
+        <div class="section-title">🔍 Diagnostic Information</div>
+        <div class="diagnostic-grid">
+            {% for key, value in recovery_info.diagnostic_info.items %}
+            <div class="diagnostic-item">
+                <div class="diagnostic-label">{{ key|title }}</div>
+                <div class="diagnostic-value">{{ value }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Errors -->
+    <div class="section-card">
+        <div class="section-title">📝 Recent Error Log Analysis</div>
+        {% if recovery_info.recent_errors %}
+        <div class="error-log">
+            {% for error in recovery_info.recent_errors %}
+            <div class="error-line {{ error.level }}">
+                <strong>[{{ error.timestamp }}] {{ error.level }}:</strong> {{ error.line }}
+            </div>
+            {% endfor %}
+        </div>
+        <div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 8px; font-size: 0.875rem; color: #6b7280;">
+            📊 Showing last {{ recovery_info.recent_errors|length }} error entries from error.log
+        </div>
+        {% else %}
+        <div class="no-errors">
+            ✅ No recent errors found in error logs
+            <br><br>
+            <span style="font-size: 0.9rem; color: #9ca3af;">
+                This indicates the system is running without critical issues.
+            </span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recovery Suggestions -->
+    <div class="section-card">
+        <div class="section-title">💡 Recovery Suggestions</div>
+        {% if recovery_info.recovery_suggestions %}
+        <ul class="suggestions-list">
+            {% for suggestion in recovery_info.recovery_suggestions %}
+            <li class="suggestion-item {% if 'critical' in suggestion.lower %}critical{% elif 'warning' in suggestion.lower or 'check' in suggestion.lower %}warning{% endif %}">
+                <div>{{ suggestion }}</div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="no-errors">
+            📋 No specific recovery suggestions available
+        </div>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <a href="/api/admin/metrics/" class="action-button">
+            📊 System Metrics
+        </a>
+        <a href="/api/admin/logs/" class="action-button">
+            📝 View Full Logs
+        </a>
+        <button onclick="location.reload()" class="action-button success">
+            🔄 Refresh Analysis
+        </button>
+        <button onclick="downloadDiagnostics()" class="action-button warning">
+            💾 Download Diagnostics
+        </button>
+        <a href="/admin/" class="action-button">
+            🏠 Admin Dashboard
+        </a>
+    </div>
+
+    <!-- Emergency Actions -->
+    <div class="section-card" style="margin-top: 2rem; border: 2px solid #ef4444;">
+        <div class="section-title" style="color: #dc2626;">🚨 Emergency Actions</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+            <div style="text-align: center; padding: 1rem; background: #fef2f2; border-radius: 8px;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
+                <h3 style="margin: 0 0 0.5rem 0; color: #dc2626;">Restart Server</h3>
+                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;">
+                    If system is unresponsive, restart the Django server process
+                </p>
+                <code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
+                    sudo systemctl restart aristay
+                </code>
+            </div>
+            
+            <div style="text-align: center; padding: 1rem; background: #fef2f2; border-radius: 8px;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🗄️</div>
+                <h3 style="margin: 0 0 0.5rem 0; color: #dc2626;">Database Check</h3>
+                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;">
+                    Verify database connection and integrity
+                </p>
+                <code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
+                    python manage.py check --database default
+                </code>
+            </div>
+            
+            <div style="text-align: center; padding: 1rem; background: #fef2f2; border-radius: 8px;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🧹</div>
+                <h3 style="margin: 0 0 0.5rem 0; color: #dc2626;">Clear Cache</h3>
+                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1rem;">
+                    Clear application cache and temporary files
+                </p>
+                <code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
+                    python manage.py clearcache
+                </code>
+            </div>
+        </div>
+        
+        <div style="margin-top: 1.5rem; padding: 1rem; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;">
+            <strong style="color: #ea580c;">⚠️ Warning:</strong> 
+            <span style="color: #9a3412;">
+                These are emergency recovery actions. Use only if normal operation is impossible. 
+                Always backup data before performing system-level operations.
+            </span>
+        </div>
+    </div>
+</div>
+
+<script>
+function downloadDiagnostics() {
+    const diagnosticData = {
+        timestamp: new Date().toISOString(),
+        system_status: '{{ recovery_info.system_status }}',
+        recent_errors: {{ recovery_info.recent_errors|length }},
+        diagnostic_info: {{ recovery_info.diagnostic_info|default:"{}"| safe }},
+        recovery_suggestions: {{ recovery_info.recovery_suggestions|length }},
+        url: window.location.href,
+        user_agent: navigator.userAgent,
+    };
+    
+    const blob = new Blob([JSON.stringify(diagnosticData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aristay-diagnostics-${new Date().toISOString().slice(0, 19)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Auto-refresh every 30 seconds
+let refreshInterval = setInterval(() => {
+    location.reload();
+}, 30000);
+
+// Stop refresh when page is hidden
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        clearInterval(refreshInterval);
+    } else {
+        refreshInterval = setInterval(() => {
+            location.reload();
+        }, 30000);
+    }
+});
+
+console.log('🚨 AriStay System Crash Recovery loaded successfully!');
+</script>
+{% endblock %}

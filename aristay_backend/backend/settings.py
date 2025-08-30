@@ -152,6 +152,10 @@ LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "America/New_York"  # System default: Tampa, FL (Eastern Time)
 
+# AriStay Timezone Configuration
+ARISTAY_DEFAULT_TIMEZONE = "America/New_York"  # Tampa, FL
+ARISTAY_TIMEZONE_DISPLAY_NAME = "Tampa, FL"
+
 USE_I18N = True
 
 USE_TZ = True

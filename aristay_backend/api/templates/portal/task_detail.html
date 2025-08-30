@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load timezone_tags %}
 
 {% block title %}{{ task.title }} · AriStay Portal{% endblock %}
 
@@ -17,7 +18,7 @@
         <div style="text-align: right;">
             <div class="tag" style="margin-bottom: 0.5rem;">{{ task.get_status_display }}</div>
             {% if task.due_date %}
-            <div class="muted">Due: {{ task.due_date|date:"M d, Y H:i" }}</div>
+            <div class="muted">Due: {{ task.due_date|dual_timezone:user }}</div>
             {% endif %}
         </div>
     </div>
@@ -40,7 +41,7 @@
         {% if task.created_by %}
         <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}<br>
         {% endif %}
-        <strong>Created:</strong> {{ task.created_at|date:"M d, Y H:i" }}
+        <strong>Created:</strong> {{ task.created_at|dual_timezone:user }}
     </div>
 
     <!-- Action buttons -->

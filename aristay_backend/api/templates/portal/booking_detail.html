@@ -1,13 +1,14 @@
 {% extends "portal/base.html" %}
 {% load tz %}
+{% load timezone_tags %}
 {% block title %}Booking · {{ property.name }} · AriStay Portal{% endblock %}
 {% block content %}
 <div class="card">
   <div style="display:flex; justify-content:space-between; align-items:center;">
     <div>
       <div class="section-title">Booking</div>
-      <div class="muted">System (Tampa): {{ booking.check_in_date|date:"M d, Y H:i" }} → {{ booking.check_out_date|date:"M d, Y H:i" }}</div>
-      <div class="muted">Your local: {{ booking.check_in_date|localtime|date:"M d, Y H:i" }} → {{ booking.check_out_date|localtime|date:"M d, Y H:i" }}</div>
+      <div class="muted">Check-in: {{ booking.check_in_date|dual_timezone:user }}</div>
+      <div class="muted">Check-out: {{ booking.check_out_date|dual_timezone:user }}</div>
     </div>
     <div>
       <a class="button" href="{% url 'portal-property-detail' property.id %}">Back to {{ property.name }}</a>

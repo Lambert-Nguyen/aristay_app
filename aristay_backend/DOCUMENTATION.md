@@ -375,4 +375,67 @@ For implementation questions or technical support:
 - Examine sample data for usage patterns
 - Monitor application logs for operational insights
 
-This documentation covers the complete MVP Phase 1 implementation. All features are production-ready and include comprehensive admin interfaces for ongoing management.
+## 📊 System Metrics Dashboard
+
+### Overview
+Comprehensive system monitoring and performance insights for superusers to maintain optimal application health.
+
+### Access
+- **URL**: `/api/admin/metrics/`
+- **Permissions**: Superuser only
+- **Auto-refresh**: Every 30 seconds
+- **API Endpoint**: `/api/admin/metrics/api/` (JSON)
+
+### Metrics Categories
+
+#### 🖥️ Performance Metrics
+- **CPU Usage**: Real-time processor utilization
+- **Memory Usage**: RAM consumption and availability
+- **Disk Usage**: Storage space and free capacity
+- **Network Statistics**: Data transfer metrics
+
+#### 💾 Database Metrics
+- **Connection Status**: Database connectivity health
+- **Table Counts**: Record counts across all models
+- **Recent Activity**: Today's data creation statistics
+
+#### 📝 Logging Metrics
+- **Log Files**: Size and line counts for all log files
+- **Log Directory**: Location and write permissions
+- **Logging Status**: System logging configuration health
+
+#### 🏥 Health Checks
+- **Overall Status**: System health (Healthy/Warning/Critical)
+- **Individual Checks**: Database, cache, disk, memory, logging
+- **Failed Components**: Automatic detection of issues
+
+#### 👥 Application Metrics
+- **Task Statistics**: Total, pending, completed, overdue tasks
+- **User Activity**: Login patterns, role distribution
+- **Property Data**: Active properties and bookings
+- **Notification Activity**: Sent and unread notifications
+
+#### ⚙️ System Information
+- **Environment**: Python version, platform, hostname
+- **Configuration**: Debug mode, timezone settings
+- **Process Info**: PID, uptime, memory usage
+
+### Features
+- **Real-time Updates**: Automatic refresh without page reload
+- **Health Monitoring**: Visual status indicators for system components
+- **Performance Alerts**: Color-coded warnings for resource usage
+- **Mobile Responsive**: Works on all device sizes
+- **Error Handling**: Graceful failure with retry options
+
+### Usage in Admin Dashboard
+1. Login as superuser
+2. Navigate to admin dashboard
+3. Click "🖥️ System Metrics" card
+4. View comprehensive system status
+5. Monitor performance in real-time
+
+This system metrics dashboard provides essential monitoring capabilities for maintaining optimal system performance and early detection of potential issues.
+
+---
+
+This documentation covers the complete MVP Phase 1 implementation including system monitoring. All features are production-ready and include comprehensive admin interfaces for ongoing management.

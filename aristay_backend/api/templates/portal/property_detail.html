@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load timezone_tags %}
 {% block title %}{{ property.name }} · AriStay Portal{% endblock %}
 {% block content %}
 <div class="card">
@@ -20,7 +21,7 @@
           <ul style="margin:0; padding-left:18px;">
             {% for b in items %}
               <li style="margin:6px 0;">
-                {{ b.check_in_date|date:"M d, Y H:i" }} → {{ b.check_out_date|date:"M d, Y H:i" }}
+                {{ b.check_in_date|dual_timezone:user }} → {{ b.check_out_date|dual_timezone:user }}
                 <a class="button" style="margin-left:8px;" href="{% url 'portal-booking-detail' property.id b.id %}">Open</a>
               </li>
             {% endfor %}

@@ -1,4 +1,5 @@
 {% extends "staff/base.html" %}
+{% load timezone_tags %}
 
 {% block title %}My Tasks · AriStay{% endblock %}
 
@@ -52,12 +53,12 @@
             <div class="task-meta">
                 <span>🏠 {{ task.property.name|default:"No Property" }}</span>
                 {% if task.booking %}
-                <span>📅 {{ task.booking.check_in_date|date:"M d" }} → {{ task.booking.check_out_date|date:"M d" }}</span>
+                <span>📅 {{ task.booking.check_in_date|user_timezone:user }} → {{ task.booking.check_out_date|user_timezone:user }}</span>
                 {% endif %}
                 <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
                 <span>🏷️ {{ task.get_task_type_display }}</span>
                 {% if task.due_date %}
-                <span>⏰ {{ task.due_date|date:"M d, H:i" }}</span>
+                <span>⏰ {{ task.due_date|dual_timezone:user }}</span>
                 {% endif %}
             </div>
             

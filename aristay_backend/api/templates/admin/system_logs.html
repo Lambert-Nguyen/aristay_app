@@ -1,0 +1,533 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load timezone_tags %}
+
+{% block title %}System Logs Viewer | AriStay Administration{% endblock %}
+
+{% block extrastyle %}
+<style>
+/* Log Viewer Styles */
+:root {
+    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #3b82f6;
+    --debug-color: #6b7280;
+    --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    --border-radius: 16px;
+}
+
+body {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.logs-header {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.logs-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    z-index: 1;
+}
+
+.logs-header > * {
+    position: relative;
+    z-index: 2;
+}
+
+.logs-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.back-link {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+}
+
+.back-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.controls-panel {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+    border: 1px solid #e5e7eb;
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: end;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.control-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.control-input {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.control-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.apply-button {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.apply-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.logs-container {
+    background: #1f2937;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.log-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.log-line:last-child {
+    border-bottom: none;
+}
+
+.line-number {
+    color: #6b7280;
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+    user-select: none;
+}
+
+.log-content {
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.log-level-ERROR .log-content {
+    color: #fca5a5;
+}
+
+.log-level-WARNING .log-content {
+    color: #fcd34d;
+}
+
+.log-level-INFO .log-content {
+    color: #93c5fd;
+}
+
+.log-level-DEBUG .log-content {
+    color: #d1d5db;
+}
+
+.log-level-CRITICAL .log-content {
+    color: #f87171;
+    font-weight: 600;
+}
+
+.log-level-UNKNOWN .log-content {
+    color: #9ca3af;
+}
+
+.no-logs {
+    text-align: center;
+    color: #6b7280;
+    padding: 3rem;
+    font-size: 1.1rem;
+}
+
+.error-message {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.file-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.file-tab {
+    background: #374151;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px 8px 0 0;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.file-tab.active {
+    background: #1f2937;
+}
+
+.file-tab:hover {
+    background: #4b5563;
+}
+
+.stats-bar {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .controls-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .logs-title {
+        font-size: 2rem;
+    }
+    
+    .logs-container {
+        max-height: 400px;
+    }
+    
+    .log-line {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .line-number {
+        min-width: auto;
+        text-align: left;
+    }
+}
+
+/* Auto-refresh indicator */
+.auto-refresh {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    backdrop-filter: blur(10px);
+}
+
+/* Scrollbar styling for logs container */
+.logs-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.logs-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.logs-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.logs-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <!-- Header -->
+    <div class="logs-header">
+        <a href="/api/admin/metrics/" class="back-link">
+            ← Back to Metrics
+        </a>
+        <div class="auto-refresh" id="auto-refresh-status">
+            🔄 Auto-refresh: OFF
+        </div>
+        <h1 class="logs-title">📝 System Logs Viewer</h1>
+        <p style="opacity: 0.9; margin-top: 0.5rem;">
+            Real-time log monitoring and analysis
+        </p>
+        <p style="opacity: 0.7; margin-top: 0.5rem; font-size: 0.875rem;">
+            Log timestamps shown in Tampa, FL timezone
+        </p>
+    </div>
+
+    {% if error_message %}
+    <div class="error-message">
+        ⚠️ {{ error_message }}
+    </div>
+    {% endif %}
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+        <form method="get" id="log-controls">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label class="control-label" for="file">Log File</label>
+                    <select name="file" id="file" class="control-input">
+                        {% for file in available_files %}
+                        <option value="{{ file }}" {% if file == current_file %}selected{% endif %}>
+                            {{ file }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="lines">Lines to Show</label>
+                    <select name="lines" id="lines" class="control-input">
+                        <option value="50" {% if lines_shown == 50 %}selected{% endif %}>Last 50 lines</option>
+                        <option value="100" {% if lines_shown == 100 %}selected{% endif %}>Last 100 lines</option>
+                        <option value="200" {% if lines_shown == 200 %}selected{% endif %}>Last 200 lines</option>
+                        <option value="500" {% if lines_shown == 500 %}selected{% endif %}>Last 500 lines</option>
+                        <option value="1000" {% if lines_shown == 1000 %}selected{% endif %}>Last 1000 lines</option>
+                        <option value="0" {% if lines_shown == 0 %}selected{% endif %}>All lines</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="level">Log Level Filter</label>
+                    <select name="level" id="level" class="control-input">
+                        <option value="" {% if not level_filter %}selected{% endif %}>All Levels</option>
+                        {% for log_level in log_levels %}
+                        <option value="{{ log_level }}" {% if level_filter == log_level %}selected{% endif %}>
+                            {{ log_level }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="search">Search Text</label>
+                    <input type="text" name="search" id="search" class="control-input" 
+                           value="{{ search_term }}" placeholder="Search log content...">
+                </div>
+
+                <div class="control-group">
+                    <button type="submit" class="apply-button">
+                        🔍 Apply Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- File Tabs -->
+    {% if available_files %}
+    <div class="file-tabs">
+        {% for file in available_files %}
+        <a href="?file={{ file }}&lines={{ lines_shown }}&level={{ level_filter }}&search={{ search_term }}" 
+           class="file-tab {% if file == current_file %}active{% endif %}">
+            {{ file }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Log Content -->
+    {% if log_content %}
+    <div class="logs-container" id="logs-container">
+        <div class="stats-bar">
+            <div>
+                Showing {{ log_content|length }} lines from <strong>{{ current_file }}</strong>
+                {% if search_term %} (filtered by "{{ search_term }}"){% endif %}
+                {% if level_filter %} ({{ level_filter }} level){% endif %}
+            </div>
+            <div>
+                <button onclick="scrollToBottom()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer;">
+                    ⬇️ Bottom
+                </button>
+                <button onclick="scrollToTop()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; margin-left: 0.5rem;">
+                    ⬆️ Top
+                </button>
+            </div>
+        </div>
+
+        {% for line in log_content %}
+        <div class="log-line log-level-{{ line.level }}">
+            <div class="line-number">{{ line.number }}</div>
+            <div class="log-content">{{ line.content }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="logs-container">
+        <div class="no-logs">
+            {% if search_term or level_filter %}
+                🔍 No log entries found matching your filters
+                <br><br>
+                <a href="?file={{ current_file }}" style="color: #3b82f6;">Clear filters</a>
+            {% else %}
+                📝 No log entries found in {{ current_file }}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+        <a href="/api/admin/metrics/" class="apply-button" style="text-decoration: none; display: inline-block;">
+            📊 Back to Metrics
+        </a>
+        <a href="/api/admin/recovery/" class="apply-button" style="text-decoration: none; display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+            🚨 Crash Recovery
+        </a>
+        <button onclick="location.reload()" class="apply-button" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            🔄 Refresh Logs
+        </button>
+    </div>
+</div>
+
+<script>
+// Auto-scroll to bottom on load
+function scrollToBottom() {
+    const container = document.getElementById('logs-container');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function scrollToTop() {
+    const container = document.getElementById('logs-container');
+    if (container) {
+        container.scrollTop = 0;
+    }
+}
+
+// Auto-refresh functionality
+let refreshInterval;
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+        location.reload();
+    }, 10000); // Refresh every 10 seconds
+    document.getElementById('auto-refresh-status').textContent = '🔄 Auto-refresh: ON (10s)';
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+    document.getElementById('auto-refresh-status').textContent = '⏸️ Auto-refresh: OFF';
+}
+
+// Toggle auto-refresh on click
+document.getElementById('auto-refresh-status').addEventListener('click', function() {
+    if (refreshInterval) {
+        stopAutoRefresh();
+    } else {
+        startAutoRefresh();
+    }
+});
+
+// Auto-submit form on file selection
+document.getElementById('file').addEventListener('change', function() {
+    document.getElementById('log-controls').submit();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 'r':
+                e.preventDefault();
+                location.reload();
+                break;
+            case 'f':
+                e.preventDefault();
+                document.getElementById('search').focus();
+                break;
+            case 'k':
+                e.preventDefault();
+                scrollToTop();
+                break;
+            case 'j':
+                e.preventDefault();
+                scrollToBottom();
+                break;
+        }
+    }
+});
+
+// Scroll to bottom on page load
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom();
+});
+
+console.log('📝 AriStay System Logs Viewer loaded successfully!');
+console.log('💡 Tips: Click auto-refresh to toggle, use Ctrl+F to search, Ctrl+K/J to scroll');
+</script>
+{% endblock %}

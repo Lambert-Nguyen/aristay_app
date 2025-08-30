@@ -25,7 +25,8 @@ from .views import (
     manager_overview,
     ManagerUserList,
     ManagerUserDetail,
-    admin_charts_dashboard,
+    admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
+    system_logs_viewer, system_crash_recovery,
     portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
     portal_task_detail
 )
@@ -76,6 +77,10 @@ urlpatterns = [
     path('manager/users/',    ManagerUserList.as_view(),  name='manager-user-list'),
     path('manager/users/<int:pk>/', ManagerUserDetail.as_view(), name='manager-user-detail'),
     path('admin/charts/', admin_charts_dashboard, name='admin-charts'),
+    path('admin/metrics/', system_metrics_dashboard, name='admin-metrics'),
+    path('admin/metrics/api/', system_metrics_api, name='admin-metrics-api'),
+    path('admin/logs/', system_logs_viewer, name='admin-logs'),
+    path('admin/recovery/', system_crash_recovery, name='admin-recovery'),
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
     path('notifications/unread-count/', unread_notification_count, name='notification-unread-count'),

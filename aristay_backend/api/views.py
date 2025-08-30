@@ -6,12 +6,14 @@ from django.db import models
 from .services.notification_service import NotificationService
 from .models import NotificationVerb
 from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 
 import json
 
 from .filters import TaskFilter
+from .system_metrics import get_system_metrics
 
 from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -1103,3 +1105,287 @@ def admin_charts_dashboard(request):
     }
     
     return render(request, 'admin/charts_dashboard.html', context)
+
+
+@staff_member_required
+def system_metrics_dashboard(request):
+    """
+    System metrics and health dashboard for superusers
+    Provides comprehensive system monitoring and performance insights
+    """
+    # Only allow superusers to access system metrics
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("System metrics are only available to superusers.")
+    
+    try:
+        # Get comprehensive system metrics
+        metrics = get_system_metrics()
+        
+        # Add request context
+        metrics['request_info'] = {
+            'user': request.user.username,
+            'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
+            'remote_addr': request.META.get('REMOTE_ADDR', 'Unknown'),
+            'request_time': timezone.now().isoformat(),
+        }
+        
+        # Configurable refresh intervals
+        refresh_options = {
+            'realtime': 5,    # 5 seconds - for critical monitoring
+            'fast': 15,       # 15 seconds - for active monitoring  
+            'normal': 30,     # 30 seconds - default balanced
+            'slow': 60,       # 1 minute - for casual monitoring
+            'manual': 0,      # Manual only - no auto-refresh
+        }
+        
+        refresh_mode = request.GET.get('refresh', 'normal')
+        refresh_interval = refresh_options.get(refresh_mode, 30)
+        
+        context = {
+            'metrics': metrics,
+            'refresh_interval': refresh_interval,
+            'refresh_mode': refresh_mode,
+            'refresh_options': refresh_options,
+            'title': 'System Metrics Dashboard',
+        }
+        
+        return render(request, 'admin/system_metrics.html', context)
+        
+    except Exception as e:
+        context = {
+            'error': str(e),
+            'title': 'System Metrics Dashboard - Error',
+        }
+        return render(request, 'admin/system_metrics.html', context)
+
+
+@staff_member_required 
+def system_metrics_api(request):
+    """
+    API endpoint for real-time system metrics (JSON)
+    Used for dashboard auto-refresh
+    """
+    # Only allow superusers to access system metrics
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        metrics = get_system_metrics()
+        return JsonResponse(metrics)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@staff_member_required
+def system_logs_viewer(request):
+    """
+    Log file viewer for superusers to examine system logs
+    Provides search, filtering, and real-time viewing capabilities
+    """
+    # Only allow superusers to access logs
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("Log viewer is only available to superusers.")
+    
+    import os
+    from django.conf import settings
+    
+    log_dir = os.path.join(settings.BASE_DIR, 'logs')
+    log_file = request.GET.get('file', 'debug.log')
+    lines = int(request.GET.get('lines', 100))
+    search = request.GET.get('search', '')
+    level = request.GET.get('level', '')
+    
+    log_content = []
+    available_files = []
+    error_message = None
+    
+    try:
+        # Get available log files
+        if os.path.exists(log_dir):
+            available_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+            available_files.sort()
+        
+        # Read selected log file
+        log_path = os.path.join(log_dir, log_file)
+        if os.path.exists(log_path) and log_file in available_files:
+            with open(log_path, 'r') as f:
+                all_lines = f.readlines()
+                
+                # Apply filters
+                filtered_lines = all_lines
+                
+                if search:
+                    filtered_lines = [line for line in filtered_lines if search.lower() in line.lower()]
+                
+                if level:
+                    filtered_lines = [line for line in filtered_lines if level.upper() in line]
+                
+                # Get last N lines
+                log_content = filtered_lines[-lines:] if lines > 0 else filtered_lines
+                
+                # Add line numbers
+                log_content = [
+                    {
+                        'number': len(all_lines) - len(filtered_lines) + i + 1,
+                        'content': line.rstrip('\n'),
+                        'level': _extract_log_level(line),
+                    }
+                    for i, line in enumerate(log_content)
+                ]
+        else:
+            error_message = f"Log file '{log_file}' not found or not accessible."
+            
+    except Exception as e:
+        error_message = f"Error reading log file: {str(e)}"
+    
+    context = {
+        'log_content': log_content,
+        'available_files': available_files,
+        'current_file': log_file,
+        'lines_shown': lines,
+        'search_term': search,
+        'level_filter': level,
+        'error_message': error_message,
+        'title': 'System Logs Viewer',
+        'log_levels': ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+    }
+    
+    return render(request, 'admin/system_logs.html', context)
+
+
+def _extract_log_level(log_line):
+    """Extract log level from a log line for color coding"""
+    log_line_upper = log_line.upper()
+    if 'ERROR' in log_line_upper:
+        return 'ERROR'
+    elif 'WARNING' in log_line_upper or 'WARN' in log_line_upper:
+        return 'WARNING'
+    elif 'INFO' in log_line_upper:
+        return 'INFO'
+    elif 'DEBUG' in log_line_upper:
+        return 'DEBUG'
+    elif 'CRITICAL' in log_line_upper:
+        return 'CRITICAL'
+    return 'UNKNOWN'
+
+
+@staff_member_required
+def system_crash_recovery(request):
+    """
+    System crash recovery and diagnostic information
+    Helps superusers understand and recover from system failures
+    """
+    # Only allow superusers
+    if not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("Crash recovery is only available to superusers.")
+    
+    import os
+    import subprocess
+    from django.conf import settings
+    
+    recovery_info = {
+        'system_status': 'operational',
+        'recent_errors': [],
+        'recovery_suggestions': [],
+        'diagnostic_info': {},
+    }
+    
+    try:
+        # Check for recent errors in error log
+        log_dir = os.path.join(settings.BASE_DIR, 'logs')
+        error_log_path = os.path.join(log_dir, 'error.log')
+        
+        if os.path.exists(error_log_path):
+            with open(error_log_path, 'r') as f:
+                recent_lines = f.readlines()[-50:]  # Last 50 error lines
+                recovery_info['recent_errors'] = [
+                    {
+                        'line': line.strip(),
+                        'level': _extract_log_level(line),
+                        'timestamp': _extract_timestamp(line),
+                    }
+                    for line in recent_lines if line.strip()
+                ]
+        
+        # System diagnostic information
+        try:
+            # Check if server process is responsive
+            import psutil
+            current_process = psutil.Process()
+            
+            recovery_info['diagnostic_info'] = {
+                'process_status': 'running',
+                'memory_usage_mb': round(current_process.memory_info().rss / 1024 / 1024, 2),
+                'cpu_usage_percent': current_process.cpu_percent(),
+                'open_files': len(current_process.open_files()),
+                'connections': len(current_process.connections()),
+                'threads': current_process.num_threads(),
+            }
+        except Exception as e:
+            recovery_info['diagnostic_info']['error'] = str(e)
+        
+        # Generate recovery suggestions based on errors
+        error_keywords = [line['line'].lower() for line in recovery_info['recent_errors']]
+        suggestions = []
+        
+        if any('memory' in error or 'out of memory' in error for error in error_keywords):
+            suggestions.append("🔧 High memory usage detected - consider restarting the server")
+            suggestions.append("💾 Check for memory leaks in recent code changes")
+            
+        if any('database' in error or 'connection' in error for error in error_keywords):
+            suggestions.append("🗄️ Database connection issues - check database server status")
+            suggestions.append("🔌 Verify database credentials and network connectivity")
+            
+        if any('permission' in error or 'access denied' in error for error in error_keywords):
+            suggestions.append("🔐 Permission issues - check file and directory permissions")
+            suggestions.append("👤 Verify user account has required system access")
+            
+        if any('disk' in error or 'space' in error for error in error_keywords):
+            suggestions.append("💿 Disk space issues - clean up log files and temporary data")
+            suggestions.append("📊 Monitor disk usage in system metrics")
+            
+        if not suggestions:
+            suggestions.append("✅ No critical issues detected in recent logs")
+            suggestions.append("📊 Monitor system metrics for performance trends")
+            
+        recovery_info['recovery_suggestions'] = suggestions
+        
+        # Determine overall system status
+        critical_errors = len([e for e in recovery_info['recent_errors'] if e['level'] in ['ERROR', 'CRITICAL']])
+        if critical_errors > 10:
+            recovery_info['system_status'] = 'critical'
+        elif critical_errors > 3:
+            recovery_info['system_status'] = 'warning'
+        else:
+            recovery_info['system_status'] = 'operational'
+            
+    except Exception as e:
+        recovery_info['system_status'] = 'error'
+        recovery_info['error'] = str(e)
+    
+    context = {
+        'recovery_info': recovery_info,
+        'title': 'System Crash Recovery',
+    }
+    
+    return render(request, 'admin/system_recovery.html', context)
+
+
+def _extract_timestamp(log_line):
+    """Extract timestamp from log line if possible"""
+    import re
+    # Look for common timestamp patterns
+    timestamp_patterns = [
+        r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+        r'\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}',
+    ]
+    
+    for pattern in timestamp_patterns:
+        match = re.search(pattern, log_line)
+        if match:
+            return match.group()
+    
+    return 'Unknown'
