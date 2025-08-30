@@ -210,6 +210,33 @@ The system now includes a robust property handling system that prevents import c
 - ✅ **Manager Safety**: Managers can't accidentally create properties
 - ✅ **Clear Communication**: Everyone knows exactly what's happening
 - ✅ **Audit Trail**: All property creations are logged with user info
+- ✅ **Property Creation Highlights**: Users see exactly which new properties were created
+- ✅ **Success Notifications**: Clear feedback when properties are successfully added
+
+### **Property Creation Highlights**
+When new properties are created during import, users now see:
+
+#### **Admin Dashboard Messages**
+```
+🎉 Successfully created 3 new properties: 65th Terr, 119th, 4877 49th Ave N...
+```
+
+#### **API Response Details**
+```json
+{
+  "success": true,
+  "new_properties_created": 3,
+  "new_properties_list": ["65th Terr", "119th", "4877 49th Ave N"],
+  "success_message": "🎉 Successfully created 3 new properties: 65th Terr, 119th, 4877 49th Ave N..."
+}
+```
+
+#### **Import Log Warnings**
+- ✨ Created new property: 65th Terr
+- ✨ Created new property: 119th  
+- ✨ Created new property: 4877 49th Ave N
+
+This provides complete transparency about what was created during the import process.
 
 ## 🧪 Testing & Validation
 

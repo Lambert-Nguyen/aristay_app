@@ -1458,7 +1458,15 @@ def excel_import_view(request):
                         messages.warning(request, f"... and {len(result['errors']) - 5} more errors. Check the import log for details.")
                 
                 if result.get('new_properties_created', 0) > 0:
-                    messages.info(request, f"Created {result['new_properties_created']} new properties during import.")
+                    new_properties_list = result.get('new_properties_list', [])
+                    if new_properties_list:
+                        messages.success(
+                            request, 
+                            f"🎉 Successfully created {result['new_properties_created']} new properties: "
+                            f"{', '.join(new_properties_list[:5])}{'...' if len(new_properties_list) > 5 else ''}"
+                        )
+                    else:
+                        messages.success(request, f"🎉 Created {result['new_properties_created']} new properties during import.")
                 
             elif result.get('requires_property_approval'):
                 # Handle new properties that need admin approval
@@ -1523,6 +1531,14 @@ def excel_import_api(request):
         # If properties need approval, return special response
         if result.get('requires_property_approval'):
             result['message'] = f"Import requires admin approval. Found {len(result.get('new_properties', []))} new properties."
+        
+        # Add success message for new properties created
+        if result.get('new_properties_created', 0) > 0:
+            new_properties_list = result.get('new_properties_list', [])
+            if new_properties_list:
+                result['success_message'] = f"🎉 Successfully created {result['new_properties_created']} new properties: {', '.join(new_properties_list[:5])}{'...' if len(new_properties_list) > 5 else ''}"
+            else:
+                result['success_message'] = f"🎉 Created {result['new_properties_created']} new properties during import."
         
         return JsonResponse(result)
         

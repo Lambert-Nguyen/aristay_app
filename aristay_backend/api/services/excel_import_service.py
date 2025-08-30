@@ -91,6 +91,9 @@ class ExcelImportService:
             # Update import log with results
             self._update_import_log()
             
+            # Count new properties actually created during import
+            new_properties_created = len([w for w in self.warnings if w.startswith('✨ Created new property:')])
+            
             return {
                 'success': True,
                 'total_rows': self.total_rows,
@@ -100,7 +103,8 @@ class ExcelImportService:
                 'errors': self.errors,
                 'warnings': self.warnings,
                 'import_log_id': self.import_log.id if self.import_log else None,
-                'new_properties_created': len(new_properties) if new_properties else 0
+                'new_properties_created': new_properties_created,
+                'new_properties_list': [w.replace('✨ Created new property: ', '') for w in self.warnings if w.startswith('✨ Created new property:')]
             }
             
         except Exception as e:
@@ -484,6 +488,10 @@ class ExcelImportService:
                     modified_by=self.user
                 )
                 logger.info(f"Successfully created property: {property_obj.name}")
+                
+                # Add to warnings to highlight new property creation
+                self.warnings.append(f"✨ Created new property: {property_label}")
+                
                 return property_obj
             except Exception as e:
                 logger.error(f"Could not create property '{property_label}': {e}")
