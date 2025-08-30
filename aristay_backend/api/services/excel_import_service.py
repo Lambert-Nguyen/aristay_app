@@ -59,6 +59,25 @@ class ExcelImportService:
             # Create import log
             self.import_log = self._create_import_log(excel_file)
             
+            # First pass: identify all unique properties and handle new ones
+            new_properties = self._identify_new_properties(df)
+            
+            # If there are new properties, handle them based on user role
+            if new_properties:
+                if not self.user.is_superuser:
+                    # Non-admin users cannot proceed with new properties
+                    return {
+                        'success': False,
+                        'requires_property_approval': True,
+                        'new_properties': new_properties,
+                        'message': f'Found {len(new_properties)} new properties that require admin approval. Please contact an administrator.',
+                        'total_rows': self.total_rows
+                    }
+                else:
+                    # Admin can create properties automatically
+                    logger.info(f"Admin {self.user.username} will create {len(new_properties)} new properties during import")
+                    # Continue with import - properties will be created as needed
+            
             # Process each row individually (no transaction wrapper to allow partial success)
             for index, row in df.iterrows():
                 try:
@@ -80,7 +99,8 @@ class ExcelImportService:
                 'warnings_count': len(self.warnings),
                 'errors': self.errors,
                 'warnings': self.warnings,
-                'import_log_id': self.import_log.id if self.import_log else None
+                'import_log_id': self.import_log.id if self.import_log else None,
+                'new_properties_created': len(new_properties) if new_properties else 0
             }
             
         except Exception as e:
@@ -89,6 +109,36 @@ class ExcelImportService:
                 'success': False,
                 'error': f'Import failed: {str(e)}'
             }
+    
+    def _identify_new_properties(self, df: pd.DataFrame) -> List[str]:
+        """Identify new properties that don't exist in the database."""
+        new_properties = []
+        
+        # Get all unique property names from Excel
+        if 'Properties' in df.columns:
+            excel_properties = df['Properties'].dropna().unique()
+        else:
+            # Try alternative column names
+            for col in ['Property', 'Listing', 'Property Name']:
+                if col in df.columns:
+                    excel_properties = df[col].dropna().unique()
+                    break
+            else:
+                return []
+        
+        # Check which properties don't exist in database
+        for prop_name in excel_properties:
+            if prop_name and str(prop_name).strip():
+                prop_name = str(prop_name).strip()
+                try:
+                    # Check if property exists
+                    Property.objects.get(name__iexact=prop_name)
+                except Property.DoesNotExist:
+                    # Try partial matches
+                    if not Property.objects.filter(name__icontains=prop_name).exists():
+                        new_properties.append(prop_name)
+        
+        return new_properties
     
     def _read_excel_file(self, excel_file, sheet_name: str) -> Optional[pd.DataFrame]:
         """Read Excel file and return DataFrame."""
@@ -240,6 +290,10 @@ class ExcelImportService:
                 'Check 1': 'same_day_note_alt'
             }
             
+            # Debug: Log the actual column names found in the Excel file
+            logger.debug(f"Excel columns found: {list(row.index)}")
+            logger.debug(f"Looking for 'Properties' column: {'Properties' in row.index}")
+            
             # Extract data with validation
             for excel_col, field_name in required_fields.items():
                 if excel_col in row.index:
@@ -336,14 +390,19 @@ class ExcelImportService:
                     return None
             
             elif field_name in ['start_date', 'end_date']:
-                # Handle date fields
+                # Handle date fields - make timezone-aware for Tampa, FL
                 if isinstance(value, datetime):
+                    # If it's already a datetime, make it timezone-aware
+                    if timezone.is_naive(value):
+                        return timezone.make_aware(value, timezone.get_current_timezone())
                     return value
                 elif isinstance(value, str):
                     # Try common date formats
                     for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']:
                         try:
-                            return datetime.strptime(value_str, fmt)
+                            naive_datetime = datetime.strptime(value_str, fmt)
+                            # Make timezone-aware for Tampa, FL (America/New_York)
+                            return timezone.make_aware(naive_datetime, timezone.get_current_timezone())
                         except ValueError:
                             continue
                     raise ValueError(f"Could not parse date: {value_str}")
@@ -390,33 +449,53 @@ class ExcelImportService:
     def _find_or_create_property(self, property_label: str) -> Optional[Property]:
         """Find existing property or create new one based on label."""
         if not property_label:
+            logger.warning("Property label is empty or None")
             return None
+        
+        logger.debug(f"Looking for property: '{property_label}'")
         
         # Try to find exact match first
         try:
-            return Property.objects.get(name__iexact=property_label)
+            property_obj = Property.objects.get(name__iexact=property_label)
+            logger.debug(f"Found exact property match: {property_obj.name}")
+            return property_obj
         except Property.DoesNotExist:
+            logger.debug(f"No exact match found for property: {property_label}")
             pass
         
         # Try partial matches
         try:
-            return Property.objects.filter(name__icontains=property_label).first()
-        except:
+            property_obj = Property.objects.filter(name__icontains=property_label).first()
+            if property_obj:
+                logger.debug(f"Found partial property match: {property_obj.name}")
+                return property_obj
+        except Exception as e:
+            logger.warning(f"Error during partial property search: {e}")
             pass
         
-        # Create new property if user has permission
-        if self.user.is_superuser or (hasattr(self.user, 'profile') and self.user.profile.role == 'manager'):
+        # For new properties, handle based on user role
+        if self.user.is_superuser:
+            # Admin can create properties directly
             try:
-                return Property.objects.create(
+                logger.info(f"Admin creating new property: {property_label}")
+                property_obj = Property.objects.create(
                     name=property_label,
                     created_by=self.user,
                     modified_by=self.user
                 )
+                logger.info(f"Successfully created property: {property_obj.name}")
+                return property_obj
             except Exception as e:
                 logger.error(f"Could not create property '{property_label}': {e}")
                 return None
-        
-        return None
+        elif hasattr(self.user, 'profile') and self.user.profile.role == 'manager':
+            # Manager cannot create properties - this will be handled by the import process
+            logger.warning(f"Manager encountered new property: {property_label} - will be queued for admin approval")
+            return None
+        else:
+            # Regular users cannot create properties
+            logger.warning(f"User {self.user.username} cannot create property: {property_label}")
+            return None
     
     def _find_existing_booking(self, booking_data: Dict, property_obj: Property) -> Optional[Booking]:
         """Find existing booking by external code and source."""
@@ -539,14 +618,21 @@ class ExcelImportService:
         """Combine date and time objects into datetime."""
         if isinstance(date_obj, datetime):
             if time_obj:
-                return datetime.combine(date_obj.date(), time_obj)
-            return date_obj
+                combined = datetime.combine(date_obj.date(), time_obj)
+            else:
+                combined = date_obj
         elif isinstance(date_obj, datetime.date):
             if time_obj:
-                return datetime.combine(date_obj, time_obj)
-            return datetime.combine(date_obj, time.min)
+                combined = datetime.combine(date_obj, time_obj)
+            else:
+                combined = datetime.combine(date_obj, time.min)
         else:
             raise ValueError(f"Invalid date object: {date_obj}")
+        
+        # Make timezone-aware for Tampa, FL if it's naive
+        if timezone.is_naive(combined):
+            return timezone.make_aware(combined, timezone.get_current_timezone())
+        return combined
     
     def _create_cleaning_task(self, booking: Booking):
         """Automatically create cleaning task for new booking."""

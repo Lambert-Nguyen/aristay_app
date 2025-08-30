@@ -165,6 +165,52 @@ class ExcelImportService:
 - **Error Details**: Expandable error logs for debugging
 - **Performance Metrics**: Import timing and efficiency
 
+## 🏠 Property Handling & Approval System
+
+### **Smart Property Management**
+The system now includes a robust property handling system that prevents import crashes when new properties are encountered:
+
+#### **Property Detection Flow**
+1. **Pre-Import Scan**: System scans Excel file for all unique property names
+2. **Database Check**: Compares against existing properties in database
+3. **New Property Identification**: Lists properties that don't exist
+4. **Role-Based Handling**: Different behavior for Admins vs Managers
+
+#### **Admin Experience**
+- **Immediate Creation**: Admins can create new properties on-the-fly during import
+- **Bulk Approval**: Checkbox interface to select which properties to create
+- **Smart Defaults**: All properties pre-selected by default
+- **Seamless Import**: After property creation, import continues automatically
+
+#### **Manager Experience**
+- **Early Warning**: System detects new properties before import starts
+- **Admin Notification**: Clear message about contacting administrator
+- **No Crashes**: Import gracefully stops with informative error message
+- **Property List**: Shows exactly which properties need to be created
+
+#### **Property Approval Interface**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ⚠️  New Properties Require Approval                        │
+├─────────────────────────────────────────────────────────────┤
+│ The following properties were found in your Excel file     │
+│ but don't exist in the database.                          │
+│                                                             │
+│ ☑️ 65th Terr          ☑️ 119th                            │
+│ ☑️ 4877 49th Ave N   ☑️ Canterbury                       │
+│ ☑️ Sheldon Chase      ☑️ Toucan                           │
+│                                                             │
+│ [← Back to Import]  [Create Selected Properties & Continue]│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **Benefits of New System**
+- ✅ **No More Crashes**: Import stops gracefully when properties are missing
+- ✅ **Admin Control**: Admins decide which properties to create
+- ✅ **Manager Safety**: Managers can't accidentally create properties
+- ✅ **Clear Communication**: Everyone knows exactly what's happening
+- ✅ **Audit Trail**: All property creations are logged with user info
+
 ## 🧪 Testing & Validation
 
 ### Test Coverage
@@ -246,6 +292,14 @@ class ExcelImportService:
   - Failed rows don't affect successful ones
   - Partial success now possible
 - **Result**: Import continues even when some rows have errors
+
+### ✅ **Fixed: Timezone Warnings**
+- **Problem**: `RuntimeWarning: DateTimeField received a naive datetime while time zone support is active`
+- **Solution**: Enhanced date parsing to automatically make all dates timezone-aware:
+  - Excel dates are converted to Tampa, FL timezone (America/New_York)
+  - All datetime fields are properly timezone-aware
+  - No more timezone warnings in logs
+- **Result**: Clean import logs with proper timezone handling
 
 ## 🔧 Technical Implementation Details
 

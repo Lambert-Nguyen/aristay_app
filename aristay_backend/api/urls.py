@@ -29,7 +29,7 @@ from .views import (
     system_logs_viewer, system_crash_recovery,
     portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
     portal_task_detail,
-    excel_import_view, excel_import_api
+    excel_import_view, excel_import_api, property_approval_create
 )
 
 from .staff_views import (
@@ -120,4 +120,5 @@ urlpatterns = [
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),
     path('excel-import/api/', excel_import_api, name='excel-import-api'),
+    path('property-approval/create/', property_approval_create, name='property-approval-create'),
 ]

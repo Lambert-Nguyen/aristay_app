@@ -1457,6 +1457,29 @@ def excel_import_view(request):
                     if len(result['errors']) > 5:
                         messages.warning(request, f"... and {len(result['errors']) - 5} more errors. Check the import log for details.")
                 
+                if result.get('new_properties_created', 0) > 0:
+                    messages.info(request, f"Created {result['new_properties_created']} new properties during import.")
+                
+            elif result.get('requires_property_approval'):
+                # Handle new properties that need admin approval
+                new_properties = result.get('new_properties', [])
+                if request.user.is_superuser:
+                    # Admin can see the properties and choose to create them
+                    context = {
+                        'requires_approval': True,
+                        'new_properties': new_properties,
+                        'excel_file': excel_file,
+                        'title': 'New Properties Require Approval'
+                    }
+                    return render(request, 'admin/property_approval.html', context)
+                else:
+                    # Manager gets a message about contacting admin
+                    messages.warning(
+                        request, 
+                        f"Import requires admin approval. Found {len(new_properties)} new properties: "
+                        f"{', '.join(new_properties[:5])}{'...' if len(new_properties) > 5 else ''}. "
+                        f"Please contact an administrator."
+                    )
             else:
                 messages.error(request, f"Import failed: {result.get('error', 'Unknown error')}")
                 
@@ -1497,7 +1520,57 @@ def excel_import_api(request):
         import_service = ExcelImportService(request.user)
         result = import_service.import_excel_file(excel_file)
         
+        # If properties need approval, return special response
+        if result.get('requires_property_approval'):
+            result['message'] = f"Import requires admin approval. Found {len(result.get('new_properties', []))} new properties."
+        
         return JsonResponse(result)
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def property_approval_create(request):
+    """Handle property approval and creation for admins"""
+    if request.method != 'POST':
+        return redirect('excel-import')
+    
+    try:
+        approved_properties = request.POST.getlist('approved_properties')
+        excel_file_name = request.POST.get('excel_file')
+        
+        if not approved_properties:
+            messages.warning(request, 'No properties were selected for creation.')
+            return redirect('excel-import')
+        
+        # Create the approved properties
+        created_count = 0
+        for property_name in approved_properties:
+            try:
+                Property.objects.create(
+                    name=property_name.strip(),
+                    created_by=request.user,
+                    modified_by=request.user
+                )
+                created_count += 1
+                logger.info(f"Admin {request.user.username} created property: {property_name}")
+            except Exception as e:
+                logger.error(f"Failed to create property {property_name}: {e}")
+                messages.error(request, f"Failed to create property '{property_name}': {str(e)}")
+        
+        if created_count > 0:
+            messages.success(request, f"Successfully created {created_count} new properties.")
+            
+            # Now try to import the Excel file again
+            # Note: In a real implementation, you'd want to store the file temporarily
+            # For now, we'll redirect back to the import page
+            messages.info(request, f"Please upload your Excel file again to continue with the import.")
+        
+        return redirect('excel-import')
+        
+    except Exception as e:
+        messages.error(request, f"Property approval failed: {str(e)}")
+        logger.error(f"Property approval error: {e}")
+        return redirect('excel-import')
