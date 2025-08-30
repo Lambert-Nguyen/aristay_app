@@ -8,8 +8,34 @@ from django.utils.deprecation import MiddlewareMixin
 from django.db import connection
 from django.conf import settings
 from django.utils import timezone
+from django.shortcuts import redirect
+from django.contrib import messages
 import psutil
 import os
+
+
+class AdminAccessMiddleware(MiddlewareMixin):
+    """
+    Middleware to redirect managers from /admin/ to /manager/
+    """
+    
+    def process_request(self, request):
+        # Only process /admin/ requests (not /manager/ or /api/)
+        if request.path.startswith('/admin/') and not request.path.startswith('/admin/login/'):
+            if request.user.is_authenticated and not request.user.is_superuser:
+                # Check if user is a manager
+                try:
+                    if hasattr(request.user, 'profile') and request.user.profile and request.user.profile.role == 'manager':
+                        # Redirect manager to manager admin
+                        return redirect('/manager/')
+                except:
+                    pass
+                    
+                # For non-manager staff users trying to access admin
+                if request.user.is_staff:
+                    messages.error(request, 'Access Denied: Only superusers can access the admin area.')
+                    return redirect('/api/portal/')
+        return None
 
 
 class TimezoneMiddleware(MiddlewareMixin):

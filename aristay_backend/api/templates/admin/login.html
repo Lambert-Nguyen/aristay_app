@@ -263,6 +263,18 @@
             <p class="login-subtitle">Sign in to your account</p>
         </div>
 
+        <!-- Display messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="{% if message.tags == 'error' %}error-message{% else %}success-message{% endif %}">
+                    {{ message }}
+                    {% if 'Access Denied' in message %}
+                        <br><a href="/api/portal/" style="color: #60a5fa; text-decoration: underline;">Go to Portal →</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endif %}
+
         {% if form.errors %}
             <div class="error-message">
                 <strong>Login failed:</strong> Please check your username and password.

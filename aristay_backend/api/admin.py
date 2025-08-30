@@ -21,6 +21,38 @@ class CustomAdminSite(admin.AdminSite):
     def has_permission(self, request):
         # Restrict Superuser admin to Superusers only
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+    
+    def login(self, request, extra_context=None):
+        """
+        Custom login that provides better error messages for non-superusers
+        """
+        from django.contrib.auth import authenticate, login
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        
+        if request.method == 'POST':
+            username = request.POST.get('username')
+            password = request.POST.get('password')
+            
+            if username and password:
+                user = authenticate(request, username=username, password=password)
+                if user and user.is_authenticated:
+                    if not user.is_superuser:
+                        # Check if user is a manager - redirect to manager admin
+                        try:
+                            if hasattr(user, 'profile') and user.profile and user.profile.role == 'manager':
+                                login(request, user)  # Log them in first
+                                return redirect('/manager/')  # Redirect to manager admin
+                        except:
+                            pass
+                            
+                        messages.error(request, 
+                            'Access Denied: You don\'t have permission to access the admin site. '
+                            'Only superuser accounts can access this area.')
+                        # Don't proceed with login for non-superusers
+                        return super().login(request, extra_context)
+        
+        return super().login(request, extra_context)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -70,7 +102,7 @@ class TaskAdmin(admin.ModelAdmin):
     )
     
     inlines = [TaskImageInline]
-    
+
     def created_at_display(self, obj):
         """Display created time in Tampa timezone"""
         from django.utils import timezone

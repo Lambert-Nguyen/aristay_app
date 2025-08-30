@@ -24,7 +24,7 @@ from .serializers import TaskSerializer
 
 @login_required
 def staff_dashboard(request):
-    """Main staff dashboard - routes to role-specific interface."""
+    """Main staff dashboard with overview and quick actions."""
     
     # Get user role
     try:
@@ -33,16 +33,35 @@ def staff_dashboard(request):
     except Profile.DoesNotExist:
         user_role = 'staff'
     
-    # Route based on role
-    if user_role == 'manager':
-        return redirect('/manager/')
-    elif user_role in ['cleaning', 'maintenance', 'laundry', 'lawn_pool']:
-        return redirect(f'/api/staff/{user_role}/')
-    elif user_role == 'viewer':
-        return redirect('/api/portal/properties/')
-    else:
-        # Default staff interface
-        return redirect('/api/staff/tasks/')
+    # Get user's task summary
+    my_tasks = Task.objects.filter(assigned_to=request.user)
+    total_tasks = my_tasks.count()
+    
+    task_counts = {
+        'pending': my_tasks.filter(status='pending').count(),
+        'in_progress': my_tasks.filter(status='in-progress').count(),
+        'completed': my_tasks.filter(status='completed').count(),
+        'overdue': my_tasks.filter(
+            status__in=['pending', 'in-progress'],
+            due_date__lt=timezone.now()
+        ).count()
+    }
+    
+    # Get recent tasks
+    recent_tasks = my_tasks.select_related('property', 'booking').order_by('-created_at')[:5]
+    
+    # Get properties user has access to
+    accessible_properties = Property.objects.all()[:5]
+    
+    context = {
+        'user_role': user_role,
+        'total_tasks': total_tasks,
+        'task_counts': task_counts,
+        'recent_tasks': recent_tasks,
+        'accessible_properties': accessible_properties,
+    }
+    
+    return render(request, 'staff/dashboard.html', context)
 
 
 @login_required
@@ -340,13 +359,20 @@ def inventory_lookup(request):
     """Inventory lookup interface for maintenance staff."""
     
     # Check if user should have inventory access
-    try:
-        user_role = request.user.profile.role
-        if user_role not in ['maintenance', 'manager']:
+    # Superusers, managers, and maintenance department staff have access
+    if not request.user.is_superuser:
+        try:
+            profile = request.user.profile
+            user_role = profile.role
+            
+            # Allow managers and users in Maintenance department
+            if user_role != 'manager' and not profile.is_in_department('Maintenance'):
+                messages.error(request, "You don't have access to inventory management.")
+                return redirect('/api/staff/')
+        except:
+            # If no profile, only allow superusers
             messages.error(request, "You don't have access to inventory management.")
             return redirect('/api/staff/')
-    except:
-        pass
     
     # Get property filter
     property_filter = request.GET.get('property')

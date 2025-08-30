@@ -204,14 +204,41 @@ class TaskImage(models.Model):
         return f"Image for {self.task.title}"
     
 class UserRole(models.TextChoices):
-    STAFF       = 'staff',       'Staff'
-    MANAGER     = 'manager',     'Manager'
-    OWNER       = 'owner',       'Superuser'   # display; source of truth is is_superuser
-    CLEANING    = 'cleaning',    'Cleaning'
-    MAINTENANCE = 'maintenance', 'Maintenance'
-    LAUNDRY     = 'laundry',     'Laundry'
-    LAWN_POOL   = 'lawn_pool',   'Lawn/Pool'
-    VIEWER      = 'viewer',      'Viewer'
+    """
+    User role hierarchy - defines access level and permissions
+    """
+    STAFF       = 'staff',       'Staff/Crew'    # Normal users who perform tasks
+    MANAGER     = 'manager',     'Manager'       # Manages staff and properties
+    SUPERUSER   = 'superuser',   'Superuser'     # Full system admin access
+    VIEWER      = 'viewer',      'Viewer'        # Read-only access
+
+
+class DepartmentGroups:
+    """
+    Department group names - used with Django's Group model
+    Staff/Crew users can belong to multiple departments
+    """
+    ADMINISTRATION = 'Administration'
+    CLEANING = 'Cleaning'
+    MAINTENANCE = 'Maintenance'  
+    LAUNDRY = 'Laundry'
+    LAWN_POOL = 'Lawn/Pool'
+    
+    @classmethod
+    def get_all_departments(cls):
+        """Return list of all department names"""
+        return [
+            cls.ADMINISTRATION,
+            cls.CLEANING,
+            cls.MAINTENANCE,
+            cls.LAUNDRY,
+            cls.LAWN_POOL,
+        ]
+    
+    @classmethod
+    def get_choices(cls):
+        """Return choices format for forms"""
+        return [(dept, dept) for dept in cls.get_all_departments()]
 
 class Profile(models.Model):
     user     = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -247,23 +274,64 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} profile"
+    
+    def get_departments(self):
+        """Get list of departments (groups) this user belongs to"""
+        return list(self.user.groups.filter(
+            name__in=DepartmentGroups.get_all_departments()
+        ).values_list('name', flat=True))
+    
+    def add_to_department(self, department_name):
+        """Add user to a department group"""
+        from django.contrib.auth.models import Group
+        if department_name in DepartmentGroups.get_all_departments():
+            group, created = Group.objects.get_or_create(name=department_name)
+            self.user.groups.add(group)
+    
+    def remove_from_department(self, department_name):
+        """Remove user from a department group"""
+        from django.contrib.auth.models import Group
+        try:
+            group = Group.objects.get(name=department_name)
+            self.user.groups.remove(group)
+        except Group.DoesNotExist:
+            pass
+    
+    def is_in_department(self, department_name):
+        """Check if user is in a specific department"""
+        return self.user.groups.filter(name=department_name).exists()
+    
+    @property
+    def departments_display(self):
+        """Get comma-separated string of departments for display"""
+        departments = self.get_departments()
+        return ', '.join(departments) if departments else 'No departments'
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        # default role=staff; owners are superusers and can be marked owner later
-        Profile.objects.create(user=instance)
+        # Set default role based on Django user flags
+        if instance.is_superuser:
+            default_role = UserRole.SUPERUSER
+        elif instance.is_staff:
+            default_role = UserRole.MANAGER
+        else:
+            default_role = UserRole.STAFF
+            
+        Profile.objects.create(user=instance, role=default_role)
 
 @receiver(post_save, sender=User)
 def sync_profile_role_on_user_save(sender, instance, **kwargs):
     profile, _ = Profile.objects.get_or_create(user=instance)
-    if instance.is_superuser:
-        # we don’t force profile.role to 'owner'; serializer maps superusers → 'owner'
-        return
-    desired = UserRole.MANAGER if instance.is_staff else UserRole.STAFF
-    if profile.role != desired:
-        profile.role = desired
-        profile.save(update_fields=['role'])
+    
+    # Auto-sync profile role with Django user flags (only if it makes sense)
+    if instance.is_superuser and profile.role != UserRole.SUPERUSER:
+        profile.role = UserRole.SUPERUSER
+        profile.save()
+    elif instance.is_staff and not instance.is_superuser and profile.role == UserRole.STAFF:
+        # Only auto-promote staff to manager if they're currently just staff
+        profile.role = UserRole.MANAGER
+        profile.save()
 
 class Device(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')

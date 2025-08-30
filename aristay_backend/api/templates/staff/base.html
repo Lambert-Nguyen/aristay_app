@@ -404,7 +404,7 @@
         <a href="/api/staff/" class="{% if '/staff/' == request.path %}active{% endif %}">🏠 Dashboard</a>
         <a href="/api/staff/tasks/" class="{% if '/tasks/' in request.path %}active{% endif %}">📋 My Tasks</a>
         
-        {% if user.profile.role == 'maintenance' or user.is_staff %}
+        {% if user.is_superuser or user|is_in_department:'Maintenance' or user.is_staff %}
         <a href="/api/staff/inventory/" class="{% if '/inventory/' in request.path %}active{% endif %}">📦 Inventory</a>
         {% endif %}
         

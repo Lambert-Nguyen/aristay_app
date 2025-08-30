@@ -1,0 +1,260 @@
+{% extends "staff/base.html" %}
+{% load timezone_tags %}
+
+{% block title %}Dashboard · AriStay{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- Welcome Card -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+            👋 Welcome back, {{ user.get_full_name|default:user.username }}!
+        </div>
+        <div class="welcome-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <p style="margin: 0; color: #64748b;">
+                        Role: <strong>{{ user.profile.get_role_display|default:"Staff" }}</strong>
+                    </p>
+                    <p style="margin: 0.5rem 0 0 0; color: #64748b;">
+                        Current time: {% current_time_dual user %}
+                    </p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <a href="/api/staff/tasks/" class="btn btn-primary">📋 View All Tasks</a>
+                    <a href="/api/portal/" class="btn btn-secondary">🏠 Portal Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Statistics -->
+    <div class="stats-grid" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_tasks }}</div>
+            <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card pending">
+            <div class="stat-number">{{ task_counts.pending }}</div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card in-progress">
+            <div class="stat-number">{{ task_counts.in_progress }}</div>
+            <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-card completed">
+            <div class="stat-number">{{ task_counts.completed }}</div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card overdue">
+            <div class="stat-number">{{ task_counts.overdue }}</div>
+            <div class="stat-label">Overdue</div>
+        </div>
+    </div>
+
+    <!-- Recent Tasks -->
+    <div class="card">
+        <div class="card-header">
+            📋 Recent Tasks
+            <a href="/api/staff/tasks/" style="margin-left: auto; font-size: 0.875rem;">View All →</a>
+        </div>
+        {% if recent_tasks %}
+            {% for task in recent_tasks %}
+            <div class="task-item">
+                <div class="task-header">
+                    <h4>{{ task.title }}</h4>
+                    <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
+                </div>
+                <div class="task-meta">
+                    <span>🏠 {{ task.property.name|default:"No Property" }}</span>
+                    {% if task.due_date %}
+                    <span>⏰ {{ task.due_date|dual_timezone:user }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">📝</div>
+                <p>No tasks assigned to you yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">🚀 Quick Actions</div>
+        <div class="quick-actions">
+            <a href="/api/staff/tasks/" class="action-item">
+                <div class="action-icon">📋</div>
+                <div class="action-text">
+                    <div class="action-title">My Tasks</div>
+                    <div class="action-desc">View and manage your assigned tasks</div>
+                </div>
+            </a>
+
+            {% if user|is_in_department:'Maintenance' or user.is_staff %}
+            <a href="/api/staff/inventory/" class="action-item">
+                <div class="action-icon">📦</div>
+                <div class="action-text">
+                    <div class="action-title">Inventory</div>
+                    <div class="action-desc">Check inventory levels and log transactions</div>
+                </div>
+            </a>
+            {% endif %}
+
+            <a href="/api/staff/lost-found/" class="action-item">
+                <div class="action-icon">🔍</div>
+                <div class="action-text">
+                    <div class="action-title">Lost & Found</div>
+                    <div class="action-desc">Report and manage lost items</div>
+                </div>
+            </a>
+
+            <a href="/api/portal/properties/" class="action-item">
+                <div class="action-icon">🏠</div>
+                <div class="action-text">
+                    <div class="action-title">Properties</div>
+                    <div class="action-desc">Browse properties and bookings</div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.pending { border-left: 4px solid #f59e0b; }
+.stat-card.in-progress { border-left: 4px solid #3b82f6; }
+.stat-card.completed { border-left: 4px solid #10b981; }
+.stat-card.overdue { border-left: 4px solid #ef4444; }
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #1e293b;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.task-item {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.task-item:last-child {
+    border-bottom: none;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.task-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #1e293b;
+}
+
+.task-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.action-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.2s ease;
+}
+
+.action-item:hover {
+    background-color: #f8fafc;
+}
+
+.action-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    border-radius: 8px;
+}
+
+.action-text {
+    flex: 1;
+}
+
+.action-title {
+    font-weight: 500;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.action-desc {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.welcome-content {
+    padding: 1rem 0;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+{% endblock %}

@@ -69,6 +69,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     # Django's auth middleware must run before you try to use request.user
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Admin access control middleware (must run after authentication)
+    "backend.middleware.AdminAccessMiddleware",
     # Now your timezone middleware can safely reference request.user
     "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

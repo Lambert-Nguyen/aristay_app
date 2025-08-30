@@ -217,3 +217,11 @@ def get_timezone_choices():
         ('Europe/London', 'GMT/BST (London, UK)'),
         ('UTC', 'UTC (Coordinated Universal Time)'),
     ]
+
+
+@register.filter
+def is_in_department(user, department_name):
+    """Check if user is in a specific department"""
+    if not user or not hasattr(user, 'profile') or not user.profile:
+        return False
+    return user.profile.is_in_department(department_name)
