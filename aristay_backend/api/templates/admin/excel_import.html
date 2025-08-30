@@ -1,0 +1,382 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .excel-import-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .import-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .import-header h1 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+    
+    .import-header p {
+        color: #7f8c8d;
+        font-size: 16px;
+    }
+    
+    .upload-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border: 2px dashed #dee2e6;
+        text-align: center;
+    }
+    
+    .upload-section.dragover {
+        border-color: #007bff;
+        background: #e3f2fd;
+    }
+    
+    .file-input-wrapper {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        margin: 20px 0;
+    }
+    
+    .file-input {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+    
+    .upload-button {
+        background: #007bff;
+        color: white;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 25px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+    
+    .upload-button:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
+    .file-info {
+        margin-top: 15px;
+        padding: 10px;
+        background: #e9ecef;
+        border-radius: 5px;
+        display: none;
+    }
+    
+    .file-info.show {
+        display: block;
+    }
+    
+
+    
+    .import-form {
+        margin-top: 20px;
+    }
+    
+    .submit-button {
+        background: #28a745;
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+    
+    .submit-button:hover {
+        background: #218838;
+    }
+    
+    .submit-button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 20px 0;
+        display: none;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    
+    .recent-imports {
+        margin-top: 40px;
+        padding-top: 30px;
+        border-top: 2px solid #f0f0f0;
+    }
+    
+    .import-log-item {
+        background: #f8f9fa;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .import-log-item.success {
+        border-left-color: #28a745;
+    }
+    
+    .import-log-item.error {
+        border-left-color: #dc3545;
+    }
+    
+    .import-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .instructions {
+        background: #e3f2fd;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        border-left: 4px solid #2196f3;
+    }
+    
+    .instructions h3 {
+        color: #1976d2;
+        margin-top: 0;
+    }
+    
+    .instructions ul {
+        margin: 10px 0;
+        padding-left: 20px;
+    }
+    
+    .instructions li {
+        margin: 5px 0;
+        color: #424242;
+    }
+    
+    .alert {
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 5px;
+        border-left: 4px solid;
+    }
+    
+    .alert-success {
+        background: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+    }
+    
+    .alert-error {
+        background: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+    }
+    
+    .alert-warning {
+        background: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="excel-import-container">
+    <div class="import-header">
+        <h1>📅 Import Booking Schedule</h1>
+        <p>Upload your daily cleaning schedule Excel file to automatically create and update bookings</p>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="instructions">
+        <h3>📋 Instructions</h3>
+        <ul>
+            <li><strong>File Format:</strong> Excel file (.xlsx or .xls) with "Cleaning schedule" sheet</li>
+            <li><strong>Required Columns:</strong> Confirmation code, Guest name, Start date, End date, Properties</li>
+            <li><strong>Auto-Tasks:</strong> Cleaning tasks will be automatically created for new bookings</li>
+            <li><strong>Updates:</strong> Existing bookings will be updated if they have the same confirmation code</li>
+            <li><strong>Frequency:</strong> You can run this import daily to keep your schedule current</li>
+        </ul>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" class="import-form" id="importForm">
+        {% csrf_token %}
+        
+
+        
+        <div class="upload-section" id="uploadSection">
+            <div class="file-input-wrapper">
+                <input type="file" name="excel_file" id="excelFile" class="file-input" accept=".xlsx,.xls" required>
+                <button type="button" class="upload-button" onclick="document.getElementById('excelFile').click()">
+                    📁 Choose Excel File
+                </button>
+            </div>
+            
+            <div class="file-info" id="fileInfo">
+                <strong>Selected File:</strong> <span id="fileName"></span>
+                <br>
+                <small>Size: <span id="fileSize"></span></small>
+            </div>
+            
+            <p style="margin-top: 20px; color: #6c757d;">
+                Drag and drop your Excel file here, or click the button above
+            </p>
+        </div>
+        
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button type="submit" class="submit-button" id="submitButton" disabled>
+                🚀 Start Import
+            </button>
+        </div>
+    </form>
+    
+    {% if recent_imports %}
+    <div class="recent-imports">
+        <h3>📊 Recent Import History</h3>
+        {% for import_log in recent_imports %}
+            <div class="import-log-item {% if import_log.errors_count == 0 %}success{% else %}error{% endif %}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>{{ import_log.imported_at|date:"M d, Y H:i" }}</strong>
+                    <span style="color: {% if import_log.errors_count == 0 %}#28a745{% else %}#dc3545{% endif %};">
+                        {% if import_log.errors_count == 0 %}✅ Success{% else %}❌ Errors{% endif %}
+                    </span>
+                </div>
+                <div class="import-stats">
+                    <span>📥 Total: {{ import_log.total_rows }}</span>
+                    <span>✅ Success: {{ import_log.successful_imports }}</span>
+                    <span>❌ Errors: {{ import_log.errors_count }}</span>
+                </div>
+                {% if import_log.errors_log %}
+                    <details style="margin-top: 10px;">
+                        <summary style="cursor: pointer; color: #dc3545;">View Errors</summary>
+                        <pre style="background: #f8f9fa; padding: 10px; border-radius: 3px; margin-top: 10px; font-size: 12px; overflow-x: auto;">{{ import_log.errors_log }}</pre>
+                    </details>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('excelFile');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const submitButton = document.getElementById('submitButton');
+    const uploadSection = document.getElementById('uploadSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    
+    // File selection handler
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('show');
+            submitButton.disabled = false;
+        } else {
+            fileInfo.classList.remove('show');
+            submitButton.disabled = true;
+        }
+    });
+    
+    // Drag and drop handlers
+    uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+    });
+    
+    uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+    });
+    
+    uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+    
+    // Form submission handler
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        submitButton.disabled = true;
+        submitButton.textContent = '⏳ Processing...';
+        progressBar.style.display = 'block';
+        
+        // Simulate progress (since we can't track actual upload progress easily)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressFill.style.width = progress + '%';
+        }, 200);
+        
+        // Clear interval after form submission
+        setTimeout(() => {
+            clearInterval(progressInterval);
+            progressFill.style.width = '100%';
+        }, 1000);
+    });
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
+{% endblock %}

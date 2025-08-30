@@ -28,7 +28,8 @@ from .views import (
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
     system_logs_viewer, system_crash_recovery,
     portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
-    portal_task_detail
+    portal_task_detail,
+    excel_import_view, excel_import_api
 )
 
 from .staff_views import (
@@ -115,4 +116,8 @@ urlpatterns = [
     path('staff/inventory/transaction/', log_inventory_transaction, name='log-inventory-transaction'),
     path('staff/checklist-photo/upload/', upload_checklist_photo, name='upload-checklist-photo'),
     path('tasks/<int:task_id>/set_status/', set_task_status, name='set-task-status'),
+    
+    # Excel Import endpoints
+    path('excel-import/', excel_import_view, name='excel-import'),
+    path('excel-import/api/', excel_import_api, name='excel-import-api'),
 ]

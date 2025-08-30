@@ -1389,3 +1389,115 @@ def _extract_timestamp(log_line):
             return match.group()
     
     return 'Unknown'
+
+
+# ----------------------------------------------------------------------------
+# Excel Import Views
+# ----------------------------------------------------------------------------
+
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from .services.excel_import_service import ExcelImportService
+from .models import BookingImportTemplate, Property
+
+def is_superuser_or_manager(user):
+    """Check if user is superuser or manager"""
+    return user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['manager', 'superuser'])
+
+@login_required
+@user_passes_test(is_superuser_or_manager)
+def excel_import_view(request):
+    """View for importing Excel booking schedules"""
+    
+    if request.method == 'POST':
+        try:
+            excel_file = request.FILES.get('excel_file')
+            if not excel_file:
+                messages.error(request, 'Please select an Excel file to import.')
+                return redirect('excel-import')
+            
+            # Check file extension
+            if not excel_file.name.endswith(('.xlsx', '.xls')):
+                messages.error(request, 'Please upload a valid Excel file (.xlsx or .xls)')
+                return redirect('excel-import')
+            
+            # Create default import template
+            template = None
+            first_property = Property.objects.first()
+            if first_property:
+                template, created = BookingImportTemplate.objects.get_or_create(
+                    name="Default Import Template",
+                    property_ref=first_property,
+                    defaults={
+                        'import_type': 'csv',
+                        'auto_create_tasks': True,
+                        'created_by': request.user
+                    }
+                )
+            
+            # Process the Excel file
+            import_service = ExcelImportService(request.user, template)
+            result = import_service.import_excel_file(excel_file)
+            
+            if result['success']:
+                messages.success(
+                    request, 
+                    f"Import completed successfully! {result['successful_imports']} bookings processed. "
+                    f"Errors: {result['errors_count']}, Warnings: {result['warnings_count']}"
+                )
+                
+                if result['errors']:
+                    for error in result['errors'][:5]:  # Show first 5 errors
+                        messages.warning(request, f"Error: {error}")
+                    
+                    if len(result['errors']) > 5:
+                        messages.warning(request, f"... and {len(result['errors']) - 5} more errors. Check the import log for details.")
+                
+            else:
+                messages.error(request, f"Import failed: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            messages.error(request, f"Import failed: {str(e)}")
+            import logging
+            logging.error(f"Excel import error: {e}")
+    
+    # Get recent import logs
+    recent_imports = []
+    if hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser']:
+        from .models import BookingImportLog
+        recent_imports = BookingImportLog.objects.filter(
+            imported_by=request.user
+        ).order_by('-imported_at')[:10]
+    
+    context = {
+        'recent_imports': recent_imports,
+        'title': 'Import Booking Schedule',
+    }
+    
+    return render(request, 'admin/excel_import.html', context)
+
+
+@login_required
+@user_passes_test(is_superuser_or_manager)
+def excel_import_api(request):
+    """API endpoint for Excel import (for AJAX requests)"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        excel_file = request.FILES.get('excel_file')
+        if not excel_file:
+            return JsonResponse({'error': 'No file provided'}, status=400)
+        
+        # Process the Excel file
+        import_service = ExcelImportService(request.user)
+        result = import_service.import_excel_file(excel_file)
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

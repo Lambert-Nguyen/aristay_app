@@ -52,6 +52,29 @@ class Booking(models.Model):
     guest_name = models.CharField(max_length=200, blank=True)
     guest_contact = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    
+    # Excel import fields
+    external_code = models.CharField(max_length=100, blank=True, help_text="External confirmation code from booking platform")
+    external_status = models.CharField(max_length=100, blank=True, help_text="Status from external booking platform")
+    source = models.CharField(max_length=50, blank=True, help_text="Booking source (Airbnb, VRBO, Direct, etc.)")
+    listing_name = models.CharField(max_length=200, blank=True, help_text="Listing name from booking platform")
+    earnings_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Earnings from booking")
+    earnings_currency = models.CharField(max_length=3, default='USD', help_text="Currency for earnings")
+    booked_on = models.DateTimeField(null=True, blank=True, help_text="When the booking was made")
+    adults = models.PositiveIntegerField(default=1, help_text="Number of adult guests")
+    children = models.PositiveIntegerField(default=0, help_text="Number of children")
+    infants = models.PositiveIntegerField(default=0, help_text="Number of infants")
+    nights = models.PositiveIntegerField(null=True, blank=True, help_text="Number of nights")
+    check_in_time = models.TimeField(null=True, blank=True, help_text="Check-in time")
+    check_out_time = models.TimeField(null=True, blank=True, help_text="Check-out time")
+    property_label_raw = models.CharField(max_length=200, blank=True, help_text="Original property label from Excel")
+    same_day_note = models.TextField(blank=True, help_text="Same day cleaning notes")
+    same_day_flag = models.BooleanField(default=False, help_text="Flag for same day cleaning")
+    
+    # Import tracking
+    raw_row = models.JSONField(null=True, blank=True, help_text="Raw Excel row data for audit")
+    last_import_update = models.DateTimeField(null=True, blank=True, help_text="Last time this booking was updated via import")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -871,7 +894,7 @@ class BookingImportTemplate(models.Model):
 
 class BookingImportLog(models.Model):
     """Log of booking import operations."""
-    template = models.ForeignKey(BookingImportTemplate, on_delete=models.CASCADE, related_name='import_logs')
+    template = models.ForeignKey(BookingImportTemplate, on_delete=models.CASCADE, related_name='import_logs', null=True, blank=True)
     import_file = models.FileField(upload_to='booking_imports/%Y/%m/', null=True, blank=True)
     
     # Results
