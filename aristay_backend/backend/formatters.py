@@ -6,6 +6,8 @@ import logging
 import traceback
 from datetime import datetime
 from django.conf import settings
+from django.utils import timezone
+import pytz
 
 
 class JSONFormatter(logging.Formatter):
@@ -17,8 +19,12 @@ class JSONFormatter(logging.Formatter):
     def format(self, record):
         """Format the log record as JSON"""
         # Base log data
+        # Always use Tampa, FL timezone for consistency
+        tampa_tz = pytz.timezone('America/New_York')
+        now = timezone.now().astimezone(tampa_tz)
+        
         log_data = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': now.isoformat(),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),

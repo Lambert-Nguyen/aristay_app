@@ -1160,7 +1160,6 @@ def system_metrics_dashboard(request):
         return render(request, 'admin/system_metrics.html', context)
 
 
-@staff_member_required 
 def system_metrics_api(request):
     """
     API endpoint for real-time system metrics (JSON)

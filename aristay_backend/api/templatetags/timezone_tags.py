@@ -123,29 +123,16 @@ def tampa_timezone(value):
 @register.simple_tag
 def current_time_dual(user=None):
     """
-    Show current time in both user and Tampa timezone
+    Show current time in Tampa timezone only (simplified for mobile)
     Usage: {% current_time_dual user %}
     """
     now = timezone.now()
     
-    # Get user timezone
-    user_tz = get_user_timezone(user) if user else TAMPA_TIMEZONE
-    
-    # Convert to both timezones
-    user_time = now.astimezone(user_tz)
+    # Always show Tampa time for consistency
     tampa_time = now.astimezone(TAMPA_TIMEZONE)
-    
-    # Format the times
-    user_tz_name = get_timezone_name(str(user_tz))
     tampa_tz_name = get_timezone_name('America/New_York')
     
-    # If same timezone, show only once
-    if str(user_tz) == str(TAMPA_TIMEZONE):
-        return f"Current time: {tampa_time.strftime('%b %d, %Y %H:%M')} ({tampa_tz_name})"
-    
-    # Show both timezones
-    return (f"Current time: {user_time.strftime('%b %d, %Y %H:%M')} ({user_tz_name}) | "
-            f"Server time: {tampa_time.strftime('%b %d, %Y %H:%M')} ({tampa_tz_name})")
+    return f"{tampa_time.strftime('%b %d, %Y %H:%M')} ({tampa_tz_name})"
 
 @register.simple_tag
 def timezone_info(user=None):

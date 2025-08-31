@@ -41,6 +41,7 @@ class AdminAccessMiddleware(MiddlewareMixin):
 class TimezoneMiddleware(MiddlewareMixin):
     """
     Middleware to activate timezone based on user's profile settings
+    Defaults to Tampa, FL timezone for consistency
     """
     
     def process_request(self, request):
@@ -48,14 +49,14 @@ class TimezoneMiddleware(MiddlewareMixin):
         if hasattr(request, 'user') and request.user.is_authenticated:
             try:
                 # Get user's timezone from profile
-                user_timezone = getattr(request.user.profile, 'timezone', 'UTC')
+                user_timezone = getattr(request.user.profile, 'timezone', 'America/New_York')
                 timezone.activate(user_timezone)
             except Exception:
-                # Fallback to UTC if profile doesn't exist or timezone is invalid
-                timezone.activate('UTC')
+                # Fallback to Tampa, FL timezone if profile doesn't exist or timezone is invalid
+                timezone.activate('America/New_York')
         else:
-            # Use UTC for anonymous users
-            timezone.activate('UTC')
+            # Use Tampa, FL timezone for anonymous users (default)
+            timezone.activate('America/New_York')
 
 
 class RequestLoggingMiddleware(MiddlewareMixin):

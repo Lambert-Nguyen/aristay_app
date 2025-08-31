@@ -11,24 +11,25 @@
         <p>Choose where you'd like to go:</p>
     </div>
     
-    <div class="grid cols-3">
+    <!-- Mobile-Optimized Action Cards -->
+    <div class="grid cols-1">
         <!-- Properties Portal -->
-        <div class="card" style="text-align: center; padding: 2rem;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">🏠</div>
-            <h3>Properties</h3>
-            <p>View and manage properties, bookings, and tasks</p>
-            <a href="/api/portal/properties/" class="button" style="width: 100%; margin-top: 1rem;">
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🏠</div>
+            <h3 style="margin-bottom: 0.5rem;">Properties</h3>
+            <p style="margin-bottom: 1rem; color: #64748b;">View and manage properties, bookings, and tasks</p>
+            <a href="/api/portal/properties/" class="button" style="width: 100%; display: block;">
                 View Properties
             </a>
         </div>
         
         <!-- Staff Portal -->
         {% if user.profile and user.profile.role and user.profile.role != 'viewer' %}
-        <div class="card" style="text-align: center; padding: 2rem;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
-            <h3>My Tasks</h3>
-            <p>Access your assigned tasks and workflows</p>
-            <a href="/api/staff/" class="button" style="width: 100%; margin-top: 1rem;">
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📋</div>
+            <h3 style="margin-bottom: 0.5rem;">My Tasks</h3>
+            <p style="margin-bottom: 1rem; color: #64748b;">Access your assigned tasks and workflows</p>
+            <a href="/api/staff/" class="button" style="width: 100%; display: block;">
                 Go to Tasks
             </a>
         </div>
@@ -36,15 +37,15 @@
         
         <!-- Admin/Manager Portal -->
         {% if user.is_staff %}
-        <div class="card" style="text-align: center; padding: 2rem;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">
                 {% if user.is_superuser %}⚙️{% else %}👔{% endif %}
             </div>
-            <h3>
+            <h3 style="margin-bottom: 0.5rem;">
                 {% if user.is_superuser %}Admin Panel{% else %}Manager Panel{% endif %}
             </h3>
-            <p>Manage users, properties, and system settings</p>
-            <a href="{% if user.is_superuser %}/admin/{% else %}/manager/{% endif %}" class="button" style="width: 100%; margin-top: 1rem;">
+            <p style="margin-bottom: 1rem; color: #64748b;">Manage users, properties, and system settings</p>
+            <a href="{% if user.is_superuser %}/admin/{% else %}/manager/{% endif %}" class="button" style="width: 100%; display: block;">
                 {% if user.is_superuser %}Admin Dashboard{% else %}Manager Dashboard{% endif %}
             </a>
         </div>
@@ -63,10 +64,10 @@
     {% endif %}
 </div>
 
-<!-- Quick Stats -->
-<div class="grid cols-3">
+<!-- Mobile-Optimized Quick Stats -->
+<div class="grid cols-1">
     <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1; margin-bottom: 0.5rem;">
             {{ accessible_properties_count|default:"0" }}
         </div>
         <div class="muted">Properties You Can Access</div>
@@ -74,33 +75,99 @@
     
     {% if user.profile.role and user.profile.role != 'viewer' %}
     <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1; margin-bottom: 0.5rem;">
             {{ assigned_tasks_count|default:"0" }}
         </div>
         <div class="muted">Your Assigned Tasks</div>
     </div>
     
     <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1; margin-bottom: 0.5rem;">
             {{ pending_tasks_count|default:"0" }}
         </div>
         <div class="muted">Pending Tasks</div>
     </div>
     {% else %}
     <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1; margin-bottom: 0.5rem;">
             {{ total_bookings_count|default:"0" }}
         </div>
         <div class="muted">Total Bookings</div>
     </div>
     
     <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; font-weight: bold; color: #6366f1;">
+        <div style="font-size: 2rem; font-weight: bold; color: #6366f1; margin-bottom: 0.5rem;">
             {{ recent_activity_count|default:"0" }}
         </div>
         <div class="muted">Recent Activities</div>
     </div>
     {% endif %}
 </div>
+
+<!-- Mobile-First Quick Actions -->
+<div class="card" style="margin-top: 2rem;">
+    <h3 style="margin-bottom: 1rem; color: #374151;">Quick Actions</h3>
+    <div class="grid cols-2">
+        <a href="/api/portal/properties/" class="button" style="text-align: center; padding: 1rem;">
+            🏠 Browse Properties
+        </a>
+        {% if user.profile and user.profile.role and user.profile.role != 'viewer' %}
+        <a href="/api/staff/" class="button" style="text-align: center; padding: 1rem;">
+            📋 View Tasks
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Mobile-Optimized CSS for this template -->
+<style>
+    /* Mobile-First Card Enhancements */
+    .card h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    /* Touch-Friendly Button Enhancements */
+    .button {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Mobile Typography */
+    @media (max-width: 767px) {
+        .section-title {
+            font-size: 1.5rem;
+            line-height: 1.4;
+        }
+        
+        .card {
+            margin-bottom: 1rem;
+        }
+        
+        .grid.cols-1 > .card {
+            margin-bottom: 1rem;
+        }
+    }
+    
+    /* Tablet and Desktop Enhancements */
+    @media (min-width: 768px) {
+        .grid.cols-1 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .grid.cols-2 {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+    }
+    
+    /* Large Screen Optimizations */
+    @media (min-width: 1024px) {
+        .grid.cols-1 {
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        }
+    }
+</style>
 {% endblock %}
 
