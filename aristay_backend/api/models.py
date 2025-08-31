@@ -77,6 +77,9 @@ class Booking(models.Model):
     raw_row = models.JSONField(null=True, blank=True, help_text="Raw Excel row data for audit")
     last_import_update = models.DateTimeField(null=True, blank=True, help_text="Last time this booking was updated via import")
     
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 

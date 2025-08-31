@@ -236,7 +236,29 @@ class BookingAdmin(admin.ModelAdmin):
     list_display = ('id', 'property', 'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact')
     list_filter = ('status', 'check_in_date', 'check_out_date', 'property')
     search_fields = ('property__name', 'guest_name', 'guest_contact')
-    readonly_fields = ('created_at', 'modified_at', 'check_in_dual', 'check_out_dual', 'created_at_dual', 'modified_at_dual')
+    readonly_fields = ('created_at', 'modified_at', 'history', 'check_in_dual', 'check_out_dual', 'created_at_dual', 'modified_at_dual')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('property', 'guest_name', 'guest_contact', 'status', 'check_in_date', 'check_out_date')
+        }),
+        ('Excel Import Data', {
+            'fields': ('external_code', 'external_status', 'source', 'listing_name', 'booked_on', 'adults', 'children', 'infants', 'nights'),
+            'classes': ('collapse',)
+        }),
+        ('Timing & Notes', {
+            'fields': ('check_in_time', 'check_out_time', 'same_day_note', 'same_day_flag'),
+            'classes': ('collapse',)
+        }),
+        ('Tracking', {
+            'fields': ('created_at_dual', 'modified_at_dual', 'raw_row', 'last_import_update'),
+            'classes': ('collapse',)
+        }),
+        ('History', {
+            'fields': ('history',),
+            'classes': ('collapse',)
+        }),
+    )
     
     def check_in_display(self, obj):
         """Display check-in time in Tampa timezone"""
