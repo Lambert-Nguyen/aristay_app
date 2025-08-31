@@ -36,7 +36,7 @@ from .staff_views import (
     staff_dashboard, cleaning_dashboard, maintenance_dashboard, laundry_dashboard,
     lawn_pool_dashboard, task_detail, update_checklist_response, my_tasks,
     inventory_lookup, log_inventory_transaction, lost_found_list,
-    upload_checklist_photo, set_task_status
+    upload_checklist_photo, set_task_status, task_counts_api
 )
 
 from .monitoring import (
@@ -115,6 +115,7 @@ urlpatterns = [
     path('staff/checklist-response/<int:response_id>/update/', update_checklist_response, name='update-checklist-response'),
     path('staff/inventory/transaction/', log_inventory_transaction, name='log-inventory-transaction'),
     path('staff/checklist-photo/upload/', upload_checklist_photo, name='upload-checklist-photo'),
+    path('staff/task-counts/', task_counts_api, name='staff-task-counts'),
     path('tasks/<int:task_id>/set_status/', set_task_status, name='set-task-status'),
     
     # Excel Import endpoints

@@ -74,7 +74,7 @@
             }
         }
 
-        /* Mobile Navigation */
+        /* Enhanced Mobile Navigation */
         .mobile-nav-toggle {
             display: block;
             background: none;
@@ -82,18 +82,96 @@
             color: #667eea;
             font-size: 24px;
             cursor: pointer;
-            padding: 8px;
-            border-radius: 6px;
-            transition: background-color 0.2s;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .mobile-nav-toggle:hover {
             background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.05);
+        }
+
+        .mobile-nav-toggle:active {
+            transform: scale(0.95);
         }
 
         @media (min-width: 768px) {
             .mobile-nav-toggle {
                 display: none;
+            }
+        }
+
+        /* Quick Action Bar */
+        .quick-action-bar {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 1rem;
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+            gap: 0.5rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(-100%);
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .quick-action-bar.active {
+            display: flex;
+        }
+
+        .quick-action-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            text-decoration: none;
+        }
+
+        .quick-action-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-action-btn:active {
+            transform: translateY(0);
+        }
+
+        @media (min-width: 768px) {
+            .quick-action-bar {
+                display: none !important;
             }
         }
 
@@ -502,10 +580,19 @@
         <div class="header-content">
             <div class="logo">AriStay Staff Portal</div>
             
-            <!-- Mobile Navigation Toggle -->
-            <button class="mobile-nav-toggle" onclick="toggleMobileNav()">
-                ☰
-            </button>
+                    <!-- Mobile Navigation Toggle -->
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()">
+            ☰
+        </button>
+
+        <!-- Quick Action Bar (Mobile Only) -->
+        <div class="quick-action-bar" id="quickActionBar">
+            <a href="/api/staff/tasks/" class="quick-action-btn">📋 Tasks</a>
+            <a href="/api/staff/cleaning/" class="quick-action-btn">🧹 Cleaning</a>
+            <a href="/api/staff/maintenance/" class="quick-action-btn">🔧 Maintenance</a>
+            <a href="/api/staff/inventory/" class="quick-action-btn">📦 Inventory</a>
+            <a href="/api/staff/lost-found/" class="quick-action-btn">🔍 Lost & Found</a>
+        </div>
 
             <!-- Navigation Links -->
             <div class="nav-links" id="navLinks">
@@ -540,22 +627,88 @@
     </div>
 
     <script>
-        // Mobile Navigation Toggle
+        // Enhanced Mobile Navigation with Quick Actions
         function toggleMobileNav() {
             const navLinks = document.getElementById('navLinks');
             const overlay = document.getElementById('mobileOverlay');
+            const quickActionBar = document.getElementById('quickActionBar');
             
             navLinks.classList.toggle('active');
             overlay.classList.toggle('active');
+            quickActionBar.classList.toggle('active');
+            
+            // Add smooth animation for quick action bar
+            if (quickActionBar.classList.contains('active')) {
+                quickActionBar.style.display = 'flex';
+                setTimeout(() => {
+                    quickActionBar.style.opacity = '1';
+                    quickActionBar.style.transform = 'translateY(0)';
+                }, 10);
+            } else {
+                quickActionBar.style.opacity = '0';
+                quickActionBar.style.transform = 'translateY(-100%)';
+                setTimeout(() => {
+                    quickActionBar.style.display = 'none';
+                }, 300);
+            }
         }
 
         function closeMobileNav() {
             const navLinks = document.getElementById('navLinks');
             const overlay = document.getElementById('mobileOverlay');
+            const quickActionBar = document.getElementById('quickActionBar');
             
             navLinks.classList.remove('active');
             overlay.classList.remove('active');
+            quickActionBar.classList.remove('active');
+            quickActionBar.style.opacity = '0';
+            quickActionBar.style.transform = 'translateY(-100%)';
         }
+
+        // Auto-hide quick action bar on scroll
+        let lastScrollTop = 0;
+        window.addEventListener('scroll', function() {
+            const quickActionBar = document.getElementById('quickActionBar');
+            const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (currentScrollTop > lastScrollTop && currentScrollTop > 100) {
+                // Scrolling down - hide quick actions
+                quickActionBar.style.transform = 'translateY(-100%)';
+            } else {
+                // Scrolling up - show quick actions
+                quickActionBar.style.transform = 'translateY(0)';
+            }
+            lastScrollTop = currentScrollTop;
+        });
+
+        // Touch gesture support for mobile
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        document.addEventListener('touchend', function(e) {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            
+            // Swipe right to open menu (if on left edge)
+            if (diffX > 50 && Math.abs(diffY) < 50 && touchStartX < 50) {
+                toggleMobileNav();
+            }
+            
+            // Swipe left to close menu (if menu is open)
+            if (diffX < -50 && Math.abs(diffY) < 50) {
+                const navLinks = document.getElementById('navLinks');
+                if (navLinks.classList.contains('active')) {
+                    closeMobileNav();
+                }
+            }
+        });
 
         // Close mobile nav when clicking outside
         document.addEventListener('click', function(event) {

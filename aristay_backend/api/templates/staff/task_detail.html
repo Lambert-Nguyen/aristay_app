@@ -1,29 +1,509 @@
 {% extends "staff/base.html" %}
 
-{% block title %}{{ task.title }} · AriStay{% endblock %}
+{% block title %}{{ task.title }} · AriStay<style>
+    /* Mobile-First Task Detail Styling */
+    .task-header-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-header-mobile {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: start;
+        }
+    }
+
+    .task-title {
+        margin: 0;
+        color: #333;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+
+    @media (max-width: 768px) {
+        .task-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    .task-meta {
+        margin-top: 0.5rem;
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .task-status-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-status-section {
+            align-items: flex-end;
+            text-align: right;
+        }
+    }
+
+    .due-date {
+        font-size: 0.875rem;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Mobile Quick Actions */
+    .mobile-quick-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    @media (min-width: 768px) {
+        .mobile-quick-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    .quick-action-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 48px;
+        min-width: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        white-space: nowrap;
+    }
+
+    .quick-action-btn:hover:not(:disabled) {
+        background: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .quick-action-btn:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .quick-action-btn.start-task {
+        background: #10b981;
+    }
+
+    .quick-action-btn.start-task:hover:not(:disabled) {
+        background: #059669;
+    }
+
+    .quick-action-btn.complete-task {
+        background: #3b82f6;
+    }
+
+    .quick-action-btn.complete-task:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .quick-action-btn.back-to-tasks {
+        background: #6b7280;
+    }
+
+    .quick-action-btn.back-to-tasks:hover:not(:disabled) {
+        background: #4b5563;
+    }
+
+    /* Enhanced Checklist Styling */
+    .checklist-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr;
+    }
+
+    .checklist-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .checklist-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .checklist-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .checklist-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .checklist-checkbox {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    .checklist-status {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .checklist-title {
+        font-weight: 500;
+        font-size: 1rem;
+        line-height: 1.4;
+        flex: 1;
+    }
+
+    .required-indicator {
+        color: #e53e3e;
+        font-size: 0.875rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Mobile-Optimized Form Elements */
+    .auto-save {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 48px;
+        transition: all 0.2s ease;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .auto-save:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .auto-save[type="number"] {
+        width: 150px;
+    }
+
+    @media (max-width: 768px) {
+        .auto-save[type="number"] {
+            width: 100%;
+        }
+    }
+
+    /* Enhanced Progress Bar */
+    .progress-bar {
+        background: #e2e8f0;
+        border-radius: 10px;
+        height: 12px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-fill {
+        background: linear-gradient(90deg, #667eea, #5a67d8);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    /* Mobile-First Responsive Improvements */
+    @media (max-width: 768px) {
+        .checklist-item {
+            padding: 1rem;
+        }
+
+        .checklist-header {
+            gap: 0.75rem;
+        }
+
+        .checklist-title {
+            font-size: 0.875rem;
+        }
+
+        .mobile-quick-actions {
+            gap: 0.5rem;
+        }
+
+        .quick-action-btn {
+            padding: 10px 16px;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Touch-Friendly Improvements */
+    .checklist-checkbox:focus,
+    .quick-action-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Loading States */
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid #667eea;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    // Enhanced Task Management Functions
+    function startTask(taskId) {
+        if (confirm('Start this task?')) {
+            updateTaskStatus(taskId, 'in-progress');
+        }
+    }
+
+    function completeTask(taskId) {
+        if (confirm('Mark this task as completed?')) {
+            updateTaskStatus(taskId, 'completed');
+        }
+    }
+
+    function updateTaskStatus(taskId, status) {
+        // Show loading state
+        const buttons = document.querySelectorAll('.quick-action-btn');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        });
+
+        // Make API call to update task status
+        fetch(`/api/tasks/${taskId}/set_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Task status updated successfully!', 'success');
+                
+                // Refresh the page to show updated status
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to update task status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Failed to update task status: ' + error.message, 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            });
+        });
+    }
+
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-message">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Add notification styles
+    const notificationStyles = document.createElement('style');
+    notificationStyles.textContent = `
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: white;
+        }
+
+        .notification-info {
+            background: #3b82f6;
+        }
+
+        .notification-success {
+            background: #10b981;
+        }
+
+        .notification-error {
+            background: #ef4444;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-left: 1rem;
+            padding: 0;
+            min-width: 24px;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .notification {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    `;
+    document.head.appendChild(notificationStyles);
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
-        <div>
-            <h1 style="margin: 0; color: #333;">{{ task.title }}</h1>
-            <div style="margin-top: 0.5rem; color: #666;">
+    <div class="task-header-mobile">
+        <div class="task-title-section">
+            <h1 class="task-title">{{ task.title }}</h1>
+            <div class="task-meta">
                 🏠 {{ task.property.name }}
                 {% if task.booking %}
                 · 📅 {{ task.booking.check_in_date|date:"M d" }} → {{ task.booking.check_out_date|date:"M d" }}
                 {% endif %}
             </div>
         </div>
-        <div style="text-align: right;">
-            <div class="status-badge status-{{ task.status|cut:'-' }}" style="margin-bottom: 0.5rem;">
+        <div class="task-status-section">
+            <div class="status-badge status-{{ task.status|cut:'-' }}">
                 {{ task.get_status_display }}
             </div>
             {% if task.due_date %}
-            <div style="font-size: 0.875rem; color: #666;">
-                Due: {{ task.due_date|date:"M d, Y H:i" }}
+            <div class="due-date">
+                ⏰ Due: {{ task.due_date|date:"M d, Y H:i" }}
             </div>
             {% endif %}
         </div>
+    </div>
+
+    <!-- Mobile Quick Actions -->
+    <div class="mobile-quick-actions">
+        <button class="quick-action-btn start-task" onclick="startTask({{ task.id }})" 
+                {% if task.status != 'pending' %}disabled{% endif %}>
+            ▶️ Start Task
+        </button>
+        <button class="quick-action-btn complete-task" onclick="completeTask({{ task.id }})"
+                {% if task.status == 'completed' %}disabled{% endif %}>
+            ✅ Complete Task
+        </button>
+        <button class="quick-action-btn back-to-tasks" onclick="window.history.back()">
+            ← Back to Tasks
+        </button>
     </div>
 
     {% if task.description %}
@@ -74,29 +554,29 @@
             {% endif %}
         </h3>
         
-        <div class="grid">
+        <div class="checklist-grid">
             {% for response in responses %}
             <div class="checklist-item" data-response-id="{{ response.id }}">
-                <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
-                    {% if can_edit %}
-                    <input type="checkbox" 
-                           class="checklist-checkbox"
-                           data-response-id="{{ response.id }}"
-                           {% if response.is_completed %}checked{% endif %}
-                           style="margin-top: 0.25rem;">
-                    {% else %}
-                    <span style="margin-top: 0.25rem;">
-                        {% if response.is_completed %}✅{% else %}⬜{% endif %}
-                    </span>
-                    {% endif %}
-                    
-                    <div style="flex: 1;">
-                        <div style="font-weight: 500; margin-bottom: 0.5rem;">
+                <div class="checklist-content">
+                    <div class="checklist-header">
+                        {% if can_edit %}
+                        <input type="checkbox" 
+                               class="checklist-checkbox"
+                               data-response-id="{{ response.id }}"
+                               {% if response.is_completed %}checked{% endif %}>
+                        {% else %}
+                        <span class="checklist-status">
+                            {% if response.is_completed %}✅{% else %}⬜{% endif %}
+                        </span>
+                        {% endif %}
+                        
+                        <div class="checklist-title">
                             {{ response.item.title }}
                             {% if response.item.is_required %}
-                            <span style="color: #e53e3e; font-size: 0.875rem;">*</span>
+                            <span class="required-indicator">*</span>
                             {% endif %}
                         </div>
+                    </div>
                         
                         {% if response.item.description %}
                         <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">
@@ -340,5 +820,459 @@
             });
         }
     }
+
+    // Enhanced Task Management Functions
+    function startTask(taskId) {
+        if (confirm('Start this task?')) {
+            updateTaskStatus(taskId, 'in-progress');
+        }
+    }
+
+    function updateTaskStatus(taskId, status) {
+        // Show loading state
+        const buttons = document.querySelectorAll('.quick-action-btn');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        });
+
+        // Make API call to update task status
+        fetch(`/api/tasks/${taskId}/set_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Task status updated successfully!', 'success');
+                
+                // Refresh the page to show updated status
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to update task status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Failed to update task status: ' + error.message, 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            });
+        });
+    }
+
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-message">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
 </script>
+
+<style>
+    /* Mobile-First Task Detail Styling */
+    .task-header-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-header-mobile {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: start;
+        }
+    }
+
+    .task-title {
+        margin: 0;
+        color: #333;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+
+    @media (max-width: 768px) {
+        .task-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    .task-meta {
+        margin-top: 0.5rem;
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .task-status-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-status-section {
+            align-items: flex-end;
+            text-align: right;
+        }
+    }
+
+    .due-date {
+        font-size: 0.875rem;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Mobile Quick Actions */
+    .mobile-quick-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    @media (min-width: 768px) {
+        .mobile-quick-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    .quick-action-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 48px;
+        min-width: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        white-space: nowrap;
+    }
+
+    .quick-action-btn:hover:not(:disabled) {
+        background: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .quick-action-btn:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .quick-action-btn.start-task {
+        background: #10b981;
+    }
+
+    .quick-action-btn.start-task:hover:not(:disabled) {
+        background: #059669;
+    }
+
+    .quick-action-btn.complete-task {
+        background: #3b82f6;
+    }
+
+    .quick-action-btn.complete-task:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .quick-action-btn.back-to-tasks {
+        background: #6b7280;
+    }
+
+    .quick-action-btn.back-to-tasks:hover:not(:disabled) {
+        background: #4b5563;
+    }
+
+    /* Enhanced Checklist Styling */
+    .checklist-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr;
+    }
+
+    .checklist-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .checklist-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .checklist-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .checklist-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .checklist-checkbox {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    .checklist-status {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .checklist-title {
+        font-weight: 500;
+        font-size: 1rem;
+        line-height: 1.4;
+        flex: 1;
+    }
+
+    .required-indicator {
+        color: #e53e3e;
+        font-size: 0.875rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Mobile-Optimized Form Elements */
+    .auto-save {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 48px;
+        transition: all 0.2s ease;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .auto-save:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .auto-save[type="number"] {
+        width: 150px;
+    }
+
+    @media (max-width: 768px) {
+        .auto-save[type="number"] {
+            width: 100%;
+        }
+    }
+
+    /* Enhanced Progress Bar */
+    .progress-bar {
+        background: #e2e8f0;
+        border-radius: 10px;
+        height: 12px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-fill {
+        background: linear-gradient(90deg, #667eea, #5a67d8);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    /* Mobile-First Responsive Improvements */
+    @media (max-width: 768px) {
+        .checklist-item {
+            padding: 1rem;
+        }
+
+        .checklist-header {
+            gap: 0.75rem;
+        }
+
+        .checklist-title {
+            font-size: 0.875rem;
+        }
+
+        .mobile-quick-actions {
+            gap: 0.5rem;
+        }
+
+        .quick-action-btn {
+            padding: 10px 16px;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Touch-Friendly Improvements */
+    .checklist-checkbox:focus,
+    .quick-action-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Loading States */
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid #667eea;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Notification Styles */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+    }
+
+    .notification-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        color: white;
+    }
+
+    .notification-info {
+        background: #3b82f6;
+    }
+
+    .notification-success {
+        background: #10b981;
+    }
+
+    .notification-error {
+        background: #ef4444;
+    }
+
+    .notification-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        margin-left: 1rem;
+        padding: 0;
+        min-width: 24px;
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .notification {
+            top: 10px;
+            right: 10px;
+            left: 10px;
+            max-width: none;
+        }
+    }
+</style>
 {% endblock %}

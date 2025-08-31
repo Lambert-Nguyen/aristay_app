@@ -13,6 +13,10 @@ from django.utils import timezone
 from django.db.models import Q, Count, Prefetch, F
 from django.core.paginator import Paginator
 import json
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 from .models import (
     Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto,
@@ -26,12 +30,16 @@ from .serializers import TaskSerializer
 def staff_dashboard(request):
     """Main staff dashboard with overview and quick actions."""
     
+    logger.info(f"Staff dashboard accessed by user: {request.user.username}")
+    
     # Get user role
     try:
         profile = request.user.profile
         user_role = profile.role
+        logger.debug(f"User {request.user.username} has role: {user_role}")
     except Profile.DoesNotExist:
         user_role = 'staff'
+        logger.warning(f"User {request.user.username} has no profile, defaulting to staff role")
     
     # Get user's task summary
     my_tasks = Task.objects.filter(assigned_to=request.user)
@@ -47,6 +55,8 @@ def staff_dashboard(request):
         ).count()
     }
     
+    logger.debug(f"User {request.user.username} has {total_tasks} total tasks: {task_counts}")
+    
     # Get recent tasks
     recent_tasks = my_tasks.select_related('property', 'booking').order_by('-created_at')[:5]
     
@@ -61,6 +71,7 @@ def staff_dashboard(request):
         'accessible_properties': accessible_properties,
     }
     
+    logger.info(f"Staff dashboard rendered successfully for user: {request.user.username}")
     return render(request, 'staff/dashboard.html', context)
 
 
@@ -518,22 +529,31 @@ def upload_checklist_photo(request):
 def set_task_status(request, task_id):
     """Update a task's status."""
     
+    logger.info(f"Task status update requested by user {request.user.username} for task {task_id}")
+    
     try:
         task = get_object_or_404(Task, id=task_id)
+        old_status = task.status
         
         # Check permissions
         if not (request.user.is_staff or task.assigned_to == request.user):
+            logger.warning(f"Permission denied for user {request.user.username} to update task {task_id}")
             return JsonResponse({'error': 'Permission denied'}, status=403)
         
         data = json.loads(request.body)
         new_status = data.get('status')
         
+        logger.debug(f"Task {task_id} status change requested: {old_status} -> {new_status}")
+        
         if new_status not in [choice[0] for choice in Task.STATUS_CHOICES]:
+            logger.warning(f"Invalid status '{new_status}' requested for task {task_id}")
             return JsonResponse({'error': 'Invalid status'}, status=400)
         
         task.status = new_status
         task.modified_by = request.user
         task.save()
+        
+        logger.info(f"Task {task_id} status updated successfully: {old_status} -> {new_status} by user {request.user.username}")
         
         return JsonResponse({
             'success': True,
@@ -542,4 +562,40 @@ def set_task_status(request, task_id):
         })
         
     except Exception as e:
+        logger.error(f"Error updating task {task_id} status by user {request.user.username}: {str(e)}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def task_counts_api(request):
+    """API endpoint for real-time task counts."""
+    logger.info(f"Task counts API accessed by user: {request.user.username}")
+    
+    try:
+        # Get user's task summary
+        my_tasks = Task.objects.filter(assigned_to=request.user)
+        total_tasks = my_tasks.count()
+        
+        task_counts = {
+            'total': total_tasks,
+            'pending': my_tasks.filter(status='pending').count(),
+            'in_progress': my_tasks.filter(status='in-progress').count(),
+            'completed': my_tasks.filter(status='completed').count(),
+            'overdue': my_tasks.filter(
+                status__in=['pending', 'in-progress'],
+                due_date__lt=timezone.now()
+            ).count()
+        }
+        
+        logger.debug(f"Task counts for user {request.user.username}: {task_counts}")
+        
+        return JsonResponse({
+            'success': True,
+            'counts': task_counts
+        })
+    except Exception as e:
+        logger.error(f"Error in task_counts_api for user {request.user.username}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

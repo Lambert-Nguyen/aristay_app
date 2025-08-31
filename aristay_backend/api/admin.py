@@ -805,8 +805,12 @@ class PropertyInventoryAdmin(admin.ModelAdmin):
             'normal': 'green',
             'overstocked': 'blue'
         }
-        return f'<span style="color: {colors.get(status, "black")}">{status.replace("_", " ").title()}</span>'
-    stock_status.allow_tags = True
+        from django.utils.html import format_html
+        return format_html(
+            '<span style="color: {}">{}</span>',
+            colors.get(status, "black"),
+            status.replace("_", " ").title()
+        )
     stock_status.short_description = 'Stock Status'
 
 class InventoryTransactionAdmin(admin.ModelAdmin):

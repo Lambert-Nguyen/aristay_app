@@ -11,6 +11,10 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 
 import json
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 from .filters import TaskFilter
 from .system_metrics import get_system_metrics
@@ -1412,15 +1416,21 @@ def is_superuser_or_manager(user):
 def excel_import_view(request):
     """View for importing Excel booking schedules"""
     
+    logger.info(f"Excel import view accessed by user: {request.user.username}")
+    
     if request.method == 'POST':
         try:
             excel_file = request.FILES.get('excel_file')
             if not excel_file:
+                logger.warning(f"User {request.user.username} attempted import without selecting a file")
                 messages.error(request, 'Please select an Excel file to import.')
                 return redirect('excel-import')
             
+            logger.info(f"User {request.user.username} uploading file: {excel_file.name} ({excel_file.size} bytes)")
+            
             # Check file extension
             if not excel_file.name.endswith(('.xlsx', '.xls')):
+                logger.warning(f"User {request.user.username} uploaded invalid file type: {excel_file.name}")
                 messages.error(request, 'Please upload a valid Excel file (.xlsx or .xls)')
                 return redirect('excel-import')
             
@@ -1437,12 +1447,17 @@ def excel_import_view(request):
                         'created_by': request.user
                     }
                 )
+                if created:
+                    logger.info(f"Created new import template for user {request.user.username}")
             
             # Process the Excel file
+            logger.info(f"Starting Excel import for user {request.user.username} with file: {excel_file.name}")
             import_service = ExcelImportService(request.user, template)
             result = import_service.import_excel_file(excel_file)
             
             if result['success']:
+                logger.info(f"Excel import successful for user {request.user.username}: {result['successful_imports']} bookings, {result['errors_count']} errors, {result['warnings_count']} warnings")
+                
                 messages.success(
                     request, 
                     f"Import completed successfully! {result['successful_imports']} bookings processed. "
@@ -1505,9 +1520,8 @@ def excel_import_view(request):
                 messages.error(request, f"Import failed: {result.get('error', 'Unknown error')}")
                 
         except Exception as e:
+            logger.error(f"Excel import exception for user {request.user.username}: {str(e)}", exc_info=True)
             messages.error(request, f"Import failed: {str(e)}")
-            import logging
-            logging.error(f"Excel import error: {e}")
     
     # Get recent import logs
     recent_imports = []
@@ -1529,21 +1543,30 @@ def excel_import_view(request):
 @user_passes_test(is_superuser_or_manager)
 def excel_import_api(request):
     """API endpoint for Excel import (for AJAX requests)"""
+    logger.info(f"Excel import API accessed by user: {request.user.username}")
+    
     if request.method != 'POST':
+        logger.warning(f"User {request.user.username} attempted to access Excel import API with {request.method} method")
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
         excel_file = request.FILES.get('excel_file')
         if not excel_file:
+            logger.warning(f"User {request.user.username} attempted Excel import without providing a file")
             return JsonResponse({'error': 'No file provided'}, status=400)
+        
+        logger.info(f"User {request.user.username} uploading file via API: {excel_file.name} ({excel_file.size} bytes)")
         
         # Process the Excel file
         import_service = ExcelImportService(request.user)
         result = import_service.import_excel_file(excel_file)
         
+        logger.info(f"Excel import API result for user {request.user.username}: success={result.get('success')}, bookings={result.get('successful_imports', 0)}")
+        
         # If properties need approval, return special response
         if result.get('requires_property_approval'):
             result['message'] = f"Import requires admin approval. Found {len(result.get('new_properties', []))} new properties."
+            logger.info(f"Excel import requires property approval for user {request.user.username}: {len(result.get('new_properties', []))} new properties")
         
         # Add success message for new properties created
         if result.get('new_properties_created', 0) > 0:
@@ -1552,10 +1575,12 @@ def excel_import_api(request):
                 result['success_message'] = f"🎉 Successfully created {result['new_properties_created']} new properties: {', '.join(new_properties_list[:5])}{'...' if len(new_properties_list) > 5 else ''}"
             else:
                 result['success_message'] = f"🎉 Created {result['new_properties_created']} new properties during import."
+            logger.info(f"Excel import created {result['new_properties_created']} new properties for user {request.user.username}")
         
         return JsonResponse(result)
         
     except Exception as e:
+        logger.error(f"Excel import API exception for user {request.user.username}: {str(e)}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
 
 
