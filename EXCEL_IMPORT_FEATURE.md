@@ -238,6 +238,24 @@ When new properties are created during import, users now see:
 
 This provides complete transparency about what was created during the import process.
 
+### **Task Status Mapping System**
+The system now automatically maps Excel booking statuses to appropriate task statuses:
+
+| Excel Status | Task Status | Description |
+|--------------|-------------|-------------|
+| `Booked` | `pending` | Task is waiting to be started |
+| `Confirmed` | `pending` | Task is confirmed but not started |
+| `Currently Hosting` | `in-progress` | Guest is currently staying, task in progress |
+| `Owner Staying` | `pending` | Owner is staying, task pending |
+| `Cancelled` | `canceled` | Task is canceled |
+| `Completed` | `completed` | Task is completed |
+
+**Benefits:**
+- ✅ **Automatic Status Updates**: Tasks automatically reflect booking status changes
+- ✅ **Real-time Sync**: Task status updates when Excel is re-imported
+- ✅ **Consistent Workflow**: All team members see the same status information
+- ✅ **Smart Defaults**: Unknown statuses default to `pending` for safety
+
 ## 🧪 Testing & Validation
 
 ### Test Coverage
@@ -410,9 +428,69 @@ This provides complete transparency about what was created during the import pro
 
 ---
 
-## 🎉 Implementation Complete!
+## 🚨 **Recent Bug Fixes & Enhancements (August 31, 2025)**
 
-The Excel Import feature is now fully implemented and ready for production use. Customers can:
+### ✅ **Issues Fixed:**
+
+#### **1. Guest Names Not Importing Correctly**
+- **Problem**: Some bookings were missing from import results
+- **Solution**: Fixed column mapping and data extraction logic
+- **Result**: All guest names now import correctly
+
+#### **2. Booked Date Not Importing**
+- **Problem**: `booked_on` field was blank in all imported bookings
+- **Solution**: Added `booked_on` field to import process and database operations
+- **Result**: Booking dates now properly imported and stored
+
+#### **3. Column Name Variations**
+- **Problem**: Excel files had different column names ("Booking Source" vs "Airbnb/VRBO")
+- **Solution**: Implemented flexible column mapping with fallbacks
+- **Result**: System now handles both column naming conventions automatically
+
+#### **4. Confirmation Code Generation**
+- **Problem**: Direct/Owner bookings lacked unique confirmation codes
+- **Solution**: Automatic generation of unique codes (Direct 01, Direct 02, Owner Staying 01, Owner Staying 02, etc.)
+- **Result**: All booking types now have proper identification, including "Owner Staying" bookings
+
+#### **5. Missing Conflict Detection**
+- **Problem**: No validation for overlapping bookings or same-day conflicts
+- **Solution**: Implemented comprehensive conflict checking system
+- **Result**: Users now get warnings about:
+  - ⚠️ Property conflicts (overlapping dates on same property)
+  - 📅 Same-day conflicts (multiple check-ins/outs on same date)
+
+### 🔧 **New Features Added:**
+
+#### **Enhanced Data Processing**
+- **Flexible Column Mapping**: Handles variations in Excel column names
+- **Smart Confirmation Codes**: Auto-generates unique IDs for Direct/Owner bookings
+- **Conflict Detection**: Identifies potential booking conflicts before import
+- **Same-Day Notes**: Combines both "Check" and "Check 1" fields intelligently
+- **Task Status Mapping**: Automatically maps Excel status to appropriate task status
+
+#### **Improved Error Handling**
+- **Better Validation**: More comprehensive data validation
+- **Conflict Warnings**: Clear warnings about potential issues
+- **Detailed Logging**: Enhanced debug information for troubleshooting
+- **Warnings Display**: Users can now see all warnings during import
+- **Enhanced Import Logs**: Comprehensive logging of errors, warnings, and processing details
+
+### 🧪 **Testing Results:**
+All fixes have been thoroughly tested and verified:
+- ✅ **Column name variations** handled correctly
+- ✅ **Confirmation code generation** working (including Owner Staying)
+- ✅ **Conflict checking** working  
+- ✅ **Same day notes** working
+- ✅ **Status field updates** working correctly
+- ✅ **Timezone awareness** working for all date fields
+- ✅ **Task status mapping** working (Excel status → Task status)
+- ✅ **Enhanced import logging** working
+- ✅ **Warnings display** working for users
+- ✅ **All existing functionality** preserved
+
+---
+
+## 🎉 Implementation Complete!
 
 1. **Upload daily Excel files** with their cleaning schedules
 2. **Automatically create bookings** for new reservations

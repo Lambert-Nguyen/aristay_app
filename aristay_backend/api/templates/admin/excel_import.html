@@ -289,10 +289,13 @@
                     <span>📥 Total: {{ import_log.total_rows }}</span>
                     <span>✅ Success: {{ import_log.successful_imports }}</span>
                     <span>❌ Errors: {{ import_log.errors_count }}</span>
+                    {% if import_log.errors_log and 'WARNINGS' in import_log.errors_log %}
+                        <span>⚠️ Warnings: Available</span>
+                    {% endif %}
                 </div>
                 {% if import_log.errors_log %}
                     <details style="margin-top: 10px;">
-                        <summary style="cursor: pointer; color: #dc3545;">View Errors</summary>
+                        <summary style="cursor: pointer; color: #dc3545;">View Details</summary>
                         <pre style="background: #f8f9fa; padding: 10px; border-radius: 3px; margin-top: 10px; font-size: 12px; overflow-x: auto;">{{ import_log.errors_log }}</pre>
                     </details>
                 {% endif %}

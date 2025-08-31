@@ -1457,6 +1457,20 @@ def excel_import_view(request):
                     if len(result['errors']) > 5:
                         messages.warning(request, f"... and {len(result['errors']) - 5} more errors. Check the import log for details.")
                 
+                # Display warnings to user
+                if result.get('warnings_count', 0) > 0:
+                    warnings_list = result.get('warnings', [])
+                    if warnings_list:
+                        # Show first few warnings
+                        display_warnings = warnings_list[:5]
+                        for warning in display_warnings:
+                            messages.warning(request, f"⚠️ {warning}")
+                        
+                        if len(warnings_list) > 5:
+                            messages.warning(request, f"⚠️ ... and {len(warnings_list) - 5} more warnings. Check import log for full details.")
+                    else:
+                        messages.warning(request, f"Import completed with {result['warnings_count']} warnings. Check the import log for details.")
+                
                 if result.get('new_properties_created', 0) > 0:
                     new_properties_list = result.get('new_properties_list', [])
                     if new_properties_list:

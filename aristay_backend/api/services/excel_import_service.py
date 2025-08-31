@@ -79,14 +79,46 @@ class ExcelImportService:
                     # Continue with import - properties will be created as needed
             
             # Process each row individually (no transaction wrapper to allow partial success)
+            processed_rows = 0
+            successful_rows = 0
+            skipped_rows = 0
+            
             for index, row in df.iterrows():
                 try:
+                    # Skip completely empty rows
+                    if row.isna().all():
+                        logger.debug(f"Skipping empty row {index + 2}")
+                        skipped_rows += 1
+                        continue
+                    
+                    # Log row processing start
+                    logger.debug(f"Processing row {index + 2}: {row.get('Guest name', 'No guest name')} - {row.get('Properties', 'No property')}")
+                    
+                    # Track success count before processing
+                    success_before = self.success_count
+                    
                     self._process_booking_row(row, index + 2)  # +2 because Excel is 1-indexed and has header
+                    processed_rows += 1
+                    
+                    # Check if this row actually resulted in a booking change
+                    if self.success_count > success_before:
+                        successful_rows += 1
+                        logger.debug(f"Row {index + 2}: Successfully processed (success count: {success_before} -> {self.success_count})")
+                    else:
+                        logger.warning(f"Row {index + 2}: Processed but no booking created/updated")
+                    
                 except Exception as e:
                     error_msg = f"Row {index + 2}: {str(e)}"
                     self.errors.append(error_msg)
                     logger.error(f"Error processing row {index + 2}: {e}")
                     continue
+            
+            logger.info(f"Row processing summary:")
+            logger.info(f"  • Total rows in Excel: {self.total_rows}")
+            logger.info(f"  • Rows processed: {processed_rows}")
+            logger.info(f"  • Rows skipped (empty): {skipped_rows}")
+            logger.info(f"  • Successful imports: {self.success_count}")
+            logger.info(f"  • Rows with errors: {len(self.errors)}")
             
             # Update import log with results
             self._update_import_log()
@@ -94,10 +126,17 @@ class ExcelImportService:
             # Count new properties actually created during import
             new_properties_created = len([w for w in self.warnings if w.startswith('✨ Created new property:')])
             
+            # Log the discrepancy for debugging
+            if processed_rows != self.success_count:
+                logger.warning(f"Row processing discrepancy: {processed_rows} rows processed, {self.success_count} successful imports")
+                logger.warning(f"This suggests some rows were processed but didn't result in booking changes")
+            
             return {
                 'success': True,
                 'total_rows': self.total_rows,
-                'successful_imports': self.success_count,
+                'successful_imports': self.success_count,  # This is the actual count of created/updated bookings
+                'processed_rows': processed_rows,  # This is the count of rows that were attempted
+                'skipped_rows': skipped_rows,  # This is the count of rows that were skipped (empty)
                 'errors_count': len(self.errors),
                 'warnings_count': len(self.warnings),
                 'errors': self.errors,
@@ -234,13 +273,22 @@ class ExcelImportService:
                 # Extract and validate data
                 booking_data = self._extract_booking_data(row, row_number)
                 if not booking_data:
+                    logger.warning(f"Row {row_number}: No booking data extracted - skipping")
                     return
                 
                 # Find or create property
                 property_obj = self._find_or_create_property(booking_data['property_label_raw'])
                 if not property_obj:
-                    self.errors.append(f"Row {row_number}: Could not find or create property '{booking_data['property_label_raw']}'")
+                    error_msg = f"Row {row_number}: Could not find or create property '{booking_data['property_label_raw']}'"
+                    self.errors.append(error_msg)
+                    logger.error(error_msg)
                     return
+                
+                # Check for booking conflicts
+                conflicts = self._check_booking_conflicts(booking_data, property_obj)
+                if conflicts:
+                    for conflict in conflicts:
+                        self.warnings.append(f"Row {row_number}: {conflict}")
                 
                 # Check for existing booking
                 existing_booking = self._find_existing_booking(booking_data, property_obj)
@@ -248,6 +296,10 @@ class ExcelImportService:
                 if existing_booking:
                     # Update existing booking
                     self._update_booking(existing_booking, booking_data, row)
+                    
+                    # Update associated task status if it exists
+                    self._update_associated_task(existing_booking, booking_data)
+                    
                     self.success_count += 1
                     logger.info(f"Updated booking {existing_booking.external_code} from row {row_number}")
                 else:
@@ -274,29 +326,40 @@ class ExcelImportService:
             data = {}
             
             # Required fields - based on actual Excel column names
-            required_fields = {
-                'Confirmation code': 'external_code',
-                'Status': 'external_status', 
-                'Guest name': 'guest_name',
-                'Contact': 'guest_contact',
-                'Booking source': 'source',
-                'Listing': 'listing_name',
-                'Earnings': 'earnings_amount',
-                'Booked': 'booked_on',
-                '# of adults': 'adults',
-                '# of children': 'children', 
-                '# of infants': 'infants',
-                'Start date': 'start_date',
-                'End date': 'end_date',
-                '# of nights': 'nights',
-                'Properties': 'property_label_raw',
-                'Check ': 'same_day_note',
-                'Check 1': 'same_day_note_alt'
+            # Handle column name variations
+            required_fields = {}
+            
+            # Map columns with fallbacks for variations
+            column_mappings = {
+                'external_code': ['Confirmation code'],
+                'external_status': ['Status'],
+                'guest_name': ['Guest name'],
+                'guest_contact': ['Contact'],
+                'source': ['Booking source', 'Airbnb/VRBO'],  # Handle both column names
+                'listing_name': ['Listing'],
+                'earnings_amount': ['Earnings'],
+                'booked_on': ['Booked'],
+                'adults': ['# of adults'],
+                'children': ['# of children'],
+                'infants': ['# of infants'],
+                'start_date': ['Start date'],
+                'end_date': ['End date'],
+                'nights': ['# of nights'],
+                'property_label_raw': ['Properties'],
+                'same_day_note': ['Check ', 'Check 1']
             }
+            
+            # Find the first available column for each field
+            for field_name, possible_columns in column_mappings.items():
+                for col in possible_columns:
+                    if col in row.index:
+                        required_fields[col] = field_name
+                        break
             
             # Debug: Log the actual column names found in the Excel file
             logger.debug(f"Excel columns found: {list(row.index)}")
             logger.debug(f"Looking for 'Properties' column: {'Properties' in row.index}")
+            logger.debug(f"Column mappings: {required_fields}")
             
             # Extract data with validation
             for excel_col, field_name in required_fields.items():
@@ -312,22 +375,67 @@ class ExcelImportService:
                     if cleaned_value is not None:
                         data[field_name] = cleaned_value
             
-            # Validate required fields
+            # Handle same day notes - combine both check fields
+            same_day_notes = []
+            for col in ['Check ', 'Check 1']:
+                if col in row.index and not pd.isna(row[col]) and str(row[col]).strip():
+                    same_day_notes.append(str(row[col]).strip())
+            
+            if same_day_notes:
+                data['same_day_note'] = ' | '.join(same_day_notes)
+                data['same_day_flag'] = True
+            
+            # Generate confirmation code for Direct/Owner bookings if missing
             if not data.get('external_code'):
-                raise ValueError("Confirmation code is required")
+                source = data.get('source', '').lower()
+                if 'direct' in source or 'owner' in source:
+                    # Generate unique code for Direct/Owner bookings
+                    base_code = 'Direct' if 'direct' in source else 'Owner Staying'
+                    counter = 1
+                    while True:
+                        generated_code = f"{base_code} {counter:02d}"
+                        # Check if this code already exists
+                        if not Booking.objects.filter(external_code=generated_code).exists():
+                            data['external_code'] = generated_code
+                            logger.info(f"Generated confirmation code: {generated_code}")
+                            break
+                        counter += 1
+                        if counter > 99:  # Safety limit
+                            data['external_code'] = f"{base_code} {counter:02d}"
+                            break
+                else:
+                    raise ValueError("Confirmation code is required for platform bookings")
+            
+            # Handle duplicate external codes by making them unique
+            if data.get('external_code'):
+                original_code = data['external_code']
+                counter = 1
+                while True:
+                    # Check if this exact code already exists
+                    existing_booking = Booking.objects.filter(external_code=data['external_code']).first()
+                    if not existing_booking:
+                        break
+                    
+                    # Generate unique code by appending counter
+                    if counter == 1:
+                        data['external_code'] = f"{original_code} #{counter + 1}"
+                    else:
+                        data['external_code'] = f"{original_code} #{counter + 1}"
+                    
+                    counter += 1
+                    if counter > 99:  # Safety limit
+                        data['external_code'] = f"{original_code} #{counter + 1}"
+                        break
+                
+                if counter > 1:
+                    logger.warning(f"Row {row_number}: Duplicate external code '{original_code}' - generated unique code: '{data['external_code']}'")
+                    self.warnings.append(f"Row {row_number}: Duplicate external code '{original_code}' - generated unique code: '{data['external_code']}'")
+            
+            # Validate required fields
             if not data.get('start_date') or not data.get('end_date'):
                 raise ValueError("Start date and end date are required")
             if not data.get('guest_name'):
                 raise ValueError("Guest name is required")
-            
-            # Handle same day notes
-            if data.get('same_day_note') and data.get('same_day_note_alt'):
-                data['same_day_note'] = f"{data['same_day_note']} | {data['same_day_note_alt']}"
-            elif data.get('same_day_note_alt'):
-                data['same_day_note'] = data['same_day_note_alt']
-            
-            # Remove temporary field
-            data.pop('same_day_note_alt', None)
             
             # Calculate nights if not provided or invalid
             if not data.get('nights') and data.get('start_date') and data.get('end_date'):
@@ -352,8 +460,12 @@ class ExcelImportService:
             # Handle pandas Timestamp objects first
             if hasattr(value, 'timestamp'):
                 try:
-                    if field_name in ['start_date', 'end_date']:
-                        return value.to_pydatetime()
+                    if field_name in ['start_date', 'end_date', 'booked_on']:
+                        # Convert pandas Timestamp to timezone-aware datetime
+                        naive_datetime = value.to_pydatetime()
+                        if timezone.is_naive(naive_datetime):
+                            return timezone.make_aware(naive_datetime, timezone.get_current_timezone())
+                        return naive_datetime
                     else:
                         return value.isoformat()
                 except:
@@ -393,7 +505,7 @@ class ExcelImportService:
                 except (ValueError, TypeError):
                     return None
             
-            elif field_name in ['start_date', 'end_date']:
+            elif field_name in ['start_date', 'end_date', 'booked_on']:
                 # Handle date fields - make timezone-aware for Tampa, FL
                 if isinstance(value, datetime):
                     # If it's already a datetime, make it timezone-aware
@@ -434,6 +546,7 @@ class ExcelImportService:
                     'expedia': 'Expedia',
                     'direct': 'Direct',
                     'directly': 'Direct',
+                    'owner staying': 'Owner Staying',  # Check longer phrases first
                     'owner': 'Owner'
                 }
                 value_lower = value_str.lower()
@@ -528,6 +641,49 @@ class ExcelImportService:
                     pass
             return None
     
+    def _check_booking_conflicts(self, booking_data: Dict, property_obj: Property, existing_booking: Optional[Booking] = None) -> List[str]:
+        """Check for booking conflicts and return list of conflict messages."""
+        conflicts = []
+        
+        if not booking_data.get('start_date') or not booking_data.get('end_date'):
+            return conflicts
+        
+        start_date = booking_data['start_date']
+        end_date = booking_data['end_date']
+        
+        # Check for overlapping bookings on the same property
+        overlapping_bookings = Booking.objects.filter(
+            property=property_obj,
+            check_in_date__lt=end_date,
+            check_out_date__gt=start_date
+        )
+        
+        if existing_booking:
+            overlapping_bookings = overlapping_bookings.exclude(id=existing_booking.id)
+        
+        if overlapping_bookings.exists():
+            conflict_details = []
+            for conflict_booking in overlapping_bookings[:3]:  # Show first 3 conflicts
+                conflict_details.append(
+                    f"{conflict_booking.guest_name} ({conflict_booking.check_in_date.strftime('%Y-%m-%d')} to {conflict_booking.check_out_date.strftime('%Y-%m-%d')}"
+                )
+            conflicts.append(f"⚠️ Property conflict: Overlaps with {overlapping_bookings.count()} existing booking(s): {', '.join(conflict_details)}")
+        
+        # Check for same-day check-in/out conflicts across all properties
+        same_day_checkins = Booking.objects.filter(
+            check_in_date__date=start_date.date()
+        ).exclude(property=property_obj)
+        
+        same_day_checkouts = Booking.objects.filter(
+            check_out_date__date=end_date.date()
+        ).exclude(property=property_obj)
+        
+        if same_day_checkins.exists() or same_day_checkouts.exists():
+            total_same_day = same_day_checkins.count() + same_day_checkouts.count()
+            conflicts.append(f"📅 Same-day conflict: {total_same_day} other booking(s) have check-in/out on the same date")
+        
+        return conflicts
+    
     def _create_booking(self, booking_data: Dict, property_obj: Property, row: pd.Series) -> Booking:
         """Create new booking from Excel data."""
         # Ensure nights field has a valid value
@@ -544,31 +700,40 @@ class ExcelImportService:
                 nights_value = 1  # Fallback
         
         # Create booking with all the new fields
-        booking = Booking.objects.create(
-            property=property_obj,
-            check_in_date=booking_data['start_date'],
-            check_out_date=booking_data['end_date'],
-            guest_name=booking_data['guest_name'],
-            guest_contact=booking_data.get('guest_contact', ''),
-            external_code=booking_data['external_code'],
-            external_status=booking_data.get('external_status', ''),
-            source=booking_data.get('source', ''),
-            listing_name=booking_data.get('listing_name', ''),
-            earnings_amount=booking_data.get('earnings_amount'),
-            earnings_currency='USD',
-            adults=booking_data.get('adults', 1),
-            children=booking_data.get('children', 0),
-            infants=booking_data.get('infants', 0),
-            nights=nights_value,
-            check_in_time=booking_data.get('check_in_time'),
-            check_out_time=booking_data.get('check_out_time'),
-            property_label_raw=booking_data['property_label_raw'],
-            same_day_note=booking_data.get('same_day_note', ''),
-            same_day_flag=bool(booking_data.get('same_day_note')),
-            raw_row=self._serialize_row_data(row)
-        )
-        
-        return booking
+        try:
+            # Map Excel status to Django status
+            django_status = self._map_excel_status_to_booking_status(booking_data.get('external_status'))
+            
+            booking = Booking.objects.create(
+                property=property_obj,
+                check_in_date=booking_data['start_date'],
+                check_out_date=booking_data['end_date'],
+                guest_name=booking_data['guest_name'],
+                guest_contact=booking_data.get('guest_contact', ''),
+                status=django_status,  # Use mapped Django status
+                external_code=booking_data['external_code'],
+                external_status=booking_data.get('external_status', ''),
+                source=booking_data.get('source', ''),
+                listing_name=booking_data.get('listing_name', ''),
+                earnings_amount=booking_data.get('earnings_amount'),
+                earnings_currency='USD',
+                booked_on=booking_data.get('booked_on'),  # Add the missing booked_on field
+                adults=booking_data.get('adults', 1),
+                children=booking_data.get('children', 0),
+                infants=booking_data.get('infants', 0),
+                nights=nights_value,
+                check_in_time=booking_data.get('check_in_time'),
+                check_out_time=booking_data.get('check_out_time'),
+                property_label_raw=booking_data['property_label_raw'],
+                same_day_note=booking_data.get('same_day_note', ''),
+                same_day_flag=bool(booking_data.get('same_day_note')),
+                raw_row=self._serialize_row_data(row)
+            )
+            logger.debug(f"Successfully created booking {booking.external_code} with status {django_status}")
+            return booking
+        except Exception as e:
+            logger.error(f"Failed to create booking with external_code '{booking_data.get('external_code')}': {e}")
+            raise
     
     def _update_booking(self, booking: Booking, booking_data: Dict, row: pd.Series):
         """Update existing booking with new data."""
@@ -579,6 +744,12 @@ class ExcelImportService:
             booking.guest_contact = booking_data['guest_contact']
         if 'external_status' in booking_data:
             booking.external_status = booking_data['external_status']
+            # Also update the Django status when external status changes
+            django_status = self._map_excel_status_to_booking_status(booking_data['external_status'])
+            if booking.status != django_status:
+                old_status = booking.status
+                booking.status = django_status
+                logger.info(f"Updated booking {booking.external_code} status from '{old_status}' to '{django_status}'")
         if 'listing_name' in booking_data:
             booking.listing_name = booking_data['listing_name']
         if 'earnings_amount' in booking_data:
@@ -609,6 +780,10 @@ class ExcelImportService:
             booking.same_day_note = booking_data['same_day_note']
             booking.same_day_flag = bool(booking_data['same_day_note'])
         
+        # Update booked_on if provided
+        if 'booked_on' in booking_data:
+            booking.booked_on = booking_data['booked_on']
+        
         # Update dates if they changed
         if 'start_date' in booking_data:
             booking.check_in_date = booking_data['start_date']
@@ -620,7 +795,12 @@ class ExcelImportService:
         booking.raw_row = self._serialize_row_data(row)
         booking.last_import_update = timezone.now()
         
-        booking.save()
+        try:
+            booking.save()
+            logger.debug(f"Successfully updated booking {booking.external_code}")
+        except Exception as e:
+            logger.error(f"Failed to save updated booking {booking.external_code}: {e}")
+            raise
     
     def _combine_date_time(self, date_obj: datetime, time_obj: Optional[time]) -> datetime:
         """Combine date and time objects into datetime."""
@@ -648,23 +828,97 @@ class ExcelImportService:
             # Calculate task due date (day before check-in)
             task_due_date = booking.check_in_date - timedelta(days=1)
             
+            # Map Excel status to task status
+            task_status = self._map_excel_status_to_task_status(booking.external_status)
+            
             # Create cleaning task
             task = Task.objects.create(
                 title=f"Pre-arrival Cleaning - {booking.property.name}",
-                description=f"Cleaning for {booking.guest_name} arrival on {booking.check_in_date.strftime('%Y-%m-%d')}",
+                description=f"Cleaning for {booking.guest_name} arrival on {booking.check_in_date.strftime('%Y-%m-%d')} (Status: {booking.external_status})",
                 task_type='cleaning',
                 property=booking.property,
                 booking=booking,
-                status='pending',
+                status=task_status,
                 due_date=task_due_date,
                 created_by=self.user,
                 modified_by=self.user
             )
             
-            logger.info(f"Created cleaning task {task.id} for booking {booking.external_code}")
+            logger.info(f"Created cleaning task {task.id} for booking {booking.external_code} with status {task_status}")
             
         except Exception as e:
             logger.error(f"Failed to create cleaning task for booking {booking.external_code}: {e}")
+    
+    def _map_excel_status_to_booking_status(self, excel_status: str) -> str:
+        """Map Excel status to appropriate Django booking status."""
+        if not excel_status:
+            return 'booked'
+        
+        excel_status_lower = excel_status.lower()
+        
+        # Map Excel statuses to Django booking statuses
+        status_mapping = {
+            'booked': 'booked',
+            'confirmed': 'confirmed',
+            'currently hosting': 'currently_hosting',
+            'owner staying': 'owner_staying',
+            'cancelled': 'cancelled',
+            'canceled': 'cancelled',
+            'completed': 'completed'
+        }
+        
+        for excel_key, django_status in status_mapping.items():
+            if excel_key in excel_status_lower:
+                return django_status
+        
+        # Default to booked for unknown statuses
+        return 'booked'
+    
+    def _map_excel_status_to_task_status(self, excel_status: str) -> str:
+        """Map Excel status to appropriate task status."""
+        if not excel_status:
+            return 'pending'
+        
+        excel_status_lower = excel_status.lower()
+        
+        # Map Excel statuses to task statuses
+        status_mapping = {
+            'booked': 'pending',
+            'confirmed': 'pending',
+            'currently hosting': 'in-progress',
+            'owner staying': 'pending',
+            'cancelled': 'canceled',
+            'canceled': 'canceled',
+            'completed': 'completed'
+        }
+        
+        for excel_key, task_status in status_mapping.items():
+            if excel_key in excel_status_lower:
+                return task_status
+        
+        # Default to pending for unknown statuses
+        return 'pending'
+    
+    def _update_associated_task(self, booking: Booking, booking_data: Dict):
+        """Update associated task status when booking status changes."""
+        try:
+            # Find associated task
+            associated_task = Task.objects.filter(booking=booking).first()
+            
+            if associated_task and 'external_status' in booking_data:
+                # Map new Excel status to task status
+                new_task_status = self._map_excel_status_to_task_status(booking_data['external_status'])
+                
+                if associated_task.status != new_task_status:
+                    old_status = associated_task.status
+                    associated_task.status = new_task_status
+                    associated_task.modified_by = self.user
+                    associated_task.save()
+                    
+                    logger.info(f"Updated task {associated_task.id} status from '{old_status}' to '{new_task_status}' for booking {booking.external_code}")
+                    
+        except Exception as e:
+            logger.error(f"Failed to update associated task for booking {booking.external_code}: {e}")
     
     def _serialize_row_data(self, row: pd.Series) -> Dict:
         """Convert pandas row data to JSON-serializable format."""
@@ -691,5 +945,30 @@ class ExcelImportService:
         if self.import_log:
             self.import_log.successful_imports = self.success_count
             self.import_log.errors_count = len(self.errors)
-            self.import_log.errors_log = '\n'.join(self.errors)
+            
+            # Combine errors and warnings for comprehensive logging
+            all_logs = []
+            if self.errors:
+                all_logs.append("=== ERRORS ===")
+                all_logs.extend(self.errors)
+            
+            if self.warnings:
+                all_logs.append("\n=== WARNINGS ===")
+                all_logs.extend(self.warnings)
+            
+            if all_logs:
+                self.import_log.errors_log = '\n'.join(all_logs)
+            else:
+                self.import_log.errors_log = "No errors or warnings"
+            
             self.import_log.save()
+            
+            # Log summary to console
+            logger.info(f"Import completed: {self.success_count}/{self.total_rows} successful, {len(self.errors)} errors, {len(self.warnings)} warnings")
+            
+            if self.warnings:
+                logger.info("Warnings found during import:")
+                for warning in self.warnings[:10]:  # Log first 10 warnings
+                    logger.info(f"  - {warning}")
+                if len(self.warnings) > 10:
+                    logger.info(f"  ... and {len(self.warnings) - 10} more warnings")

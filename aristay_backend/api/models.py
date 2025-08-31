@@ -40,10 +40,12 @@ class Property(models.Model):
 class Booking(models.Model):
     """A booking window for a property. Tasks will typically be linked to a booking."""
     STATUS_CHOICES = [
-        ('upcoming', 'Upcoming'),
-        ('active', 'Active'),
-        ('completed', 'Completed'),
+        ('booked', 'Booked'),
+        ('confirmed', 'Confirmed'),
+        ('currently_hosting', 'Currently Hosting'),
+        ('owner_staying', 'Owner Staying'),
         ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
     ]
 
     property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='bookings')
@@ -51,7 +53,7 @@ class Booking(models.Model):
     check_out_date = models.DateTimeField()
     guest_name = models.CharField(max_length=200, blank=True)
     guest_contact = models.CharField(max_length=200, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='upcoming')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='booked')
     
     # Excel import fields
     external_code = models.CharField(max_length=100, blank=True, help_text="External confirmation code from booking platform")
