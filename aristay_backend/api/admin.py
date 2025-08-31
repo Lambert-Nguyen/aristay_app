@@ -224,7 +224,17 @@ class TaskAdmin(admin.ModelAdmin):
 class PropertyAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'address', 'created_at', 'created_by')
     search_fields = ('name', 'address')
-    readonly_fields = ('created_at', 'modified_at')
+    readonly_fields = ('created_at', 'modified_at', 'history')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'address', 'created_by', 'modified_by')
+        }),
+        ('History', {
+            'fields': ('history', 'created_at', 'modified_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
     def save_model(self, request, obj, form, change):
         if not change:  # If creating a new object
@@ -698,11 +708,21 @@ class ChecklistItemInline(admin.TabularInline):
     ordering = ['order', 'room_type']
 
 class ChecklistTemplateAdmin(admin.ModelAdmin):
-    list_display = ('name', 'task_type', 'is_active', 'created_at', 'created_by')
+    list_display = ('id', 'name', 'task_type', 'is_active', 'created_at', 'created_by')
     list_filter = ('task_type', 'is_active', 'created_at')
     search_fields = ('name', 'description')
     inlines = [ChecklistItemInline]
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'history')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'task_type', 'description', 'is_active', 'created_by')
+        }),
+        ('History', {
+            'fields': ('history', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def save_model(self, request, obj, form, change):
         if not change:
@@ -739,10 +759,20 @@ class InventoryCategoryAdmin(admin.ModelAdmin):
     inlines = [InventoryItemInline]
 
 class InventoryItemAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'unit', 'estimated_cost', 'is_active', 'created_at')
+    list_display = ('id', 'name', 'category', 'unit', 'estimated_cost', 'is_active', 'created_at')
     list_filter = ('category', 'unit', 'is_active', 'created_at')
     search_fields = ('name', 'description', 'brand', 'sku')
-    readonly_fields = ('created_at',)
+    readonly_fields = ('created_at', 'history')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'category', 'unit', 'description', 'brand', 'sku', 'estimated_cost', 'is_active')
+        }),
+        ('History', {
+            'fields': ('history', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 class InventoryTransactionInline(admin.TabularInline):
     model = InventoryTransaction
@@ -751,11 +781,21 @@ class InventoryTransactionInline(admin.TabularInline):
     fields = ('transaction_type', 'quantity', 'task', 'notes', 'reference')
 
 class PropertyInventoryAdmin(admin.ModelAdmin):
-    list_display = ('property_ref', 'item', 'current_stock', 'par_level', 'stock_status', 'last_updated')
+    list_display = ('id', 'property_ref', 'item', 'current_stock', 'par_level', 'max_level', 'stock_status', 'last_updated')
     list_filter = ('item__category', 'last_updated')
     search_fields = ('property_ref__name', 'item__name')
-    readonly_fields = ('stock_status', 'last_updated')
+    readonly_fields = ('stock_status', 'last_updated', 'history')
     inlines = [InventoryTransactionInline]
+    
+    fieldsets = (
+        (None, {
+            'fields': ('property_ref', 'item', 'current_stock', 'par_level', 'max_level', 'storage_location', 'updated_by')
+        }),
+        ('History', {
+            'fields': ('history', 'last_updated'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def stock_status(self, obj):
         status = obj.stock_status
@@ -857,10 +897,20 @@ class ScheduleTemplateAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 class GeneratedTaskAdmin(admin.ModelAdmin):
-    list_display = ('schedule', 'task', 'generated_for_date', 'generated_at')
+    list_display = ('id', 'schedule', 'task', 'generated_for_date', 'generated_at')
     list_filter = ('generated_for_date', 'generated_at', 'schedule__task_type')
     search_fields = ('schedule__name', 'task__title')
-    readonly_fields = ('generated_at',)
+    readonly_fields = ('generated_at', 'history')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('schedule', 'task', 'generated_for_date')
+        }),
+        ('History', {
+            'fields': ('history', 'generated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 # Booking Import Admin
 class BookingImportLogInline(admin.TabularInline):

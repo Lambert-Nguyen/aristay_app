@@ -28,9 +28,45 @@ class Property(models.Model):
         null=True,
         blank=True,
     )
+    
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = Property.objects.get(pk=self.pk)
+                changes = []
+                user = getattr(self, 'modified_by', None)
+                user_name = getattr(user, 'username', 'system') if user else 'system'
+
+                # Name change
+                if old.name != self.name:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user_name} changed property name "
+                        f"from '{old.name}' to '{self.name}'"
+                    )
+
+                # Address change
+                if old.address != self.address:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user_name} changed address "
+                        f"from '{old.address}' to '{self.address}'"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except Property.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 # ----------------------------------------------------------------------------
@@ -411,6 +447,9 @@ class Notification(models.Model):
 
     push_sent = models.BooleanField(default=False, editable=False)
     timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
 
     class Meta:
         ordering = ['-timestamp']
@@ -423,6 +462,45 @@ class Notification(models.Model):
             self.push_sent = True
             if commit:
                 self.save(update_fields=["push_sent"])
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = Notification.objects.get(pk=self.pk)
+                changes = []
+                user = 'system'  # Default user since this model doesn't have modified_by
+
+                # Read status change
+                if old.read != self.read:
+                    status = 'marked as read' if self.read else 'marked as unread'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} {status}"
+                    )
+
+                # Verb change
+                if old.verb != self.verb:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed verb "
+                        f"from '{old.verb}' to '{self.verb}'"
+                    )
+
+                # Push sent change
+                if old.push_sent != self.push_sent:
+                    status = 'marked as pushed' if self.push_sent else 'marked as not pushed'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} {status}"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except Notification.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 # ----------------------------------------------------------------------------
@@ -438,11 +516,60 @@ class ChecklistTemplate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+    
     class Meta:
         ordering = ['task_type', 'name']
     
     def __str__(self):
         return f"{self.get_task_type_display()} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = ChecklistTemplate.objects.get(pk=self.pk)
+                changes = []
+                user = getattr(self.created_by, 'username', 'system') if self.created_by else 'system'
+
+                # Name change
+                if old.name != self.name:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed template name "
+                        f"from '{old.name}' to '{self.name}'"
+                    )
+
+                # Description change
+                if old.description != self.description:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed description "
+                        f"from '{old.description}' to '{self.description}'"
+                    )
+
+                # Task type change
+                if old.task_type != self.task_type:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed task type "
+                        f"from '{old.get_task_type_display()}' to '{self.get_task_type_display()}'"
+                    )
+
+                # Active status change
+                if old.is_active != self.is_active:
+                    status = 'activated' if self.is_active else 'deactivated'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} {status} template"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except ChecklistTemplate.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 class ChecklistItem(models.Model):
@@ -582,11 +709,60 @@ class InventoryItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+    
     class Meta:
         ordering = ['category', 'name']
     
     def __str__(self):
         return f"{self.name} ({self.get_unit_display()})"
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = InventoryItem.objects.get(pk=self.pk)
+                changes = []
+                user = 'system'  # Default user since this model doesn't have modified_by
+
+                # Name change
+                if old.name != self.name:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed name "
+                        f"from '{old.name}' to '{self.name}'"
+                    )
+
+                # Description change
+                if old.description != self.description:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed description "
+                        f"from '{old.description}' to '{self.description}'"
+                    )
+
+                # Cost change
+                if old.estimated_cost != self.estimated_cost:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed estimated cost "
+                        f"from '{old.estimated_cost}' to '{self.estimated_cost}'"
+                    )
+
+                # Active status change
+                if old.is_active != self.is_active:
+                    status = 'activated' if self.is_active else 'deactivated'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} {status} item"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except InventoryItem.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 class PropertyInventory(models.Model):
@@ -604,6 +780,9 @@ class PropertyInventory(models.Model):
     
     last_updated = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
     
     class Meta:
         unique_together = ['property_ref', 'item']
@@ -626,6 +805,52 @@ class PropertyInventory(models.Model):
     
     def __str__(self):
         return f"{self.property_ref.name} - {self.item.name} ({self.current_stock} {self.item.get_unit_display()})"
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = PropertyInventory.objects.get(pk=self.pk)
+                changes = []
+                user = getattr(self.updated_by, 'username', 'system') if self.updated_by else 'system'
+
+                # Stock level change
+                if old.current_stock != self.current_stock:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed stock level "
+                        f"from {old.current_stock} to {self.current_stock} {self.item.get_unit_display()}"
+                    )
+
+                # Par level change
+                if old.par_level != self.par_level:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed par level "
+                        f"from {old.par_level} to {self.par_level}"
+                    )
+
+                # Max level change
+                if old.max_level != self.max_level:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed max level "
+                        f"from {old.max_level} to {self.max_level}"
+                    )
+
+                # Storage location change
+                if old.storage_location != self.storage_location:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed storage location "
+                        f"from '{old.storage_location}' to '{self.storage_location}'"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except PropertyInventory.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 class InventoryTransaction(models.Model):
@@ -651,12 +876,61 @@ class InventoryTransaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+    
     class Meta:
         ordering = ['-created_at']
     
     def __str__(self):
         sign = "+" if self.quantity > 0 else ""
         return f"{self.get_transaction_type_display()}: {sign}{self.quantity} {self.property_inventory.item.get_unit_display()}"
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = InventoryTransaction.objects.get(pk=self.pk)
+                changes = []
+                user = getattr(self.created_by, 'username', 'system') if self.created_by else 'system'
+
+                # Transaction type change
+                if old.transaction_type != self.transaction_type:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed transaction type "
+                        f"from '{old.get_transaction_type_display()}' to '{self.get_transaction_type_display()}'"
+                    )
+
+                # Quantity change
+                if old.quantity != self.quantity:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed quantity "
+                        f"from {old.quantity} to {self.quantity}"
+                    )
+
+                # Notes change
+                if old.notes != self.notes:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed notes "
+                        f"from '{old.notes}' to '{self.notes}'"
+                    )
+
+                # Reference change
+                if old.reference != self.reference:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed reference "
+                        f"from '{old.reference}' to '{self.reference}'"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except InventoryTransaction.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 # ----------------------------------------------------------------------------
@@ -848,12 +1122,49 @@ class GeneratedTask(models.Model):
     generated_at = models.DateTimeField(auto_now_add=True)
     generated_for_date = models.DateField(help_text="The date this task was scheduled for")
     
+    # History tracking
+    history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+    
     class Meta:
         unique_together = ['schedule', 'generated_for_date']
         ordering = ['-generated_for_date']
     
     def __str__(self):
         return f"Generated: {self.task.title} ({self.generated_for_date})"
+
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = GeneratedTask.objects.get(pk=self.pk)
+                changes = []
+                user = 'system'  # Default user since this model doesn't have modified_by
+
+                # Generated for date change
+                if old.generated_for_date != self.generated_for_date:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed generated for date "
+                        f"from {old.generated_for_date} to {self.generated_for_date}"
+                    )
+
+                # Schedule change
+                if old.schedule_id != self.schedule_id:
+                    old_schedule = old.schedule.name if old.schedule else 'None'
+                    new_schedule = self.schedule.name if self.schedule else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed schedule "
+                        f"from '{old_schedule}' to '{new_schedule}'"
+                    )
+
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    hist.extend(changes)
+                    self.history = json.dumps(hist)
+            except GeneratedTask.DoesNotExist:
+                pass  # New object, no history to compare
+
+        super().save(*args, **kwargs)
 
 
 # ----------------------------------------------------------------------------
