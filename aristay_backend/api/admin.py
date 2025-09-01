@@ -9,7 +9,7 @@ from .models import (
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
-    BookingImportTemplate, BookingImportLog
+    BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
@@ -497,6 +497,19 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
+    
+    # Add fieldsets for creating new users (includes password fields)
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2'),
+        }),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Permissions', {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'classes': ('collapse',)
+        }),
+    )
 
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""
@@ -516,13 +529,16 @@ class AriStayUserAdmin(DjangoUserAdmin):
         """Customize form fields based on user permissions"""
         form = super().get_form(request, obj, **kwargs)
 
-        # For managers (not superusers), remove password change capability
+        # For managers (not superusers), remove password change capability only when editing
         if not request.user.is_superuser:
-            # Remove password fields for managers
-            if 'password1' in form.base_fields:
-                del form.base_fields['password1']
-            if 'password2' in form.base_fields:
-                del form.base_fields['password2']
+            # Only remove password fields when EDITING existing users (obj exists)
+            # For new users (obj is None), we need the password fields
+            if obj is not None:  # This is an edit form, not an add form
+                # Remove password fields for managers
+                if 'password1' in form.base_fields:
+                    del form.base_fields['password1']
+                if 'password2' in form.base_fields:
+                    del form.base_fields['password2']
 
         return form
 
@@ -1016,6 +1032,160 @@ class BookingImportLogAdmin(admin.ModelAdmin):
     search_fields = ('template__name',)
     readonly_fields = ('imported_at',)
 
+
+# ========== PERMISSION MANAGEMENT ADMIN ==========
+
+@admin.action(description='Activate selected permissions')
+def activate_permissions(modeladmin, request, queryset):
+    queryset.update(is_active=True)
+
+@admin.action(description='Deactivate selected permissions')
+def deactivate_permissions(modeladmin, request, queryset):
+    queryset.update(is_active=False)
+
+class CustomPermissionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'get_display_name', 'is_active', 'created_at')
+    list_filter = ('is_active', 'name')
+    search_fields = ('name', 'description')
+    readonly_fields = ('created_at',)
+    actions = [activate_permissions, deactivate_permissions]
+    
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        ('System Info', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_display_name(self, obj):
+        """Get the human-readable name for the permission"""
+        return dict(obj.PERMISSION_CHOICES).get(obj.name, obj.name)
+    get_display_name.short_description = 'Display Name'
+    get_display_name.admin_order_field = 'name'
+
+class RolePermissionAdmin(admin.ModelAdmin):
+    list_display = ('role', 'permission', 'granted', 'can_delegate', 'created_by', 'created_at')
+    list_filter = ('role', 'granted', 'can_delegate', 'permission__is_active')
+    search_fields = ('permission__name', 'permission__description')
+    readonly_fields = ('created_at',)
+    autocomplete_fields = ['permission']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('role', 'permission', 'granted', 'can_delegate')
+        }),
+        ('System Info', {
+            'fields': ('created_by', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('permission', 'created_by')
+
+class UserPermissionOverrideAdmin(admin.ModelAdmin):
+    list_display = ('user', 'permission', 'granted', 'granted_by', 'expires_at', 'is_expired_display', 'created_at')
+    list_filter = ('granted', 'expires_at', 'created_at', 'permission__is_active')
+    search_fields = ('user__username', 'user__email', 'permission__name', 'reason')
+    readonly_fields = ('created_at', 'is_expired_display')
+    autocomplete_fields = ['user', 'permission', 'granted_by']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'permission', 'granted', 'reason')
+        }),
+        ('Expiration', {
+            'fields': ('expires_at',),
+            'description': 'Leave blank for permanent override'
+        }),
+        ('System Info', {
+            'fields': ('granted_by', 'created_at', 'is_expired_display'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.granted_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def is_expired_display(self, obj):
+        """Display if the override has expired"""
+        if obj.is_expired:
+            return mark_safe('<span style="color: red; font-weight: bold;">✗ EXPIRED</span>')
+        elif obj.expires_at:
+            return mark_safe('<span style="color: orange;">⏰ WILL EXPIRE</span>')
+        else:
+            return mark_safe('<span style="color: green;">✓ PERMANENT</span>')
+    is_expired_display.short_description = 'Status'
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user', 'permission', 'granted_by')
+
+# Add to ProfileAdmin to show permissions
+class ProfileAdminWithPermissions(admin.ModelAdmin):
+    list_display = ('user', 'role', 'timezone', 'departments_display', 'digest_opt_out')
+    list_filter = ('role', 'timezone', 'digest_opt_out')
+    search_fields = ('user__username', 'user__email', 'user__first_name', 'user__last_name')
+    readonly_fields = ('user', 'permissions_summary')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'role', 'timezone')
+        }),
+        ('Contact Info', {
+            'fields': ('phone_number', 'address'),
+            'classes': ('collapse',)
+        }),
+        ('Notifications', {
+            'fields': ('digest_opt_out',)
+        }),
+        ('Permissions Summary', {
+            'fields': ('permissions_summary',),
+            'description': 'Current permissions for this user (role + overrides)',
+            'classes': ('collapse',)
+        })
+    )
+    
+    def permissions_summary(self, obj):
+        """Display all permissions for this user"""
+        if not obj:
+            return "No profile"
+        
+        permissions = obj.get_all_permissions()
+        if not permissions:
+            return "No permissions assigned"
+        
+        granted = [name for name, granted in permissions.items() if granted]
+        denied = [name for name, granted in permissions.items() if not granted]
+        
+        html = "<div style='font-family: monospace;'>"
+        if granted:
+            html += "<h4 style='color: green; margin: 5px 0;'>✓ GRANTED PERMISSIONS:</h4>"
+            for perm in sorted(granted):
+                display_name = dict(CustomPermission.PERMISSION_CHOICES).get(perm, perm)
+                html += f"<div style='color: green; margin: 2px 0;'>✓ {display_name}</div>"
+        
+        if denied:
+            html += "<h4 style='color: red; margin: 10px 0 5px 0;'>✗ DENIED PERMISSIONS:</h4>"
+            for perm in sorted(denied):
+                display_name = dict(CustomPermission.PERMISSION_CHOICES).get(perm, perm)
+                html += f"<div style='color: red; margin: 2px 0;'>✗ {display_name}</div>"
+        
+        html += "</div>"
+        return mark_safe(html)
+    permissions_summary.short_description = 'User Permissions'
+
+
 # Register all new models with custom admin site
 admin_site.register(ChecklistTemplate, ChecklistTemplateAdmin)
 admin_site.register(ChecklistResponse, ChecklistResponseAdmin)
@@ -1030,6 +1200,11 @@ admin_site.register(GeneratedTask, GeneratedTaskAdmin)
 admin_site.register(BookingImportTemplate, BookingImportTemplateAdmin)
 admin_site.register(BookingImportLog, BookingImportLogAdmin)
 
+# Permission management
+admin_site.register(CustomPermission, CustomPermissionAdmin)
+admin_site.register(RolePermission, RolePermissionAdmin)
+admin_site.register(UserPermissionOverride, UserPermissionOverrideAdmin)
+
 # Also register with default admin for backward compatibility
 admin.site.register(ChecklistTemplate, ChecklistTemplateAdmin)
 admin.site.register(ChecklistResponse, ChecklistResponseAdmin)
@@ -1043,3 +1218,8 @@ admin.site.register(ScheduleTemplate, ScheduleTemplateAdmin)
 admin.site.register(GeneratedTask, GeneratedTaskAdmin)
 admin.site.register(BookingImportTemplate, BookingImportTemplateAdmin)
 admin.site.register(BookingImportLog, BookingImportLogAdmin)
+
+# Permission management (also register with default admin)
+admin.site.register(CustomPermission, CustomPermissionAdmin)
+admin.site.register(RolePermission, RolePermissionAdmin)
+admin.site.register(UserPermissionOverride, UserPermissionOverrideAdmin)

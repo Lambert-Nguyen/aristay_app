@@ -470,6 +470,222 @@ class Profile(models.Model):
         """Get comma-separated string of departments for display"""
         departments = self.get_departments()
         return ', '.join(departments) if departments else 'No departments'
+    
+    def has_permission(self, permission_name):
+        """
+        Check if user has a specific permission
+        Priority: User Override > Role Permission > Default Deny
+        """
+        from django.utils import timezone
+        
+        # Check for user-specific override first
+        try:
+            override = self.user.permission_overrides.get(
+                permission__name=permission_name,
+                permission__is_active=True
+            )
+            # Check if override is expired
+            if override.expires_at and timezone.now() > override.expires_at:
+                override.delete()  # Clean up expired override
+            else:
+                return override.granted
+        except UserPermissionOverride.DoesNotExist:
+            pass
+        
+        # Check role-based permission
+        try:
+            role_perm = RolePermission.objects.get(
+                role=self.role,
+                permission__name=permission_name,
+                permission__is_active=True
+            )
+            return role_perm.granted
+        except RolePermission.DoesNotExist:
+            pass
+        
+        # Default deny
+        return False
+    
+    def can_delegate_permission(self, permission_name):
+        """
+        Check if user can grant/revoke a specific permission to others
+        """
+        try:
+            role_perm = RolePermission.objects.get(
+                role=self.role,
+                permission__name=permission_name,
+                permission__is_active=True
+            )
+            return role_perm.granted and role_perm.can_delegate
+        except RolePermission.DoesNotExist:
+            return False
+    
+    def get_all_permissions(self):
+        """
+        Get all permissions for this user (both role-based and overrides)
+        Returns dict with permission names as keys and granted status as values
+        """
+        permissions = {}
+        
+        # Start with role permissions
+        for role_perm in RolePermission.objects.filter(
+            role=self.role,
+            permission__is_active=True
+        ):
+            permissions[role_perm.permission.name] = role_perm.granted
+        
+        # Apply user overrides (these take precedence)
+        for override in self.user.permission_overrides.filter(
+            permission__is_active=True
+        ):
+            # Skip expired overrides
+            if override.expires_at and timezone.now() > override.expires_at:
+                continue
+            permissions[override.permission.name] = override.granted
+        
+        return permissions
+    
+    def get_delegatable_permissions(self):
+        """
+        Get list of permissions this user can delegate to others
+        """
+        return RolePermission.objects.filter(
+            role=self.role,
+            permission__is_active=True,
+            granted=True,
+            can_delegate=True
+        ).values_list('permission__name', flat=True)
+
+
+class CustomPermission(models.Model):
+    """
+    Define custom permissions that can be assigned to roles and users
+    """
+    PERMISSION_CHOICES = [
+        # Property Management
+        ('view_properties', 'View Properties'),
+        ('add_properties', 'Add Properties'),
+        ('change_properties', 'Edit Properties'),
+        ('delete_properties', 'Delete Properties'),
+        
+        # Booking Management
+        ('view_bookings', 'View Bookings'),
+        ('add_bookings', 'Add Bookings'),
+        ('change_bookings', 'Edit Bookings'),
+        ('delete_bookings', 'Delete Bookings'),
+        ('import_bookings', 'Import Bookings from Excel'),
+        
+        # Task Management
+        ('view_tasks', 'View Tasks'),
+        ('add_tasks', 'Add Tasks'),
+        ('change_tasks', 'Edit Tasks'),
+        ('delete_tasks', 'Delete Tasks'),
+        ('assign_tasks', 'Assign Tasks to Others'),
+        ('view_all_tasks', 'View All Tasks (not just own)'),
+        
+        # User Management
+        ('view_users', 'View Users'),
+        ('add_users', 'Add Users'),
+        ('change_users', 'Edit Users'),
+        ('delete_users', 'Delete Users'),
+        ('manage_user_permissions', 'Manage User Permissions'),
+        
+        # Reports and Analytics
+        ('view_reports', 'View Reports'),
+        ('export_data', 'Export Data'),
+        ('view_analytics', 'View Analytics Dashboard'),
+        
+        # System Administration
+        ('access_admin_panel', 'Access Admin Panel'),
+        ('manage_system_settings', 'Manage System Settings'),
+        ('view_system_logs', 'View System Logs'),
+        ('manage_notifications', 'Manage Notifications'),
+        
+        # Checklist Management
+        ('view_checklists', 'View Checklists'),
+        ('add_checklists', 'Add Checklists'),
+        ('change_checklists', 'Edit Checklists'),
+        ('delete_checklists', 'Delete Checklists'),
+        
+        # Device Management
+        ('view_devices', 'View Devices'),
+        ('add_devices', 'Add Devices'),
+        ('change_devices', 'Edit Devices'),
+        ('delete_devices', 'Delete Devices'),
+    ]
+    
+    name = models.CharField(max_length=100, unique=True, choices=PERMISSION_CHOICES)
+    description = models.TextField(blank=True, help_text="Detailed description of what this permission allows")
+    is_active = models.BooleanField(default=True, help_text="Whether this permission is currently available")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Custom Permission'
+        verbose_name_plural = 'Custom Permissions'
+    
+    def __str__(self):
+        return self.get_name_display()
+
+
+class RolePermission(models.Model):
+    """
+    Default permissions for each role
+    """
+    role = models.CharField(max_length=16, choices=UserRole.choices)
+    permission = models.ForeignKey(CustomPermission, on_delete=models.CASCADE)
+    granted = models.BooleanField(default=True, help_text="Whether this permission is granted to this role")
+    can_delegate = models.BooleanField(default=False, help_text="Whether users with this role can grant/revoke this permission to others")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['role', 'permission']
+        ordering = ['role', 'permission__name']
+        verbose_name = 'Role Permission'
+        verbose_name_plural = 'Role Permissions'
+    
+    def __str__(self):
+        status = "✓" if self.granted else "✗"
+        delegate = " (can delegate)" if self.can_delegate else ""
+        return f"{self.get_role_display()}: {status} {self.permission.get_name_display()}{delegate}"
+
+
+class UserPermissionOverride(models.Model):
+    """
+    User-specific permission overrides that supersede role permissions
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='permission_overrides')
+    permission = models.ForeignKey(CustomPermission, on_delete=models.CASCADE)
+    granted = models.BooleanField(help_text="Whether this permission is granted (True) or explicitly denied (False)")
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='permissions_granted'
+    )
+    reason = models.TextField(blank=True, help_text="Reason for this permission override")
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="When this override expires (optional)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['user', 'permission']
+        ordering = ['user__username', 'permission__name']
+        verbose_name = 'User Permission Override'
+        verbose_name_plural = 'User Permission Overrides'
+    
+    def __str__(self):
+        status = "✓ GRANTED" if self.granted else "✗ DENIED"
+        expires = f" (expires {self.expires_at.strftime('%Y-%m-%d')})" if self.expires_at else ""
+        return f"{self.user.username}: {status} {self.permission.get_name_display()}{expires}"
+    
+    @property
+    def is_expired(self):
+        """Check if this override has expired"""
+        if not self.expires_at:
+            return False
+        return timezone.now() > self.expires_at
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
