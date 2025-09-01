@@ -74,7 +74,7 @@ class SystemMetrics:
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage("/")
 
-            # Process-specific metrics
+            # Process - specific metrics
             process = psutil.Process()
             process_memory = process.memory_info()
 
@@ -218,7 +218,7 @@ class SystemMetrics:
             return {}
 
     def get_application_metrics(self):
-        """Get application-specific metrics."""
+        """Get application - specific metrics."""
         try:
             now = timezone.now()
             last_24h = now - timedelta(hours=24)

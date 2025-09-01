@@ -81,7 +81,7 @@ class JSONFormatter(logging.Formatter):
         # Add environment information
         log_data["environment"] = {
             "debug": getattr(settings, "DEBUG", False),
-            "service": "aristay-backend",
+            "service": "aristay - backend",
             "version": getattr(settings, "VERSION", "1.0.0"),
         }
 
@@ -99,8 +99,8 @@ class JSONFormatter(logging.Formatter):
                     "content_type": request.META.get("CONTENT_TYPE", ""),
                 }
             else:
-                # Handle non-Django request objects (like sockets)
-                log_data["request"] = {"type": str(type(request).__name__), "note": "Non-Django request object"}
+                # Handle non - Django request objects (like sockets)
+                log_data["request"] = {"type": str(type(request).__name__), "note": "Non - Django request object"}
 
         # Add performance metrics if available
         if hasattr(record, "duration"):
@@ -127,7 +127,7 @@ class JSONFormatter(logging.Formatter):
 
 class SecurityFormatter(JSONFormatter):
     """
-    Specialized formatter for security-related logs
+    Specialized formatter for security - related logs
     Adds security context and sanitizes sensitive data
     """
 
@@ -205,7 +205,7 @@ class PerformanceFormatter(JSONFormatter):
         # Get base JSON format
         log_data = json.loads(super().format(record))
 
-        # Add performance-specific fields
+        # Add performance - specific fields
         if hasattr(record, "duration"):
             log_data["performance"] = {
                 "duration_ms": record.duration,

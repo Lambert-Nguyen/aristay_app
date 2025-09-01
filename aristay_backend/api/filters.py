@@ -1,4 +1,4 @@
-# api/filters.py
+# api / filters.py
 from django.utils import timezone
 
 from django_filters import rest_framework as filters
@@ -7,7 +7,7 @@ from .models import Task
 
 
 class TaskFilter(filters.FilterSet):
-    # adds ?overdue=true to mean “due_date < now AND not completed/canceled”
+    # adds ?overdue=true to mean “due_date < now AND not completed / canceled”
     overdue = filters.BooleanFilter(method="filter_overdue")
 
     class Meta:
@@ -23,7 +23,7 @@ class TaskFilter(filters.FilterSet):
             "due_date": ["exact", "gte", "lte"],
             # also allow filtering by task_type
             "task_type": ["exact"],
-            # you could even filter by who created/modified
+            # you could even filter by who created / modified
             "created_by": ["exact"],
             "modified_by": ["exact"],
         }

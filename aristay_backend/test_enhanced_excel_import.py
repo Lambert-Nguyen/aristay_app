@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr / bin / env python
 """
 Test script for Enhanced Excel Import Service with Conflict Resolution
 
@@ -17,7 +17,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 # Add the project root to Python path
-sys.path.insert(0, "/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend")
+sys.path.insert(0, "/Users / duylam1407 / Workspace / SJSU / aristay_app / aristay_backend")
 
 # Setup Django environment
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
@@ -97,13 +97,13 @@ class TestEnhancedExcelImport:
         conflict_result = service._detect_conflicts(booking_data, self.property, 1)
 
         if conflict_result["has_conflicts"]:
-            print(f"✅ Conflict detected correctly")
-            print(f"   Auto-resolve: {conflict_result['auto_resolve']}")
+            print("✅ Conflict detected correctly")
+            print(f"   Auto - resolve: {conflict_result['auto_resolve']}")
             print(f"   Conflict types: {conflict_result['conflict'].conflict_types}")
         else:
             print("❌ Expected conflict not detected")
 
-        # Test direct booking (should not auto-resolve)
+        # Test direct booking (should not auto - resolve)
         booking_data["source"] = "Direct"
         conflict_result = service._detect_conflicts(booking_data, self.property, 2)
 
@@ -150,7 +150,7 @@ class TestEnhancedExcelImport:
         service = EnhancedExcelImportService(self.user)
         serialized = service._serialize_conflict(conflict)
 
-        print(f"✅ Conflict serialized successfully")
+        print("✅ Conflict serialized successfully")
         print(f"   Confidence score: {serialized['confidence_score']}")
         print(f"   Conflict types: {serialized['conflict_types']}")
         print(f"   Changes summary keys: {list(serialized['changes_summary'].keys())}")
@@ -181,7 +181,7 @@ class TestEnhancedExcelImport:
             errors_count=0,
             errors_log='CONFLICTS_DATA:[{"conflict_index": 0, "existing_booking": {"id": '
             + str(existing_booking.pk)
-            + '}, "excel_data": {"guest_name": "Bob Wilson Updated", "start_date": "2024-01-15", "end_date": "2024-01-17"}}]',
+            + '}, "excel_data": {"guest_name": "Bob Wilson Updated", "start_date": "2024 - 01 - 15", "end_date": "2024 - 01 - 17"}}]',
         )
 
         resolution_service = ConflictResolutionService(self.user)
@@ -191,7 +191,7 @@ class TestEnhancedExcelImport:
 
         try:
             results = resolution_service.resolve_conflicts(import_log.pk, resolutions)
-            print(f"✅ Conflict resolution completed")
+            print("✅ Conflict resolution completed")
             print(f"   Results: {results}")
         except Exception as e:
             print(f"❌ Conflict resolution failed: {e}")

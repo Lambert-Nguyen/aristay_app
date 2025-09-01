@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 property_ref=prop,
                 defaults={
                     "task_title_template": "Weekly Cleaning - {property} ({date})",
-                    "task_description_template": "Complete weekly deep cleaning for {property}. Ensure all rooms are guest-ready.",
+                    "task_description_template": "Complete weekly deep cleaning for {property}. Ensure all rooms are guest - ready.",
                     "frequency": "weekly",
                     "interval": 1,
                     "weekday": 4,  # Friday

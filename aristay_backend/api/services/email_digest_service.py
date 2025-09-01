@@ -1,4 +1,4 @@
-# api/services/email_digest_service.py
+# api / services / email_digest_service.py
 
 from collections import defaultdict
 from datetime import timedelta
@@ -29,7 +29,7 @@ class EmailDigestService:
 
         status_colors = {
             "pending": "#e67e22",  # orange
-            "in-progress": "#3498db",  # blue
+            "in - progress": "#3498db",  # blue
             "completed": "#2ecc71",  # green
             "canceled": "#e74c3c",  # red
         }
@@ -65,17 +65,17 @@ class EmailDigestService:
                     delta = task.due_date.astimezone(user_tz) - local_now
                     seconds = delta.total_seconds()
                     if seconds < -86400:
-                        task.due_delta = f"{int(abs(seconds)//86400)} days ago"
+                        task.due_delta = f"{int(abs(seconds) // 86400)} days ago"
                     elif seconds < -3600:
-                        task.due_delta = f"{int(abs(seconds)//3600)} hours ago"
+                        task.due_delta = f"{int(abs(seconds) // 3600)} hours ago"
                     elif seconds < 0:
                         task.due_delta = "just overdue"
                     elif seconds < 3600:
-                        task.due_delta = f"in {int(seconds//60)} minutes"
+                        task.due_delta = f"in {int(seconds // 60)} minutes"
                     elif seconds < 86400:
-                        task.due_delta = f"in {int(seconds//3600)} hours"
+                        task.due_delta = f"in {int(seconds // 3600)} hours"
                     else:
-                        task.due_delta = f"in {int(seconds//86400)} days"
+                        task.due_delta = f"in {int(seconds // 86400)} days"
                 grouped[prop][task.status].append(task)
 
             grouped_tasks = {prop: dict(status_dict) for prop, status_dict in grouped.items()}.items()
@@ -99,8 +99,8 @@ class EmailDigestService:
             from_email = settings.DEFAULT_FROM_EMAIL
             to_email = [user.email]
 
-            text_body = render_to_string("emails/digest.txt", context)
-            html_body = render_to_string("emails/digest.html", context)
+            text_body = render_to_string("emails / digest.txt", context)
+            html_body = render_to_string("emails / digest.html", context)
 
             if test_mode:
                 print(f"To: {user.email}")
@@ -109,7 +109,7 @@ class EmailDigestService:
                 continue
 
             msg = EmailMultiAlternatives(subject, text_body, from_email, to_email)
-            msg.attach_alternative(html_body, "text/html")
+            msg.attach_alternative(html_body, "text / html")
             msg.send()
             sent += 1
         return sent

@@ -1,4 +1,4 @@
-# api/models.py
+# api / models.py
 
 import json
 
@@ -73,7 +73,7 @@ class Property(models.Model):
 
 
 # ----------------------------------------------------------------------------
-# Booking & Ownership domain (Property-centric design)
+# Booking & Ownership domain (Property - centric design)
 # ----------------------------------------------------------------------------
 
 
@@ -110,8 +110,8 @@ class Booking(models.Model):
     children = models.PositiveIntegerField(default=0, help_text="Number of children")
     infants = models.PositiveIntegerField(default=0, help_text="Number of infants")
     nights = models.PositiveIntegerField(null=True, blank=True, help_text="Number of nights")
-    check_in_time = models.TimeField(null=True, blank=True, help_text="Check-in time")
-    check_out_time = models.TimeField(null=True, blank=True, help_text="Check-out time")
+    check_in_time = models.TimeField(null=True, blank=True, help_text="Check - in time")
+    check_out_time = models.TimeField(null=True, blank=True, help_text="Check - out time")
     property_label_raw = models.CharField(max_length=200, blank=True, help_text="Original property label from Excel")
     same_day_note = models.TextField(blank=True, help_text="Same day cleaning notes")
     same_day_flag = models.BooleanField(default=False, help_text="Flag for same day cleaning")
@@ -136,7 +136,7 @@ class Booking(models.Model):
         """Check for booking conflicts with other properties"""
         conflicts = []
 
-        # Check for same day check-in/check-out conflicts across different properties
+        # Check for same day check - in / check - out conflicts across different properties
         same_day_conflicts = (
             Booking.objects.filter(
                 check_in_date__date=self.check_out_date.date(), status__in=["booked", "confirmed", "currently_hosting"]
@@ -149,13 +149,13 @@ class Booking(models.Model):
             conflicts.append(
                 {
                     "type": "same_day_checkout_checkin",
-                    "message": f"Same day conflict: Check-out from {self.property.name} on {self.check_out_date.date()}, check-in at {conflict_booking.property.name}",
+                    "message": f"Same day conflict: Check - out from {self.property.name} on {self.check_out_date.date()}, check - in at {conflict_booking.property.name}",
                     "booking": conflict_booking,
                     "severity": "high",
                 }
             )
 
-        # Check for same day check-out/check-in conflicts (reverse)
+        # Check for same day check - out / check - in conflicts (reverse)
         reverse_conflicts = (
             Booking.objects.filter(
                 check_out_date__date=self.check_in_date.date(), status__in=["booked", "confirmed", "currently_hosting"]
@@ -168,7 +168,7 @@ class Booking(models.Model):
             conflicts.append(
                 {
                     "type": "same_day_checkin_checkout",
-                    "message": f"Same day conflict: Check-in at {self.property.name} on {self.check_in_date.date()}, check-out from {conflict_booking.property.name}",
+                    "message": f"Same day conflict: Check - in at {self.property.name} on {self.check_in_date.date()}, check - out from {conflict_booking.property.name}",
                     "booking": conflict_booking,
                     "severity": "high",
                 }
@@ -225,7 +225,7 @@ class Booking(models.Model):
 
 
 class PropertyOwnership(models.Model):
-    """Maps users to properties as owners/viewers/managers with optional edit rights."""
+    """Maps users to properties as owners / viewers / managers with optional edit rights."""
 
     OWNERSHIP_TYPE_CHOICES = [
         ("owner", "Owner"),
@@ -256,7 +256,7 @@ TASK_TYPE_CHOICES = [
     ("cleaning", "Cleaning"),
     ("maintenance", "Maintenance"),
     ("laundry", "Laundry"),
-    ("lawn_pool", "Lawn/Pool"),
+    ("lawn_pool", "Lawn / Pool"),
 ]
 
 
@@ -264,7 +264,7 @@ class Task(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("waiting_dependency", "Waiting for Dependency"),
-        ("in-progress", "In Progress"),
+        ("in - progress", "In Progress"),
         ("completed", "Completed"),
         ("canceled", "Canceled"),
     ]
@@ -372,23 +372,23 @@ class UserRole(models.TextChoices):
     User role hierarchy - defines access level and permissions
     """
 
-    STAFF = "staff", "Staff/Crew"  # Normal users who perform tasks
+    STAFF = "staf", "Staff / Crew"  # Normal users who perform tasks
     MANAGER = "manager", "Manager"  # Manages staff and properties
     SUPERUSER = "superuser", "Superuser"  # Full system admin access
-    VIEWER = "viewer", "Viewer"  # Read-only access
+    VIEWER = "viewer", "Viewer"  # Read - only access
 
 
 class DepartmentGroups:
     """
     Department group names - used with Django's Group model
-    Staff/Crew users can belong to multiple departments
+    Staff / Crew users can belong to multiple departments
     """
 
     ADMINISTRATION = "Administration"
     CLEANING = "Cleaning"
     MAINTENANCE = "Maintenance"
     LAUNDRY = "Laundry"
-    LAWN_POOL = "Lawn/Pool"
+    LAWN_POOL = "Lawn / Pool"
 
     @classmethod
     def get_all_departments(cls):
@@ -412,14 +412,14 @@ class Profile(models.Model):
     # Curated timezone choices for AriStay locations
     TIMEZONE_CHOICES = [
         ("America/New_York", "Eastern Time (Tampa, FL)"),
-        ("America/Los_Angeles", "Pacific Time (San Jose, CA)"),
-        ("America/Chicago", "Central Time (Chicago, IL)"),
-        ("America/Denver", "Mountain Time (Denver, CO)"),
-        ("America/Phoenix", "Arizona Time (Phoenix, AZ)"),
-        ("America/Anchorage", "Alaska Time (Anchorage, AK)"),
-        ("Pacific/Honolulu", "Hawaii Time (Honolulu, HI)"),
-        ("Asia/Ho_Chi_Minh", "Vietnam Time (Ho Chi Minh City)"),
-        ("Europe/London", "GMT/BST (London, UK)"),
+        ("America / Los_Angeles", "Pacific Time (San Jose, CA)"),
+        ("America / Chicago", "Central Time (Chicago, IL)"),
+        ("America / Denver", "Mountain Time (Denver, CO)"),
+        ("America / Phoenix", "Arizona Time (Phoenix, AZ)"),
+        ("America / Anchorage", "Alaska Time (Anchorage, AK)"),
+        ("Pacific / Honolulu", "Hawaii Time (Honolulu, HI)"),
+        ("Asia / Ho_Chi_Minh", "Vietnam Time (Ho Chi Minh City)"),
+        ("Europe / London", "GMT / BST (London, UK)"),
         ("UTC", "UTC (Coordinated Universal Time)"),
     ]
 
@@ -440,7 +440,7 @@ class Profile(models.Model):
         max_length=16,
         choices=UserRole.choices,
         default=UserRole.STAFF,
-        help_text="App role separate from Django is_staff/is_superuser.",
+        help_text="App role separate from Django is_staff / is_superuser.",
     )
 
     def __str__(self):
@@ -474,7 +474,7 @@ class Profile(models.Model):
 
     @property
     def departments_display(self):
-        """Get comma-separated string of departments for display"""
+        """Get comma - separated string of departments for display"""
         departments = self.get_departments()
         return ", ".join(departments) if departments else "No departments"
 
@@ -485,7 +485,7 @@ class Profile(models.Model):
         """
         from django.utils import timezone
 
-        # Check for user-specific override first
+        # Check for user - specific override first
         try:
             override = self.user.permission_overrides.get(permission__name=permission_name, permission__is_active=True)
             # Check if override is expired
@@ -496,7 +496,7 @@ class Profile(models.Model):
         except UserPermissionOverride.DoesNotExist:
             pass
 
-        # Check role-based permission
+        # Check role - based permission
         try:
             role_perm = RolePermission.objects.get(
                 role=self.role, permission__name=permission_name, permission__is_active=True
@@ -510,7 +510,7 @@ class Profile(models.Model):
 
     def can_delegate_permission(self, permission_name):
         """
-        Check if user can grant/revoke a specific permission to others
+        Check if user can grant / revoke a specific permission to others
         """
         try:
             role_perm = RolePermission.objects.get(
@@ -522,7 +522,7 @@ class Profile(models.Model):
 
     def get_all_permissions(self):
         """
-        Get all permissions for this user (both role-based and overrides)
+        Get all permissions for this user (both role - based and overrides)
         Returns dict with permission names as keys and granted status as values
         """
         permissions = {}
@@ -623,7 +623,7 @@ class RolePermission(models.Model):
     permission = models.ForeignKey(CustomPermission, on_delete=models.CASCADE)
     granted = models.BooleanField(default=True, help_text="Whether this permission is granted to this role")
     can_delegate = models.BooleanField(
-        default=False, help_text="Whether users with this role can grant/revoke this permission to others"
+        default=False, help_text="Whether users with this role can grant / revoke this permission to others"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
@@ -642,7 +642,7 @@ class RolePermission(models.Model):
 
 class UserPermissionOverride(models.Model):
     """
-    User-specific permission overrides that supersede role permissions
+    User - specific permission overrides that supersede role permissions
     """
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="permission_overrides")
@@ -692,12 +692,12 @@ def create_user_profile(sender, instance, created, **kwargs):
 def sync_profile_role_on_user_save(sender, instance, **kwargs):
     profile, _ = Profile.objects.get_or_create(user=instance)
 
-    # Auto-sync profile role with Django user flags (only if it makes sense)
+    # Auto - sync profile role with Django user flags (only if it makes sense)
     if instance.is_superuser and profile.role != UserRole.SUPERUSER:
         profile.role = UserRole.SUPERUSER
         profile.save()
     elif instance.is_staff and not instance.is_superuser and profile.role == UserRole.STAFF:
-        # Only auto-promote staff to manager if they're currently just staff
+        # Only auto - promote staff to manager if they're currently just staff
         profile.role = UserRole.MANAGER
         profile.save()
 
@@ -788,7 +788,7 @@ class Notification(models.Model):
 
 
 # ----------------------------------------------------------------------------
-# Checklist System - Room-by-room task completion workflows
+# Checklist System - Room - by - room task completion workflows
 # ----------------------------------------------------------------------------
 
 
@@ -875,7 +875,7 @@ class ChecklistItem(models.Model):
     is_required = models.BooleanField(default=True)
     order = models.IntegerField(default=0)  # For ordering items within template
 
-    # For room-specific checklists
+    # For room - specific checklists
     room_type = models.CharField(max_length=50, blank=True, help_text="e.g., bathroom, kitchen, bedroom")
 
     class Meta:
@@ -957,7 +957,7 @@ class ChecklistPhoto(models.Model):
 
 
 class InventoryCategory(models.Model):
-    """Categories for inventory items (e.g., Cleaning Supplies, Maintenance, Pool/Spa)"""
+    """Categories for inventory items (e.g., Cleaning Supplies, Maintenance, Pool / Spa)"""
 
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
@@ -1141,13 +1141,13 @@ class PropertyInventory(models.Model):
 
 
 class InventoryTransaction(models.Model):
-    """Log of all inventory movements (stock-in, stock-out, adjustments)."""
+    """Log of all inventory movements (stock - in, stock - out, adjustments)."""
 
     TRANSACTION_TYPES = [
         ("stock_in", "Stock In"),
         ("stock_out", "Stock Out"),
         ("adjustment", "Adjustment"),
-        ("damage", "Damage/Loss"),
+        ("damage", "Damage / Loss"),
         ("transfer", "Transfer"),
     ]
 
@@ -1327,9 +1327,9 @@ class ScheduleTemplate(models.Model):
 
     # Scheduling
     frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES)
-    interval = models.IntegerField(default=1, help_text="Every X days/weeks/months")
+    interval = models.IntegerField(default=1, help_text="Every X days / weeks / months")
     weekday = models.IntegerField(choices=WEEKDAY_CHOICES, null=True, blank=True, help_text="For weekly schedules")
-    day_of_month = models.IntegerField(null=True, blank=True, help_text="For monthly schedules (1-31)")
+    day_of_month = models.IntegerField(null=True, blank=True, help_text="For monthly schedules (1 - 31)")
 
     # Timing
     start_date = models.DateField(help_text="When to start generating tasks")
@@ -1376,7 +1376,7 @@ class ScheduleTemplate(models.Model):
                 try:
                     return next_month.replace(day=self.day_of_month)
                 except ValueError:
-                    # Handle invalid dates (e.g., Feb 31 -> Feb 28/29)
+                    # Handle invalid dates (e.g., Feb 31 -> Feb 28 / 29)
                     return next_month.replace(day=min(self.day_of_month, 28))
             return next_month
         elif self.frequency == "quarterly":
@@ -1414,7 +1414,7 @@ class ScheduleTemplate(models.Model):
 
 
 class GeneratedTask(models.Model):
-    """Tracks tasks that were auto-generated from schedules."""
+    """Tracks tasks that were auto - generated from schedules."""
 
     schedule = models.ForeignKey(ScheduleTemplate, on_delete=models.CASCADE, related_name="generated_tasks")
     task = models.OneToOneField("Task", on_delete=models.CASCADE, related_name="generated_from")
@@ -1482,7 +1482,7 @@ class BookingImportTemplate(models.Model):
         max_length=20,
         choices=[
             ("csv", "CSV File"),
-            ("ical", "iCal/Calendar"),
+            ("ical", "iCal / Calendar"),
             ("airbnb", "Airbnb Export"),
             ("vrbo", "VRBO Export"),
             ("api", "API Integration"),
@@ -1491,12 +1491,12 @@ class BookingImportTemplate(models.Model):
 
     # Field mapping for CSV imports
     date_format = models.CharField(max_length=50, default="%Y-%m-%d", help_text="Python strftime format")
-    checkin_field = models.CharField(max_length=100, default="check_in", help_text="CSV column name for check-in")
-    checkout_field = models.CharField(max_length=100, default="check_out", help_text="CSV column name for check-out")
+    checkin_field = models.CharField(max_length=100, default="check_in", help_text="CSV column name for check - in")
+    checkout_field = models.CharField(max_length=100, default="check_out", help_text="CSV column name for check - out")
     guest_name_field = models.CharField(max_length=100, default="guest_name", help_text="CSV column for guest name")
     guest_contact_field = models.CharField(max_length=100, default="guest_email", help_text="CSV column for contact")
 
-    # Auto-task generation
+    # Auto - task generation
     auto_create_tasks = models.BooleanField(default=True)
     cleaning_schedule = models.ForeignKey(
         ScheduleTemplate,

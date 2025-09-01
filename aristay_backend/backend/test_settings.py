@@ -1,5 +1,5 @@
 """
-Test-specific Django settings for AriStay Backend
+Test - specific Django settings for AriStay Backend
 Optimized for fast, reliable automated testing
 """
 
@@ -10,7 +10,7 @@ from .settings import *
 
 # Override settings for testing
 
-# Database - Use in-memory SQLite for faster tests
+# Database - Use in - memory SQLite for faster tests
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -79,7 +79,7 @@ CACHES = {
     }
 }
 
-# Test-specific settings
+# Test - specific settings
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
 
 # Use local storage for media files during testing
@@ -88,8 +88,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "test_media")
 # Disable email sending during tests
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
-# Test-specific security settings
-SECRET_KEY = "test-secret-key-not-for-production"
+# Test - specific security settings
+SECRET_KEY = "test - secret - key - not - for - production"
 DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 
@@ -114,7 +114,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # Static files for testing
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
-# Test-specific apps (if any)
+# Test - specific apps (if any)
 INSTALLED_APPS = INSTALLED_APPS + [
     "django_nose",  # Add if using nose for testing
 ]
@@ -122,10 +122,10 @@ INSTALLED_APPS = INSTALLED_APPS + [
 # Nose test runner settings (optional)
 TEST_RUNNER = "django_nose.NoseTestSuiteRunner"
 NOSE_ARGS = [
-    "--with-coverage",
-    "--cover-package=api",
-    "--cover-html",
-    "--cover-html-dir=coverage_html",
+    "--with - coverage",
+    "--cover - package=api",
+    "--cover - html",
+    "--cover - html - dir=coverage_html",
     "--verbosity=2",
 ]
 
@@ -134,7 +134,7 @@ USE_TZ = True
 TIME_ZONE = "UTC"
 
 # Internationalization for testing
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "en - us"
 USE_I18N = True
 
 # File upload settings for testing
@@ -147,7 +147,7 @@ SECURE_HSTS_SECONDS = 0
 SECURE_CONTENT_TYPE_NOSNIFF = False
 SECURE_BROWSER_XSS_FILTER = False
 
-# Test-specific middleware (remove security middleware that might interfere)
+# Test - specific middleware (remove security middleware that might interfere)
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

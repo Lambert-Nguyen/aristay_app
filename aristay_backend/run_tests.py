@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr / bin / env python
 """
 Comprehensive test runner for AriStay Backend
 Runs all tests and generates detailed reports
@@ -23,10 +23,10 @@ def setup_django():
 
 def run_command(command, description):
     """Run a command and return success status"""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Running: {description}")
     print(f"Command: {command}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     start_time = time.time()
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -126,14 +126,14 @@ def main():
         }
 
     # Generate summary report
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("🏁 TEST SUMMARY REPORT")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     print(f"Total Tests: {results['total_tests']}")
     print(f"Passed: {results['passed_tests']} ✅")
     print(f"Failed: {results['failed_tests']} ❌")
-    print(f"Success Rate: {(results['passed_tests']/results['total_tests']*100):.1f}%")
+    print(f"Success Rate: {(results['passed_tests'] / results['total_tests'] * 100):.1f}%")
 
     print(f"\n{'Test Suite Details':-^80}")
     for suite_name, suite_result in results["test_suites"].items():
@@ -147,14 +147,14 @@ def main():
     ]
 
     if critical_failures:
-        print(f"\n⚠️  CRITICAL FAILURES DETECTED:")
+        print("\n⚠️  CRITICAL FAILURES DETECTED:")
         for failure in critical_failures:
             print(f"   - {failure}")
         print("\n❌ CRITICAL TESTS FAILED - BUILD SHOULD NOT PASS")
         return 1
 
     if results["failed_tests"] > 0:
-        print(f"\n⚠️  {results['failed_tests']} non-critical test(s) failed")
+        print(f"\n⚠️  {results['failed_tests']} non - critical test(s) failed")
         print("✅ All critical tests passed - Build can proceed")
         return 0
     else:

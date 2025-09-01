@@ -24,7 +24,7 @@ class AdminAccessMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         # Only process /admin/ requests (not /manager/ or /api/)
-        if request.path.startswith("/admin/") and not request.path.startswith("/admin/login/"):
+        if request.path.startswith("/admin/") and not request.path.startswith("/admin / login/"):
             if request.user.is_authenticated and not request.user.is_superuser:
                 # Check if user is a manager
                 try:
@@ -34,10 +34,10 @@ class AdminAccessMiddleware(MiddlewareMixin):
                 except:
                     pass
 
-                # For non-manager staff users trying to access admin
+                # For non - manager staff users trying to access admin
                 if request.user.is_staff:
                     messages.error(request, "Access Denied: Only superusers can access the admin area.")
-                    return redirect("/api/portal/")
+                    return redirect("/api / portal/")
         return None
 
 
@@ -86,7 +86,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         except:
             request._start_memory = 0
 
-        # Log security-relevant requests
+        # Log security - relevant requests
         self._log_security_events(request)
 
         return None
@@ -154,9 +154,9 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         return response
 
     def _log_security_events(self, request):
-        """Log security-relevant events"""
+        """Log security - relevant events"""
         # Log authentication attempts
-        if "/api/auth/" in request.path:
+        if "/api / auth/" in request.path:
             self.security_logger.info(
                 f"Authentication attempt: {request.method} {request.path}",
                 extra={
@@ -182,7 +182,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
 
         # Log suspicious patterns
         suspicious_patterns = [
-            "/wp-admin/",
+            "/wp - admin/",
             "/.env",
             "/config/",
             "/backup/",
@@ -192,10 +192,10 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             "<script",
             "../",
             "..\\",
-            "etc/passwd",
+            "etc / passwd",
         ]
 
-        request_data = f"{request.path} {request.body.decode('utf-8', errors='ignore')[:500]}"
+        request_data = f"{request.path} {request.body.decode('utf - 8', errors='ignore')[:500]}"
         if any(pattern in request_data for pattern in suspicious_patterns):
             self.security_logger.warning(
                 f"Suspicious request pattern detected: {request.method} {request.path}",
@@ -262,8 +262,8 @@ class ErrorLoggingMiddleware(MiddlewareMixin):
         try:
             data = {}
             if request.method in ["POST", "PUT", "PATCH"]:
-                if request.content_type == "application/json":
-                    body = request.body.decode("utf-8")
+                if request.content_type == "application / json":
+                    body = request.body.decode("utf - 8")
                     if body:
                         data["json"] = json.loads(body)
                 elif hasattr(request, "POST"):
@@ -311,7 +311,7 @@ class ErrorLoggingMiddleware(MiddlewareMixin):
 
 class SecurityHeadersMiddleware(MiddlewareMixin):
     """
-    Middleware to add security headers and log security-related responses
+    Middleware to add security headers and log security - related responses
     """
 
     def __init__(self, get_response):
@@ -323,11 +323,11 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
         """Add security headers and log security events"""
         # Add security headers for production
         if not settings.DEBUG:
-            response["X-Content-Type-Options"] = "nosniff"
-            response["X-Frame-Options"] = "DENY"
-            response["X-XSS-Protection"] = "1; mode=block"
-            response["Referrer-Policy"] = "strict-origin-when-cross-origin"
-            response["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+            response["X - Content - Type - Options"] = "nosniff"
+            response["X - Frame - Options"] = "DENY"
+            response["X - XSS - Protection"] = "1; mode=block"
+            response["Referrer - Policy"] = "strict - origin - when - cross - origin"
+            response["Permissions - Policy"] = "geolocation=(), microphone=(), camera=()"
 
         # Log failed authentication attempts
         if response.status_code in [401, 403]:

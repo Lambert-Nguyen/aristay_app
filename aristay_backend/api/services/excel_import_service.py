@@ -2,7 +2,7 @@
 Excel Import Service for Booking Schedules
 
 This service handles importing booking schedules from Excel files (specifically the 'cleaning schedule' sheet)
-and automatically creates/updates bookings and associated tasks.
+and automatically creates / updates bookings and associated tasks.
 """
 
 import logging
@@ -63,7 +63,7 @@ class ExcelImportService:
             # If there are new properties, handle them based on user role
             if new_properties:
                 if not self.user.is_superuser:
-                    # Non-admin users cannot proceed with new properties
+                    # Non - admin users cannot proceed with new properties
                     return {
                         "success": False,
                         "requires_property_approval": True,
@@ -97,7 +97,7 @@ class ExcelImportService:
                     # Track success count before processing
                     success_before = self.success_count
 
-                    self._process_booking_row(row, index + 2)  # +2 because Excel is 1-indexed and has header
+                    self._process_booking_row(row, index + 2)  # +2 because Excel is 1 - indexed and has header
                     processed_rows += 1
 
                     # Check if this row actually resulted in a booking change
@@ -107,7 +107,7 @@ class ExcelImportService:
                             f"Row {index + 2}: Successfully processed (success count: {success_before} -> {self.success_count})"
                         )
                     else:
-                        logger.warning(f"Row {index + 2}: Processed but no booking created/updated")
+                        logger.warning(f"Row {index + 2}: Processed but no booking created / updated")
 
                 except Exception as e:
                     error_msg = f"Row {index + 2}: {str(e)}"
@@ -115,7 +115,7 @@ class ExcelImportService:
                     logger.error(f"Error processing row {index + 2}: {e}")
                     continue
 
-            logger.info(f"Row processing summary:")
+            logger.info("Row processing summary:")
             logger.info(f"  • Total rows in Excel: {self.total_rows}")
             logger.info(f"  • Rows processed: {processed_rows}")
             logger.info(f"  • Rows skipped (empty): {skipped_rows}")
@@ -133,12 +133,12 @@ class ExcelImportService:
                 logger.warning(
                     f"Row processing discrepancy: {processed_rows} rows processed, {self.success_count} successful imports"
                 )
-                logger.warning(f"This suggests some rows were processed but didn't result in booking changes")
+                logger.warning("This suggests some rows were processed but didn't result in booking changes")
 
             return {
                 "success": True,
                 "total_rows": self.total_rows,
-                "successful_imports": self.success_count,  # This is the actual count of created/updated bookings
+                "successful_imports": self.success_count,  # This is the actual count of created / updated bookings
                 "processed_rows": processed_rows,  # This is the count of rows that were attempted
                 "skipped_rows": skipped_rows,  # This is the count of rows that were skipped (empty)
                 "errors_count": len(self.errors),
@@ -330,7 +330,7 @@ class ExcelImportService:
                     self.success_count += 1
                     logger.info(f"Created new booking {new_booking.external_code} from row {row_number}")
 
-                    # Auto-create cleaning task if enabled
+                    # Auto - create cleaning task if enabled
                     if self.template and self.template.auto_create_tasks:
                         self._create_cleaning_task(new_booking)
 
@@ -338,7 +338,7 @@ class ExcelImportService:
                 error_msg = f"Row {row_number}: {str(e)}"
                 self.errors.append(error_msg)
                 logger.error(error_msg)
-                # Re-raise to trigger transaction rollback for this row
+                # Re - raise to trigger transaction rollback for this row
                 raise
 
     def _extract_booking_data(self, row: pd.Series, row_number: int) -> Optional[Dict]:
@@ -357,7 +357,7 @@ class ExcelImportService:
                 "external_status": ["Status"],
                 "guest_name": ["Guest name"],
                 "guest_contact": ["Contact"],
-                "source": ["Booking source", "Airbnb/VRBO"],  # Handle both column names
+                "source": ["Booking source", "Airbnb / VRBO"],  # Handle both column names
                 "listing_name": ["Listing"],
                 "earnings_amount": ["Earnings"],
                 "booked_on": ["Booked"],
@@ -407,11 +407,11 @@ class ExcelImportService:
                 data["same_day_note"] = " | ".join(same_day_notes)
                 data["same_day_flag"] = True
 
-            # Generate confirmation code for Direct/Owner bookings if missing
+            # Generate confirmation code for Direct / Owner bookings if missing
             if not data.get("external_code"):
                 source = data.get("source", "").lower()
                 if "direct" in source or "owner" in source:
-                    # Generate unique code for Direct/Owner bookings
+                    # Generate unique code for Direct / Owner bookings
                     base_code = "Direct" if "direct" in source else "Owner Staying"
                     counter = 1
                     while True:
@@ -487,7 +487,7 @@ class ExcelImportService:
             if hasattr(value, "timestamp"):
                 try:
                     if field_name in ["start_date", "end_date", "booked_on"]:
-                        # Convert pandas Timestamp to timezone-aware datetime
+                        # Convert pandas Timestamp to timezone - aware datetime
                         naive_datetime = value.to_pydatetime()
                         if timezone.is_naive(naive_datetime):
                             return timezone.make_aware(naive_datetime, timezone.get_current_timezone())
@@ -532,9 +532,9 @@ class ExcelImportService:
                     return None
 
             elif field_name in ["start_date", "end_date", "booked_on"]:
-                # Handle date fields - make timezone-aware for Tampa, FL
+                # Handle date fields - make timezone - aware for Tampa, FL
                 if isinstance(value, datetime):
-                    # If it's already a datetime, make it timezone-aware
+                    # If it's already a datetime, make it timezone - aware
                     if timezone.is_naive(value):
                         return timezone.make_aware(value, timezone.get_current_timezone())
                     return value
@@ -543,7 +543,7 @@ class ExcelImportService:
                     for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d"]:
                         try:
                             naive_datetime = datetime.strptime(value_str, fmt)
-                            # Make timezone-aware for Tampa, FL (America/New_York)
+                            # Make timezone - aware for Tampa, FL (America/New_York)
                             return timezone.make_aware(naive_datetime, timezone.get_current_timezone())
                         except ValueError:
                             continue
@@ -691,14 +691,14 @@ class ExcelImportService:
                 f"⚠️ Property conflict: Overlaps with {overlapping_bookings.count()} existing booking(s): {', '.join(conflict_details)}"
             )
 
-        # Check for same-day check-in/out conflicts across all properties
+        # Check for same - day check - in / out conflicts across all properties
         same_day_checkins = Booking.objects.filter(check_in_date__date=start_date.date()).exclude(property=property_obj)
 
         same_day_checkouts = Booking.objects.filter(check_out_date__date=end_date.date()).exclude(property=property_obj)
 
         if same_day_checkins.exists() or same_day_checkouts.exists():
             total_same_day = same_day_checkins.count() + same_day_checkouts.count()
-            conflicts.append(f"📅 Same-day conflict: {total_same_day} other booking(s) have check-in/out on the same date")
+            conflicts.append(f"📅 Same - day conflict: {total_same_day} other booking(s) have check - in / out on the same date")
 
         return conflicts
 
@@ -707,7 +707,7 @@ class ExcelImportService:
         # Ensure nights field has a valid value
         nights_value = booking_data.get("nights")
         if nights_value is None or not isinstance(nights_value, (int, float)):
-            # Calculate nights from start/end dates
+            # Calculate nights from start / end dates
             try:
                 if isinstance(booking_data["start_date"], datetime) and isinstance(booking_data["end_date"], datetime):
                     nights_value = (booking_data["end_date"] - booking_data["start_date"]).days
@@ -783,7 +783,7 @@ class ExcelImportService:
             if nights_value is not None and isinstance(nights_value, (int, float)):
                 booking.nights = nights_value
             else:
-                # Calculate nights from start/end dates if nights is invalid
+                # Calculate nights from start / end dates if nights is invalid
                 try:
                     if isinstance(booking_data.get("start_date"), datetime) and isinstance(
                         booking_data.get("end_date"), datetime
@@ -837,7 +837,7 @@ class ExcelImportService:
         else:
             raise ValueError(f"Invalid date object: {date_obj}")
 
-        # Make timezone-aware for Tampa, FL if it's naive
+        # Make timezone - aware for Tampa, FL if it's naive
         if timezone.is_naive(combined):
             return timezone.make_aware(combined, timezone.get_current_timezone())
         return combined
@@ -845,7 +845,7 @@ class ExcelImportService:
     def _create_cleaning_task(self, booking: Booking):
         """Automatically create cleaning task for new booking."""
         try:
-            # Calculate task due date (day before check-in)
+            # Calculate task due date (day before check - in)
             task_due_date = booking.check_in_date - timedelta(days=1)
 
             # Map Excel status to task status
@@ -853,7 +853,7 @@ class ExcelImportService:
 
             # Create cleaning task
             task = Task.objects.create(
-                title=f"Pre-arrival Cleaning - {booking.property.name}",
+                title=f"Pre - arrival Cleaning - {booking.property.name}",
                 description=f"Cleaning for {booking.guest_name} arrival on {booking.check_in_date.strftime('%Y-%m-%d')} (Status: {booking.external_status})",
                 task_type="cleaning",
                 property=booking.property,
@@ -905,7 +905,7 @@ class ExcelImportService:
         status_mapping = {
             "booked": "pending",
             "confirmed": "pending",
-            "currently hosting": "in-progress",
+            "currently hosting": "in - progress",
             "owner staying": "pending",
             "cancelled": "canceled",
             "canceled": "canceled",
@@ -943,7 +943,7 @@ class ExcelImportService:
             logger.error(f"Failed to update associated task for booking {booking.external_code}: {e}")
 
     def _serialize_row_data(self, row: pd.Series) -> Dict:
-        """Convert pandas row data to JSON-serializable format."""
+        """Convert pandas row data to JSON - serializable format."""
         import json
         from datetime import date, datetime, time
 

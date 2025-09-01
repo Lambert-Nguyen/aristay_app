@@ -89,7 +89,7 @@ def filter_sensitive_errors(event, hint):
 
         # Remove sensitive headers
         if "headers" in request:
-            sensitive_headers = ["authorization", "cookie", "x-api-key"]
+            sensitive_headers = ["authorization", "cookie", "x - api - key"]
             for header in sensitive_headers:
                 if header in request["headers"]:
                     request["headers"][header] = "[Filtered]"
@@ -183,7 +183,7 @@ def get_release_version():
         # Try to get version from git
         import subprocess
 
-        result = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
+        result = subprocess.run(["git", "rev - parse", "HEAD"], capture_output=True, text=True)
         if result.returncode == 0:
             return result.stdout.strip()[:8]  # Short commit hash
     except:
@@ -203,7 +203,7 @@ def add_user_context(user):
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "is_staff": getattr(user, "is_staff", False),
+            "is_staf": getattr(user, "is_staf", False),
             "is_superuser": getattr(user, "is_superuser", False),
         }
 

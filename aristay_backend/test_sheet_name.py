@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr / bin / env python3
 """
 Quick test to verify sheet name handling
 """
@@ -19,7 +19,7 @@ def test_sheet_name():
     try:
         # Get or create a test user
         user, created = User.objects.get_or_create(
-            username="test_import_user", defaults={"email": "test@aristay.com", "is_staff": True, "is_superuser": True}
+            username="test_import_user", defaults={"email": "test@aristay.com", "is_staf": True, "is_superuser": True}
         )
 
         # Test the service initialization

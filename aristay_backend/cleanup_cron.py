@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr / bin / env python3
 """
 Automated Excel Import File Cleanup Script
 
@@ -6,13 +6,13 @@ This script can be run as a cron job to automatically clean up old Excel import 
 
 Usage:
     python cleanup_cron.py --days 30        # Remove files older than 30 days
-    python cleanup_cron.py --target-mb 100  # Keep only enough files to stay under 100MB
+    python cleanup_cron.py --target - mb 100  # Keep only enough files to stay under 100MB
 
 Add to crontab for weekly cleanup:
-    0 2 * * 0 cd /path/to/aristay_backend && python cleanup_cron.py --days 30
+    0 2 * * 0 cd /path / to / aristay_backend && python cleanup_cron.py --days 30
 
-Add to crontab for daily size-based cleanup:
-    0 1 * * * cd /path/to/aristay_backend && python cleanup_cron.py --target-mb 50
+Add to crontab for daily size - based cleanup:
+    0 1 * * * cd /path / to / aristay_backend && python cleanup_cron.py --target - mb 50
 """
 
 import argparse
@@ -35,7 +35,7 @@ from api.services.file_cleanup_service import ImportFileCleanupService
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/file_cleanup.log"), logging.StreamHandler()],
+    handlers=[logging.FileHandler("logs / file_cleanup.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,8 @@ logger = logging.getLogger(__name__)
 def main():
     parser = argparse.ArgumentParser(description="Automated Excel import file cleanup")
     parser.add_argument("--days", type=int, help="Remove files older than N days")
-    parser.add_argument("--target-mb", type=int, help="Keep files to stay under N MB")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted")
+    parser.add_argument("--target - mb", type=int, help="Keep files to stay under N MB")
+    parser.add_argument("--dry - run", action="store_true", help="Show what would be deleted")
     parser.add_argument("--quiet", action="store_true", help="Only log errors")
 
     args = parser.parse_args()
@@ -54,8 +54,8 @@ def main():
 
     try:
         if args.target_mb:
-            # Size-based cleanup
-            logger.info(f"Starting size-based cleanup (target: {args.target_mb} MB)")
+            # Size - based cleanup
+            logger.info(f"Starting size - based cleanup (target: {args.target_mb} MB)")
 
             # Get current stats
             stats = ImportFileCleanupService.get_storage_stats()
@@ -83,8 +83,8 @@ def main():
             result = ImportFileCleanupService.cleanup_old_files(days_to_keep, args.dry_run)
 
         elif args.days:
-            # Time-based cleanup
-            logger.info(f"Starting time-based cleanup (remove files older than {args.days} days)")
+            # Time - based cleanup
+            logger.info(f"Starting time - based cleanup (remove files older than {args.days} days)")
             result = ImportFileCleanupService.cleanup_old_files(args.days, args.dry_run)
 
         else:

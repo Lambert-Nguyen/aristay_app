@@ -48,7 +48,7 @@ class HealthCheckView(View):
                 {
                     "status": "healthy",
                     "timestamp": datetime.utcnow().isoformat(),
-                    "service": "aristay-backend",
+                    "service": "aristay - backend",
                     "version": getattr(settings, "VERSION", "1.0.0"),
                 }
             )
@@ -80,7 +80,7 @@ class DetailedHealthCheckView(View):
             health_data = {
                 "status": "healthy",
                 "timestamp": datetime.utcnow().isoformat(),
-                "service": "aristay-backend",
+                "service": "aristay - backend",
                 "version": getattr(settings, "VERSION", "1.0.0"),
                 "environment": getattr(settings, "ENVIRONMENT", "unknown"),
                 "debug_mode": settings.DEBUG,
@@ -114,7 +114,7 @@ class DetailedHealthCheckView(View):
             if failed_checks:
                 health_data["status"] = "degraded"
                 health_data["failed_checks"] = failed_checks
-                status_code = 207  # Multi-Status
+                status_code = 207  # Multi - Status
             else:
                 status_code = 200
 
@@ -163,7 +163,7 @@ class DetailedHealthCheckView(View):
         try:
             start_time = time.time()
 
-            # Test set/get operations
+            # Test set / get operations
             test_key = f"health_check_{int(time.time())}"
             test_value = "health_test"
 
@@ -268,7 +268,7 @@ class DetailedHealthCheckView(View):
             return {"error": str(e)}
 
     def _get_app_metrics(self):
-        """Get application-specific metrics"""
+        """Get application - specific metrics"""
         try:
             now = datetime.now()
             last_hour = now - timedelta(hours=1)
@@ -277,7 +277,7 @@ class DetailedHealthCheckView(View):
             # Task metrics
             total_tasks = Task.objects.count()
             recent_tasks = Task.objects.filter(created_at__gte=last_hour).count()
-            overdue_tasks = Task.objects.filter(due_date__lt=now, status__in=["pending", "in-progress"]).count()
+            overdue_tasks = Task.objects.filter(due_date__lt=now, status__in=["pending", "in - progress"]).count()
 
             # User metrics
             total_users = User.objects.count()
@@ -371,7 +371,7 @@ class DetailedHealthCheckView(View):
 @csrf_exempt
 def log_client_error(request):
     """
-    Endpoint for frontend to report client-side errors
+    Endpoint for frontend to report client - side errors
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)

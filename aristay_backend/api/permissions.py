@@ -1,4 +1,4 @@
-# api/permissions.py
+# api / permissions.py
 
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
@@ -174,7 +174,7 @@ class DynamicCRUDPermissions(BasePermission):
 
 
 class DynamicBookingPermissions(DynamicCRUDPermissions):
-    """Booking-specific permissions"""
+    """Booking - specific permissions"""
 
     def __init__(self):
         super().__init__(
@@ -189,7 +189,7 @@ class DynamicBookingPermissions(DynamicCRUDPermissions):
 
 
 class DynamicTaskPermissions(DynamicCRUDPermissions):
-    """Task-specific permissions"""
+    """Task - specific permissions"""
 
     def __init__(self):
         super().__init__(

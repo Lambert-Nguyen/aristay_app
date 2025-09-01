@@ -16,17 +16,17 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--dry-run",
+            "--dry - run",
             action="store_true",
             help="Show what tasks would be generated without creating them",
         )
         parser.add_argument(
-            "--check-date",
+            "--check - date",
             type=str,
-            help="Check for a specific date (YYYY-MM-DD format)",
+            help="Check for a specific date (YYYY - MM - DD format)",
         )
         parser.add_argument(
-            "--schedule-id",
+            "--schedule - id",
             type=int,
             help="Generate tasks for a specific schedule ID only",
         )
@@ -40,7 +40,7 @@ class Command(BaseCommand):
             try:
                 check_date = datetime.strptime(check_date, "%Y-%m-%d").date()
             except ValueError:
-                self.stdout.write(self.style.ERROR("Invalid date format. Use YYYY-MM-DD"))
+                self.stdout.write(self.style.ERROR("Invalid date format. Use YYYY - MM - DD"))
                 return
         else:
             check_date = date.today()

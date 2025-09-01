@@ -5,7 +5,7 @@ Usage:
     python manage.py cleanup_imports --days 30       # Remove files older than 30 days
     python manage.py cleanup_imports --stats         # Show storage statistics
     python manage.py cleanup_imports --suggest 100   # Suggest cleanup to stay under 100MB
-    python manage.py cleanup_imports --dry-run       # Show what would be deleted
+    python manage.py cleanup_imports --dry - run       # Show what would be deleted
 """
 
 from django.core.management.base import BaseCommand
@@ -20,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument("--days", type=int, default=30, help="Remove files older than this many days (default: 30)")
         parser.add_argument("--stats", action="store_true", help="Show current storage statistics")
         parser.add_argument("--suggest", type=int, help="Suggest cleanup strategy to stay under N MB")
-        parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted without actually deleting")
+        parser.add_argument("--dry - run", action="store_true", help="Show what would be deleted without actually deleting")
 
     def handle(self, *args, **options):
         if options["stats"]:
@@ -87,7 +87,7 @@ class Command(BaseCommand):
 
         if dry_run:
             if result["files_found"] > 0:
-                self.stdout.write(self.style.WARNING(f"\n📁 Files that would be deleted:"))
+                self.stdout.write(self.style.WARNING("\n📁 Files that would be deleted:"))
                 for file_info in result["files"][:5]:  # Show first 5
                     date_str = file_info["imported_at"].strftime("%Y-%m-%d")
                     size_mb = file_info["size"] / (1024 * 1024)
@@ -101,7 +101,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS("✅ No files need cleanup"))
         else:
             if result["files_deleted"] > 0:
-                self.stdout.write(self.style.SUCCESS(f"\n✅ Cleanup completed!"))
+                self.stdout.write(self.style.SUCCESS("\n✅ Cleanup completed!"))
                 self.stdout.write(f"Files deleted: {result['files_deleted']}")
                 self.stdout.write(f"Space freed: {result['space_freed_mb']:.1f} MB")
 

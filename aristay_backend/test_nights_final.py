@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr / bin / env python3
 """
 Test script to verify final nights field handling works correctly
 """
@@ -26,7 +26,7 @@ def test_nights_final_handling():
 
         # Get or create a test user
         user, created = User.objects.get_or_create(
-            username="test_nights_final_user", defaults={"email": "test@aristay.com", "is_staff": True, "is_superuser": True}
+            username="test_nights_final_user", defaults={"email": "test@aristay.com", "is_staf": True, "is_superuser": True}
         )
 
         # Get or create a test property
@@ -47,20 +47,20 @@ def test_nights_final_handling():
             "Confirmation code": "TEST_NIGHTS_FINAL_1",
             "Status": "Booked",
             "Guest name": "Test Guest Final 1",
-            "Contact": "+1-555-0123",
+            "Contact": "+1 - 555 - 0123",
             "Booking source": "Direct",
             "Listing": "Test Listing Final 1",
             "Earnings": 150.00,
-            "Booked": pd.Timestamp("2025-01-15"),
+            "Booked": pd.Timestamp("2025 - 01 - 15"),
             "# of adults": 2,
             "# of children": 1,
             "# of infants": 0,
-            "Start date": pd.Timestamp("2025-02-01"),
-            "End date": pd.Timestamp("2025-02-05"),
-            "# of nights": "1900-01-19T00:00:00",  # Invalid date value
+            "Start date": pd.Timestamp("2025 - 02 - 01"),
+            "End date": pd.Timestamp("2025 - 02 - 05"),
+            "# of nights": "1900 - 01 - 19T00:00:00",  # Invalid date value
             "Properties": "Test Property Nights Final",
             "Check ": "Same day cleaning required",
-            "Check 1": "Early check-in",
+            "Check 1": "Early check - in",
         }
 
         mock_row_1 = pd.Series(mock_data_1)
@@ -86,7 +86,7 @@ def test_nights_final_handling():
                     try:
                         # Update with new invalid nights value
                         update_data = extracted_data_1.copy()
-                        update_data["# of nights"] = "1900-01-03T00:00:00"  # Another invalid value
+                        update_data["# of nights"] = "1900 - 01 - 03T00:00:00"  # Another invalid value
                         update_data["guest_name"] = "Updated Guest Name"
 
                         import_service._update_booking(new_booking, update_data, mock_row_1)

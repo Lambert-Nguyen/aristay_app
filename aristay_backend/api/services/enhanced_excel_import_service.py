@@ -202,7 +202,7 @@ class EnhancedExcelImportService(ExcelImportService):
                 "external_status": ["Status"],
                 "guest_name": ["Guest name"],
                 "guest_contact": ["Contact"],
-                "source": ["Booking source", "Airbnb/VRBO"],  # Handle both column names
+                "source": ["Booking source", "Airbnb / VRBO"],  # Handle both column names
                 "listing_name": ["Listing"],
                 "earnings_amount": ["Earnings"],
                 "booked_on": ["Booked"],
@@ -232,7 +232,7 @@ class EnhancedExcelImportService(ExcelImportService):
                 external_code = str(data["external_code"]).strip()
 
                 # Check if external_code is actually a booking source (not a real confirmation code)
-                generic_sources = ["directly", "direct", "owner staying", "owner", "walk-in", "phone", "email"]
+                generic_sources = ["directly", "direct", "owner staying", "owner", "walk - in", "phone", "email"]
                 if external_code.lower() in generic_sources:
                     # This is a generic source, not a real confirmation code
                     # Generate a unique code for direct bookings
@@ -256,7 +256,7 @@ class EnhancedExcelImportService(ExcelImportService):
             if not data.get("external_code"):
                 source = data.get("source", "").lower()
                 if any(platform in source for platform in ["airbnb", "vrbo", "homeaway"]):
-                    # Generate platform-style code
+                    # Generate platform - style code
                     counter = 1
                     while counter <= 99:
                         if "airbnb" in source:
@@ -362,9 +362,9 @@ class EnhancedExcelImportService(ExcelImportService):
                 self._auto_update_booking(conflict_result["existing_booking"], booking_data, row)
                 self.auto_updated_count += 1
                 self.success_count += 1
-                logger.info(f"Auto-updated platform booking: {conflict_result['existing_booking'].external_code}")
+                logger.info(f"Auto - updated platform booking: {conflict_result['existing_booking'].external_code}")
             else:
-                # Direct/Owner booking OR exact duplicate - handle appropriately
+                # Direct / Owner booking OR exact duplicate - handle appropriately
                 if conflict_result.get("is_exact_duplicate", False):
                     # Skip exact duplicates
                     logger.info(f"Skipped exact duplicate: Row {row_number}")
@@ -391,7 +391,7 @@ class EnhancedExcelImportService(ExcelImportService):
         start_date = booking_data.get("start_date")
         end_date = booking_data.get("end_date")
 
-        # Check if this is a direct/owner booking
+        # Check if this is a direct / owner booking
         is_direct_booking = "direct" in source or "owner" in source
 
         existing_booking = None
@@ -415,7 +415,7 @@ class EnhancedExcelImportService(ExcelImportService):
                     return {
                         "has_conflicts": True,
                         "auto_resolve": not is_direct_booking
-                        and not is_exact_duplicate,  # Platform bookings auto-resolve if not exact duplicate
+                        and not is_exact_duplicate,  # Platform bookings auto - resolve if not exact duplicate
                         "existing_booking": existing_booking,
                         "conflict": conflict,
                         "is_exact_duplicate": is_exact_duplicate,
@@ -447,7 +447,7 @@ class EnhancedExcelImportService(ExcelImportService):
                     return {
                         "has_conflicts": True,
                         "auto_resolve": not is_direct_booking
-                        and not is_exact_duplicate,  # Platform bookings can auto-update if not exact duplicate
+                        and not is_exact_duplicate,  # Platform bookings can auto - update if not exact duplicate
                         "existing_booking": existing_booking,
                         "conflict": conflict,
                         "is_exact_duplicate": is_exact_duplicate,
@@ -541,7 +541,7 @@ class EnhancedExcelImportService(ExcelImportService):
             self._update_associated_task(booking, booking_data)
 
         except Exception as e:
-            logger.error(f"Failed to auto-update booking {booking.external_code}: {e}")
+            logger.error(f"Failed to auto - update booking {booking.external_code}: {e}")
             raise
 
     def _serialize_conflict(self, conflict: BookingConflict) -> Dict[str, Any]:
@@ -663,7 +663,7 @@ class ConflictResolutionService:
         excel_data = conflict_data["excel_data"]
         property_obj = Property.objects.get(name=excel_data["property_name"])
 
-        # Handle external code - only add suffix for direct/owner bookings
+        # Handle external code - only add suffix for direct / owner bookings
         original_code = excel_data.get("external_code", "UNKNOWN")
         source = excel_data.get("source", "").lower()
         is_direct_booking = "direct" in source or "owner" in source
@@ -716,7 +716,7 @@ class ConflictResolutionService:
         # Ensure nights field has a valid value
         nights_value = booking_data.get("nights")
         if nights_value is None or not isinstance(nights_value, (int, float)):
-            # Calculate nights from start/end dates
+            # Calculate nights from start / end dates
             try:
                 if isinstance(booking_data["start_date"], datetime) and isinstance(booking_data["end_date"], datetime):
                     nights_value = (booking_data["end_date"] - booking_data["start_date"]).days
@@ -747,7 +747,7 @@ class ConflictResolutionService:
                 guest_name=booking_data["guest_name"],
                 guest_contact=booking_data.get("guest_contact", ""),
                 status=django_status,
-                external_code=booking_data["external_code"],  # Use as-is, no suffix
+                external_code=booking_data["external_code"],  # Use as - is, no suffix
                 external_status=booking_data.get("external_status", ""),
                 source=booking_data.get("source", ""),
                 listing_name=booking_data.get("listing_name", ""),

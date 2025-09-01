@@ -46,7 +46,7 @@ class CustomAdminSite(admin.AdminSite):
 
     def login(self, request, extra_context=None):
         """
-        Custom login that provides better error messages for non-superusers
+        Custom login that provides better error messages for non - superusers
         """
         from django.contrib import messages
         from django.contrib.auth import authenticate, login
@@ -73,7 +73,7 @@ class CustomAdminSite(admin.AdminSite):
                             "Access Denied: You don't have permission to access the admin site. "
                             "Only superuser accounts can access this area.",
                         )
-                        # Don't proceed with login for non-superusers
+                        # Don't proceed with login for non - superusers
                         return super().login(request, extra_context)
 
         return super().login(request, extra_context)
@@ -87,7 +87,7 @@ class CustomAdminSite(admin.AdminSite):
 
     def analytics_view(self, request):
         # Redirect to our charts dashboard
-        return HttpResponseRedirect("/api/admin/charts/")
+        return HttpResponseRedirect("/api / admin / charts/")
 
 
 # Use the custom admin site
@@ -102,7 +102,7 @@ class TaskImageInline(admin.TabularInline):
 
     def preview(self, obj):
         if obj.image:
-            return f'<img src="{obj.image.url}" width="100" height="100" style="object-fit: cover;" />'
+            return f'<img src="{obj.image.url}" width="100" height="100" style="object - fit: cover;" />'
         return "No image"
 
     preview.allow_tags = True
@@ -271,8 +271,8 @@ class TaskAdmin(admin.ModelAdmin):
             "America/Chicago": "Chicago, IL",
             "America/Denver": "Denver, CO",
             "America/Phoenix": "Phoenix, AZ",
-            "Asia/Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
-            "Europe/London": "London, UK",
+            "Asia / Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
+            "Europe / London": "London, UK",
             "UTC": "UTC",
         }
         return timezone_names.get(tz_string, tz_string)
@@ -393,7 +393,7 @@ class BookingAdmin(admin.ModelAdmin):
             source_colors = {"airbnb": "#FF5A5F", "vrbo": "#0073E6", "direct": "#28A745", "owner": "#6F42C1"}
             source_lower = obj.source.lower()
             color = source_colors.get(source_lower, "#6C757D")
-            return mark_safe(f'<span style="color: {color}; font-weight: bold;">{obj.source}</span>')
+            return mark_safe(f'<span style="color: {color}; font - weight: bold;">{obj.source}</span>')
         return "-"
 
     source_display.short_description = "Booking Source"
@@ -408,16 +408,16 @@ class BookingAdmin(admin.ModelAdmin):
         if "No conflicts" in flag:
             return mark_safe(f'<span style="color: green;" title="{details}">{flag}</span>')
         elif "Critical" in flag:
-            return mark_safe(f'<span style="color: red; font-weight: bold;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: red; font - weight: bold;" title="{details}">{flag}</span>')
         elif "High" in flag:
-            return mark_safe(f'<span style="color: orange; font-weight: bold;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: orange; font - weight: bold;" title="{details}">{flag}</span>')
         else:
-            return mark_safe(f'<span style="color: #ffc107; font-weight: bold;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: #ffc107; font - weight: bold;" title="{details}">{flag}</span>')
 
     conflict_flag_display.short_description = "Conflicts"
 
     def check_in_display(self, obj):
-        """Display check-in time in Tampa timezone"""
+        """Display check - in time in Tampa timezone"""
         from django.utils import timezone
 
         import pytz
@@ -428,10 +428,10 @@ class BookingAdmin(admin.ModelAdmin):
             return tampa_time.strftime("%b %d, %Y %H:%M (Tampa, FL)")
         return "-"
 
-    check_in_display.short_description = "Check-in (Tampa, FL)"
+    check_in_display.short_description = "Check - in (Tampa, FL)"
 
     def check_out_display(self, obj):
-        """Display check-out time in Tampa timezone"""
+        """Display check - out time in Tampa timezone"""
         from django.utils import timezone
 
         import pytz
@@ -442,19 +442,19 @@ class BookingAdmin(admin.ModelAdmin):
             return tampa_time.strftime("%b %d, %Y %H:%M (Tampa, FL)")
         return "-"
 
-    check_out_display.short_description = "Check-out (Tampa, FL)"
+    check_out_display.short_description = "Check - out (Tampa, FL)"
 
     def check_in_dual(self, obj):
-        """Display check-in time in dual timezones"""
+        """Display check - in time in dual timezones"""
         return self._format_dual_timezone(obj.check_in_date)
 
-    check_in_dual.short_description = "Check-in"
+    check_in_dual.short_description = "Check - in"
 
     def check_out_dual(self, obj):
-        """Display check-out time in dual timezones"""
+        """Display check - out time in dual timezones"""
         return self._format_dual_timezone(obj.check_out_date)
 
-    check_out_dual.short_description = "Check-out"
+    check_out_dual.short_description = "Check - out"
 
     def created_at_dual(self, obj):
         """Display created time in dual timezones"""
@@ -509,8 +509,8 @@ class BookingAdmin(admin.ModelAdmin):
             "America/Chicago": "Chicago, IL",
             "America/Denver": "Denver, CO",
             "America/Phoenix": "Phoenix, AZ",
-            "Asia/Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
-            "Europe/London": "London, UK",
+            "Asia / Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
+            "Europe / London": "London, UK",
             "UTC": "UTC",
         }
         return timezone_names.get(tz_string, tz_string)
@@ -541,7 +541,7 @@ class NotificationAdmin(admin.ModelAdmin):
     )
 
     def task_title(self, obj):
-        return obj.task.title if obj.task else "N/A"
+        return obj.task.title if obj.task else "N / A"
 
     task_title.short_description = "Task Title"
 
@@ -574,13 +574,13 @@ class ProfileInline(admin.StackedInline):
 
     def formfield_for_choice_field(self, db_field, request, **kwargs):
         if db_field.name == "role":
-            kwargs["help_text"] = "Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool"
+            kwargs["help_text"] = "Select user role: Administration / Cleaning / Maintenance / Laundry / Lawn Pool"
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
 
 class AriStayUserAdmin(DjangoUserAdmin):
     """
-    Custom UserAdmin with role-based permissions:
+    Custom UserAdmin with role - based permissions:
     - Superusers: Full access (can modify passwords, usernames, groups)
     - Managers: Can modify groups, trigger password reset, but cannot modify usernames
     - Staff: Limited access
@@ -692,7 +692,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
                 form = PasswordResetForm(data={"email": user.email})
                 if form.is_valid():
                     form.save(
-                        email_template_name="registration/password_reset_email.html",
+                        email_template_name="registration / password_reset_email.html",
                         request=request,
                     )
                     sent += 1
@@ -715,7 +715,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
 
         urls = super().get_urls()
         custom_urls = [
-            path("<id>/password-reset/", AdminSite.admin_view(self, self.password_reset_view), name="user_password_reset"),
+            path("<id>/password - reset/", AdminSite.admin_view(self, self.password_reset_view), name="user_password_reset"),
             # Override the default password change URL to restrict managers
             path("<id>/password/", AdminSite.admin_view(self, self.user_change_password), name="auth_user_password_change"),
         ]
@@ -756,7 +756,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
 
         from django.shortcuts import render
 
-        return render(request, "admin/auth/user/change_password.html", context)
+        return render(request, "admin / auth / user / change_password.html", context)
 
     def password_reset_view(self, request, id):
         """Custom password reset view for individual users"""
@@ -779,7 +779,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
             form = PasswordResetForm(data={"email": user.email})
             if form.is_valid():
                 form.save(
-                    email_template_name="registration/password_reset_email.html",
+                    email_template_name="registration / password_reset_email.html",
                     request=request,
                 )
                 messages.success(request, f"Password reset email sent to {user.username}.")
@@ -825,7 +825,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
         """Filter queryset based on user permissions"""
         qs = super().get_queryset(request)
 
-        # Managers can only see non-superuser accounts
+        # Managers can only see non - superuser accounts
         if not request.user.is_superuser:
             qs = qs.exclude(is_superuser=True)
 
@@ -838,7 +838,7 @@ class ManagerUserAdmin(AriStayUserAdmin):
     Manager version of UserAdmin with additional restrictions
     """
 
-    # Managers can see and edit groups/departments
+    # Managers can see and edit groups / departments
     filter_horizontal = ("groups",)
 
     def get_fieldsets(self, request, obj=None):
@@ -1097,7 +1097,7 @@ class BookingImportTemplateAdmin(admin.ModelAdmin):
                 "classes": ("collapse",),
             },
         ),
-        ("Auto-Task Generation", {"fields": ("auto_create_tasks", "cleaning_schedule")}),
+        ("Auto - Task Generation", {"fields": ("auto_create_tasks", "cleaning_schedule")}),
         ("System Info", {"fields": ("created_at", "last_import"), "classes": ("collapse",)}),
     )
 
@@ -1140,7 +1140,7 @@ class CustomPermissionAdmin(admin.ModelAdmin):
     )
 
     def get_display_name(self, obj):
-        """Get the human-readable name for the permission"""
+        """Get the human - readable name for the permission"""
         return dict(obj.PERMISSION_CHOICES).get(obj.name, obj.name)
 
     get_display_name.short_description = "Display Name"
@@ -1190,7 +1190,7 @@ class UserPermissionOverrideAdmin(admin.ModelAdmin):
     def is_expired_display(self, obj):
         """Display if the override has expired"""
         if obj.is_expired:
-            return mark_safe('<span style="color: red; font-weight: bold;">✗ EXPIRED</span>')
+            return mark_safe('<span style="color: red; font - weight: bold;">✗ EXPIRED</span>')
         elif obj.expires_at:
             return mark_safe('<span style="color: orange;">⏰ WILL EXPIRE</span>')
         else:
@@ -1235,7 +1235,7 @@ class ProfileAdminWithPermissions(admin.ModelAdmin):
         granted = [name for name, granted in permissions.items() if granted]
         denied = [name for name, granted in permissions.items() if not granted]
 
-        html = "<div style='font-family: monospace;'>"
+        html = "<div style='font - family: monospace;'>"
         if granted:
             html += "<h4 style='color: green; margin: 5px 0;'>✓ GRANTED PERMISSIONS:</h4>"
             for perm in sorted(granted):

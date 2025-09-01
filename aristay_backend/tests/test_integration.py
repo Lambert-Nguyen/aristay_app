@@ -27,7 +27,7 @@ class BookingTaskIntegrationTest(BaseTestCase):
             guest_contact="test@integration.com",
         )
 
-        # Check if tasks were auto-created (depends on your implementation)
+        # Check if tasks were auto - created (depends on your implementation)
         # This test assumes you have signals or methods that create tasks on booking
         final_task_count = Task.objects.count()
 
@@ -47,7 +47,7 @@ class BookingTaskIntegrationTest(BaseTestCase):
         task = Task.objects.create(
             property=self.property1,
             booking=booking,
-            title="Pre-arrival Cleaning",
+            title="Pre - arrival Cleaning",
             task_type="cleaning",
             created_by=self.admin_user,
             due_date=timezone.now() + timedelta(days=1),
@@ -55,7 +55,7 @@ class BookingTaskIntegrationTest(BaseTestCase):
 
         original_due_date = task.due_date
 
-        # Modify booking check-in date
+        # Modify booking check - in date
         booking.check_in_date = date.today() + timedelta(days=3)
         booking.save()
 
@@ -76,7 +76,7 @@ class BookingTaskIntegrationTest(BaseTestCase):
         )
 
         task = Task.objects.create(
-            property=self.property1, booking=booking, title="Booking-related Task", created_by=self.admin_user
+            property=self.property1, booking=booking, title="Booking - related Task", created_by=self.admin_user
         )
 
         task_id = task.id
@@ -116,7 +116,7 @@ class UserRoleWorkflowTest(BaseTestCase):
         task = Task.objects.create(
             property=new_property,
             booking=booking,
-            title="Pre-arrival Cleaning",
+            title="Pre - arrival Cleaning",
             task_type="cleaning",
             created_by=self.manager_user,
             assigned_to=self.staff_user,
@@ -266,16 +266,16 @@ class FullSystemIntegrationTest(BaseAPITestCase):
 
         booking_id = booking_response.data["id"]
 
-        # 2. Create pre-arrival cleaning task
+        # 2. Create pre - arrival cleaning task
         task_data = {
             "property": self.property1.id,
             "booking": booking_id,
-            "title": "Pre-arrival Cleaning",
+            "title": "Pre - arrival Cleaning",
             "task_type": "cleaning",
             "assigned_to": self.staff_user.id,
         }
 
-        task_url = reverse("task-list")
+        task_url = reverse("task - list")
         task_response = self.client.post(task_url, task_data, format="json")
         self.assertEqual(task_response.status_code, 201)
 
@@ -283,17 +283,17 @@ class FullSystemIntegrationTest(BaseAPITestCase):
 
         # 3. Staff completes cleaning task
         self.authenticate_user("staff")
-        task_update_url = reverse("task-detail", kwargs={"pk": task_id})
+        task_update_url = reverse("task - detail", kwargs={"pk": task_id})
         update_data = {"status": "completed"}
         update_response = self.client.patch(task_update_url, update_data, format="json")
         self.assertEqual(update_response.status_code, 200)
 
-        # 4. Create post-checkout cleaning task
+        # 4. Create post - checkout cleaning task
         self.authenticate_user("admin")
         checkout_task_data = {
             "property": self.property1.id,
             "booking": booking_id,
-            "title": "Post-checkout Cleaning",
+            "title": "Post - checkout Cleaning",
             "task_type": "cleaning",
             "assigned_to": self.staff_user.id,
         }
@@ -321,7 +321,7 @@ class FullSystemIntegrationTest(BaseAPITestCase):
         invalid_booking_data = {
             "property": self.property1.id,
             "check_in_date": (date.today() + timedelta(days=5)).isoformat(),
-            "check_out_date": (date.today() + timedelta(days=1)).isoformat(),  # Before check-in
+            "check_out_date": (date.today() + timedelta(days=1)).isoformat(),  # Before check - in
             "guest_name": "Invalid Guest",
         }
 
@@ -332,9 +332,9 @@ class FullSystemIntegrationTest(BaseAPITestCase):
         # Allow either 400 (if validation is strict) or 201 (if validation is relaxed for imports)
         self.assertIn(response.status_code, [400, 201])
 
-        # Test creating task with non-existent property
-        invalid_task_data = {"property": 99999, "title": "Invalid Task", "task_type": "cleaning"}  # Non-existent property
+        # Test creating task with non - existent property
+        invalid_task_data = {"property": 99999, "title": "Invalid Task", "task_type": "cleaning"}  # Non - existent property
 
-        task_url = reverse("task-list")
+        task_url = reverse("task - list")
         response = self.client.post(task_url, invalid_task_data, format="json")
         self.assertEqual(response.status_code, 400)

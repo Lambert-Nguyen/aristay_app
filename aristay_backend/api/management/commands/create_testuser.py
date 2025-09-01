@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
         # Create or get profile
         profile, profile_created = Profile.objects.get_or_create(
-            user=testuser, defaults={"role": "staff", "timezone": "America/New_York"}
+            user=testuser, defaults={"role": "staf", "timezone": "America/New_York"}
         )
 
         status = "Created" if created else "Updated"

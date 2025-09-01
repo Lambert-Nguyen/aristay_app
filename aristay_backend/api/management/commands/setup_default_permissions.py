@@ -1,4 +1,4 @@
-# api/management/commands/setup_default_permissions.py
+# api / management / commands / setup_default_permissions.py
 
 from django.core.management.base import BaseCommand
 
@@ -93,7 +93,7 @@ class Command(BaseCommand):
             },
             UserRole.VIEWER: {
                 "permissions": [
-                    # Read-only access
+                    # Read - only access
                     "view_properties",
                     "view_bookings",
                     "view_tasks",

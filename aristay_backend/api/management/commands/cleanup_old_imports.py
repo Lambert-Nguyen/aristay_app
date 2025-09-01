@@ -4,7 +4,7 @@ Django management command to clean up old Excel import files.
 Usage:
     python manage.py cleanup_old_imports --days 30  # Remove files older than 30 days
     python manage.py cleanup_old_imports --keep 10  # Keep only last 10 imports
-    python manage.py cleanup_old_imports --dry-run  # Show what would be deleted
+    python manage.py cleanup_old_imports --dry - run  # Show what would be deleted
 """
 
 import logging
@@ -25,7 +25,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--days", type=int, default=30, help="Remove files older than this many days (default: 30)")
         parser.add_argument("--keep", type=int, help="Keep only this many recent imports (overrides --days)")
-        parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted without actually deleting")
+        parser.add_argument("--dry - run", action="store_true", help="Show what would be deleted without actually deleting")
         parser.add_argument("--force", action="store_true", help="Skip confirmation prompt")
 
     def handle(self, *args, **options):
@@ -34,7 +34,7 @@ class Command(BaseCommand):
         keep = options["keep"]
         force = options["force"]
 
-        self.stdout.write(self.style.SUCCESS(f"Excel Import File Cleanup Tool"))
+        self.stdout.write(self.style.SUCCESS("Excel Import File Cleanup Tool"))
 
         # Determine which files to delete
         if keep:
@@ -86,7 +86,7 @@ class Command(BaseCommand):
 
         # Confirmation prompt
         if not force:
-            confirm = input(f"\nDelete {len(files_to_delete)} files and free {self._format_size(total_size)}? [y/N]: ")
+            confirm = input(f"\nDelete {len(files_to_delete)} files and free {self._format_size(total_size)}? [y / N]: ")
             if confirm.lower() != "y":
                 self.stdout.write("Operation cancelled.")
                 return
@@ -121,7 +121,7 @@ class Command(BaseCommand):
                 logger.error(error_msg)
 
         # Summary
-        self.stdout.write(f"\n--- Cleanup Summary ---")
+        self.stdout.write("\n--- Cleanup Summary ---")
         self.stdout.write(f"Files deleted: {deleted_count}")
         self.stdout.write(f"Disk space freed: {self._format_size(freed_space)}")
 
@@ -133,7 +133,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("Cleanup completed successfully!"))
 
     def _format_size(self, size_bytes):
-        """Format file size in human-readable format"""
+        """Format file size in human - readable format"""
         if size_bytes == 0:
             return "0 B"
 

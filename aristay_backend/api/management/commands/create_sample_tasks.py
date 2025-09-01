@@ -50,7 +50,7 @@ class Command(BaseCommand):
         bookings_created = 0
         for prop in properties:
             if not prop.bookings.exists():
-                # Create 2-3 bookings per property
+                # Create 2 - 3 bookings per property
                 for i in range(random.randint(2, 3)):
                     start_date = timezone.now() + timezone.timedelta(days=random.randint(-7, 30))
                     end_date = start_date + timezone.timedelta(days=random.randint(2, 7))
@@ -75,14 +75,14 @@ class Command(BaseCommand):
         for prop in properties:
             bookings = list(prop.bookings.all())
             if bookings:
-                # Create 1-2 cleaning tasks per property
+                # Create 1 - 2 cleaning tasks per property
                 for i in range(random.randint(1, 2)):
                     booking = random.choice(bookings)
 
                     task = Task.objects.create(
                         task_type="cleaning",
                         title=f"Room Cleaning - {prop.name}",
-                        description=f"Complete room cleaning for guest checkout/checkin at {prop.name}",
+                        description=f"Complete room cleaning for guest checkout / checkin at {prop.name}",
                         property=prop,
                         booking=booking,
                         status="pending",
@@ -138,7 +138,7 @@ class Command(BaseCommand):
                         transaction_type=random.choice(["stock_in", "stock_out", "adjustment"]),
                         quantity=random.randint(1, 5),
                         task=task,
-                        notes=f"Maintenance task inventory update",
+                        notes="Maintenance task inventory update",
                         created_by=admin_user,
                     )
 

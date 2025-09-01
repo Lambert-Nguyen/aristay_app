@@ -27,7 +27,7 @@ class ExcelImportServiceTest(BaseTestCase):
         # Create a DataFrame
         df = pd.DataFrame(data_rows)
 
-        # Create an in-memory Excel file
+        # Create an in - memory Excel file
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Bookings", index=False)
@@ -37,7 +37,7 @@ class ExcelImportServiceTest(BaseTestCase):
         return SimpleUploadedFile(
             "test_bookings.xlsx",
             excel_buffer.getvalue(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            content_type="application / vnd.openxmlformats - officedocument.spreadsheetml.sheet",
         )
 
     def test_basic_excel_import_success(self):
@@ -66,7 +66,7 @@ class ExcelImportServiceTest(BaseTestCase):
 
         # Test the import
         result = self.excel_import_service.import_bookings_from_excel(
-            excel_file=excel_file, property_id=None, user=self.admin_user  # Auto-detect from file
+            excel_file=excel_file, property_id=None, user=self.admin_user  # Auto - detect from file
         )
 
         self.assertTrue(result["success"])
@@ -81,7 +81,7 @@ class ExcelImportServiceTest(BaseTestCase):
         """Test Excel import with invalid property name"""
         test_data = [
             {
-                "Property": "Non-existent Property",
+                "Property": "Non - existent Property",
                 "Check In": (date.today() + timedelta(days=1)).strftime("%Y-%m-%d"),
                 "Check Out": (date.today() + timedelta(days=4)).strftime("%Y-%m-%d"),
                 "Guest Name": "John Doe",
@@ -104,8 +104,8 @@ class ExcelImportServiceTest(BaseTestCase):
         test_data = [
             {
                 "Property": self.property1.name,
-                "Check In": "invalid-date",
-                "Check Out": "2024-13-45",  # Invalid date
+                "Check In": "invalid - date",
+                "Check Out": "2024 - 13 - 45",  # Invalid date
                 "Guest Name": "John Doe",
                 "Status": "confirmed",
             }
@@ -243,7 +243,7 @@ class ExcelImportServiceTest(BaseTestCase):
         excel_file = SimpleUploadedFile(
             "test_bookings.xlsx",
             excel_buffer.getvalue(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            content_type="application / vnd.openxmlformats - officedocument.spreadsheetml.sheet",
         )
 
         # Test with specific sheet name
@@ -266,7 +266,7 @@ class ExcelImportServiceTest(BaseTestCase):
         excel_file = SimpleUploadedFile(
             "empty.xlsx",
             excel_buffer.getvalue(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            content_type="application / vnd.openxmlformats - officedocument.spreadsheetml.sheet",
         )
 
         result = self.excel_import_service.import_bookings_from_excel(

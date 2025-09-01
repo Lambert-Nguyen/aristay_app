@@ -20,7 +20,7 @@ class FileCleanupAdminMixin:
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path("file-cleanup/", self.admin_site.admin_view(self.file_cleanup_view), name="api_file_cleanup"),
+            path("file - cleanup/", self.admin_site.admin_view(self.file_cleanup_view), name="api_file_cleanup"),
         ]
         return custom_urls + urls
 
@@ -67,7 +67,7 @@ class FileCleanupAdminMixin:
         if "stats" not in context:
             context["stats"] = ImportFileCleanupService.get_storage_stats()
 
-        return render(request, "admin/file_cleanup.html", context)
+        return render(request, "admin / file_cleanup.html", context)
 
 
 # Custom admin actions

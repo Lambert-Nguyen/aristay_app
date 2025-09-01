@@ -1,5 +1,5 @@
 """
-Staff Portal Views - Role-based interfaces for different staff types.
+Staff Portal Views - Role - based interfaces for different staff types.
 Provides specialized dashboards and workflows for each user role.
 """
 
@@ -55,9 +55,9 @@ def staff_dashboard(request):
 
     task_counts = {
         "pending": my_tasks.filter(status="pending").count(),
-        "in_progress": my_tasks.filter(status="in-progress").count(),
+        "in_progress": my_tasks.filter(status="in - progress").count(),
         "completed": my_tasks.filter(status="completed").count(),
-        "overdue": my_tasks.filter(status__in=["pending", "in-progress"], due_date__lt=timezone.now()).count(),
+        "overdue": my_tasks.filter(status__in=["pending", "in - progress"], due_date__lt=timezone.now()).count(),
     }
 
     logger.debug(f"User {request.user.username} has {total_tasks} total tasks: {task_counts}")
@@ -77,7 +77,7 @@ def staff_dashboard(request):
     }
 
     logger.info(f"Staff dashboard rendered successfully for user: {request.user.username}")
-    return render(request, "staff/dashboard.html", context)
+    return render(request, "staff / dashboard.html", context)
 
 
 @login_required
@@ -117,7 +117,7 @@ def cleaning_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff/cleaning_dashboard.html", context)
+    return render(request, "staff / cleaning_dashboard.html", context)
 
 
 @login_required
@@ -129,15 +129,15 @@ def maintenance_dashboard(request):
         assigned_to=request.user, task_type="maintenance", status__in=["pending", "in_progress"]
     ).select_related("property", "booking")
 
-    # Get low-stock inventory items across properties
+    # Get low - stock inventory items across properties
     low_stock_items = PropertyInventory.objects.filter(current_stock__lte=F("par_level")).select_related(
-        "property_ref", "item", "item__category"
+        "property_re", "item", "item__category"
     )[:10]
 
     # Get recent inventory transactions
     recent_transactions = (
         InventoryTransaction.objects.filter(created_by=request.user)
-        .select_related("property_inventory__property_ref", "property_inventory__item")
+        .select_related("property_inventory__property_re", "property_inventory__item")
         .order_by("-created_at")[:10]
     )
 
@@ -157,7 +157,7 @@ def maintenance_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff/maintenance_dashboard.html", context)
+    return render(request, "staff / maintenance_dashboard.html", context)
 
 
 @login_required
@@ -169,14 +169,14 @@ def laundry_dashboard(request):
         assigned_to=request.user, task_type="laundry", status__in=["pending", "in_progress"]
     ).select_related("property", "booking")
 
-    # Organize by workflow stage based on task status/progress
+    # Organize by workflow stage based on task status / progress
     pickup_tasks = assigned_tasks.filter(status="pending")
     processing_tasks = assigned_tasks.filter(status="in_progress")
 
     # Get linen inventory items
     linen_items = PropertyInventory.objects.filter(
         item__category__name="Bathroom Amenities", item__name__icontains="towel"
-    ).select_related("property_ref", "item")
+    ).select_related("property_re", "item")
 
     context = {
         "user_role": "Laundry Staff",
@@ -186,20 +186,20 @@ def laundry_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff/laundry_dashboard.html", context)
+    return render(request, "staff / laundry_dashboard.html", context)
 
 
 @login_required
 def lawn_pool_dashboard(request):
-    """Specialized dashboard for lawn/pool staff."""
+    """Specialized dashboard for lawn / pool staff."""
 
-    # Get user's assigned lawn/pool tasks
+    # Get user's assigned lawn / pool tasks
     assigned_tasks = Task.objects.filter(
         assigned_to=request.user, task_type="lawn_pool", status__in=["pending", "in_progress"]
     ).select_related("property", "booking")
 
-    # Get pool/spa inventory items
-    pool_items = PropertyInventory.objects.filter(item__category__name="Pool & Spa").select_related("property_ref", "item")
+    # Get pool / spa inventory items
+    pool_items = PropertyInventory.objects.filter(item__category__name="Pool & Spa").select_related("property_re", "item")
 
     # Group tasks by property for route planning
     tasks_by_property = {}
@@ -210,14 +210,14 @@ def lawn_pool_dashboard(request):
         tasks_by_property[prop_name].append(task)
 
     context = {
-        "user_role": "Lawn/Pool Staff",
+        "user_role": "Lawn / Pool Staff",
         "assigned_tasks": assigned_tasks,
         "tasks_by_property": tasks_by_property,
         "pool_items": pool_items,
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff/lawn_pool_dashboard.html", context)
+    return render(request, "staff / lawn_pool_dashboard.html", context)
 
 
 @login_required
@@ -229,7 +229,7 @@ def task_detail(request, task_id):
     # Check if user can access this task
     if not (request.user.is_staff or task.assigned_to == request.user):
         messages.error(request, "You don't have permission to view this task.")
-        return redirect("/api/staff/")
+        return redirect("/api / staff/")
 
     # Get or create checklist
     try:
@@ -254,7 +254,7 @@ def task_detail(request, task_id):
         "can_edit": task.assigned_to == request.user or request.user.is_staff,
     }
 
-    return render(request, "staff/task_detail.html", context)
+    return render(request, "staff / task_detail.html", context)
 
 
 @login_required
@@ -339,7 +339,7 @@ def my_tasks(request):
         "type_choices": TASK_TYPE_CHOICES,
     }
 
-    return render(request, "staff/my_tasks.html", context)
+    return render(request, "staff / my_tasks.html", context)
 
 
 @login_required
@@ -356,18 +356,18 @@ def inventory_lookup(request):
             # Allow managers and users in Maintenance department
             if user_role != "manager" and not profile.is_in_department("Maintenance"):
                 messages.error(request, "You don't have access to inventory management.")
-                return redirect("/api/staff/")
+                return redirect("/api / staff/")
         except:
             # If no profile, only allow superusers
             messages.error(request, "You don't have access to inventory management.")
-            return redirect("/api/staff/")
+            return redirect("/api / staff/")
 
     # Get property filter
     property_filter = request.GET.get("property")
     properties = Property.objects.all()
 
     # Get inventory items
-    inventory = PropertyInventory.objects.select_related("property_ref", "item", "item__category").order_by(
+    inventory = PropertyInventory.objects.select_related("property_re", "item", "item__category").order_by(
         "property_ref__name", "item__category__name", "item__name"
     )
 
@@ -388,7 +388,7 @@ def inventory_lookup(request):
         "selected_property": property_filter,
     }
 
-    return render(request, "staff/inventory_lookup.html", context)
+    return render(request, "staff / inventory_lookup.html", context)
 
 
 @login_required
@@ -443,7 +443,7 @@ def lost_found_list(request):
     # Get lost & found items
     items = (
         LostFoundItem.objects.filter(property_ref__in=properties)
-        .select_related("property_ref", "found_by")
+        .select_related("property_re", "found_by")
         .order_by("-found_date")
     )
 
@@ -458,7 +458,7 @@ def lost_found_list(request):
         "status_choices": LostFoundItem.STATUS_CHOICES,
     }
 
-    return render(request, "staff/lost_found_list.html", context)
+    return render(request, "staff / lost_found_list.html", context)
 
 
 @login_required
@@ -530,7 +530,7 @@ def set_task_status(request, task_id):
 
 @login_required
 def task_counts_api(request):
-    """API endpoint for real-time task counts."""
+    """API endpoint for real - time task counts."""
     logger.info(f"Task counts API accessed by user: {request.user.username}")
 
     try:
@@ -541,9 +541,9 @@ def task_counts_api(request):
         task_counts = {
             "total": total_tasks,
             "pending": my_tasks.filter(status="pending").count(),
-            "in_progress": my_tasks.filter(status="in-progress").count(),
+            "in_progress": my_tasks.filter(status="in - progress").count(),
             "completed": my_tasks.filter(status="completed").count(),
-            "overdue": my_tasks.filter(status__in=["pending", "in-progress"], due_date__lt=timezone.now()).count(),
+            "overdue": my_tasks.filter(status__in=["pending", "in - progress"], due_date__lt=timezone.now()).count(),
         }
 
         logger.debug(f"Task counts for user {request.user.username}: {task_counts}")

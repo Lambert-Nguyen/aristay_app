@@ -1,5 +1,5 @@
 """
-Production-ready logging configuration for AriStay backend
+Production - ready logging configuration for AriStay backend
 Provides structured JSON logging with rotation, different log levels, and Sentry integration
 """
 

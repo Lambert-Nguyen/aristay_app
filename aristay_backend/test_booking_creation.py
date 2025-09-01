@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr / bin / env python3
 """
 Test script to verify booking creation works correctly
 """
@@ -17,14 +17,14 @@ from api.services.excel_import_service import ExcelImportService
 
 
 def test_booking_creation():
-    """Test that booking creation works without created_by/modified_by fields"""
+    """Test that booking creation works without created_by / modified_by fields"""
     try:
         print("🧪 Testing Booking Creation")
         print("=" * 50)
 
         # Get or create a test user
         user, created = User.objects.get_or_create(
-            username="test_import_user", defaults={"email": "test@aristay.com", "is_staff": True, "is_superuser": True}
+            username="test_import_user", defaults={"email": "test@aristay.com", "is_staf": True, "is_superuser": True}
         )
 
         # Get or create a test property
@@ -44,20 +44,20 @@ def test_booking_creation():
             "Confirmation code": "TEST123",
             "Status": "Booked",
             "Guest name": "Test Guest",
-            "Contact": "+1-555-0123",
+            "Contact": "+1 - 555 - 0123",
             "Booking source": "Direct",
             "Listing": "Test Listing",
             "Earnings": 150.00,
-            "Booked": pd.Timestamp("2025-01-15"),
+            "Booked": pd.Timestamp("2025 - 01 - 15"),
             "# of adults": 2,
             "# of children": 1,
             "# of infants": 0,
-            "Start date": pd.Timestamp("2025-02-01"),
-            "End date": pd.Timestamp("2025-02-05"),
+            "Start date": pd.Timestamp("2025 - 02 - 01"),
+            "End date": pd.Timestamp("2025 - 02 - 05"),
             "# of nights": 4,
             "Properties": "Test Property",
             "Check ": "Same day cleaning required",
-            "Check 1": "Early check-in",
+            "Check 1": "Early check - in",
         }
 
         mock_row = pd.Series(mock_data)

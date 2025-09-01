@@ -1,4 +1,4 @@
-# api/services/notification_service.py
+# api / services / notification_service.py
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -24,7 +24,7 @@ class NotificationService:
 
         cred = service_account.Credentials.from_service_account_file(
             settings.FIREBASE_CREDENTIALS_FILE,
-            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
+            scopes=["https://www.googleapis.com / auth / firebase.messaging"],
         )
         cred.refresh(Request())
         cls._fcm_token = cred.token
@@ -39,7 +39,7 @@ class NotificationService:
             people.add(task.assigned_to)
         if task.created_by and task.created_by != task.assigned_to:
             people.add(task.created_by)
-        # respect per-task mutes
+        # respect per - task mutes
         people -= set(task.muted_by.all())
         # don’t notify the person who performed the action
         if actor is not None:
@@ -93,7 +93,7 @@ class NotificationService:
     def _emit(task: Task, verbs: list[str], *, actor=None):
         for user in NotificationService._recipients(task, actor=actor):
             for verb in verbs:
-                # de-dupe: if an unread row for same (user, task, verb) exists newer than the
+                # de - dupe: if an unread row for same (user, task, verb) exists newer than the
                 # last modification, skip to avoid stacking banners
                 duplicate = Notification.objects.filter(
                     recipient=user, task=task, verb=verb, read=False, timestamp__gte=task.modified_at
@@ -113,8 +113,8 @@ class NotificationService:
             return False
 
         access_token = cls._get_fcm_token()
-        url = f"https://fcm.googleapis.com/v1/projects/{settings.FIREBASE_PROJECT_ID}/messages:send"
-        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        url = f"https://fcm.googleapis.com / v1 / projects/{settings.FIREBASE_PROJECT_ID}/messages:send"
+        headers = {"Authorization": f"Bearer {access_token}", "Content - Type": "application / json"}
 
         ok = True
         for token in tokens:

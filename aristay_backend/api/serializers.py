@@ -57,7 +57,7 @@ class UserSerializer(serializers.ModelSerializer):
         return settings.TIME_ZONE
 
     def update(self, instance, validated_data):
-        # 1) pull off any profile-specific data
+        # 1) pull off any profile - specific data
         profile_data = validated_data.pop("profile", {})
         tz = profile_data.get("timezone", None)
 
@@ -75,7 +75,7 @@ class UserSerializer(serializers.ModelSerializer):
 class AdminUserAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "is_staff", "is_active")
+        fields = ("id", "username", "email", "first_name", "last_name", "is_staf", "is_active")
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -131,7 +131,7 @@ class TaskSerializer(serializers.ModelSerializer):
     modified_by_username = serializers.CharField(source="modified_by.username", read_only=True)
     images = TaskImageSerializer(many=True, read_only=True)
 
-    # NEW: “is_muted” for **current** user (read-only)
+    # NEW: “is_muted” for **current** user (read - only)
     is_muted = serializers.SerializerMethodField(read_only=True)
 
     # Replace ListField with a proper JSON parser:
@@ -140,7 +140,7 @@ class TaskSerializer(serializers.ModelSerializer):
     due_date = serializers.DateTimeField(
         allow_null=True,
         required=False,
-        format=None,  # default: ISO-8601 with timezone
+        format=None,  # default: ISO - 8601 with timezone
         input_formats=None,  # accept ISO strings
     )
 
@@ -300,7 +300,7 @@ class AdminInviteSerializer(serializers.Serializer):
         user.is_active = False  # force them to set password
         user.save()
 
-        # 2) build a one-time activation link
+        # 2) build a one - time activation link
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         link = f"{settings.FRONTEND_URL}/activate/{uid}/{token}/"
@@ -319,12 +319,12 @@ class AdminPasswordResetSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def create(self, validated_data):
-        # reuse Django’s password-reset form
+        # reuse Django’s password - reset form
         from django.contrib.auth.forms import PasswordResetForm
 
         form = PasswordResetForm(data=validated_data)
         if form.is_valid():
-            form.save(email_template_name="registration/password_reset_email.html", request=self.context["request"])
+            form.save(email_template_name="registration / password_reset_email.html", request=self.context["request"])
             return validated_data
         else:
             raise serializers.ValidationError(form.errors)
@@ -355,7 +355,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
         profile, _ = Profile.objects.get_or_create(user=user)
         if user.is_superuser:
-            # leave profile.role as-is; serializer will report “owner”
+            # leave profile.role as - is; serializer will report “owner”
             pass
         else:
             profile.role = UserRole.MANAGER if is_staff else UserRole.STAFF

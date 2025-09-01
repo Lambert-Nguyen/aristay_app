@@ -1,4 +1,4 @@
-# api/management/commands/send_digest.py
+# api / management / commands / send_digest.py
 import sys
 
 from django.core.management.base import BaseCommand

@@ -37,7 +37,7 @@ class Command(BaseCommand):
         if created:
             admin_user.set_password("admin123")
             admin_user.save()
-            self.stdout.write(f"Created admin user: admin/admin123")
+            self.stdout.write("Created admin user: admin / admin123")
 
         # Create sample properties if none exist
         if not Property.objects.exists():
@@ -59,7 +59,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Sample MVP data created successfully!"))
 
     def create_checklist_templates(self, admin_user):
-        """Create task-specific checklist templates."""
+        """Create task - specific checklist templates."""
 
         # Cleaning Checklist Template
         cleaning_template, created = ChecklistTemplate.objects.get_or_create(
@@ -75,7 +75,7 @@ class Command(BaseCommand):
             cleaning_items = [
                 # Bathroom items
                 {"title": "Clean and disinfect toilet", "room_type": "bathroom", "item_type": "blocking", "order": 1},
-                {"title": "Clean shower/bathtub", "room_type": "bathroom", "item_type": "blocking", "order": 2},
+                {"title": "Clean shower / bathtub", "room_type": "bathroom", "item_type": "blocking", "order": 2},
                 {"title": "Clean sink and mirror", "room_type": "bathroom", "item_type": "check", "order": 3},
                 {"title": "Photo of clean bathroom", "room_type": "bathroom", "item_type": "photo_required", "order": 4},
                 {"title": "Restock towels and amenities", "room_type": "bathroom", "item_type": "check", "order": 5},
@@ -86,7 +86,7 @@ class Command(BaseCommand):
                     "item_type": "blocking",
                     "order": 1,
                 },
-                {"title": "Vacuum carpet/mop floors", "room_type": "bedroom", "item_type": "blocking", "order": 2},
+                {"title": "Vacuum carpet / mop floors", "room_type": "bedroom", "item_type": "blocking", "order": 2},
                 {"title": "Dust all surfaces", "room_type": "bedroom", "item_type": "check", "order": 3},
                 {"title": "Photo of clean bedroom", "room_type": "bedroom", "item_type": "photo_required", "order": 4},
                 {"title": "Check all lighting and electronics", "room_type": "bedroom", "item_type": "check", "order": 5},
@@ -142,7 +142,7 @@ class Command(BaseCommand):
             name="Laundry Service Workflow",
             task_type="laundry",
             defaults={
-                "description": "Complete laundry pick-up, processing, and delivery",
+                "description": "Complete laundry pick - up, processing, and delivery",
                 "created_by": admin_user,
             },
         )
@@ -187,7 +187,7 @@ class Command(BaseCommand):
         # Create Inventory Items
         items_data = [
             # Cleaning Supplies
-            {"name": "All-Purpose Cleaner", "category": "Cleaning Supplies", "unit": "bottle", "estimated_cost": 4.99},
+            {"name": "All - Purpose Cleaner", "category": "Cleaning Supplies", "unit": "bottle", "estimated_cost": 4.99},
             {"name": "Disinfectant Spray", "category": "Cleaning Supplies", "unit": "bottle", "estimated_cost": 6.99},
             {"name": "Vacuum Bags", "category": "Cleaning Supplies", "unit": "pack", "estimated_cost": 12.99},
             {"name": "Microfiber Cloths", "category": "Cleaning Supplies", "unit": "pack", "estimated_cost": 15.99},

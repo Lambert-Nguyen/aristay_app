@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--dry-run",
+            "--dry - run",
             action="store_true",
             help="Show what would be changed without making changes",
         )
@@ -118,4 +118,4 @@ class Command(BaseCommand):
             self.stdout.write(f"  {user.username}: {profile.get_role_display()}{dept_str}")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("\nRun without --dry-run to apply changes"))
+            self.stdout.write(self.style.WARNING("\nRun without --dry - run to apply changes"))

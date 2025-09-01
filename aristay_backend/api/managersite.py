@@ -33,7 +33,7 @@ class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
     site_title = "AriStay Manager"
     index_title = "Management Console"
-    index_template = "manager_admin/index.html"
+    index_template = "manager_admin / index.html"
     logout_template = None  # Use unified logout
 
     def logout(self, request, extra_context=None):
@@ -114,9 +114,9 @@ class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
 class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     """
     Manager version of UserAdmin - can modify groups but has restrictions:
-    - Can modify user groups/departments
+    - Can modify user groups / departments
     - Cannot modify usernames
-    - Cannot modify is_staff/is_superuser
+    - Cannot modify is_staff / is_superuser
     - Can trigger password reset emails
     """
 
@@ -124,7 +124,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     list_filter = ("is_active", "is_staff", "groups", "profile__role")
     search_fields = ("username", "email", "first_name", "last_name")
     exclude = ("password",)  # hide hashed password
-    filter_horizontal = ("groups",)  # Allow editing groups/departments
+    filter_horizontal = ("groups",)  # Allow editing groups / departments
     readonly_fields = ("username", "date_joined", "last_login")  # Managers cannot modify usernames
 
     # Override Django's default fieldsets to avoid field conflicts
@@ -203,7 +203,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
             form = PasswordResetForm(data={"email": user.email})
             if form.is_valid():
                 form.save(
-                    email_template_name="registration/password_reset_email.html",
+                    email_template_name="registration / password_reset_email.html",
                     request=request,
                 )
                 sent += 1
@@ -268,7 +268,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         urls = super().get_urls()
         custom_urls = [
             path(
-                "<id>/password-reset/",
+                "<id>/password - reset/",
                 AdminSite.admin_view(self, self.password_reset_view),
                 name="manager_user_password_reset",
             ),
@@ -297,7 +297,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
 
         user = get_object_or_404(User, pk=id)
 
-        # Managers can only reset passwords for non-superuser accounts
+        # Managers can only reset passwords for non - superuser accounts
         if user.is_superuser:
             messages.error(request, "You cannot reset passwords for superuser accounts.")
             return redirect("manager_admin:auth_user_change", id)
@@ -310,7 +310,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
             form = PasswordResetForm(data={"email": user.email})
             if form.is_valid():
                 form.save(
-                    email_template_name="registration/password_reset_email.html",
+                    email_template_name="registration / password_reset_email.html",
                     request=request,
                 )
                 messages.success(request, f"Password reset email sent to {user.username}.")
@@ -356,7 +356,7 @@ class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     )
 
     def task_title(self, obj):
-        return obj.task.title if obj.task else "N/A"
+        return obj.task.title if obj.task else "N / A"
 
     task_title.short_description = "Task Title"
 
@@ -385,7 +385,7 @@ from .admin import (
 )
 
 
-# Create manager-permission wrapped versions
+# Create manager - permission wrapped versions
 class ChecklistTemplateManagerAdmin(ManagerPermissionMixin, ChecklistTemplateAdmin):
     pass
 

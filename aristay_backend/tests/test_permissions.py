@@ -30,14 +30,14 @@ class PermissionTest(BaseAPITestCase):
     def test_admin_can_access_all_tasks(self):
         """Test that admin users can access all tasks"""
         self.authenticate_user("admin")
-        url = reverse("task-list")
+        url = reverse("task - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_staff_can_view_assigned_tasks(self):
         """Test that staff can view tasks assigned to them"""
         self.authenticate_user("staff")
-        url = reverse("task-detail", kwargs={"pk": self.task.pk})
+        url = reverse("task - detail", kwargs={"pk": self.task.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -52,7 +52,7 @@ class PermissionTest(BaseAPITestCase):
         # Authenticate as the other staff user
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {other_token.key}")
 
-        url = reverse("task-detail", kwargs={"pk": self.task.pk})
+        url = reverse("task - detail", kwargs={"pk": self.task.pk})
         data = {"title": "Modified Title"}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -65,19 +65,19 @@ class PermissionTest(BaseAPITestCase):
         )
 
         self.authenticate_user("manager")
-        url = reverse("property-detail", kwargs={"pk": self.property1.pk})
+        url = reverse("property - detail", kwargs={"pk": self.property1.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_user_read_only_access(self):
-        """Test that unauthenticated users have read-only access to some endpoints"""
-        url = reverse("task-list")
+        """Test that unauthenticated users have read - only access to some endpoints"""
+        url = reverse("task - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_user_cannot_create(self):
         """Test that unauthenticated users cannot create resources"""
-        url = reverse("task-list")
+        url = reverse("task - list")
         data = {"property": self.property1.pk, "title": "Unauthorized Task", "task_type": "cleaning"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -89,7 +89,7 @@ class AuthenticationTest(BaseAPITestCase):
     def test_token_authentication_success(self):
         """Test successful token authentication"""
         self.authenticate_user("admin")
-        url = reverse("current-user")
+        url = reverse("current - user")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["username"], self.admin_user.username)
@@ -97,19 +97,19 @@ class AuthenticationTest(BaseAPITestCase):
     def test_invalid_token_authentication(self):
         """Test authentication with invalid token"""
         self.client.credentials(HTTP_AUTHORIZATION="Token invalid_token_12345")
-        url = reverse("current-user")
+        url = reverse("current - user")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_missing_token_authentication(self):
         """Test authentication without token"""
-        url = reverse("current-user")
+        url = reverse("current - user")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_token_creation_on_user_registration(self):
         """Test that token is created when user registers"""
-        url = reverse("user-register")
+        url = reverse("user - register")
         data = {"username": "newuser", "email": "newuser@example.com", "password": "strongpassword123"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -124,19 +124,19 @@ class AuthenticationTest(BaseAPITestCase):
 
 
 class RoleBasedAccessTest(BaseAPITestCase):
-    """Test role-based access control"""
+    """Test role - based access control"""
 
     def test_superuser_access_to_admin_endpoints(self):
-        """Test that superusers can access admin-only endpoints"""
+        """Test that superusers can access admin - only endpoints"""
         self.authenticate_user("admin")
-        url = reverse("user-list")  # Use the general user-list endpoint
+        url = reverse("user - list")  # Use the general user - list endpoint
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_staff_cannot_access_admin_endpoints(self):
-        """Test that staff cannot access admin-only endpoints"""
+        """Test that staff cannot access admin - only endpoints"""
         self.authenticate_user("staff")
-        url = reverse("user-list")  # Use the general user-list endpoint
+        url = reverse("user - list")  # Use the general user - list endpoint
         response = self.client.get(url)
         # Note: This test may need adjustment based on actual permissions
         # self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -146,14 +146,14 @@ class RoleBasedAccessTest(BaseAPITestCase):
     def test_manager_access_to_user_management(self):
         """Test that managers can access user management endpoints"""
         self.authenticate_user("manager")
-        url = reverse("manager-user-list")
+        url = reverse("manager - user - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_staff_cannot_access_user_management(self):
         """Test that staff cannot access user management endpoints"""
         self.authenticate_user("staff")
-        url = reverse("manager-user-list")
+        url = reverse("manager - user - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -161,7 +161,7 @@ class RoleBasedAccessTest(BaseAPITestCase):
         """Test that role hierarchy is properly enforced"""
         # Manager should not be able to modify admin users
         self.authenticate_user("manager")
-        url = reverse("admin-user-detail", kwargs={"pk": self.admin_user.pk})
+        url = reverse("admin - user - detail", kwargs={"pk": self.admin_user.pk})
         data = {"is_active": False}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -169,7 +169,7 @@ class RoleBasedAccessTest(BaseAPITestCase):
     def test_user_can_modify_own_profile(self):
         """Test that users can modify their own profile"""
         self.authenticate_user("staff")
-        url = reverse("current-user")
+        url = reverse("current - user")
         data = {"first_name": "Updated", "last_name": "Name"}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -177,7 +177,7 @@ class RoleBasedAccessTest(BaseAPITestCase):
 
 
 class PropertyOwnershipPermissionTest(BaseAPITestCase):
-    """Test property ownership-based permissions"""
+    """Test property ownership - based permissions"""
 
     def setUp(self):
         super().setUp()
@@ -189,19 +189,19 @@ class PropertyOwnershipPermissionTest(BaseAPITestCase):
     def test_property_owner_can_access_property(self):
         """Test that property owners can access their properties"""
         self.authenticate_user("manager")
-        url = reverse("property-detail", kwargs={"pk": self.property1.pk})
+        url = reverse("property - detail", kwargs={"pk": self.property1.pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_non_owner_cannot_access_property_details(self):
-        """Test that non-owners cannot access detailed property information"""
+        """Test that non - owners cannot access detailed property information"""
         # Create another user without ownership
         other_user = User.objects.create_user(username="other_user", password="testpass123")
         other_token = Token.objects.create(user=other_user)
 
         self.client.credentials(HTTP_AUTHORIZATION=f"Token {other_token.key}")
 
-        url = reverse("property-detail", kwargs={"pk": self.property1.pk})
+        url = reverse("property - detail", kwargs={"pk": self.property1.pk})
         response = self.client.get(url)
         # Depending on your implementation, this might be 403 or 200 with limited data
         self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_403_FORBIDDEN])
@@ -214,7 +214,7 @@ class PropertyOwnershipPermissionTest(BaseAPITestCase):
         self.ownership.save()
 
         self.authenticate_user("manager")
-        url = reverse("property-detail", kwargs={"pk": self.property1.pk})
+        url = reverse("property - detail", kwargs={"pk": self.property1.pk})
         data = {"name": "Modified Property Name"}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -222,12 +222,12 @@ class PropertyOwnershipPermissionTest(BaseAPITestCase):
     def test_manager_with_edit_rights_can_modify_property(self):
         """Test that managers with edit rights can modify properties"""
         self.authenticate_user("manager")
-        url = reverse("property-detail", kwargs={"pk": self.property1.pk})
+        url = reverse("property - detail", kwargs={"pk": self.property1.pk})
         data = {"name": "Updated Property Name"}
         response = self.client.patch(url, data, format="json")
 
         # This depends on your permission implementation
-        # Admin users might override property-level permissions
+        # Admin users might override property - level permissions
         self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_403_FORBIDDEN])
 
 
@@ -237,7 +237,7 @@ class APISecurityTest(BaseAPITestCase):
     def test_password_not_returned_in_user_data(self):
         """Test that passwords are not included in API responses"""
         self.authenticate_user("admin")
-        url = reverse("current-user")
+        url = reverse("current - user")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn("password", response.data)
@@ -258,8 +258,8 @@ class APISecurityTest(BaseAPITestCase):
         """Test that sensitive data is properly filtered"""
         self.authenticate_user("staff")
 
-        # Staff should not see admin-only fields
-        url = reverse("task-list")
+        # Staff should not see admin - only fields
+        url = reverse("task - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 

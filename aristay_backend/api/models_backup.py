@@ -1,4 +1,4 @@
-# api/models.py
+# api / models.py
 
 import json
 from zoneinfo import available_timezones
@@ -30,7 +30,7 @@ class Property(models.Model):
         choices=[
             ("daily", "Daily"),
             ("weekly", "Weekly"),
-            ("biweekly", "Bi-weekly"),
+            ("biweekly", "Bi - weekly"),
             ("monthly", "Monthly"),
             ("custom", "Custom"),
         ],
@@ -82,7 +82,7 @@ TASK_TYPE_CHOICES = [
     ("cleaning", "Cleaning"),
     ("maintenance", "Maintenance"),
     ("laundry", "Laundry"),
-    ("lawn_pool", "Lawn/Pool"),
+    ("lawn_pool", "Lawn / Pool"),
 ]
 
 
@@ -119,10 +119,10 @@ class Task(models.Model):
         max_length=20, choices=[("low", "Low"), ("medium", "Medium"), ("high", "High"), ("urgent", "Urgent")], default="medium"
     )
 
-    # Task-specific fields
+    # Task - specific fields
     checklist_items = models.JSONField(default=list, blank=True, help_text="Checklist items for this task")
     photos_required = models.BooleanField(default=False, help_text="Photos required for completion")
-    gps_checkin_required = models.BooleanField(default=False, help_text="GPS check-in required for completion")
+    gps_checkin_required = models.BooleanField(default=False, help_text="GPS check - in required for completion")
 
     # Completion tracking
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -227,20 +227,20 @@ class TaskImage(models.Model):
         return f"Image for {self.task.title}"
 
 
-# Enhanced UserRole choices for the new role-based system
+# Enhanced UserRole choices for the new role - based system
 class UserRole(models.TextChoices):
     # Core roles
-    CLEANING_STAFF = "cleaning_staff", "Cleaning Staff"
-    MAINTENANCE_STAFF = "maintenance_staff", "Maintenance Staff"
-    LAUNDRY_STAFF = "laundry_staff", "Laundry Staff"
-    LAWN_POOL_VENDOR = "lawn_pool_vendor", "Lawn/Pool Vendor"
+    CLEANING_STAFF = "cleaning_staf", "Cleaning Staf"
+    MAINTENANCE_STAFF = "maintenance_staf", "Maintenance Staf"
+    LAUNDRY_STAFF = "laundry_staf", "Laundry Staf"
+    LAWN_POOL_VENDOR = "lawn_pool_vendor", "Lawn / Pool Vendor"
 
     # Management roles
     CREW_MANAGER = "crew_manager", "Crew Manager"  # Was 'manager'
     SUPERUSER = "superuser", "Superuser"  # Was 'owner'
 
     # Legacy roles (for backward compatibility)
-    STAFF = "staff", "Staff"  # Legacy
+    STAFF = "staf", "Staf"  # Legacy
     MANAGER = "manager", "Manager"  # Legacy
     OWNER = "owner", "Owner"  # Legacy
 
@@ -258,7 +258,7 @@ class Profile(models.Model):
     # Additional profile fields
     phone_number = models.CharField(max_length=20, blank=True)
     emergency_contact = models.CharField(max_length=200, blank=True)
-    skills = models.JSONField(default=list, blank=True, help_text="List of skills/certifications")
+    skills = models.JSONField(default=list, blank=True, help_text="List of skills / certifications")
     is_available = models.BooleanField(default=True, help_text="User is available for task assignment")
 
     def __str__(self):
@@ -365,7 +365,7 @@ class Notification(models.Model):
 
 
 # ============================================================================
-# NEW MODELS FOR ENHANCED ROLE-BASED SYSTEM
+# NEW MODELS FOR ENHANCED ROLE - BASED SYSTEM
 # ============================================================================
 
 
@@ -514,7 +514,7 @@ class TaskTemplate(models.Model):
         ("cleaning", "Cleaning"),
         ("maintenance", "Maintenance"),
         ("laundry", "Laundry"),
-        ("lawn_pool", "Lawn/Pool"),
+        ("lawn_pool", "Lawn / Pool"),
     ]
 
     name = models.CharField(max_length=200, help_text="Template name")

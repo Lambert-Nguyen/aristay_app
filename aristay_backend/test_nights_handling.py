@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr / bin / env python3
 """
 Test script to verify nights field handling works correctly
 """
@@ -24,7 +24,7 @@ def test_nights_handling():
 
         # Get or create a test user
         user, created = User.objects.get_or_create(
-            username="test_nights_user", defaults={"email": "test@aristay.com", "is_staff": True, "is_superuser": True}
+            username="test_nights_user", defaults={"email": "test@aristay.com", "is_staf": True, "is_superuser": True}
         )
 
         # Get or create a test property
@@ -45,20 +45,20 @@ def test_nights_handling():
             "Confirmation code": "TEST_NIGHTS_1",
             "Status": "Booked",
             "Guest name": "Test Guest 1",
-            "Contact": "+1-555-0123",
+            "Contact": "+1 - 555 - 0123",
             "Booking source": "Direct",
             "Listing": "Test Listing 1",
             "Earnings": 150.00,
-            "Booked": pd.Timestamp("2025-01-15"),
+            "Booked": pd.Timestamp("2025 - 01 - 15"),
             "# of adults": 2,
             "# of children": 1,
             "# of infants": 0,
-            "Start date": pd.Timestamp("2025-02-01"),
-            "End date": pd.Timestamp("2025-02-05"),
+            "Start date": pd.Timestamp("2025 - 02 - 01"),
+            "End date": pd.Timestamp("2025 - 02 - 05"),
             "# of nights": 4,  # Valid number
             "Properties": "Test Property Nights",
             "Check ": "Same day cleaning required",
-            "Check 1": "Early check-in",
+            "Check 1": "Early check - in",
         }
 
         mock_row_1 = pd.Series(mock_data_1)
@@ -68,26 +68,26 @@ def test_nights_handling():
         else:
             print(f"❌ Valid numeric nights: FAILED - got {extracted_data_1.get('nights') if extracted_data_1 else 'None'}")
 
-        # Test Case 2: Date value in nights field (should calculate from start/end)
+        # Test Case 2: Date value in nights field (should calculate from start / end)
         print("\n📊 Test Case 2: Date value in nights field")
         mock_data_2 = {
             "Confirmation code": "TEST_NIGHTS_2",
             "Status": "Booked",
             "Guest name": "Test Guest 2",
-            "Contact": "+1-555-0123",
+            "Contact": "+1 - 555 - 0123",
             "Booking source": "Direct",
             "Listing": "Test Listing 2",
             "Earnings": 200.00,
-            "Booked": pd.Timestamp("2025-01-15"),
+            "Booked": pd.Timestamp("2025 - 01 - 15"),
             "# of adults": 2,
             "# of children": 0,
             "# of infants": 0,
-            "Start date": pd.Timestamp("2025-03-01"),
-            "End date": pd.Timestamp("2025-03-08"),
-            "# of nights": "1900-01-19T00:00:00",  # Date value (invalid for nights)
+            "Start date": pd.Timestamp("2025 - 03 - 01"),
+            "End date": pd.Timestamp("2025 - 03 - 08"),
+            "# of nights": "1900 - 01 - 19T00:00:00",  # Date value (invalid for nights)
             "Properties": "Test Property Nights",
             "Check ": "Pool cleaning required",
-            "Check 1": "Late check-out",
+            "Check 1": "Late check - out",
         }
 
         mock_row_2 = pd.Series(mock_data_2)
@@ -99,26 +99,26 @@ def test_nights_handling():
                 f"❌ Date value in nights field: FAILED - got {extracted_data_2.get('nights') if extracted_data_2 else 'None'}"
             )
 
-        # Test Case 3: Missing nights field (should calculate from start/end)
+        # Test Case 3: Missing nights field (should calculate from start / end)
         print("\n📊 Test Case 3: Missing nights field")
         mock_data_3 = {
             "Confirmation code": "TEST_NIGHTS_3",
             "Status": "Booked",
             "Guest name": "Test Guest 3",
-            "Contact": "+1-555-0123",
+            "Contact": "+1 - 555 - 0123",
             "Booking source": "Direct",
             "Listing": "Test Listing 3",
             "Earnings": 300.00,
-            "Booked": pd.Timestamp("2025-01-15"),
+            "Booked": pd.Timestamp("2025 - 01 - 15"),
             "# of adults": 3,
             "# of children": 2,
             "# of infants": 1,
-            "Start date": pd.Timestamp("2025-04-01"),
-            "End date": pd.Timestamp("2025-04-06"),
+            "Start date": pd.Timestamp("2025 - 04 - 01"),
+            "End date": pd.Timestamp("2025 - 04 - 06"),
             # Missing '# of nights' field
             "Properties": "Test Property Nights",
             "Check ": "Deep cleaning required",
-            "Check 1": "Pet-friendly",
+            "Check 1": "Pet - friendly",
         }
 
         mock_row_3 = pd.Series(mock_data_3)

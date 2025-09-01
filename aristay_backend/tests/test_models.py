@@ -55,9 +55,12 @@ class ProfileModelTest(BaseTestCase):
         user = User.objects.create_user(
             username=f"testuser_{test_id}", email=f"test_{test_id}@example.com", password="testpass123"
         )
-        profile = Profile.objects.create(user=user, role=UserRole.STAFF)
+        # Use get_or_create to handle automatic profile creation via signals
+        profile, created = Profile.objects.get_or_create(
+            user=user, defaults={"role": UserRole.STAFF}
+        )
         self.assertEqual(profile.role, UserRole.STAFF)
-        self.assertEqual(profile.timezone, "UTC")
+        self.assertEqual(profile.timezone, "America/New_York")
 
     def test_profile_str_representation(self):
         """Test profile string representation"""
@@ -142,12 +145,12 @@ class BookingModelTest(BaseTestCase):
 
     def test_booking_date_validation(self):
         """Test booking date validation"""
-        # Note: The Booking model doesn't currently enforce check-in/check-out date ordering
+        # Note: The Booking model doesn't currently enforce check - in / check - out date ordering
         # This test verifies that such bookings can be created (may be intentional for import scenarios)
         booking = Booking(
             property=self.property1,
             check_in_date=timezone.now().date() + timedelta(days=2),
-            check_out_date=timezone.now().date(),  # Earlier than check-in
+            check_out_date=timezone.now().date(),  # Earlier than check - in
             guest_name="Test Guest",
         )
         # This should not raise an error since no validation is enforced

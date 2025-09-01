@@ -72,7 +72,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [DynamicTaskPermissions, IsOwnerOrAssignedOrReadOnly]
 
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
-    # free-text search on title/description
+    # free - text search on title / description
     search_fields = ["title", "description"]
     # use our custom FilterSet
     filterset_class = TaskFilter
@@ -116,7 +116,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         NotificationService.notify_on_update(old, task, actor=self.request.user)
 
     @action(
-        detail=False, methods=["get"], url_path="count-by-status", permission_classes=[permissions.IsAuthenticatedOrReadOnly]
+        detail=False, methods=["get"], url_path="count - by - status", permission_classes=[permissions.IsAuthenticatedOrReadOnly]
     )
     def count_by_status(self, request):
         qs = self.filter_queryset(self.get_queryset())
@@ -140,7 +140,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def mute(self, request, pk=None):
         """
-        POST /api/tasks/<id>/mute/
+        POST /api / tasks/<id>/mute/
         """
         task = self.get_object()
         task.muted_by.add(request.user)
@@ -149,8 +149,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def notify_manager(self, request, pk=None):
         """
-        POST /api/tasks/<id>/notify_manager/
-        Sends a high-priority notification to managers/owners about this task.
+        POST /api / tasks/<id>/notify_manager/
+        Sends a high - priority notification to managers / owners about this task.
         """
         task = self.get_object()
         # naive implementation: create Notification rows for staff managers + owners
@@ -271,14 +271,14 @@ def portal_home(request):
     accessible_properties = _accessible_properties_for(request.user)
     accessible_properties_count = accessible_properties.count()
 
-    # Get user-specific stats
+    # Get user - specific stats
     assigned_tasks_count = 0
     pending_tasks_count = 0
     total_bookings_count = 0
 
     try:
         if request.user.profile and request.user.profile.role != "viewer":
-            # Get task counts for non-viewers
+            # Get task counts for non - viewers
             assigned_tasks = Task.objects.filter(assigned_to=request.user)
             assigned_tasks_count = assigned_tasks.count()
             pending_tasks_count = assigned_tasks.filter(status="pending").count()
@@ -303,14 +303,14 @@ def portal_home(request):
         "total_bookings_count": total_bookings_count,
         "recent_activity_count": 0,  # Could be implemented later
     }
-    return render(request, "portal/home.html", context)
+    return render(request, "portal / home.html", context)
 
 
 def _accessible_properties_for(user):
     """Return a queryset of properties visible to this user."""
     if user.is_superuser or user.is_staff:
         return Property.objects.all().order_by("name")
-    # viewer/owner or crew: properties they own/view or have tasks on
+    # viewer / owner or crew: properties they own / view or have tasks on
     owned = Property.objects.filter(ownerships__user=user)
     assigned = Property.objects.filter(tasks__assigned_to=user)
     return (owned | assigned).distinct().order_by("name")
@@ -345,7 +345,7 @@ def portal_property_list(request):
         )
     return render(
         request,
-        "portal/property_list.html",
+        "portal / property_list.html",
         {
             "properties": property_cards,
         },
@@ -373,7 +373,7 @@ def portal_property_detail(request, pk):
             groups["past"].append(b)
     return render(
         request,
-        "portal/property_detail.html",
+        "portal / property_detail.html",
         {
             "property": prop,
             "groups": groups,
@@ -419,7 +419,7 @@ def portal_booking_detail(request, property_id, pk):
 
     return render(
         request,
-        "portal/booking_detail.html",
+        "portal / booking_detail.html",
         {
             "property": prop,
             "booking": booking,
@@ -437,7 +437,7 @@ def portal_booking_detail(request, property_id, pk):
 
 @login_required
 def portal_task_detail(request, task_id):
-    """User-friendly task detail view for portal users."""
+    """User - friendly task detail view for portal users."""
     from django.shortcuts import get_object_or_404
 
     task = get_object_or_404(Task.objects.select_related("property", "booking", "assigned_to", "created_by"), id=task_id)
@@ -475,7 +475,7 @@ def portal_task_detail(request, task_id):
         "can_edit": can_edit,
     }
 
-    return render(request, "portal/task_detail.html", context)
+    return render(request, "portal / task_detail.html", context)
 
 
 # DRF ViewSets and API Views start here
@@ -519,7 +519,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def unmute(self, request, pk=None):
         """
-        POST /api/tasks/<id>/unmute/
+        POST /api / tasks/<id>/unmute/
         """
         task = self.get_object()
         task.muted_by.remove(request.user)
@@ -528,7 +528,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 class TaskImageCreateView(generics.CreateAPIView):
     """
-    POST /api/tasks/{task_pk}/images/
+    POST /api / tasks/{task_pk}/images/
     """
 
     serializer_class = TaskImageSerializer
@@ -551,7 +551,7 @@ class TaskImageCreateView(generics.CreateAPIView):
 
 class TaskImageDetailView(generics.RetrieveDestroyAPIView):
     """
-    GET, DELETE /api/tasks/{task_pk}/images/{pk}/
+    GET, DELETE /api / tasks/{task_pk}/images/{pk}/
     """
 
     queryset = TaskImage.objects.all()
@@ -642,7 +642,7 @@ class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_permissions(self):
-        # Only admins can modify/delete; reads remain open to authenticated (or read-only if you prefer)
+        # Only admins can modify / delete; reads remain open to authenticated (or read - only if you prefer)
         if self.request.method in ("PUT", "PATCH", "DELETE"):
             return [IsAdminUser()]
         return super().get_permissions()
@@ -677,8 +677,8 @@ class UserList(generics.ListAPIView):
 
 class AdminUserDetailView(generics.RetrieveUpdateAPIView):
     """
-    GET/PATCH /api/admin/users/<id>/
-    Owner-only for updates. Safe fields: is_active, is_staff.
+    GET / PATCH /api / admin / users/<id>/
+    Owner - only for updates. Safe fields: is_active, is_staff.
     """
 
     queryset = User.objects.all()
@@ -722,7 +722,7 @@ class AdminUserDetailView(generics.RetrieveUpdateAPIView):
 
 class AdminInviteUserView(generics.CreateAPIView):
     """
-    POST /api/admin/invite/
+    POST /api / admin / invite/
     { "username": "newuser", "email": "new@foo.com" }
     """
 
@@ -732,7 +732,7 @@ class AdminInviteUserView(generics.CreateAPIView):
 
 class AdminPasswordResetView(generics.CreateAPIView):
     """
-    POST /api/admin/reset-password/
+    POST /api / admin / reset - password/
     { "email": "existing@foo.com" }
     """
 
@@ -742,7 +742,7 @@ class AdminPasswordResetView(generics.CreateAPIView):
 
 class CurrentUserView(generics.RetrieveUpdateAPIView):
     """
-    GET /api/users/me/
+    GET /api / users / me/
     """
 
     serializer_class = UserSerializer
@@ -755,7 +755,7 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
 
 class AdminUserCreateView(generics.CreateAPIView):
     """
-    POST /api/admin/create-user/
+    POST /api / admin / create - user/
     """
 
     permission_classes = [IsAdminUser]
@@ -853,9 +853,9 @@ def manager_overview(request):
     )
 
 
-# ---------- Manager: list employees/managers (no owners) ----------
+# ---------- Manager: list employees / managers (no owners) ----------
 class ManagerUserList(generics.ListAPIView):
-    serializer_class = UserSerializer  # includes role (read-only)
+    serializer_class = UserSerializer  # includes role (read - only)
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsManagerOrOwner]
     filter_backends = [filters.SearchFilter]
@@ -864,7 +864,7 @@ class ManagerUserList(generics.ListAPIView):
     def get_queryset(self):
         qs = User.objects.filter(is_superuser=False).order_by("id")
         role = self.request.query_params.get("role")
-        if role in ("staff", "manager"):
+        if role in ("staf", "manager"):
             qs = qs.filter(profile__role=role)
         return qs
 
@@ -891,7 +891,7 @@ def _check_manager_permission(user):
 @staff_member_required
 def manager_charts_dashboard(request):
     """
-    Charts dashboard view for managers accessible at /manager/charts/
+    Charts dashboard view for managers accessible at /manager / charts/
     Shows tasks by status, property, and task types with Chart.js visualizations
     """
     # Check manager permission
@@ -928,7 +928,7 @@ def manager_charts_dashboard(request):
             total_tasks=Count("id"),
             completed_tasks=Count("id", filter=Q(status="completed")),
             pending_tasks=Count("id", filter=Q(status="pending")),
-            in_progress_tasks=Count("id", filter=Q(status="in-progress")),
+            in_progress_tasks=Count("id", filter=Q(status="in - progress")),
         )
         .exclude(assigned_to__isnull=True)
         .order_by("-total_tasks")[:10]
@@ -946,7 +946,7 @@ def manager_charts_dashboard(request):
         .order_by("day")
     )
 
-    # User activity (tasks created/modified in last 7 days)
+    # User activity (tasks created / modified in last 7 days)
     seven_days_ago = now - timedelta(days=7)
     user_activity = (
         Task.objects.filter(modified_at__gte=seven_days_ago)
@@ -962,7 +962,7 @@ def manager_charts_dashboard(request):
     status_data = []
     status_colors = {
         "pending": "#f39c12",  # orange
-        "in-progress": "#3498db",  # blue
+        "in - progress": "#3498db",  # blue
         "completed": "#27ae60",  # green
         "canceled": "#e74c3c",  # red
     }
@@ -1025,7 +1025,7 @@ def manager_charts_dashboard(request):
         "total_tasks": total_tasks,
         "overdue_count": overdue_count,
         "active_users": len(user_performance_labels),
-        "status_count": 4,  # Always 4 status types (pending, in-progress, completed, canceled)
+        "status_count": 4,  # Always 4 status types (pending, in - progress, completed, canceled)
         "property_count": len(property_labels),
         "task_type_count": len(type_labels),
         "status_chart_data": {
@@ -1053,13 +1053,13 @@ def manager_charts_dashboard(request):
         },
     }
 
-    return render(request, "admin/manager_charts.html", context)
+    return render(request, "admin / manager_charts.html", context)
 
 
 @staff_member_required
 def admin_charts_dashboard(request):
     """
-    Regular admin charts dashboard at /api/admin/charts/
+    Regular admin charts dashboard at /api / admin / charts/
     Shows same analytics but accessible to all Django admin users with view_reports permission
     """
     # Check permission
@@ -1099,13 +1099,13 @@ def admin_charts_dashboard(request):
             total_tasks=Count("id"),
             completed_tasks=Count("id", filter=Q(status="completed")),
             pending_tasks=Count("id", filter=Q(status="pending")),
-            in_progress_tasks=Count("id", filter=Q(status="in-progress")),
+            in_progress_tasks=Count("id", filter=Q(status="in - progress")),
         )
         .exclude(assigned_to__isnull=True)
         .order_by("-total_tasks")[:10]
     )
 
-    # User activity (tasks created/modified in last 7 days)
+    # User activity (tasks created / modified in last 7 days)
     from datetime import timedelta
 
     seven_days_ago = now - timedelta(days=7)
@@ -1123,7 +1123,7 @@ def admin_charts_dashboard(request):
     status_data = []
     status_colors = {
         "pending": "#f39c12",  # orange
-        "in-progress": "#3498db",  # blue
+        "in - progress": "#3498db",  # blue
         "completed": "#27ae60",  # green
         "canceled": "#e74c3c",  # red
     }
@@ -1186,7 +1186,7 @@ def admin_charts_dashboard(request):
         "total_tasks": total_tasks,
         "overdue_count": overdue_count,
         "active_users": len(user_performance_labels),
-        "status_count": 4,  # Always 4 status types (pending, in-progress, completed, canceled)
+        "status_count": 4,  # Always 4 status types (pending, in - progress, completed, canceled)
         "property_count": len(property_labels),
         "task_type_count": len(type_labels),
         "status_chart_data": {
@@ -1214,7 +1214,7 @@ def admin_charts_dashboard(request):
         },
     }
 
-    return render(request, "admin/charts_dashboard.html", context)
+    return render(request, "admin / charts_dashboard.html", context)
 
 
 @staff_member_required
@@ -1252,7 +1252,7 @@ def system_metrics_dashboard(request):
             "fast": 15,  # 15 seconds - for active monitoring
             "normal": 30,  # 30 seconds - default balanced
             "slow": 60,  # 1 minute - for casual monitoring
-            "manual": 0,  # Manual only - no auto-refresh
+            "manual": 0,  # Manual only - no auto - refresh
         }
 
         refresh_mode = request.GET.get("refresh", "normal")
@@ -1266,20 +1266,20 @@ def system_metrics_dashboard(request):
             "title": "System Metrics Dashboard",
         }
 
-        return render(request, "admin/system_metrics.html", context)
+        return render(request, "admin / system_metrics.html", context)
 
     except Exception as e:
         context = {
             "error": str(e),
             "title": "System Metrics Dashboard - Error",
         }
-        return render(request, "admin/system_metrics.html", context)
+        return render(request, "admin / system_metrics.html", context)
 
 
 def system_metrics_api(request):
     """
-    API endpoint for real-time system metrics (JSON)
-    Used for dashboard auto-refresh
+    API endpoint for real - time system metrics (JSON)
+    Used for dashboard auto - refresh
     """
     # Only allow superusers to access system metrics
     if not request.user.is_superuser:
@@ -1296,7 +1296,7 @@ def system_metrics_api(request):
 def system_logs_viewer(request):
     """
     Log file viewer for superusers to examine system logs
-    Provides search, filtering, and real-time viewing capabilities
+    Provides search, filtering, and real - time viewing capabilities
     """
     # Only allow superusers to access logs
     if not request.user.is_superuser:
@@ -1369,7 +1369,7 @@ def system_logs_viewer(request):
         "log_levels": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     }
 
-    return render(request, "admin/system_logs.html", context)
+    return render(request, "admin / system_logs.html", context)
 
 
 def _extract_log_level(log_line):
@@ -1492,7 +1492,7 @@ def system_crash_recovery(request):
         "title": "System Crash Recovery",
     }
 
-    return render(request, "admin/system_recovery.html", context)
+    return render(request, "admin / system_recovery.html", context)
 
 
 def _extract_timestamp(log_line):
@@ -1546,7 +1546,7 @@ def excel_import_view(request):
             if not excel_file:
                 logger.warning(f"User {request.user.username} attempted import without selecting a file")
                 messages.error(request, "Please select an Excel file to import.")
-                return redirect("excel-import")
+                return redirect("excel - import")
 
             logger.info(f"User {request.user.username} uploading file: {excel_file.name} ({excel_file.size} bytes)")
 
@@ -1554,7 +1554,7 @@ def excel_import_view(request):
             if not excel_file.name.endswith((".xlsx", ".xls")):
                 logger.warning(f"User {request.user.username} uploaded invalid file type: {excel_file.name}")
                 messages.error(request, "Please upload a valid Excel file (.xlsx or .xls)")
-                return redirect("excel-import")
+                return redirect("excel - import")
 
             # Create default import template
             template = None
@@ -1637,14 +1637,14 @@ def excel_import_view(request):
                         "excel_file": excel_file,
                         "title": "New Properties Require Approval",
                     }
-                    return render(request, "admin/property_approval.html", context)
+                    return render(request, "admin / property_approval.html", context)
                 else:
                     # Manager gets a message about contacting admin
                     messages.warning(
                         request,
                         f"Import requires admin approval. Found {len(new_properties)} new properties: "
                         f"{', '.join(new_properties[:5])}{'...' if len(new_properties) > 5 else ''}. "
-                        f"Please contact an administrator.",
+                        "Please contact an administrator.",
                     )
             else:
                 messages.error(request, f"Import failed: {result.get('error', 'Unknown error')}")
@@ -1665,7 +1665,7 @@ def excel_import_view(request):
         "title": "Import Booking Schedule",
     }
 
-    return render(request, "admin/excel_import.html", context)
+    return render(request, "admin / excel_import.html", context)
 
 
 @login_required
@@ -1728,7 +1728,7 @@ def excel_import_api(request):
 def property_approval_create(request):
     """Handle property approval and creation for admins"""
     if request.method != "POST":
-        return redirect("excel-import")
+        return redirect("excel - import")
 
     try:
         approved_properties = request.POST.getlist("approved_properties")
@@ -1736,7 +1736,7 @@ def property_approval_create(request):
 
         if not approved_properties:
             messages.warning(request, "No properties were selected for creation.")
-            return redirect("excel-import")
+            return redirect("excel - import")
 
         # Create the approved properties
         created_count = 0
@@ -1755,14 +1755,14 @@ def property_approval_create(request):
             # Now try to import the Excel file again
             # Note: In a real implementation, you'd want to store the file temporarily
             # For now, we'll redirect back to the import page
-            messages.info(request, f"Please upload your Excel file again to continue with the import.")
+            messages.info(request, "Please upload your Excel file again to continue with the import.")
 
-        return redirect("excel-import")
+        return redirect("excel - import")
 
     except Exception as e:
         messages.error(request, f"Property approval failed: {str(e)}")
         logger.error(f"Property approval error: {e}")
-        return redirect("excel-import")
+        return redirect("excel - import")
 
 
 # =============================================================================
@@ -1794,7 +1794,7 @@ class ConflictReviewView(LoginRequiredMixin, View):
 
             context = {"import_log": import_log, "conflicts": conflicts_data, "import_session_id": import_session_id}
 
-            return render(request, "admin/conflict_resolution.html", context)
+            return render(request, "admin / conflict_resolution.html", context)
 
         except BookingImportLog.DoesNotExist:
             return JsonResponse({"error": "Import session not found"}, status=404)
@@ -1963,7 +1963,7 @@ def enhanced_excel_import_view(request):
 
         if not excel_file:
             messages.error(request, "Please select an Excel file to upload.")
-            return render(request, "admin/enhanced_excel_import.html")
+            return render(request, "admin / enhanced_excel_import.html")
 
         try:
             # Use enhanced import service
@@ -1978,21 +1978,21 @@ def enhanced_excel_import_view(request):
                         request,
                         f"Import completed with {result['conflicts_detected']} conflicts requiring manual review. "
                         f"{result['successful_imports']} bookings imported successfully, "
-                        f"{result['auto_updated']} bookings auto-updated.",
+                        f"{result['auto_updated']} bookings auto - updated.",
                     )
 
                     from django.urls import reverse
 
-                    conflict_review_url = reverse("conflict-review", args=[result["import_session_id"]])
+                    conflict_review_url = reverse("conflict - review", args=[result["import_session_id"]])
                     return redirect(conflict_review_url)
                 else:
                     # No conflicts - standard success
                     messages.success(
                         request,
-                        f"Excel import completed successfully! "
+                        "Excel import completed successfully! "
                         f"{result['successful_imports']} bookings imported, "
-                        f"{result['auto_updated']} bookings auto-updated. "
-                        f"No conflicts detected.",
+                        f"{result['auto_updated']} bookings auto - updated. "
+                        "No conflicts detected.",
                     )
             else:
                 messages.error(request, f"Import failed: {result.get('error', 'Unknown error')}")
@@ -2013,7 +2013,7 @@ def enhanced_excel_import_view(request):
 
     context = {"templates": templates, "title": "Enhanced Excel Import with Conflict Resolution"}
 
-    return render(request, "admin/enhanced_excel_import.html", context)
+    return render(request, "admin / enhanced_excel_import.html", context)
 
 
 @staff_member_required
@@ -2038,7 +2038,7 @@ def enhanced_excel_import_api(request):
         if result.get("requires_review") and result.get("import_session_id"):
             from django.urls import reverse
 
-            result["conflict_review_url"] = reverse("conflict-review", args=[result["import_session_id"]])
+            result["conflict_review_url"] = reverse("conflict - review", args=[result["import_session_id"]])
 
         return JsonResponse(result)
 
@@ -2145,7 +2145,7 @@ def user_permissions(request):
 @permission_classes([IsAuthenticated])
 def available_permissions(request):
     """
-    Get all available permissions that the current user can see/manage
+    Get all available permissions that the current user can see / manage
     """
     try:
         if not hasattr(request.user, "profile"):
@@ -2284,7 +2284,7 @@ def grant_permission(request):
                 expires_datetime = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
             except ValueError:
                 return Response(
-                    {"error": "Invalid expires_at format. Use ISO format (YYYY-MM-DDTHH:MM:SS)"},
+                    {"error": "Invalid expires_at format. Use ISO format (YYYY - MM - DDTHH:MM:SS)"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -2389,7 +2389,7 @@ def revoke_permission(request):
 @permission_classes([IsAuthenticated])
 def remove_permission_override(request):
     """
-    Remove a permission override (revert to role-based permission)
+    Remove a permission override (revert to role - based permission)
     """
     try:
         if not hasattr(request.user, "profile"):
@@ -2427,7 +2427,7 @@ def remove_permission_override(request):
             return Response(
                 {
                     "success": True,
-                    "message": f"Permission override removed. {target_user.username} now has role-based access to {permission_obj.get_name_display()}",
+                    "message": f"Permission override removed. {target_user.username} now has role - based access to {permission_obj.get_name_display()}",
                 }
             )
         except UserPermissionOverride.DoesNotExist:
@@ -2454,4 +2454,4 @@ def permission_management_view(request):
 
             return redirect_to_login(request.get_full_path())
 
-    return render(request, "admin/permission_management.html", {"title": "Permission Management", "user": request.user})
+    return render(request, "admin / permission_management.html", {"title": "Permission Management", "user": request.user})

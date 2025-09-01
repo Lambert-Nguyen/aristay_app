@@ -18,7 +18,7 @@ class UserRegistrationAPITest(BaseAPITestCase):
 
     def test_user_registration_success(self):
         """Test successful user registration"""
-        url = reverse("user-register")
+        url = reverse("user - register")
         data = {"username": "newuser", "email": "newuser@example.com", "password": "strongpassword123"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -26,7 +26,7 @@ class UserRegistrationAPITest(BaseAPITestCase):
 
     def test_user_registration_duplicate_username(self):
         """Test registration with duplicate username"""
-        url = reverse("user-register")
+        url = reverse("user - register")
         data = {
             "username": self.admin_user.username,  # Use actual existing username
             "email": "newadmin@example.com",
@@ -37,8 +37,8 @@ class UserRegistrationAPITest(BaseAPITestCase):
 
     def test_user_registration_invalid_email(self):
         """Test registration with invalid email"""
-        url = reverse("user-register")
-        data = {"username": "newuser", "email": "invalid-email", "password": "strongpassword123"}
+        url = reverse("user - register")
+        data = {"username": "newuser", "email": "invalid - email", "password": "strongpassword123"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -68,21 +68,21 @@ class TaskAPITest(BaseAPITestCase):
     def test_task_list_authenticated(self):
         """Test task list endpoint with authentication"""
         self.authenticate_user("admin")
-        url = reverse("task-list")
+        url = reverse("task - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data["results"]), 1)
 
     def test_task_list_unauthenticated(self):
         """Test task list endpoint without authentication"""
-        url = reverse("task-list")
+        url = reverse("task - list")
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)  # Read-only access
+        self.assertEqual(response.status_code, status.HTTP_200_OK)  # Read - only access
 
     def test_task_create_authenticated(self):
         """Test creating a task with authentication"""
         self.authenticate_user("admin")
-        url = reverse("task-list")
+        url = reverse("task - list")
         data = {
             "property": self.property1.id,
             "booking": self.booking.id,
@@ -97,7 +97,7 @@ class TaskAPITest(BaseAPITestCase):
 
     def test_task_create_unauthenticated(self):
         """Test creating a task without authentication"""
-        url = reverse("task-list")
+        url = reverse("task - list")
         data = {"property": self.property1.id, "title": "New Test Task", "task_type": "cleaning"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -105,7 +105,7 @@ class TaskAPITest(BaseAPITestCase):
     def test_task_detail_retrieve(self):
         """Test retrieving a specific task"""
         self.authenticate_user("admin")
-        url = reverse("task-detail", kwargs={"pk": self.task.id})
+        url = reverse("task - detail", kwargs={"pk": self.task.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Test Task")
@@ -113,8 +113,8 @@ class TaskAPITest(BaseAPITestCase):
     def test_task_update(self):
         """Test updating a task"""
         self.authenticate_user("admin")
-        url = reverse("task-detail", kwargs={"pk": self.task.id})
-        data = {"title": "Updated Task Title", "status": "in-progress"}  # Use the correct status value with hyphen
+        url = reverse("task - detail", kwargs={"pk": self.task.id})
+        data = {"title": "Updated Task Title", "status": "in - progress"}  # Use the correct status value with hyphen
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Updated Task Title")
@@ -122,7 +122,7 @@ class TaskAPITest(BaseAPITestCase):
     def test_task_delete(self):
         """Test deleting a task"""
         self.authenticate_user("admin")
-        url = reverse("task-detail", kwargs={"pk": self.task.id})
+        url = reverse("task - detail", kwargs={"pk": self.task.id})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Task.objects.filter(id=self.task.id).exists())
@@ -133,7 +133,7 @@ class TaskAPITest(BaseAPITestCase):
         # Create additional task with different status
         Task.objects.create(property=self.property1, title="Completed Task", status="completed", created_by=self.admin_user)
 
-        url = reverse("task-list")
+        url = reverse("task - list")
         response = self.client.get(f"{url}?status=completed")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should find the completed task
@@ -147,7 +147,7 @@ class PropertyAPITest(BaseAPITestCase):
     def test_property_list(self):
         """Test property list endpoint"""
         self.authenticate_user("admin")
-        url = reverse("property-list")
+        url = reverse("property - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data), 2)  # We have 2 test properties
@@ -155,16 +155,16 @@ class PropertyAPITest(BaseAPITestCase):
     def test_property_create_admin(self):
         """Test creating a property as admin"""
         self.authenticate_user("admin")
-        url = reverse("property-list")
+        url = reverse("property - list")
         data = {"name": "New Property"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["name"], "New Property")
 
     def test_property_create_non_admin(self):
-        """Test creating a property as non-admin (should fail)"""
+        """Test creating a property as non - admin (should fail)"""
         self.authenticate_user("staff")
-        url = reverse("property-list")
+        url = reverse("property - list")
         data = {"name": "New Property"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -172,7 +172,7 @@ class PropertyAPITest(BaseAPITestCase):
     def test_property_detail(self):
         """Test property detail endpoint"""
         self.authenticate_user("admin")
-        url = reverse("property-detail", kwargs={"pk": self.property1.id})
+        url = reverse("property - detail", kwargs={"pk": self.property1.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], self.property1.name)
@@ -180,16 +180,16 @@ class PropertyAPITest(BaseAPITestCase):
     def test_property_update_admin(self):
         """Test updating a property as admin"""
         self.authenticate_user("admin")
-        url = reverse("property-detail", kwargs={"pk": self.property1.id})
+        url = reverse("property - detail", kwargs={"pk": self.property1.id})
         data = {"name": "Updated Property Name"}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["name"], "Updated Property Name")
 
     def test_property_update_non_admin(self):
-        """Test updating a property as non-admin (should fail)"""
+        """Test updating a property as non - admin (should fail)"""
         self.authenticate_user("staff")
-        url = reverse("property-detail", kwargs={"pk": self.property1.id})
+        url = reverse("property - detail", kwargs={"pk": self.property1.id})
         data = {"name": "Hacked Property Name"}
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -255,8 +255,8 @@ class AdminUserAPITest(BaseAPITestCase):
     def test_admin_user_list(self):
         """Test admin user list endpoint"""
         self.authenticate_user("admin")
-        # Use the general user-list endpoint since admin-user-list doesn't exist
-        url = reverse("user-list")
+        # Use the general user - list endpoint since admin - user - list doesn't exist
+        url = reverse("user - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data["results"]), 3)  # We have 3 test users
@@ -264,16 +264,16 @@ class AdminUserAPITest(BaseAPITestCase):
     def test_admin_user_create(self):
         """Test admin user creation"""
         self.authenticate_user("admin")
-        url = reverse("admin-create-user")  # Use the correct URL name
+        url = reverse("admin - create - user")  # Use the correct URL name
         data = {"username": "newstaffuser", "email": "newstaff@example.com", "password": "strongpassword123", "is_staff": True}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(User.objects.filter(username="newstaffuser").exists())
 
     def test_admin_user_create_non_admin(self):
-        """Test admin user creation by non-admin (should fail)"""
+        """Test admin user creation by non - admin (should fail)"""
         self.authenticate_user("staff")
-        url = reverse("admin-create-user")  # Use the correct URL name
+        url = reverse("admin - create - user")  # Use the correct URL name
         data = {"username": "hackuser", "email": "hack@example.com", "password": "password123"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -281,7 +281,7 @@ class AdminUserAPITest(BaseAPITestCase):
     def test_current_user_info(self):
         """Test getting current user information"""
         self.authenticate_user("admin")
-        url = reverse("current-user")
+        url = reverse("current - user")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["username"], self.admin_user.username)
@@ -294,14 +294,14 @@ class NotificationAPITest(BaseAPITestCase):
     def test_notification_list(self):
         """Test notification list endpoint"""
         self.authenticate_user("staff")
-        url = reverse("notification-list")
+        url = reverse("notification - list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_device_registration(self):
         """Test device registration for push notifications"""
         self.authenticate_user("staff")
-        url = reverse("device-register")
+        url = reverse("device - register")
         data = {"token": "test_fcm_token_12345"}
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
