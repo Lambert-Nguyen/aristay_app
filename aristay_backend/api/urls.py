@@ -29,8 +29,13 @@ from .views import (
     system_logs_viewer, system_crash_recovery,
     portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
     portal_task_detail,
-    excel_import_view, excel_import_api, property_approval_create
+    excel_import_view, excel_import_api, property_approval_create,
+    enhanced_excel_import_view, enhanced_excel_import_api,
+    ConflictReviewView, resolve_conflicts, get_conflict_details,
+    preview_conflict_resolution, quick_resolve_conflict
 )
+
+# Remove separate imports since they're now in the main views.py
 
 from .staff_views import (
     staff_dashboard, cleaning_dashboard, maintenance_dashboard, laundry_dashboard,
@@ -122,4 +127,15 @@ urlpatterns = [
     path('excel-import/', excel_import_view, name='excel-import'),
     path('excel-import/api/', excel_import_api, name='excel-import-api'),
     path('property-approval/create/', property_approval_create, name='property-approval-create'),
+    
+    # Enhanced Excel Import endpoints
+    path('enhanced-excel-import/', enhanced_excel_import_view, name='enhanced-excel-import'),
+    path('enhanced-excel-import/api/', enhanced_excel_import_api, name='enhanced-excel-import-api'),
+    
+    # Conflict Resolution endpoints
+    path('admin/conflict-review/<int:import_session_id>/', ConflictReviewView.as_view(), name='conflict-review'),
+    path('api/resolve-conflicts/<int:import_session_id>/', resolve_conflicts, name='resolve-conflicts'),
+    path('api/conflict-details/<int:import_session_id>/', get_conflict_details, name='conflict-details'),
+    path('api/preview-conflict/<int:import_session_id>/<int:conflict_index>/', preview_conflict_resolution, name='preview-conflict-resolution'),
+    path('api/quick-resolve/<int:import_session_id>/<int:conflict_index>/', quick_resolve_conflict, name='quick-resolve-conflict'),
 ]

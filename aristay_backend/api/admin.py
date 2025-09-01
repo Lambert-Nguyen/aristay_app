@@ -3,6 +3,7 @@ from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.utils.safestring import mark_safe
 from .models import (
     Property, Task, TaskImage, Notification, Booking, PropertyOwnership, Profile,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
@@ -243,9 +244,13 @@ class PropertyAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'property', 'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact')
-    list_filter = ('status', 'check_in_date', 'check_out_date', 'property')
-    search_fields = ('property__name', 'guest_name', 'guest_contact')
+    list_display = (
+        'id', 'property', 'external_code_display', 'booked_on_display', 'source_display', 
+        'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact', 
+        'conflict_flag_display'
+    )
+    list_filter = ('status', 'check_in_date', 'check_out_date', 'property', 'source', 'same_day_flag')
+    search_fields = ('property__name', 'guest_name', 'guest_contact', 'external_code', 'source')
     readonly_fields = ('created_at', 'modified_at', 'history', 'check_in_dual', 'check_out_dual', 'created_at_dual', 'modified_at_dual')
     
     fieldsets = (
@@ -269,6 +274,59 @@ class BookingAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def external_code_display(self, obj):
+        """Display external confirmation code"""
+        if obj.external_code:
+            return f"{obj.external_code}"
+        return "-"
+    external_code_display.short_description = 'Confirmation Code'
+    external_code_display.admin_order_field = 'external_code'
+    
+    def booked_on_display(self, obj):
+        """Display when the booking was made"""
+        if obj.booked_on:
+            from django.utils import timezone
+            import pytz
+            tampa_tz = pytz.timezone('America/New_York')
+            tampa_time = obj.booked_on.astimezone(tampa_tz)
+            return tampa_time.strftime('%b %d, %Y %H:%M')
+        return "-"
+    booked_on_display.short_description = 'Booked Date'
+    booked_on_display.admin_order_field = 'booked_on'
+    
+    def source_display(self, obj):
+        """Display booking source with formatting"""
+        if obj.source:
+            # Add color coding for different sources
+            source_colors = {
+                'airbnb': '#FF5A5F',
+                'vrbo': '#0073E6', 
+                'direct': '#28A745',
+                'owner': '#6F42C1'
+            }
+            source_lower = obj.source.lower()
+            color = source_colors.get(source_lower, '#6C757D')
+            return mark_safe(f'<span style="color: {color}; font-weight: bold;">{obj.source}</span>')
+        return "-"
+    source_display.short_description = 'Booking Source'
+    source_display.admin_order_field = 'source'
+    
+    def conflict_flag_display(self, obj):
+        """Display conflict flag with details"""
+        flag = obj.get_conflict_flag()
+        details = obj.get_conflict_details()
+        
+        # Add tooltip with conflict details
+        if "No conflicts" in flag:
+            return mark_safe(f'<span style="color: green;" title="{details}">{flag}</span>')
+        elif "Critical" in flag:
+            return mark_safe(f'<span style="color: red; font-weight: bold;" title="{details}">{flag}</span>')
+        elif "High" in flag:
+            return mark_safe(f'<span style="color: orange; font-weight: bold;" title="{details}">{flag}</span>')
+        else:
+            return mark_safe(f'<span style="color: #ffc107; font-weight: bold;" title="{details}">{flag}</span>')
+    conflict_flag_display.short_description = 'Conflicts'
     
     def check_in_display(self, obj):
         """Display check-in time in Tampa timezone"""

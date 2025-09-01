@@ -1,0 +1,497 @@
+"""
+Enhanced Excel Import Service with Conflict Resolution
+
+This enhanced service provides intelligent conflict detection and resolution
+for booking imports, with different handling for platform vs direct bookings.
+"""
+
+import pandas as pd
+import json
+from datetime import datetime, timedelta, time
+from decimal import Decimal
+import logging
+from typing import Dict, List, Tuple, Optional, Any
+from django.db import transaction
+from django.contrib.auth.models import User
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+
+from api.models import (
+    Booking, Property, Task, BookingImportLog, BookingImportTemplate
+)
+
+# Import the original service for methods we'll reuse
+from .excel_import_service import ExcelImportService
+
+logger = logging.getLogger(__name__)
+
+
+class ConflictType:
+    """Types of conflicts that can occur during import"""
+    DATE_CHANGE = 'date_change'
+    GUEST_CHANGE = 'guest_change'
+    PROPERTY_CHANGE = 'property_change'
+    STATUS_CHANGE = 'status_change'
+    DUPLICATE_DIRECT = 'duplicate_direct'
+
+
+class BookingConflict:
+    """Represents a conflict between existing booking and Excel data"""
+    
+    def __init__(self, existing_booking: Booking, excel_data: Dict[str, Any], conflict_types: List[str], row_number: int):
+        self.existing_booking = existing_booking
+        self.excel_data = excel_data
+        self.conflict_types = conflict_types
+        self.row_number = row_number
+        self.confidence_score = self._calculate_confidence()
+    
+    def _calculate_confidence(self) -> float:
+        """Calculate confidence that these are the same booking (0.0 - 1.0)"""
+        score = 0.0
+        
+        # External code match (highest weight)
+        if self.existing_booking.external_code == self.excel_data.get('external_code'):
+            score += 0.4
+        
+        # Guest name match
+        if self.existing_booking.guest_name.lower() == self.excel_data.get('guest_name', '').lower():
+            score += 0.3
+        
+        # Property match
+        if self.existing_booking.property.name == self.excel_data.get('property_name'):
+            score += 0.2
+        
+        # Date overlap
+        excel_start = self.excel_data.get('start_date')
+        excel_end = self.excel_data.get('end_date')
+        if excel_start and excel_end:
+            existing_start = self.existing_booking.check_in_date.date()
+            existing_end = self.existing_booking.check_out_date.date()
+            
+            if isinstance(excel_start, datetime) and isinstance(excel_end, datetime):
+                if excel_start.date() == existing_start and excel_end.date() == existing_end:
+                    score += 0.1
+                elif (excel_start.date() <= existing_end and excel_end.date() >= existing_start):
+                    score += 0.05  # Partial overlap
+        
+        return score
+    
+    def get_changes_summary(self) -> Dict[str, Any]:
+        """Get detailed summary of what would change"""
+        changes = {}
+        
+        # Date changes
+        if ConflictType.DATE_CHANGE in self.conflict_types:
+            excel_start = self.excel_data.get('start_date')
+            excel_end = self.excel_data.get('end_date')
+            changes['dates'] = {
+                'current': {
+                    'check_in': self.existing_booking.check_in_date.strftime('%Y-%m-%d'),
+                    'check_out': self.existing_booking.check_out_date.strftime('%Y-%m-%d')
+                },
+                'excel': {
+                    'check_in': excel_start.strftime('%Y-%m-%d') if excel_start else None,
+                    'check_out': excel_end.strftime('%Y-%m-%d') if excel_end else None
+                }
+            }
+        
+        # Guest changes
+        if ConflictType.GUEST_CHANGE in self.conflict_types:
+            changes['guest'] = {
+                'current': self.existing_booking.guest_name,
+                'excel': self.excel_data.get('guest_name')
+            }
+        
+        # Status changes
+        if ConflictType.STATUS_CHANGE in self.conflict_types:
+            changes['status'] = {
+                'current': self.existing_booking.external_status,
+                'excel': self.excel_data.get('external_status')
+            }
+        
+        return changes
+
+
+class EnhancedExcelImportService(ExcelImportService):
+    """Enhanced service with intelligent conflict detection and resolution"""
+    
+    def __init__(self, user: User, template: Optional[BookingImportTemplate] = None):
+        super().__init__(user, template)
+        self.conflicts_detected = []
+        self.auto_updated_count = 0
+        self.requires_review = False
+    
+    def import_excel_file(self, excel_file, sheet_name: str = 'Cleaning schedule') -> Dict[str, Any]:
+        """Enhanced import with conflict detection"""
+        try:
+            # Create import log
+            self.import_log = self._create_import_log(excel_file)
+            
+            # Read Excel file
+            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+            self.total_rows = len(df)
+            
+            logger.info(f"Starting enhanced Excel import: {self.total_rows} rows")
+            
+            # Process each row with conflict detection
+            processed_rows = 0
+            for index, row in df.iterrows():
+                try:
+                    if row.isna().all():
+                        continue
+                    
+                    # Use enumerate to get proper index
+                    row_num = processed_rows + 2
+                    result = self._process_booking_row_with_conflicts(row, row_num)
+                    processed_rows += 1
+                    
+                except Exception as e:
+                    row_num = processed_rows + 2
+                    error_msg = f"Row {row_num}: {str(e)}"
+                    self.errors.append(error_msg)
+                    logger.error(error_msg)
+                    processed_rows += 1
+            
+            # Update import log with conflicts
+            self._update_import_log()
+            
+            # Store conflicts in import log for later review
+            if self.conflicts_detected:
+                conflicts_data = [self._serialize_conflict(c) for c in self.conflicts_detected]
+                self.import_log.errors_log += f"\n\nCONFLICTS_DATA:{json.dumps(conflicts_data)}"
+                self.import_log.save()
+            
+            # Prepare result
+            result = {
+                'success': True,
+                'total_rows': self.total_rows,
+                'processed_rows': processed_rows,
+                'successful_imports': self.success_count,
+                'auto_updated': self.auto_updated_count,
+                'conflicts_detected': len(self.conflicts_detected),
+                'requires_review': self.requires_review,
+                'errors_count': len(self.errors),
+                'warnings_count': len(self.warnings),
+                'errors': self.errors,
+                'warnings': self.warnings
+            }
+            
+            # Add conflicts for review if any
+            if self.conflicts_detected:
+                result['conflicts'] = [self._serialize_conflict(c) for c in self.conflicts_detected]
+                result['import_session_id'] = self.import_log.pk
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Enhanced Excel import failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'total_rows': self.total_rows,
+                'errors': self.errors
+            }
+    
+    def _process_booking_row_with_conflicts(self, row: pd.Series, row_number: int):
+        """Process single row with enhanced conflict detection"""
+        
+        # Extract booking data
+        booking_data = self._extract_booking_data(row, row_number)
+        if not booking_data:
+            return
+        
+        # Find or create property
+        property_obj = self._find_or_create_property(booking_data['property_label_raw'])
+        if not property_obj:
+            raise ValueError(f"Could not create property: {booking_data['property_label_raw']}")
+        
+        booking_data['property_name'] = property_obj.name
+        
+        # Enhanced conflict detection
+        conflict_result = self._detect_conflicts(booking_data, property_obj, row_number)
+        
+        if conflict_result['has_conflicts']:
+            if conflict_result['auto_resolve']:
+                # Platform booking - auto update
+                self._auto_update_booking(conflict_result['existing_booking'], booking_data, row)
+                self.auto_updated_count += 1
+                self.success_count += 1
+                logger.info(f"Auto-updated platform booking: {conflict_result['existing_booking'].external_code}")
+            else:
+                # Direct/Owner booking - needs review
+                self.conflicts_detected.append(conflict_result['conflict'])
+                self.requires_review = True
+                logger.info(f"Conflict detected for review: Row {row_number}")
+        else:
+            # No conflicts - create new booking
+            new_booking = self._create_booking(booking_data, property_obj, row)
+            self._create_cleaning_task(new_booking)
+            self.success_count += 1
+            logger.info(f"Created new booking: {new_booking.external_code}")
+    
+    def _detect_conflicts(self, booking_data: Dict[str, Any], property_obj: Property, row_number: int) -> Dict[str, Any]:
+        """Enhanced conflict detection with different rules for platform vs direct bookings"""
+        
+        external_code = booking_data.get('external_code')
+        guest_name = booking_data.get('guest_name')
+        source = booking_data.get('source', '').lower()
+        
+        # Check if this is a direct/owner booking
+        is_direct_booking = 'direct' in source or 'owner' in source
+        
+        existing_booking = None
+        
+        if external_code:
+            # First check for exact external code match
+            existing_bookings = Booking.objects.filter(
+                external_code=external_code
+            )
+            
+            if existing_bookings.exists():
+                existing_booking = existing_bookings.first()
+                
+                # For platform bookings - check if it's really the same booking
+                if not is_direct_booking and existing_booking is not None:
+                    conflict_types = self._identify_conflict_types(existing_booking, booking_data)
+                    if conflict_types:
+                        conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
+                        return {
+                            'has_conflicts': True,
+                            'auto_resolve': True,  # Platform bookings auto-resolve
+                            'existing_booking': existing_booking,
+                            'conflict': conflict
+                        }
+        
+        # For direct bookings or when no external code match
+        if is_direct_booking or not existing_booking:
+            # Check for potential conflicts based on guest name + property + dates
+            potential_conflicts = Booking.objects.filter(
+                property=property_obj,
+                guest_name__iexact=guest_name
+            )
+            
+            # Check for date overlaps
+            start_date = booking_data.get('start_date')
+            end_date = booking_data.get('end_date')
+            
+            if start_date and end_date and isinstance(start_date, datetime) and isinstance(end_date, datetime):
+                overlapping_bookings = potential_conflicts.filter(
+                    check_in_date__lt=end_date,
+                    check_out_date__gt=start_date
+                )
+                
+                if overlapping_bookings.exists():
+                    existing_booking = overlapping_bookings.first()
+                    if existing_booking is not None:
+                        conflict_types = self._identify_conflict_types(existing_booking, booking_data)
+                        conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
+                        
+                        return {
+                            'has_conflicts': True,
+                            'auto_resolve': False,  # Direct bookings need manual review
+                            'existing_booking': existing_booking,
+                            'conflict': conflict
+                        }
+        
+        return {
+            'has_conflicts': False,
+            'auto_resolve': False,
+            'existing_booking': None,
+            'conflict': None
+        }
+    
+    def _identify_conflict_types(self, existing_booking: Booking, booking_data: Dict[str, Any]) -> List[str]:
+        """Identify specific types of conflicts"""
+        conflicts = []
+        
+        # Date changes
+        existing_start = existing_booking.check_in_date.date()
+        existing_end = existing_booking.check_out_date.date()
+        excel_start = booking_data.get('start_date')
+        excel_end = booking_data.get('end_date')
+        
+        if excel_start and excel_end and isinstance(excel_start, datetime) and isinstance(excel_end, datetime):
+            if existing_start != excel_start.date() or existing_end != excel_end.date():
+                conflicts.append(ConflictType.DATE_CHANGE)
+        
+        # Guest name changes
+        if existing_booking.guest_name.lower() != booking_data.get('guest_name', '').lower():
+            conflicts.append(ConflictType.GUEST_CHANGE)
+        
+        # Status changes
+        if existing_booking.external_status != booking_data.get('external_status'):
+            conflicts.append(ConflictType.STATUS_CHANGE)
+        
+        return conflicts
+    
+    def _auto_update_booking(self, booking: Booking, booking_data: Dict[str, Any], row: pd.Series):
+        """Automatically update platform bookings"""
+        try:
+            # Update fields from Excel
+            if 'guest_name' in booking_data:
+                booking.guest_name = booking_data['guest_name']
+            if 'guest_contact' in booking_data:
+                booking.guest_contact = booking_data['guest_contact']
+            if 'external_status' in booking_data:
+                booking.external_status = booking_data['external_status']
+                # Update Django status
+                django_status = self._map_excel_status_to_booking_status(booking_data['external_status'])
+                booking.status = django_status
+            if 'start_date' in booking_data:
+                booking.check_in_date = booking_data['start_date']
+            if 'end_date' in booking_data:
+                booking.check_out_date = booking_data['end_date']
+            if 'earnings_amount' in booking_data:
+                booking.earnings_amount = booking_data['earnings_amount']
+            
+            # Update import tracking
+            try:
+                booking.raw_row = self._serialize_row_data(row)  # type: ignore
+            except AttributeError:
+                # Fallback to simple serialization
+                booking.raw_row = {str(k): str(v) for k, v in row.items()}  # type: ignore
+            booking.last_import_update = timezone.now()
+            
+            booking.save()
+            
+            # Update associated tasks if dates changed
+            self._update_associated_task(booking, booking_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to auto-update booking {booking.external_code}: {e}")
+            raise
+    
+    def _serialize_conflict(self, conflict: BookingConflict) -> Dict[str, Any]:
+        """Serialize conflict for frontend consumption"""
+        return {
+            'row_number': conflict.row_number,
+            'confidence_score': conflict.confidence_score,
+            'conflict_types': conflict.conflict_types,
+            'existing_booking': {
+                'id': conflict.existing_booking.pk,
+                'external_code': conflict.existing_booking.external_code,
+                'guest_name': conflict.existing_booking.guest_name,
+                'property_name': conflict.existing_booking.property.name,
+                'check_in_date': conflict.existing_booking.check_in_date.strftime('%Y-%m-%d'),
+                'check_out_date': conflict.existing_booking.check_out_date.strftime('%Y-%m-%d'),
+                'status': conflict.existing_booking.status,
+                'external_status': conflict.existing_booking.external_status,
+                'source': conflict.existing_booking.source
+            },
+            'excel_data': {
+                'external_code': conflict.excel_data.get('external_code'),
+                'guest_name': conflict.excel_data.get('guest_name'),
+                'property_name': conflict.excel_data.get('property_name'),
+                'start_date': self._safe_format_date(conflict.excel_data.get('start_date')),
+                'end_date': self._safe_format_date(conflict.excel_data.get('end_date')),
+                'external_status': conflict.excel_data.get('external_status'),
+                'source': conflict.excel_data.get('source')
+            },
+            'changes_summary': conflict.get_changes_summary()
+        }
+    
+    def _safe_format_date(self, date_value: Any) -> Optional[str]:
+        """Safely format date value for JSON serialization"""
+        if date_value is None:
+            return None
+        if isinstance(date_value, datetime):
+            return date_value.strftime('%Y-%m-%d')
+        if hasattr(date_value, 'date'):
+            return date_value.date().strftime('%Y-%m-%d')
+        return str(date_value) if date_value else None
+
+
+class ConflictResolutionService:
+    """Service to handle conflict resolution decisions"""
+    
+    def __init__(self, user: User):
+        self.user = user
+    
+    def resolve_conflicts(self, import_session_id: int, resolutions: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Resolve conflicts based on user decisions
+        
+        resolutions: List of {
+            'conflict_index': int,
+            'action': 'update_existing' | 'create_new' | 'skip',
+            'apply_changes': List[str]  # which fields to update
+        }
+        """
+        try:
+            import_log = BookingImportLog.objects.get(id=import_session_id)
+            results = {
+                'updated': 0,
+                'created': 0,
+                'skipped': 0,
+                'errors': []
+            }
+            
+            # Extract conflicts from import log
+            conflicts_data = []
+            if "CONFLICTS_DATA:" in import_log.errors_log:
+                conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
+                conflicts_data = json.loads(conflicts_json)
+            
+            for resolution in resolutions:
+                try:
+                    conflict_data = conflicts_data[resolution['conflict_index']]
+                    action = resolution['action']
+                    
+                    if action == 'update_existing':
+                        self._update_existing_booking(conflict_data, resolution.get('apply_changes', []))
+                        results['updated'] += 1
+                    elif action == 'create_new':
+                        self._create_new_booking(conflict_data)
+                        results['created'] += 1
+                    elif action == 'skip':
+                        results['skipped'] += 1
+                        
+                except Exception as e:
+                    results['errors'].append(f"Failed to resolve conflict {resolution['conflict_index']}: {str(e)}")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Failed to resolve conflicts: {str(e)}")
+            raise
+    
+    def _update_existing_booking(self, conflict_data: Dict[str, Any], apply_changes: List[str]):
+        """Update existing booking with selected changes"""
+        booking = Booking.objects.get(id=conflict_data['existing_booking']['id'])
+        excel_data = conflict_data['excel_data']
+        
+        if 'guest_name' in apply_changes:
+            booking.guest_name = excel_data['guest_name']
+        if 'dates' in apply_changes:
+            booking.check_in_date = datetime.strptime(excel_data['start_date'], '%Y-%m-%d')
+            booking.check_out_date = datetime.strptime(excel_data['end_date'], '%Y-%m-%d')
+        if 'status' in apply_changes:
+            booking.external_status = excel_data['external_status']
+        
+        booking.save()
+    
+    def _create_new_booking(self, conflict_data: Dict[str, Any]):
+        """Create new booking from Excel data"""
+        excel_data = conflict_data['excel_data']
+        property_obj = Property.objects.get(name=excel_data['property_name'])
+        
+        # Create new booking with unique external code
+        original_code = excel_data['external_code']
+        counter = 1
+        unique_code = f"{original_code} #{counter}"
+        
+        while Booking.objects.filter(external_code=unique_code).exists():
+            counter += 1
+            unique_code = f"{original_code} #{counter}"
+        
+        booking = Booking.objects.create(
+            property=property_obj,
+            external_code=unique_code,
+            guest_name=excel_data['guest_name'],
+            check_in_date=datetime.strptime(excel_data['start_date'], '%Y-%m-%d'),
+            check_out_date=datetime.strptime(excel_data['end_date'], '%Y-%m-%d'),
+            external_status=excel_data['external_status'],
+            source=excel_data['source']
+        )
+        
+        return booking

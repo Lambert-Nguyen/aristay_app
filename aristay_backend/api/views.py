@@ -1628,3 +1628,297 @@ def property_approval_create(request):
         messages.error(request, f"Property approval failed: {str(e)}")
         logger.error(f"Property approval error: {e}")
         return redirect('excel-import')
+
+
+# =============================================================================
+# ENHANCED EXCEL IMPORT WITH CONFLICT RESOLUTION
+# =============================================================================
+
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from api.models import BookingImportLog
+from api.services.enhanced_excel_import_service import (
+    EnhancedExcelImportService, ConflictResolutionService
+)
+
+
+class ConflictReviewView(LoginRequiredMixin, View):
+    """View for reviewing booking conflicts from Excel import"""
+    
+    def get(self, request, import_session_id):
+        """Display conflict resolution interface"""
+        try:
+            import_log = BookingImportLog.objects.get(id=import_session_id)
+            
+            # Extract conflicts data from import log
+            conflicts_data = []
+            if "CONFLICTS_DATA:" in import_log.errors_log:
+                conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
+                conflicts_data = json.loads(conflicts_json)
+            
+            context = {
+                'import_log': import_log,
+                'conflicts': conflicts_data,
+                'import_session_id': import_session_id
+            }
+            
+            return render(request, 'admin/conflict_resolution.html', context)
+            
+        except BookingImportLog.DoesNotExist:
+            return JsonResponse({'error': 'Import session not found'}, status=404)
+        except Exception as e:
+            logger.error(f"Error loading conflicts: {str(e)}")
+            return JsonResponse({'error': 'Failed to load conflicts'}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def resolve_conflicts(request, import_session_id):
+    """Resolve conflicts based on user decisions"""
+    try:
+        resolutions = request.data.get('resolutions', [])
+        
+        if not resolutions:
+            return Response({'error': 'No resolutions provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Use conflict resolution service
+        resolution_service = ConflictResolutionService(request.user)
+        results = resolution_service.resolve_conflicts(import_session_id, resolutions)
+        
+        return Response({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to resolve conflicts: {str(e)}")
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_conflict_details(request, import_session_id):
+    """Get detailed conflict information for AJAX requests"""
+    try:
+        import_log = BookingImportLog.objects.get(id=import_session_id)
+        
+        # Extract conflicts data
+        conflicts_data = []
+        if "CONFLICTS_DATA:" in import_log.errors_log:
+            conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
+            conflicts_data = json.loads(conflicts_json)
+        
+        return Response({
+            'success': True,
+            'conflicts': conflicts_data,
+            'import_info': {
+                'import_file': str(import_log.import_file) if import_log.import_file else 'Unknown',
+                'imported_at': import_log.imported_at.isoformat(),
+                'total_rows': import_log.total_rows,
+                'successful_imports': import_log.successful_imports,
+                'errors_count': import_log.errors_count
+            }
+        })
+        
+    except BookingImportLog.DoesNotExist:
+        return Response({'error': 'Import session not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Error getting conflict details: {str(e)}")
+        return Response({'error': 'Failed to get conflict details'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@staff_member_required
+@require_http_methods(["GET"])
+def preview_conflict_resolution(request, import_session_id, conflict_index):
+    """Preview what changes would be made for a specific conflict resolution"""
+    try:
+        import_log = BookingImportLog.objects.get(id=import_session_id)
+        
+        # Extract specific conflict
+        conflicts_data = []
+        if "CONFLICTS_DATA:" in import_log.errors_log:
+            conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
+            conflicts_data = json.loads(conflicts_json)
+        
+        if int(conflict_index) >= len(conflicts_data):
+            return JsonResponse({'error': 'Conflict not found'}, status=404)
+        
+        conflict = conflicts_data[int(conflict_index)]
+        existing_booking = Booking.objects.get(id=conflict['existing_booking']['id'])
+        
+        # Prepare preview data
+        preview = {
+            'existing_booking': {
+                'id': existing_booking.pk,
+                'external_code': existing_booking.external_code,
+                'guest_name': existing_booking.guest_name,
+                'check_in_date': existing_booking.check_in_date.strftime('%Y-%m-%d'),
+                'check_out_date': existing_booking.check_out_date.strftime('%Y-%m-%d'),
+                'status': existing_booking.status,
+                'external_status': existing_booking.external_status,
+                'source': existing_booking.source,
+                'property_name': existing_booking.property.name
+            },
+            'excel_data': conflict['excel_data'],
+            'changes_summary': conflict['changes_summary'],
+            'conflict_types': conflict['conflict_types'],
+            'confidence_score': conflict['confidence_score']
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'preview': preview
+        })
+        
+    except Exception as e:
+        logger.error(f"Error previewing conflict resolution: {str(e)}")
+        return JsonResponse({'error': 'Failed to preview conflict'}, status=500)
+
+
+@staff_member_required 
+@require_http_methods(["POST"])
+@csrf_exempt
+def quick_resolve_conflict(request, import_session_id, conflict_index):
+    """Quick resolve a single conflict with predefined actions"""
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')  # 'auto_update', 'create_new', 'skip'
+        
+        if action not in ['auto_update', 'create_new', 'skip']:
+            return JsonResponse({'error': 'Invalid action'}, status=400)
+        
+        # Map quick actions to full resolution format
+        if action == 'auto_update':
+            resolution = {
+                'conflict_index': int(conflict_index),
+                'action': 'update_existing',
+                'apply_changes': ['guest_name', 'dates', 'status']  # Update all changes
+            }
+        elif action == 'create_new':
+            resolution = {
+                'conflict_index': int(conflict_index),
+                'action': 'create_new',
+                'apply_changes': []
+            }
+        else:  # skip
+            resolution = {
+                'conflict_index': int(conflict_index),
+                'action': 'skip',
+                'apply_changes': []
+            }
+        
+        # Resolve using service
+        resolution_service = ConflictResolutionService(request.user)
+        results = resolution_service.resolve_conflicts(import_session_id, [resolution])
+        
+        return JsonResponse({
+            'success': True,
+            'action': action,
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in quick resolve: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@staff_member_required
+def enhanced_excel_import_view(request):
+    """Enhanced Excel import view with conflict detection"""
+    
+    if request.method == 'POST':
+        # Handle file upload and processing
+        excel_file = request.FILES.get('excel_file')
+        sheet_name = request.POST.get('sheet_name', 'Cleaning schedule')
+        
+        if not excel_file:
+            messages.error(request, 'Please select an Excel file to upload.')
+            return render(request, 'admin/enhanced_excel_import.html')
+        
+        try:
+            # Use enhanced import service
+            enhanced_service = EnhancedExcelImportService(request.user)
+            result = enhanced_service.import_excel_file(excel_file, sheet_name)
+            
+            if result['success']:
+                # Check for conflicts requiring review
+                if result.get('requires_review') and result.get('conflicts_detected', 0) > 0:
+                    # Redirect to conflict resolution page
+                    messages.warning(
+                        request, 
+                        f"Import completed with {result['conflicts_detected']} conflicts requiring manual review. "
+                        f"{result['successful_imports']} bookings imported successfully, "
+                        f"{result['auto_updated']} bookings auto-updated."
+                    )
+                    
+                    from django.urls import reverse
+                    conflict_review_url = reverse('conflict-review', args=[result['import_session_id']])
+                    return redirect(conflict_review_url)
+                else:
+                    # No conflicts - standard success
+                    messages.success(
+                        request,
+                        f"Excel import completed successfully! "
+                        f"{result['successful_imports']} bookings imported, "
+                        f"{result['auto_updated']} bookings auto-updated. "
+                        f"No conflicts detected."
+                    )
+            else:
+                messages.error(request, f"Import failed: {result.get('error', 'Unknown error')}")
+                
+                # Show errors if any
+                if result.get('errors'):
+                    for error in result['errors'][:5]:  # Show first 5 errors
+                        messages.error(request, f"Row error: {error}")
+                        
+        except Exception as e:
+            logger.error(f"Enhanced Excel import failed: {str(e)}")
+            messages.error(request, f"Import failed: {str(e)}")
+    
+    # Get available templates for the form
+    from api.models import BookingImportTemplate
+    templates = BookingImportTemplate.objects.all()
+    
+    context = {
+        'templates': templates,
+        'title': 'Enhanced Excel Import with Conflict Resolution'
+    }
+    
+    return render(request, 'admin/enhanced_excel_import.html', context)
+
+
+@staff_member_required  
+def enhanced_excel_import_api(request):
+    """Enhanced Excel import API endpoint"""
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    excel_file = request.FILES.get('excel_file')
+    sheet_name = request.POST.get('sheet_name', 'Cleaning schedule')
+    
+    if not excel_file:
+        return JsonResponse({'success': False, 'error': 'No Excel file provided'})
+    
+    try:
+        # Use enhanced import service
+        enhanced_service = EnhancedExcelImportService(request.user)
+        result = enhanced_service.import_excel_file(excel_file, sheet_name)
+        
+        # Add conflict resolution URL if conflicts detected
+        if result.get('requires_review') and result.get('import_session_id'):
+            from django.urls import reverse
+            result['conflict_review_url'] = reverse('conflict-review', args=[result['import_session_id']])
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        logger.error(f"Enhanced Excel import API failed: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

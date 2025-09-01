@@ -124,6 +124,93 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking {self.property.name} {self.check_in_date:%Y-%m-%d} → {self.check_out_date:%Y-%m-%d}"
+    
+    def check_conflicts(self):
+        """Check for booking conflicts with other properties"""
+        conflicts = []
+        
+        # Check for same day check-in/check-out conflicts across different properties
+        same_day_conflicts = Booking.objects.filter(
+            check_in_date__date=self.check_out_date.date(),
+            status__in=['booked', 'confirmed', 'currently_hosting']
+        ).exclude(
+            property=self.property  # Exclude same property
+        ).exclude(
+            id=self.id  # Exclude self
+        )
+        
+        for conflict_booking in same_day_conflicts:
+            conflicts.append({
+                'type': 'same_day_checkout_checkin',
+                'message': f"Same day conflict: Check-out from {self.property.name} on {self.check_out_date.date()}, check-in at {conflict_booking.property.name}",
+                'booking': conflict_booking,
+                'severity': 'high'
+            })
+        
+        # Check for same day check-out/check-in conflicts (reverse)
+        reverse_conflicts = Booking.objects.filter(
+            check_out_date__date=self.check_in_date.date(),
+            status__in=['booked', 'confirmed', 'currently_hosting']
+        ).exclude(
+            property=self.property  # Exclude same property
+        ).exclude(
+            id=self.id  # Exclude self
+        )
+        
+        for conflict_booking in reverse_conflicts:
+            conflicts.append({
+                'type': 'same_day_checkin_checkout',
+                'message': f"Same day conflict: Check-in at {self.property.name} on {self.check_in_date.date()}, check-out from {conflict_booking.property.name}",
+                'booking': conflict_booking,
+                'severity': 'high'
+            })
+        
+        # Check for overlapping bookings on same property
+        overlapping_bookings = Booking.objects.filter(
+            property=self.property,
+            check_in_date__lt=self.check_out_date,
+            check_out_date__gt=self.check_in_date,
+            status__in=['booked', 'confirmed', 'currently_hosting']
+        ).exclude(id=self.id)
+        
+        for overlap_booking in overlapping_bookings:
+            conflicts.append({
+                'type': 'overlapping_dates',
+                'message': f"Overlapping booking on {self.property.name}: {overlap_booking.check_in_date.date()} - {overlap_booking.check_out_date.date()}",
+                'booking': overlap_booking,
+                'severity': 'critical'
+            })
+        
+        return conflicts
+    
+    def get_conflict_flag(self):
+        """Get a formatted conflict flag for admin display"""
+        conflicts = self.check_conflicts()
+        if not conflicts:
+            return "✅ No conflicts"
+        
+        conflict_count = len(conflicts)
+        critical_count = len([c for c in conflicts if c['severity'] == 'critical'])
+        high_count = len([c for c in conflicts if c['severity'] == 'high'])
+        
+        if critical_count > 0:
+            return f"🔴 {critical_count} Critical, {high_count} High"
+        elif high_count > 0:
+            return f"🟡 {high_count} High priority conflicts"
+        else:
+            return f"⚠️ {conflict_count} conflicts"
+    
+    def get_conflict_details(self):
+        """Get detailed conflict information for tooltips"""
+        conflicts = self.check_conflicts()
+        if not conflicts:
+            return "No conflicts detected"
+        
+        details = []
+        for conflict in conflicts:
+            details.append(f"• {conflict['message']}")
+        
+        return "\n".join(details)
 
 
 class PropertyOwnership(models.Model):
