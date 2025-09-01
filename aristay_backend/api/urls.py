@@ -131,6 +131,7 @@ urlpatterns = [
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),
     path('excel-import/api/', excel_import_api, name='excel-import-api'),
+    path('excel-import-with-conflicts/', excel_import_view, name='excel_import_with_conflicts'),
     path('property-approval/create/', property_approval_create, name='property-approval-create'),
     
     # Enhanced Excel Import endpoints
