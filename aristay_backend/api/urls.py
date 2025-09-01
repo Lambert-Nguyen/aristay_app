@@ -81,9 +81,11 @@ urlpatterns = [
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     path('admin/users/<int:pk>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
     path('manager/overview/', manager_overview, name='manager-overview'),
+    path('manager/dashboard/', manager_overview, name='manager-dashboard'),  # Alias for compatibility
     path('manager/users/',    ManagerUserList.as_view(),  name='manager-user-list'),
     path('manager/users/<int:pk>/', ManagerUserDetail.as_view(), name='manager-user-detail'),
     path('admin/charts/', admin_charts_dashboard, name='admin-charts'),
+    path('admin/dashboard/', admin_charts_dashboard, name='admin-dashboard'),  # Alias for compatibility,
     path('admin/metrics/', system_metrics_dashboard, name='admin-metrics'),
     path('admin/metrics/api/', system_metrics_api, name='admin-metrics-api'),
     path('admin/logs/', system_logs_viewer, name='admin-logs'),
@@ -132,6 +134,8 @@ urlpatterns = [
     # Enhanced Excel Import endpoints
     path('enhanced-excel-import/', enhanced_excel_import_view, name='enhanced-excel-import'),
     path('enhanced-excel-import/api/', enhanced_excel_import_api, name='enhanced-excel-import-api'),
+    path('manager/enhanced-excel-import/', enhanced_excel_import_view, name='manager-enhanced-excel-import'),
+    path('admin/enhanced-excel-import/', enhanced_excel_import_view, name='admin-enhanced-excel-import'),
     
     # Conflict Resolution endpoints
     path('admin/conflict-review/<int:import_session_id>/', ConflictReviewView.as_view(), name='conflict-review'),

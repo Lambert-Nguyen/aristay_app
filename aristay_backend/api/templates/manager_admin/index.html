@@ -527,13 +527,218 @@ body {
                 <span class="action-label">Manage Users</span>
                 <span class="action-description">Handle team members, roles, and access permissions</span>
             </a>
+            <a href="/api/manager/enhanced-excel-import/" class="action-card">
+                <span class="action-icon">📊</span>
+                <span class="action-label">Enhanced Excel Import</span>
+                <span class="action-description">Advanced booking import with conflict detection and duplicate prevention</span>
+            </a>
             <a href="/api/excel-import/" class="action-card">
                 <span class="action-icon">📅</span>
-                <span class="action-label">Import Bookings</span>
-                <span class="action-description">Upload Excel files to import and update booking schedules</span>
+                <span class="action-label">Basic Excel Import</span>
+                <span class="action-description">Simple Excel file upload for booking schedules (legacy)</span>
             </a>
         </div>
+        
+        <!-- File Management Section -->
+        <div class="dashboard-section">
+            <div class="dashboard-title">🗂️ File Management</div>
+            <div class="actions-grid">
+                <div class="action-card-mini" id="file-cleanup-card">
+                    <span class="action-icon">🗑️</span>
+                    <span class="action-label">File Cleanup</span>
+                    <span class="action-description">Manage import file storage and cleanup old files</span>
+                    <div class="file-cleanup-controls" style="margin-top: 10px;">
+                        <button onclick="showFileStats()" class="btn-small">📊 Show Stats</button>
+                        <button onclick="showCleanupOptions()" class="btn-small">🧹 Cleanup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- File Cleanup Modal -->
+    <div id="fileCleanupModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>File Storage Management</h2>
+            <div id="fileCleanupContent">
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .action-card-mini {
+            background: white;
+            padding: var(--spacing-lg);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            margin: 2px;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: none;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+
+    <script>
+        async function showFileStats() {
+            const modal = document.getElementById('fileCleanupModal');
+            const content = document.getElementById('fileCleanupContent');
+            
+            content.innerHTML = '<p>Loading storage statistics...</p>';
+            modal.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/file-cleanup/api/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Token {{ request.user.auth_token.key }}',
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.stats;
+                    content.innerHTML = `
+                        <h3>📊 Storage Statistics</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                            <p><strong>Total Files:</strong> ${stats.total_files}</p>
+                            <p><strong>Total Size:</strong> ${stats.total_size_mb} MB (${stats.total_size_gb} GB)</p>
+                            <p><strong>Date Range:</strong> ${stats.oldest_file || 'N/A'} to ${stats.newest_file || 'N/A'}</p>
+                            <p><strong>Age Span:</strong> ${stats.age_span_days} days</p>
+                        </div>
+                        <button onclick="showCleanupOptions()" class="btn-small">🧹 Show Cleanup Options</button>
+                    `;
+                } else {
+                    content.innerHTML = `<p style="color: red;">Error: ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function showCleanupOptions() {
+            const content = document.getElementById('fileCleanupContent');
+            
+            content.innerHTML = `
+                <h3>🧹 File Cleanup Options</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <p><strong>Time-based Cleanup:</strong></p>
+                    <button onclick="performCleanup(30, true)" class="btn-small">🔍 Preview: Keep 30 days</button>
+                    <button onclick="performCleanup(7, true)" class="btn-small">🔍 Preview: Keep 7 days</button>
+                    <br><br>
+                    <button onclick="performCleanup(30, false)" class="btn-small" style="background: #dc3545;">🗑️ Delete files older than 30 days</button>
+                    <button onclick="performCleanup(7, false)" class="btn-small" style="background: #dc3545;">🗑️ Delete files older than 7 days</button>
+                </div>
+                <button onclick="showFileStats()" class="btn-small">📊 Back to Stats</button>
+            `;
+        }
+        
+        async function performCleanup(days, dryRun) {
+            const content = document.getElementById('fileCleanupContent');
+            const action = dryRun ? 'dry_run' : 'cleanup';
+            const actionText = dryRun ? 'Previewing' : 'Performing';
+            
+            content.innerHTML = `<p>${actionText} cleanup for files older than ${days} days...</p>`;
+            
+            try {
+                const formData = new FormData();
+                formData.append('action', action);
+                formData.append('days', days);
+                
+                const response = await fetch('/api/file-cleanup/api/', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Token {{ request.user.auth_token.key }}',
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const result = data.result;
+                    const resultClass = dryRun ? 'info' : 'success';
+                    
+                    content.innerHTML = `
+                        <h3>${dryRun ? '🔍 Cleanup Preview' : '✅ Cleanup Complete'}</h3>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                            <p><strong>Files ${dryRun ? 'that would be' : ''} deleted:</strong> ${result.files_deleted || result.files_found || 0}</p>
+                            <p><strong>Space ${dryRun ? 'that would be' : ''} freed:</strong> ${result.space_freed_mb || result.total_size_mb || 0} MB</p>
+                            <p><strong>Cutoff date:</strong> ${result.cutoff_date}</p>
+                            ${result.errors && result.errors.length > 0 ? `<p style="color: red;"><strong>Errors:</strong> ${result.errors.length}</p>` : ''}
+                        </div>
+                        <button onclick="showCleanupOptions()" class="btn-small">🔙 Back to Options</button>
+                        <button onclick="showFileStats()" class="btn-small">📊 Show Stats</button>
+                    `;
+                } else {
+                    content.innerHTML = `<p style="color: red;">Error: ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('fileCleanupModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('fileCleanupModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
 
     {% if app_list %}
     <div class="dashboard-section">

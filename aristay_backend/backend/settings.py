@@ -33,6 +33,7 @@ SECRET_KEY = "django-insecure-*g+qjl3q3q8h1tnkws9(sd^tm(t!ld8rtdre6r5yc+d=jw_yn!
 DEBUG = True
 
 def get_local_ip():
+    s = None
     try:
         # This creates a temporary connection to determine your IP address
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -41,7 +42,8 @@ def get_local_ip():
     except Exception:
         ip = '127.0.0.1'
     finally:
-        s.close()
+        if s:
+            s.close()
     return ip
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', get_local_ip()]
@@ -172,6 +174,10 @@ STATICFILES_DIRS = [ BASE_DIR / 'static' ]    # so project-level static/ is on t
 # === Add these for media uploads ===
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Data upload settings - increase limits for bulk operations
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Allow up to 10,000 fields for bulk admin operations
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB (increased from default 2.5MB)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
