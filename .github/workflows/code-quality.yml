@@ -1,0 +1,87 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+    paths:
+      - 'aristay_backend/**/*.py'
+      - '.github/workflows/code-quality.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'aristay_backend/**/*.py'
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-quality-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-quality-
+
+    - name: Install dependencies
+      working-directory: ./aristay_backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort mypy pylint
+        pip install -r requirements.txt
+
+    - name: Run Black code formatter check
+      working-directory: ./aristay_backend
+      run: |
+        black --check --diff .
+
+    - name: Run isort import sorting check
+      working-directory: ./aristay_backend
+      run: |
+        isort --check-only --diff .
+
+    - name: Run flake8 linting
+      working-directory: ./aristay_backend
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Run pylint
+      working-directory: ./aristay_backend
+      run: |
+        pylint --load-plugins=pylint_django --django-settings-module=backend.settings api/ || true
+
+    - name: Run mypy type checking
+      working-directory: ./aristay_backend
+      run: |
+        mypy --config-file=mypy.ini . || true
+
+    - name: Generate quality report
+      working-directory: ./aristay_backend
+      run: |
+        echo "# Code Quality Report" > quality-report.md
+        echo "Generated on: $(date)" >> quality-report.md
+        echo "" >> quality-report.md
+        echo "## Flake8 Results" >> quality-report.md
+        flake8 . --count --statistics --format='%(path)s:%(row)d:%(col)d: %(code)s %(text)s' >> quality-report.md || true
+        echo "" >> quality-report.md
+        echo "## PyLint Results" >> quality-report.md
+        pylint --load-plugins=pylint_django --django-settings-module=backend.settings api/ --output-format=text >> quality-report.md || true
+
+    - name: Upload quality report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-quality-report
+        path: aristay_backend/quality-report.md
