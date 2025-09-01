@@ -57,7 +57,7 @@ from .serializers import (
 from .permissions import (
     IsOwnerOrAssignedOrReadOnly, IsOwner, IsManagerOrOwner,
     DynamicBookingPermissions, DynamicTaskPermissions, DynamicUserPermissions,
-    DynamicPropertyPermissions, CanViewReports, CanAccessAdminPanel,
+    DynamicPropertyPermissions, CanViewReports, CanViewAnalytics, CanAccessAdminPanel,
     CanManageFiles, HasCustomPermission
 )
 from .services.notification_service import NotificationService
@@ -802,7 +802,7 @@ def mark_all_notifications_read(request):
 
 # ---------- Manager dashboard: overview ----------
 @api_view(['GET'])
-@permission_classes([IsManagerOrOwner])
+@permission_classes([CanViewAnalytics])
 def manager_overview(request):
     qs = Task.objects.all()
     total = qs.count()

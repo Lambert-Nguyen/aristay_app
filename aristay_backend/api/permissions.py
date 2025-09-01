@@ -145,9 +145,6 @@ class DynamicCRUDPermissions(BasePermission):
         """
         self.permission_map = permission_map or {}
     
-    def __call__(self):
-        return self
-    
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
@@ -176,52 +173,56 @@ class DynamicBookingPermissions(DynamicCRUDPermissions):
     """Booking-specific permissions"""
     
     def __init__(self):
-        super().__init__({
+        permission_map = {
             'GET': ['view_bookings'],
             'POST': ['add_bookings'],
             'PUT': ['change_bookings'],
             'PATCH': ['change_bookings'],
             'DELETE': ['delete_bookings']
-        })
+        }
+        super().__init__(permission_map)
 
 
 class DynamicTaskPermissions(DynamicCRUDPermissions):
     """Task-specific permissions"""
     
     def __init__(self):
-        super().__init__({
+        permission_map = {
             'GET': ['view_tasks'],
             'POST': ['add_tasks'],
             'PUT': ['change_tasks'],
             'PATCH': ['change_tasks'],
             'DELETE': ['delete_tasks']
-        })
+        }
+        super().__init__(permission_map)
 
 
 class DynamicUserPermissions(DynamicCRUDPermissions):
     """User management permissions"""
     
     def __init__(self):
-        super().__init__({
+        permission_map = {
             'GET': ['view_users'],
             'POST': ['add_users'],
             'PUT': ['change_users'],
             'PATCH': ['change_users'],
             'DELETE': ['delete_users']
-        })
+        }
+        super().__init__(permission_map)
 
 
 class DynamicPropertyPermissions(DynamicCRUDPermissions):
     """Property management permissions"""
     
     def __init__(self):
-        super().__init__({
+        permission_map = {
             'GET': ['view_properties'],
             'POST': ['add_properties'],
             'PUT': ['change_properties'],
             'PATCH': ['change_properties'],
             'DELETE': ['delete_properties']
-        })
+        }
+        super().__init__(permission_map)
 
 
 class CanViewReports(BasePermission):
@@ -236,6 +237,22 @@ class CanViewReports(BasePermission):
         
         if hasattr(request.user, 'profile') and request.user.profile:
             return request.user.profile.has_permission('view_reports')
+        
+        return False
+
+
+class CanViewAnalytics(BasePermission):
+    """Permission to view analytics dashboard"""
+    
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated):
+            return False
+        
+        if request.user.is_superuser:
+            return True
+        
+        if hasattr(request.user, 'profile') and request.user.profile:
+            return request.user.profile.has_permission('view_analytics')
         
         return False
 

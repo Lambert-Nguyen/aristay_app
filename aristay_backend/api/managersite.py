@@ -28,8 +28,13 @@ class ManagerAdminSite(admin.AdminSite):
             return False
         if request.user.is_superuser:
             return True
-        role = getattr(getattr(request.user, 'profile', None), 'role', 'staff')
-        return role == 'manager'
+        
+        # For dynamic permissions: ALL users (including managers) need explicit portal access
+        # This allows fine-grained control over who can access the manager portal
+        if hasattr(request.user, 'profile') and request.user.profile:
+            return request.user.profile.has_permission('manager_portal_access')
+        
+        return False
     
     def get_urls(self):
         """Add custom URLs to the manager admin site"""
@@ -55,6 +60,19 @@ class ManagerPermissionMixin:
             return True
         role = getattr(getattr(request.user, 'profile', None), 'role', 'staff')
         return role == 'manager'
+    
+    def _has_permission(self, request, permission_name):
+        """Check if user has a specific permission using the dynamic permission system"""
+        if not (request.user and request.user.is_authenticated and request.user.is_active):
+            return False
+        if request.user.is_superuser:
+            return True
+        
+        # Use the dynamic permission system
+        if hasattr(request.user, 'profile') and request.user.profile:
+            return request.user.profile.has_permission(permission_name)
+        
+        return False
 
     # Show app on index
     def has_module_permission(self, request):
@@ -83,6 +101,38 @@ class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'created_at')
     search_fields = ('title', 'description')
     list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
+    
+    # Override to use dynamic permissions for tasks
+    def has_view_permission(self, request, obj=None):
+        return self._has_permission(request, 'view_tasks')
+    
+    def has_add_permission(self, request):
+        return self._has_permission(request, 'add_tasks')
+    
+    def has_change_permission(self, request, obj=None):
+        return self._has_permission(request, 'change_tasks')
+    
+    def has_delete_permission(self, request, obj=None):
+        return self._has_permission(request, 'delete_tasks')
+
+# Create a specialized BookingAdmin for dynamic permissions
+class BookingAdmin(ManagerPermissionMixin, admin.ModelAdmin):
+    list_display = ('id', 'guest_name', 'property', 'check_in_date', 'check_out_date', 'status')
+    search_fields = ('guest_name', 'guest_contact', 'property__name')
+    list_filter = ('status', 'check_in_date', 'property')
+    
+    # Override to use dynamic permissions for bookings
+    def has_view_permission(self, request, obj=None):
+        return self._has_permission(request, 'view_bookings')
+    
+    def has_add_permission(self, request):
+        return self._has_permission(request, 'add_bookings')
+    
+    def has_change_permission(self, request, obj=None):
+        return self._has_permission(request, 'change_bookings')
+    
+    def has_delete_permission(self, request, obj=None):
+        return self._has_permission(request, 'delete_bookings')
 
 class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     """
@@ -380,7 +430,7 @@ manager_site.register(Property, PropertyAdmin)
 manager_site.register(Task, TaskAdmin)
 manager_site.register(User, UserManagerAdmin)
 manager_site.register(Notification, NotificationManagerAdmin)
-manager_site.register(Booking)
+manager_site.register(Booking, BookingAdmin)
 manager_site.register(PropertyOwnership)
 
 # Register MVP Phase 1 models

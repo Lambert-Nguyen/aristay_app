@@ -597,6 +597,7 @@ class CustomPermission(models.Model):
         
         # System Administration
         ('access_admin_panel', 'Access Admin Panel'),
+        ('manager_portal_access', 'Manager Portal Access'),
         ('manage_system_settings', 'Manage System Settings'),
         ('view_system_logs', 'View System Logs'),
         ('manage_notifications', 'Manage Notifications'),
