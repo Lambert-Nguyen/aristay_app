@@ -196,6 +196,9 @@ class EnhancedExcelImportService(ExcelImportService):
     def _extract_booking_data_enhanced(self, row: pd.Series, row_number: int) -> Optional[Dict]:
         """Extract booking data WITHOUT automatic external code suffix addition"""
         try:
+            import random
+            from api.models import Booking
+            
             # Map Excel columns to our fields
             data = {}
             
@@ -232,7 +235,28 @@ class EnhancedExcelImportService(ExcelImportService):
             
             # Clean and validate external code but DON'T add suffix
             if data.get('external_code'):
-                data['external_code'] = str(data['external_code']).strip()
+                external_code = str(data['external_code']).strip()
+                
+                # Check if external_code is actually a booking source (not a real confirmation code)
+                generic_sources = ['directly', 'direct', 'owner staying', 'owner', 'walk-in', 'phone', 'email']
+                if external_code.lower() in generic_sources:
+                    # This is a generic source, not a real confirmation code
+                    # Generate a unique code for direct bookings
+                    counter = 1
+                    while counter <= 99:
+                        base_code = 'DIR'  # Direct booking prefix
+                        generated_code = f"{base_code}{random.randint(100000, 999999)}"
+                        
+                        if not Booking.objects.filter(external_code=generated_code).exists():
+                            data['external_code'] = generated_code
+                            logger.info(f"Generated confirmation code for direct booking: {generated_code}")
+                            break
+                        counter += 1
+                        if counter > 99:  # Safety limit
+                            data['external_code'] = f"{base_code}{counter:03d}"
+                            break
+                else:
+                    data['external_code'] = external_code
             
             # Generate confirmation code for platform bookings if missing
             if not data.get('external_code'):
