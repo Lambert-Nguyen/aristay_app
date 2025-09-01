@@ -32,7 +32,8 @@ from .views import (
     excel_import_view, excel_import_api, property_approval_create,
     enhanced_excel_import_view, enhanced_excel_import_api,
     ConflictReviewView, resolve_conflicts, get_conflict_details,
-    preview_conflict_resolution, quick_resolve_conflict
+    preview_conflict_resolution, quick_resolve_conflict,
+    file_cleanup_api
 )
 
 # Remove separate imports since they're now in the main views.py
@@ -138,4 +139,7 @@ urlpatterns = [
     path('conflict-details/<int:import_session_id>/', get_conflict_details, name='conflict-details'),
     path('preview-conflict/<int:import_session_id>/<int:conflict_index>/', preview_conflict_resolution, name='preview-conflict-resolution'),
     path('quick-resolve/<int:import_session_id>/<int:conflict_index>/', quick_resolve_conflict, name='quick-resolve-conflict'),
+    
+    # File Cleanup endpoints
+    path('file-cleanup/api/', file_cleanup_api, name='file-cleanup-api'),
 ]

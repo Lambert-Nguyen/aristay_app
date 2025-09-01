@@ -1937,3 +1937,83 @@ def enhanced_excel_import_api(request):
             'success': False,
             'error': str(e)
         })
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def file_cleanup_api(request):
+    """
+    API endpoint for Excel import file cleanup management.
+    
+    GET: Returns current storage statistics
+    POST: Performs cleanup operations based on parameters
+    
+    POST Parameters:
+    - action: 'stats', 'suggest', 'dry_run', or 'cleanup'
+    - days: Number of days to keep (for dry_run and cleanup actions)
+    - target_mb: Target size in MB (for suggest action)
+    """
+    from api.services.file_cleanup_service import ImportFileCleanupService
+    
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Staff access required'}, status=403)
+    
+    if request.method == 'GET':
+        # Return current storage statistics
+        stats = ImportFileCleanupService.get_storage_stats()
+        return JsonResponse({
+            'success': True,
+            'stats': stats
+        })
+    
+    elif request.method == 'POST':
+        action = request.POST.get('action', request.data.get('action', 'stats'))
+        
+        try:
+            if action == 'stats':
+                stats = ImportFileCleanupService.get_storage_stats()
+                return JsonResponse({
+                    'success': True,
+                    'action': 'stats',
+                    'stats': stats
+                })
+            
+            elif action == 'suggest':
+                target_mb = int(request.POST.get('target_mb', request.data.get('target_mb', 100)))
+                suggestion = ImportFileCleanupService.suggest_cleanup(target_mb)
+                return JsonResponse({
+                    'success': True,
+                    'action': 'suggest',
+                    'suggestion': suggestion
+                })
+            
+            elif action in ['dry_run', 'cleanup']:
+                days = int(request.POST.get('days', request.data.get('days', 30)))
+                dry_run = (action == 'dry_run')
+                
+                result = ImportFileCleanupService.cleanup_old_files(days, dry_run)
+                
+                return JsonResponse({
+                    'success': True,
+                    'action': action,
+                    'result': result
+                })
+            
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Unknown action: {action}'
+                }, status=400)
+        
+        except ValueError as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid parameter: {str(e)}'
+            }, status=400)
+        
+        except Exception as e:
+            logger.error(f"File cleanup API error: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)

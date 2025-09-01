@@ -779,8 +779,9 @@ class ConflictResolutionService:
                 same_day_flag=bool(booking_data.get('same_day_note'))
                 # Skip raw_row for now to avoid type issues
             )
-            logger.debug(f"Successfully created booking {booking.external_code} with status {django_status}")
+            
             return booking
+            
         except Exception as e:
-            logger.error(f"Failed to create booking with external_code '{booking_data.get('external_code')}': {e}")
+            logger.error(f"Failed to create booking: {e}")
             raise
