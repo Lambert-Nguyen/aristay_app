@@ -7,6 +7,7 @@ for booking imports, with different handling for platform vs direct bookings.
 
 import pandas as pd
 import json
+import random
 from datetime import datetime, timedelta, time
 from decimal import Decimal
 import logging
@@ -192,11 +193,138 @@ class EnhancedExcelImportService(ExcelImportService):
                 'errors': self.errors
             }
     
+    def _extract_booking_data_enhanced(self, row: pd.Series, row_number: int) -> Optional[Dict]:
+        """Extract booking data WITHOUT automatic external code suffix addition"""
+        try:
+            # Map Excel columns to our fields
+            data = {}
+            
+            # Map columns with fallbacks for variations
+            column_mappings = {
+                'external_code': ['Confirmation code'],
+                'external_status': ['Status'],
+                'guest_name': ['Guest name'],
+                'guest_contact': ['Contact'],
+                'source': ['Booking source', 'Airbnb/VRBO'],  # Handle both column names
+                'listing_name': ['Listing'],
+                'earnings_amount': ['Earnings'],
+                'booked_on': ['Booked'],
+                'adults': ['# of adults'],
+                'children': ['# of children'],
+                'infants': ['# of infants'],
+                'start_date': ['Start date'],
+                'end_date': ['End date'],
+                'nights': ['# of nights'],
+                'property_label_raw': ['Properties'],
+                'same_day_note': ['Check ', 'Check 1']
+            }
+            
+            # Process each mapping
+            for field_name, possible_columns in column_mappings.items():
+                value = None
+                for col_name in possible_columns:
+                    if col_name in row.index and pd.notna(row[col_name]):
+                        value = row[col_name]
+                        break
+                
+                if value is not None:
+                    data[field_name] = value
+            
+            # Clean and validate external code but DON'T add suffix
+            if data.get('external_code'):
+                data['external_code'] = str(data['external_code']).strip()
+            
+            # Generate confirmation code for platform bookings if missing
+            if not data.get('external_code'):
+                source = data.get('source', '').lower()
+                if any(platform in source for platform in ['airbnb', 'vrbo', 'homeaway']):
+                    # Generate platform-style code  
+                    counter = 1
+                    while counter <= 99:
+                        if 'airbnb' in source:
+                            base_code = 'HM'
+                        elif 'vrbo' in source or 'homeaway' in source:
+                            base_code = 'HA'
+                        else:
+                            base_code = 'BK'
+                        
+                        generated_code = f"{base_code}{random.randint(100000, 999999)}"
+                        
+                        if not Booking.objects.filter(external_code=generated_code).exists():
+                            data['external_code'] = generated_code
+                            logger.info(f"Generated confirmation code: {generated_code}")
+                            break
+                        counter += 1
+                        if counter > 99:  # Safety limit
+                            data['external_code'] = f"{base_code} {counter:02d}"
+                            break
+                else:
+                    raise ValueError("Confirmation code is required for platform bookings")
+            
+            # Process dates properly
+            for date_field in ['start_date', 'end_date', 'booked_on']:
+                if data.get(date_field):
+                    value = data[date_field]
+                    if isinstance(value, str):
+                        # Try to parse string dates
+                        try:
+                            data[date_field] = pd.to_datetime(value).to_pydatetime()
+                        except Exception:
+                            logger.warning(f"Could not parse date field {date_field}: {value}")
+                            if date_field in ['start_date', 'end_date']:
+                                raise ValueError(f"Could not parse {date_field}: {value}")
+                    elif isinstance(value, datetime):
+                        data[date_field] = value
+                    elif hasattr(value, 'to_pydatetime'):
+                        data[date_field] = value.to_pydatetime()
+            
+            # Process numeric fields
+            for numeric_field in ['adults', 'children', 'infants', 'nights']:
+                if data.get(numeric_field):
+                    try:
+                        data[numeric_field] = int(float(data[numeric_field]))
+                    except (ValueError, TypeError):
+                        data[numeric_field] = 0 if numeric_field != 'adults' else 1
+            
+            # Process earnings
+            if data.get('earnings_amount'):
+                try:
+                    # Remove currency symbols and convert to Decimal
+                    earnings_str = str(data['earnings_amount']).replace('$', '').replace(',', '')
+                    data['earnings_amount'] = Decimal(earnings_str)
+                except (ValueError, TypeError):
+                    data['earnings_amount'] = None
+            
+            # Skip the duplicate external code logic that adds "#" suffixes
+            # The enhanced service will handle conflicts in _detect_conflicts()
+            
+            # Validate required fields
+            if not data.get('start_date') or not data.get('end_date'):
+                raise ValueError("Start date and end date are required")
+            if not data.get('guest_name'):
+                raise ValueError("Guest name is required")
+            
+            # Calculate nights if not provided or invalid
+            if not data.get('nights') and data.get('start_date') and data.get('end_date'):
+                try:
+                    if isinstance(data['start_date'], datetime) and isinstance(data['end_date'], datetime):
+                        nights = (data['end_date'] - data['start_date']).days
+                        data['nights'] = max(1, nights)  # Ensure at least 1 night
+                except Exception:
+                    data['nights'] = 1  # Fallback
+            
+            return data
+            
+        except Exception as e:
+            logger.error(f"Row {row_number}: Error extracting booking data: {str(e)}")
+            self.errors.append(f"Row {row_number}: {str(e)}")
+            return None
+    
     def _process_booking_row_with_conflicts(self, row: pd.Series, row_number: int):
         """Process single row with enhanced conflict detection"""
         
-        # Extract booking data
-        booking_data = self._extract_booking_data(row, row_number)
+        # Extract booking data WITHOUT automatic external code suffix logic
+        booking_data = self._extract_booking_data_enhanced(row, row_number)
         if not booking_data:
             return
         
@@ -218,10 +346,17 @@ class EnhancedExcelImportService(ExcelImportService):
                 self.success_count += 1
                 logger.info(f"Auto-updated platform booking: {conflict_result['existing_booking'].external_code}")
             else:
-                # Direct/Owner booking - needs review
-                self.conflicts_detected.append(conflict_result['conflict'])
-                self.requires_review = True
-                logger.info(f"Conflict detected for review: Row {row_number}")
+                # Direct/Owner booking OR exact duplicate - handle appropriately
+                if conflict_result.get('is_exact_duplicate', False):
+                    # Skip exact duplicates
+                    logger.info(f"Skipped exact duplicate: Row {row_number}")
+                    return  # Skip creating duplicate booking
+                else:
+                    # Add to conflicts for manual review
+                    self.conflicts_detected.append(conflict_result['conflict'])
+                    self.requires_review = True
+                    logger.info(f"Conflict detected for review: Row {row_number}")
+                    return  # Don't create booking, wait for manual resolution
         else:
             # No conflicts - create new booking
             new_booking = self._create_booking(booking_data, property_obj, row)
@@ -230,74 +365,107 @@ class EnhancedExcelImportService(ExcelImportService):
             logger.info(f"Created new booking: {new_booking.external_code}")
     
     def _detect_conflicts(self, booking_data: Dict[str, Any], property_obj: Property, row_number: int) -> Dict[str, Any]:
-        """Enhanced conflict detection with different rules for platform vs direct bookings"""
+        """Enhanced conflict detection with comprehensive duplicate detection"""
         
         external_code = booking_data.get('external_code')
         guest_name = booking_data.get('guest_name')
         source = booking_data.get('source', '').lower()
+        start_date = booking_data.get('start_date')
+        end_date = booking_data.get('end_date')
         
         # Check if this is a direct/owner booking
         is_direct_booking = 'direct' in source or 'owner' in source
         
         existing_booking = None
         
+        # Step 1: Check for exact external code match (for platform bookings with original codes)
         if external_code:
-            # First check for exact external code match
             existing_bookings = Booking.objects.filter(
                 external_code=external_code
             )
             
             if existing_bookings.exists():
                 existing_booking = existing_bookings.first()
-                
-                # For platform bookings - check if it's really the same booking
-                if not is_direct_booking and existing_booking is not None:
+                if existing_booking:
                     conflict_types = self._identify_conflict_types(existing_booking, booking_data)
-                    if conflict_types:
-                        conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
-                        return {
-                            'has_conflicts': True,
-                            'auto_resolve': True,  # Platform bookings auto-resolve
-                            'existing_booking': existing_booking,
-                            'conflict': conflict
-                        }
+                    
+                    # Check if this is an exact duplicate
+                    is_exact_duplicate = len(conflict_types) == 0 or all(
+                        ct in [ConflictType.STATUS_CHANGE] for ct in conflict_types
+                    )
+                    
+                    # Always flag exact external code matches as conflicts for review
+                    conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
+                    return {
+                        'has_conflicts': True,
+                        'auto_resolve': not is_direct_booking and not is_exact_duplicate,  # Platform bookings auto-resolve if not exact duplicate
+                        'existing_booking': existing_booking,
+                        'conflict': conflict,
+                        'is_exact_duplicate': is_exact_duplicate
+                    }
         
-        # For direct bookings or when no external code match
-        if is_direct_booking or not existing_booking:
-            # Check for potential conflicts based on guest name + property + dates
-            potential_conflicts = Booking.objects.filter(
+        # Step 2: Comprehensive duplicate detection for ALL bookings (platform and direct)
+        # This catches cases where platform bookings had generated codes on first import
+        if guest_name and start_date and end_date and isinstance(start_date, datetime) and isinstance(end_date, datetime):
+            # Look for potential duplicates based on guest + property + exact dates
+            potential_duplicates = Booking.objects.filter(
                 property=property_obj,
-                guest_name__iexact=guest_name
+                guest_name__iexact=guest_name,
+                check_in_date=start_date.date(),
+                check_out_date=end_date.date()
             )
             
-            # Check for date overlaps
-            start_date = booking_data.get('start_date')
-            end_date = booking_data.get('end_date')
+            if potential_duplicates.exists():
+                existing_booking = potential_duplicates.first()
+                if existing_booking:
+                    conflict_types = self._identify_conflict_types(existing_booking, booking_data)
+                    
+                    # Check if this is an exact duplicate (no meaningful differences)
+                    is_exact_duplicate = len(conflict_types) == 0 or all(
+                        ct in [ConflictType.STATUS_CHANGE] for ct in conflict_types
+                    )
+                    
+                    # This is likely a duplicate from the same Excel file
+                    conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
+                    return {
+                        'has_conflicts': True,
+                        'auto_resolve': not is_direct_booking and not is_exact_duplicate,  # Platform bookings can auto-update if not exact duplicate
+                        'existing_booking': existing_booking,
+                        'conflict': conflict,
+                        'is_exact_duplicate': is_exact_duplicate
+                    }
             
-            if start_date and end_date and isinstance(start_date, datetime) and isinstance(end_date, datetime):
-                overlapping_bookings = potential_conflicts.filter(
-                    check_in_date__lt=end_date,
-                    check_out_date__gt=start_date
-                )
-                
-                if overlapping_bookings.exists():
-                    existing_booking = overlapping_bookings.first()
-                    if existing_booking is not None:
-                        conflict_types = self._identify_conflict_types(existing_booking, booking_data)
-                        conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
-                        
-                        return {
-                            'has_conflicts': True,
-                            'auto_resolve': False,  # Direct bookings need manual review
-                            'existing_booking': existing_booking,
-                            'conflict': conflict
-                        }
+            # Step 3: Check for date overlaps (different from exact match)
+            overlapping_bookings = Booking.objects.filter(
+                property=property_obj,
+                guest_name__iexact=guest_name,
+                check_in_date__lt=end_date.date(),
+                check_out_date__gt=start_date.date()
+            ).exclude(
+                check_in_date=start_date.date(),
+                check_out_date=end_date.date()
+            )
+            
+            if overlapping_bookings.exists():
+                existing_booking = overlapping_bookings.first()
+                if existing_booking:
+                    conflict_types = self._identify_conflict_types(existing_booking, booking_data)
+                    conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
+                    
+                    return {
+                        'has_conflicts': True,
+                        'auto_resolve': False,  # Date overlaps always need manual review
+                        'existing_booking': existing_booking,
+                        'conflict': conflict,
+                        'is_exact_duplicate': False  # Overlaps are not exact duplicates
+                    }
         
         return {
             'has_conflicts': False,
             'auto_resolve': False,
             'existing_booking': None,
-            'conflict': None
+            'conflict': None,
+            'is_exact_duplicate': False
         }
     
     def _identify_conflict_types(self, existing_booking: Booking, booking_data: Dict[str, Any]) -> List[str]:
@@ -334,9 +502,14 @@ class EnhancedExcelImportService(ExcelImportService):
                 booking.guest_contact = booking_data['guest_contact']
             if 'external_status' in booking_data:
                 booking.external_status = booking_data['external_status']
-                # Update Django status
-                django_status = self._map_excel_status_to_booking_status(booking_data['external_status'])
-                booking.status = django_status
+                # Update Django status - simplified mapping
+                external_status = booking_data['external_status'].lower()
+                if 'confirmed' in external_status:
+                    booking.status = 'confirmed'
+                elif 'cancelled' in external_status:
+                    booking.status = 'cancelled'
+                else:
+                    booking.status = 'confirmed'  # Default
             if 'start_date' in booking_data:
                 booking.check_in_date = booking_data['start_date']
             if 'end_date' in booking_data:
@@ -345,11 +518,6 @@ class EnhancedExcelImportService(ExcelImportService):
                 booking.earnings_amount = booking_data['earnings_amount']
             
             # Update import tracking
-            try:
-                booking.raw_row = self._serialize_row_data(row)  # type: ignore
-            except AttributeError:
-                # Fallback to simple serialization
-                booking.raw_row = {str(k): str(v) for k, v in row.items()}  # type: ignore
             booking.last_import_update = timezone.now()
             
             booking.save()
@@ -460,12 +628,22 @@ class ConflictResolutionService:
         booking = Booking.objects.get(id=conflict_data['existing_booking']['id'])
         excel_data = conflict_data['excel_data']
         
-        if 'guest_name' in apply_changes:
+        if 'guest_name' in apply_changes and 'guest_name' in excel_data:
             booking.guest_name = excel_data['guest_name']
         if 'dates' in apply_changes:
-            booking.check_in_date = datetime.strptime(excel_data['start_date'], '%Y-%m-%d')
-            booking.check_out_date = datetime.strptime(excel_data['end_date'], '%Y-%m-%d')
-        if 'status' in apply_changes:
+            if 'start_date' in excel_data:
+                start_date = excel_data['start_date']
+                if isinstance(start_date, str):
+                    booking.check_in_date = timezone.make_aware(datetime.strptime(start_date, '%Y-%m-%d'))
+                elif isinstance(start_date, datetime):
+                    booking.check_in_date = timezone.make_aware(start_date) if timezone.is_naive(start_date) else start_date
+            if 'end_date' in excel_data:
+                end_date = excel_data['end_date']
+                if isinstance(end_date, str):
+                    booking.check_out_date = timezone.make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+                elif isinstance(end_date, datetime):
+                    booking.check_out_date = timezone.make_aware(end_date) if timezone.is_naive(end_date) else end_date
+        if 'status' in apply_changes and 'external_status' in excel_data:
             booking.external_status = excel_data['external_status']
         
         booking.save()
@@ -475,23 +653,110 @@ class ConflictResolutionService:
         excel_data = conflict_data['excel_data']
         property_obj = Property.objects.get(name=excel_data['property_name'])
         
-        # Create new booking with unique external code
-        original_code = excel_data['external_code']
-        counter = 1
-        unique_code = f"{original_code} #{counter}"
+        # Handle external code - only add suffix for direct/owner bookings
+        original_code = excel_data.get('external_code', 'UNKNOWN')
+        source = excel_data.get('source', '').lower()
+        is_direct_booking = 'direct' in source or 'owner' in source
         
-        while Booking.objects.filter(external_code=unique_code).exists():
-            counter += 1
+        if is_direct_booking:
+            # For direct bookings, add unique suffix to avoid conflicts
+            counter = 1
             unique_code = f"{original_code} #{counter}"
+            
+            while Booking.objects.filter(external_code=unique_code).exists():
+                counter += 1
+                unique_code = f"{original_code} #{counter}"
+        else:
+            # For platform bookings (Airbnb, VRBO), keep original external code
+            # Platform codes should be unique by nature
+            unique_code = original_code
+        
+        # Handle dates
+        start_date = excel_data.get('start_date')
+        end_date = excel_data.get('end_date')
+        
+        if isinstance(start_date, str):
+            check_in_date = timezone.make_aware(datetime.strptime(start_date, '%Y-%m-%d'))
+        elif isinstance(start_date, datetime):
+            check_in_date = timezone.make_aware(start_date) if timezone.is_naive(start_date) else start_date
+        else:
+            check_in_date = timezone.now()  # Default fallback
+        
+        if isinstance(end_date, str):
+            check_out_date = timezone.make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+        elif isinstance(end_date, datetime):
+            check_out_date = timezone.make_aware(end_date) if timezone.is_naive(end_date) else end_date
+        else:
+            check_out_date = timezone.now() + timedelta(days=1)  # Default fallback
         
         booking = Booking.objects.create(
             property=property_obj,
             external_code=unique_code,
-            guest_name=excel_data['guest_name'],
-            check_in_date=datetime.strptime(excel_data['start_date'], '%Y-%m-%d'),
-            check_out_date=datetime.strptime(excel_data['end_date'], '%Y-%m-%d'),
-            external_status=excel_data['external_status'],
-            source=excel_data['source']
+            guest_name=excel_data.get('guest_name', 'Unknown Guest'),
+            check_in_date=check_in_date,
+            check_out_date=check_out_date,
+            external_status=excel_data.get('external_status', ''),
+            source=excel_data.get('source', 'Import')
         )
         
         return booking
+
+    def _create_booking(self, booking_data: Dict, property_obj: Property, row: pd.Series) -> Booking:
+        """Create new booking from Excel data - enhanced version that bypasses duplicate checking"""
+        # Ensure nights field has a valid value
+        nights_value = booking_data.get('nights')
+        if nights_value is None or not isinstance(nights_value, (int, float)):
+            # Calculate nights from start/end dates
+            try:
+                if isinstance(booking_data['start_date'], datetime) and isinstance(booking_data['end_date'], datetime):
+                    nights_value = (booking_data['end_date'] - booking_data['start_date']).days
+                    nights_value = max(1, nights_value)  # Ensure at least 1 night
+                else:
+                    nights_value = 1  # Fallback
+            except Exception:
+                nights_value = 1  # Fallback
+        
+        # Create booking with all the new fields - NO duplicate checking
+        try:
+            # Simple status mapping
+            external_status = booking_data.get('external_status', '')
+            if 'confirmed' in external_status.lower():
+                django_status = 'confirmed'
+            elif 'cancelled' in external_status.lower():
+                django_status = 'cancelled'
+            else:
+                django_status = 'confirmed'  # Default to confirmed
+            
+            # Simple row serialization
+            raw_row = {str(k): str(v) for k, v in row.items() if pd.notna(v)}
+            
+            booking = Booking.objects.create(
+                property=property_obj,
+                check_in_date=booking_data['start_date'],
+                check_out_date=booking_data['end_date'],
+                guest_name=booking_data['guest_name'],
+                guest_contact=booking_data.get('guest_contact', ''),
+                status=django_status,
+                external_code=booking_data['external_code'],  # Use as-is, no suffix
+                external_status=booking_data.get('external_status', ''),
+                source=booking_data.get('source', ''),
+                listing_name=booking_data.get('listing_name', ''),
+                earnings_amount=booking_data.get('earnings_amount'),
+                earnings_currency='USD',
+                booked_on=booking_data.get('booked_on'),
+                adults=booking_data.get('adults', 1),
+                children=booking_data.get('children', 0),
+                infants=booking_data.get('infants', 0),
+                nights=nights_value,
+                check_in_time=booking_data.get('check_in_time'),
+                check_out_time=booking_data.get('check_out_time'),
+                property_label_raw=booking_data['property_label_raw'],
+                same_day_note=booking_data.get('same_day_note', ''),
+                same_day_flag=bool(booking_data.get('same_day_note'))
+                # Skip raw_row for now to avoid type issues
+            )
+            logger.debug(f"Successfully created booking {booking.external_code} with status {django_status}")
+            return booking
+        except Exception as e:
+            logger.error(f"Failed to create booking with external_code '{booking_data.get('external_code')}': {e}")
+            raise

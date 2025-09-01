@@ -45,8 +45,11 @@
                 {% if user.is_superuser %}Admin Panel{% else %}Manager Panel{% endif %}
             </h3>
             <p style="margin-bottom: 1rem; color: #64748b;">Manage users, properties, and system settings</p>
-            <a href="{% if user.is_superuser %}/admin/{% else %}/manager/{% endif %}" class="button" style="width: 100%; display: block;">
+            <a href="{% if user.is_superuser %}/admin/{% else %}/manager/{% endif %}" class="button" style="width: 100%; display: block; margin-bottom: 0.5rem;">
                 {% if user.is_superuser %}Admin Dashboard{% else %}Manager Dashboard{% endif %}
+            </a>
+            <a href="/admin/api/booking/import-bookings-enhanced/" class="button" style="width: 100%; display: block; background-color: #059669; border-color: #059669;">
+                📊 Enhanced Excel Import
             </a>
         </div>
         {% endif %}
@@ -114,6 +117,11 @@
         {% if user.profile and user.profile.role and user.profile.role != 'viewer' %}
         <a href="/api/staff/" class="button" style="text-align: center; padding: 1rem;">
             📋 View Tasks
+        </a>
+        {% endif %}
+        {% if user.is_staff %}
+        <a href="/admin/api/booking/import-bookings-enhanced/" class="button" style="text-align: center; padding: 1rem; background-color: #059669; border-color: #059669;">
+            📊 Excel Import
         </a>
         {% endif %}
     </div>

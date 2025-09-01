@@ -9,6 +9,9 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 import json
 import logging
@@ -1673,36 +1676,48 @@ class ConflictReviewView(LoginRequiredMixin, View):
             return JsonResponse({'error': 'Failed to load conflicts'}, status=500)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+
+@csrf_exempt
+@login_required
 def resolve_conflicts(request, import_session_id):
     """Resolve conflicts based on user decisions"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
     try:
-        resolutions = request.data.get('resolutions', [])
+        data = json.loads(request.body)
+        resolutions = data.get('resolutions', [])
         
         if not resolutions:
-            return Response({'error': 'No resolutions provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'error': 'No resolutions provided'}, status=400)
         
         # Use conflict resolution service
         resolution_service = ConflictResolutionService(request.user)
         results = resolution_service.resolve_conflicts(import_session_id, resolutions)
         
-        return Response({
+        return JsonResponse({
             'success': True,
             'results': results
         })
         
     except Exception as e:
         logger.error(f"Failed to resolve conflicts: {str(e)}")
-        return Response({
+        return JsonResponse({
             'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        }, status=500)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@csrf_exempt
+@login_required
 def get_conflict_details(request, import_session_id):
     """Get detailed conflict information for AJAX requests"""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
     try:
         import_log = BookingImportLog.objects.get(id=import_session_id)
         
@@ -1712,7 +1727,7 @@ def get_conflict_details(request, import_session_id):
             conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
             conflicts_data = json.loads(conflicts_json)
         
-        return Response({
+        return JsonResponse({
             'success': True,
             'conflicts': conflicts_data,
             'import_info': {
@@ -1725,10 +1740,10 @@ def get_conflict_details(request, import_session_id):
         })
         
     except BookingImportLog.DoesNotExist:
-        return Response({'error': 'Import session not found'}, status=status.HTTP_404_NOT_FOUND)
+        return JsonResponse({'error': 'Import session not found'}, status=404)
     except Exception as e:
         logger.error(f"Error getting conflict details: {str(e)}")
-        return Response({'error': 'Failed to get conflict details'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse({'error': 'Failed to get conflict details'}, status=500)
 
 
 @staff_member_required

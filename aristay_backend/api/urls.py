@@ -134,8 +134,8 @@ urlpatterns = [
     
     # Conflict Resolution endpoints
     path('admin/conflict-review/<int:import_session_id>/', ConflictReviewView.as_view(), name='conflict-review'),
-    path('api/resolve-conflicts/<int:import_session_id>/', resolve_conflicts, name='resolve-conflicts'),
-    path('api/conflict-details/<int:import_session_id>/', get_conflict_details, name='conflict-details'),
-    path('api/preview-conflict/<int:import_session_id>/<int:conflict_index>/', preview_conflict_resolution, name='preview-conflict-resolution'),
-    path('api/quick-resolve/<int:import_session_id>/<int:conflict_index>/', quick_resolve_conflict, name='quick-resolve-conflict'),
+    path('resolve-conflicts/<int:import_session_id>/', resolve_conflicts, name='resolve-conflicts'),
+    path('conflict-details/<int:import_session_id>/', get_conflict_details, name='conflict-details'),
+    path('preview-conflict/<int:import_session_id>/<int:conflict_index>/', preview_conflict_resolution, name='preview-conflict-resolution'),
+    path('quick-resolve/<int:import_session_id>/<int:conflict_index>/', quick_resolve_conflict, name='quick-resolve-conflict'),
 ]

@@ -347,7 +347,7 @@ function resolveConflict(conflictIndex, action) {
         apply_changes: ['guest_name', 'dates', 'status'] // Apply all changes for updates
     }];
     
-    fetch(`/api/conflicts/{{ import_session_id }}/resolve/`, {
+    fetch(`/api/resolve-conflicts/{{ import_session_id }}/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -409,7 +409,7 @@ function resolveAllConflicts(action) {
         });
     }
     
-    fetch(`/api/conflicts/{{ import_session_id }}/resolve/`, {
+    fetch(`/api/resolve-conflicts/{{ import_session_id }}/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -436,7 +436,7 @@ function resolveAllConflicts(action) {
 }
 
 function previewResolution(conflictIndex) {
-    fetch(`/admin/conflicts/{{ import_session_id }}/preview/${conflictIndex}/`)
+    fetch(`/api/preview-conflict/{{ import_session_id }}/${conflictIndex}/`)
     .then(response => response.json())
     .then(data => {
         if (data.success) {
