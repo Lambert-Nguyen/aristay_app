@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+
+{% block title %}AriStay Administration{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">AriStay Administration</a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block content_title %}
+    {% if title %}
+        <h1>{{ title }}</h1>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+{% endblock %}
+
+{% block footer %}
+    <div id="footer">
+        AriStay Administration Panel
+    </div>
+{% endblock %}

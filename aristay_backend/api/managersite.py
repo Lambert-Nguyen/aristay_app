@@ -109,6 +109,19 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
+    
+    # Add fieldsets for creating new users (includes password fields)
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2'),
+        }),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Permissions', {
+            'fields': ('is_active', 'is_staff', 'groups'),
+            'classes': ('collapse',)
+        }),
+    )
 
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""
@@ -135,11 +148,14 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         if 'is_superuser' in form.base_fields:
             form.base_fields['is_superuser'].disabled = True
 
-        # Remove password change fields for managers (they can only trigger resets)
-        if 'password1' in form.base_fields:
-            del form.base_fields['password1']
-        if 'password2' in form.base_fields:
-            del form.base_fields['password2']
+        # Only remove password change fields when EDITING existing users (obj exists)
+        # For new users (obj is None), we need the password fields
+        if obj is not None:  # This is an edit form, not an add form
+            # Remove password change fields for managers (they can only trigger resets)
+            if 'password1' in form.base_fields:
+                del form.base_fields['password1']
+            if 'password2' in form.base_fields:
+                del form.base_fields['password2']
 
         return form
 

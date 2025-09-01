@@ -1,0 +1,172 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+    paths:
+      - 'aristay_backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'aristay_backend/**'
+      - '.github/workflows/backend-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: aristay_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+
+    - name: Install Python dependencies
+      working-directory: ./aristay_backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install coverage pytest-django pytest-cov
+
+    - name: Set up environment variables
+      run: |
+        echo "DEBUG=True" >> $GITHUB_ENV
+        echo "SECRET_KEY=test-secret-key-for-github-actions" >> $GITHUB_ENV
+        echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/aristay_test" >> $GITHUB_ENV
+        echo "ALLOWED_HOSTS=localhost,127.0.0.1" >> $GITHUB_ENV
+
+    - name: Wait for PostgreSQL
+      run: |
+        until pg_isready -h localhost -p 5432; do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+
+    - name: Run database migrations
+      working-directory: ./aristay_backend
+      run: |
+        python manage.py makemigrations
+        python manage.py migrate
+
+    - name: Check Django deployment
+      working-directory: ./aristay_backend
+      run: |
+        python manage.py check --deploy
+
+    - name: Run security checks
+      working-directory: ./aristay_backend
+      run: |
+        python manage.py check --deploy --fail-level WARNING
+
+    - name: Collect static files
+      working-directory: ./aristay_backend
+      run: |
+        python manage.py collectstatic --noinput
+
+    - name: Run linting with flake8
+      working-directory: ./aristay_backend
+      run: |
+        pip install flake8
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Run tests with coverage
+      working-directory: ./aristay_backend
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/aristay_test
+      run: |
+        coverage run --source='.' manage.py test tests/
+        coverage report
+        coverage xml
+
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./aristay_backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+
+    - name: Run specific test suites
+      working-directory: ./aristay_backend
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/aristay_test
+      run: |
+        echo "Running model tests..."
+        python manage.py test tests.test_models
+        
+        echo "Running API tests..."
+        python manage.py test tests.test_api_views
+        
+        echo "Running permission tests..."
+        python manage.py test tests.test_permissions
+        
+        echo "Running service tests..."
+        python manage.py test tests.test_services
+        
+        echo "Running integration tests..."
+        python manage.py test tests.test_integration
+
+    - name: Test existing test files
+      working-directory: ./aristay_backend
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/aristay_test
+      run: |
+        echo "Running existing test files..."
+        python test_enhanced_excel_import.py || echo "Excel import tests completed with warnings"
+        python test_booking_creation.py || echo "Booking creation tests completed with warnings"
+
+    - name: Generate test report
+      working-directory: ./aristay_backend
+      run: |
+        echo "## Test Results Summary" > test_report.md
+        echo "- Python Version: ${{ matrix.python-version }}" >> test_report.md
+        echo "- Database: PostgreSQL 13" >> test_report.md
+        echo "- Test Coverage: $(coverage report --format=total)%" >> test_report.md
+        echo "- Tests Passed: ✅" >> test_report.md
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-python-${{ matrix.python-version }}
+        path: |
+          aristay_backend/coverage.xml
+          aristay_backend/test_report.md

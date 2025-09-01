@@ -1,0 +1,34 @@
+[flake8]
+max-line-length = 127
+max-complexity = 10
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    migrations,
+    .tox,
+    .eggs,
+    *.egg,
+    build,
+    dist
+
+ignore = 
+    # E203: whitespace before ':'
+    E203,
+    # W503: line break before binary operator
+    W503,
+    # F401: module imported but unused (sometimes needed for Django)
+    # F401,
+
+per-file-ignores =
+    # Django settings files can have unused imports
+    settings.py:F401,F403
+    test_settings.py:F401,F403
+    # Test files can have unused imports and long lines
+    test_*.py:F401,E501
+    # __init__.py files can have unused imports
+    __init__.py:F401
+
+# Specific to Django
+django = True

@@ -186,14 +186,32 @@ class ExcelImportService:
     def _read_excel_file(self, excel_file, sheet_name: str) -> Optional[pd.DataFrame]:
         """Read Excel file and return DataFrame."""
         try:
-            # Try to read with pandas first
-            df = pd.read_excel(excel_file, sheet_name=sheet_name)
-            return df
+            # Handle Django uploaded file properly
+            if hasattr(excel_file, 'read'):
+                # For Django uploaded files, we need to reset position and read as bytes
+                excel_file.seek(0)
+                file_content = excel_file.read()
+                
+                # Try to read with pandas first
+                import io
+                df = pd.read_excel(io.BytesIO(file_content), sheet_name=sheet_name)
+                return df
+            else:
+                # For regular file objects
+                df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                return df
         except Exception as e:
             logger.warning(f"Pandas failed to read Excel: {e}, trying openpyxl")
             try:
-                # Fallback to openpyxl
-                workbook = openpyxl.load_workbook(excel_file, read_only=True)
+                # Fallback to openpyxl with proper file handling
+                if hasattr(excel_file, 'read'):
+                    excel_file.seek(0)
+                    file_content = excel_file.read()
+                    import io
+                    workbook = openpyxl.load_workbook(io.BytesIO(file_content), read_only=True)
+                else:
+                    workbook = openpyxl.load_workbook(excel_file, read_only=True)
+                    
                 if sheet_name not in workbook.sheetnames:
                     raise ValueError(f"Sheet '{sheet_name}' not found. Available sheets: {workbook.sheetnames}")
                 
@@ -922,10 +940,19 @@ class ExcelImportService:
     
     def _serialize_row_data(self, row: pd.Series) -> Dict:
         """Convert pandas row data to JSON-serializable format."""
+        import json
+        from datetime import datetime, date, time
+        
         serialized = {}
         for key, value in row.items():
             if pd.isna(value):
                 serialized[key] = None
+            elif isinstance(value, datetime):
+                serialized[key] = value.isoformat()
+            elif isinstance(value, date):
+                serialized[key] = value.isoformat()
+            elif isinstance(value, time):
+                serialized[key] = value.isoformat()
             elif hasattr(value, 'timestamp'):  # pandas Timestamp
                 try:
                     serialized[key] = value.isoformat()

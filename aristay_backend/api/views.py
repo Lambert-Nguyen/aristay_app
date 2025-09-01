@@ -54,7 +54,12 @@ from .serializers import (
     BookingSerializer,
     PropertyOwnershipSerializer,
 )
-from .permissions import IsOwnerOrAssignedOrReadOnly, IsOwner, IsManagerOrOwner
+from .permissions import (
+    IsOwnerOrAssignedOrReadOnly, IsOwner, IsManagerOrOwner,
+    DynamicBookingPermissions, DynamicTaskPermissions, DynamicUserPermissions,
+    DynamicPropertyPermissions, CanViewReports, CanAccessAdminPanel,
+    CanManageFiles, HasCustomPermission
+)
 from .services.notification_service import NotificationService
 
 
@@ -62,7 +67,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
+    permission_classes = [DynamicTaskPermissions, IsOwnerOrAssignedOrReadOnly]
    
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
     # free-text search on title/description
@@ -79,6 +84,24 @@ class TaskViewSet(viewsets.ModelViewSet):
         'title',
     ]
     ordering        = ['due_date']
+
+    def get_queryset(self):
+        """Filter queryset based on user permissions"""
+        queryset = super().get_queryset()
+        
+        if not (self.request.user and self.request.user.is_authenticated):
+            return queryset.none()
+        
+        # Superusers see everything
+        if self.request.user.is_superuser:
+            return queryset
+        
+        # Check if user has view_tasks permission
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            if self.request.user.profile.has_permission('view_tasks'):
+                return queryset
+        
+        return queryset.none()
 
     def perform_create(self, serializer):
         task = serializer.save(created_by=self.request.user, modified_by=self.request.user)
@@ -186,20 +209,56 @@ class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related('property').all()
     serializer_class = BookingSerializer
     authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DynamicBookingPermissions]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
     search_fields = ['guest_name', 'guest_contact', 'property__name']
     ordering_fields = ['check_in_date', 'check_out_date', 'status']
     ordering = ['-check_in_date']
+
+    def get_queryset(self):
+        """Filter queryset based on user permissions"""
+        queryset = super().get_queryset()
+        
+        if not (self.request.user and self.request.user.is_authenticated):
+            return queryset.none()
+        
+        # Superusers see everything
+        if self.request.user.is_superuser:
+            return queryset
+        
+        # Check if user has view_bookings permission
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            if self.request.user.profile.has_permission('view_bookings'):
+                return queryset
+        
+        return queryset.none()
 
 
 class PropertyOwnershipViewSet(viewsets.ModelViewSet):
     queryset = PropertyOwnership.objects.select_related('property', 'user').all()
     serializer_class = PropertyOwnershipSerializer
     authentication_classes = [TokenAuthentication, SessionAuthentication]
-    permission_classes = [IsManagerOrOwner]
+    permission_classes = [DynamicPropertyPermissions]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['property__name', 'user__username', 'user__email']
+
+    def get_queryset(self):
+        """Filter queryset based on user permissions"""
+        queryset = super().get_queryset()
+        
+        if not (self.request.user and self.request.user.is_authenticated):
+            return queryset.none()
+        
+        # Superusers see everything
+        if self.request.user.is_superuser:
+            return queryset
+        
+        # Check if user has view_properties permission
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            if self.request.user.profile.has_permission('view_properties'):
+                return queryset
+        
+        return queryset.none()
 
 # ----------------------------------------------------------------------------
 # Portal (web) views – property → bookings → tasks flow
@@ -575,9 +634,27 @@ class UserList(generics.ListAPIView):
     queryset = User.objects.all().order_by('id')  # ← Add ordering to fix pagination warning
     serializer_class = UserSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [DynamicUserPermissions]
     filter_backends = [filters.SearchFilter]
     search_fields  = ['username', 'email']
+
+    def get_queryset(self):
+        """Filter queryset based on user permissions"""
+        queryset = super().get_queryset()
+        
+        if not (self.request.user and self.request.user.is_authenticated):
+            return queryset.none()
+        
+        # Superusers see everything
+        if self.request.user.is_superuser:
+            return queryset
+        
+        # Check if user has view_users permission
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            if self.request.user.profile.has_permission('view_users'):
+                return queryset
+        
+        return queryset.none()
 
 class AdminUserDetailView(generics.RetrieveUpdateAPIView):
     """
@@ -586,7 +663,29 @@ class AdminUserDetailView(generics.RetrieveUpdateAPIView):
     """
     queryset = User.objects.all()
     serializer_class = AdminUserAdminSerializer
-    permission_classes = [IsOwner]  # superuser only
+    permission_classes = [DynamicUserPermissions]  # Now uses dynamic permissions
+
+    def get_queryset(self):
+        """Filter queryset based on user permissions"""
+        queryset = super().get_queryset()
+        
+        if not (self.request.user and self.request.user.is_authenticated):
+            return queryset.none()
+        
+        # Superusers see everything
+        if self.request.user.is_superuser:
+            return queryset
+        
+        # Check if user has change_users permission for PATCH, view_users for GET
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            if self.request.method in ['PATCH', 'PUT']:
+                if self.request.user.profile.has_permission('change_users'):
+                    return queryset
+            else:  # GET
+                if self.request.user.profile.has_permission('view_users'):
+                    return queryset
+        
+        return queryset.none()
 
     # (Optional safety: forbid changing superusers except by self)
     def perform_update(self, serializer):
@@ -951,8 +1050,15 @@ def manager_charts_dashboard(request):
 def admin_charts_dashboard(request):
     """
     Regular admin charts dashboard at /api/admin/charts/
-    Shows same analytics but accessible to all Django admin users
+    Shows same analytics but accessible to all Django admin users with view_reports permission
     """
+    # Check permission
+    if not request.user.is_superuser:
+        if not (hasattr(request.user, 'profile') and request.user.profile and 
+                request.user.profile.has_permission('view_reports')):
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+    
     # Get tasks by status
     tasks_by_status = (
         Task.objects
@@ -1117,13 +1223,15 @@ def admin_charts_dashboard(request):
 @staff_member_required
 def system_metrics_dashboard(request):
     """
-    System metrics and health dashboard for superusers
+    System metrics and health dashboard for superusers and users with system_metrics_access permission
     Provides comprehensive system monitoring and performance insights
     """
-    # Only allow superusers to access system metrics
+    # Check permission - superusers or users with system_metrics_access
     if not request.user.is_superuser:
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied("System metrics are only available to superusers.")
+        if not (hasattr(request.user, 'profile') and request.user.profile and 
+                request.user.profile.has_permission('system_metrics_access')):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("System metrics access requires appropriate permissions.")
     
     try:
         # Get comprehensive system metrics
@@ -2017,3 +2125,412 @@ def file_cleanup_api(request):
                 'success': False,
                 'error': str(e)
             }, status=500)
+
+
+# ========== PERMISSION MANAGEMENT API ==========
+
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import CustomPermission, RolePermission, UserPermissionOverride, UserRole
+from django.contrib.auth.models import User
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_permissions(request):
+    """
+    Get current user's permissions
+    """
+    try:
+        if not hasattr(request.user, 'profile'):
+            return Response({
+                'error': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        profile = request.user.profile
+        permissions = profile.get_all_permissions()
+        delegatable = list(profile.get_delegatable_permissions())
+        
+        return Response({
+            'user': request.user.username,
+            'role': profile.role,
+            'permissions': permissions,
+            'delegatable_permissions': delegatable
+        })
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def available_permissions(request):
+    """
+    Get all available permissions that the current user can see/manage
+    """
+    try:
+        if not hasattr(request.user, 'profile'):
+            return Response({
+                'error': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        profile = request.user.profile
+        
+        # Superusers can see all permissions
+        if profile.role == UserRole.SUPERUSER:
+            permissions = CustomPermission.objects.filter(is_active=True)
+        else:
+            # Others can only see permissions they can delegate
+            delegatable = profile.get_delegatable_permissions()
+            permissions = CustomPermission.objects.filter(
+                name__in=delegatable,
+                is_active=True
+            )
+        
+        permissions_data = []
+        for perm in permissions:
+            permissions_data.append({
+                'name': perm.name,
+                'display_name': perm.get_name_display(),
+                'description': perm.description,
+                'can_delegate': profile.can_delegate_permission(perm.name)
+            })
+        
+        return Response({
+            'permissions': permissions_data
+        })
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def manageable_users(request):
+    """
+    Get users that the current user can manage permissions for
+    """
+    try:
+        if not hasattr(request.user, 'profile'):
+            return Response({
+                'error': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        profile = request.user.profile
+        
+        # Define role hierarchy: superuser > manager > staff
+        role_hierarchy = {
+            UserRole.SUPERUSER: [UserRole.MANAGER, UserRole.STAFF, UserRole.VIEWER],
+            UserRole.MANAGER: [UserRole.STAFF, UserRole.VIEWER],
+            UserRole.STAFF: [],
+            UserRole.VIEWER: []
+        }
+        
+        manageable_roles = role_hierarchy.get(profile.role, [])
+        
+        # Get users with manageable roles
+        users = User.objects.filter(
+            profile__role__in=manageable_roles,
+            is_active=True
+        ).select_related('profile')
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.profile.role if hasattr(user, 'profile') else 'staff',
+                'permissions': user.profile.get_all_permissions() if hasattr(user, 'profile') else {}
+            })
+        
+        return Response({
+            'users': users_data
+        })
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def grant_permission(request):
+    """
+    Grant a permission to a user
+    """
+    try:
+        if not hasattr(request.user, 'profile'):
+            return Response({
+                'error': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        profile = request.user.profile
+        target_user_id = request.data.get('user_id')
+        permission_name = request.data.get('permission')
+        reason = request.data.get('reason', '')
+        expires_at = request.data.get('expires_at')  # Optional
+        
+        if not target_user_id or not permission_name:
+            return Response({
+                'error': 'user_id and permission are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if current user can delegate this permission
+        if not profile.can_delegate_permission(permission_name):
+            return Response({
+                'error': 'You do not have permission to delegate this permission'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get target user
+        try:
+            target_user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Target user not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if target user is manageable by current user
+        if not hasattr(target_user, 'profile'):
+            return Response({
+                'error': 'Target user has no profile'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        target_role = target_user.profile.role
+        current_role = profile.role
+        
+        # Role hierarchy check
+        role_hierarchy = {
+            UserRole.SUPERUSER: [UserRole.MANAGER, UserRole.STAFF, UserRole.VIEWER],
+            UserRole.MANAGER: [UserRole.STAFF, UserRole.VIEWER],
+        }
+        
+        manageable_roles = role_hierarchy.get(current_role, [])
+        if target_role not in manageable_roles:
+            return Response({
+                'error': 'You cannot manage permissions for this user'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get permission object
+        try:
+            permission_obj = CustomPermission.objects.get(name=permission_name, is_active=True)
+        except CustomPermission.DoesNotExist:
+            return Response({
+                'error': 'Permission not found or inactive'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Parse expires_at if provided
+        expires_datetime = None
+        if expires_at:
+            from datetime import datetime
+            try:
+                expires_datetime = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+            except ValueError:
+                return Response({
+                    'error': 'Invalid expires_at format. Use ISO format (YYYY-MM-DDTHH:MM:SS)'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create or update permission override
+        override, created = UserPermissionOverride.objects.update_or_create(
+            user=target_user,
+            permission=permission_obj,
+            defaults={
+                'granted': True,
+                'granted_by': request.user,
+                'reason': reason,
+                'expires_at': expires_datetime
+            }
+        )
+        
+        return Response({
+            'success': True,
+            'message': f'Permission {permission_obj.get_name_display()} granted to {target_user.username}',
+            'override_id': override.id,
+            'created': created
+        })
+    
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def revoke_permission(request):
+    """
+    Revoke a permission from a user
+    """
+    try:
+        if not hasattr(request.user, 'profile'):
+            return Response({
+                'error': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        profile = request.user.profile
+        target_user_id = request.data.get('user_id')
+        permission_name = request.data.get('permission')
+        reason = request.data.get('reason', '')
+        
+        if not target_user_id or not permission_name:
+            return Response({
+                'error': 'user_id and permission are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if current user can delegate this permission
+        if not profile.can_delegate_permission(permission_name):
+            return Response({
+                'error': 'You do not have permission to manage this permission'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get target user
+        try:
+            target_user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Target user not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check role hierarchy (same as grant_permission)
+        if not hasattr(target_user, 'profile'):
+            return Response({
+                'error': 'Target user has no profile'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        target_role = target_user.profile.role
+        current_role = profile.role
+        
+        role_hierarchy = {
+            UserRole.SUPERUSER: [UserRole.MANAGER, UserRole.STAFF, UserRole.VIEWER],
+            UserRole.MANAGER: [UserRole.STAFF, UserRole.VIEWER],
+        }
+        
+        manageable_roles = role_hierarchy.get(current_role, [])
+        if target_role not in manageable_roles:
+            return Response({
+                'error': 'You cannot manage permissions for this user'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get permission object
+        try:
+            permission_obj = CustomPermission.objects.get(name=permission_name, is_active=True)
+        except CustomPermission.DoesNotExist:
+            return Response({
+                'error': 'Permission not found or inactive'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Create or update permission override to deny
+        override, created = UserPermissionOverride.objects.update_or_create(
+            user=target_user,
+            permission=permission_obj,
+            defaults={
+                'granted': False,
+                'granted_by': request.user,
+                'reason': reason,
+                'expires_at': None  # Revocations don't expire
+            }
+        )
+        
+        return Response({
+            'success': True,
+            'message': f'Permission {permission_obj.get_name_display()} revoked from {target_user.username}',
+            'override_id': override.id,
+            'created': created
+        })
+    
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_permission_override(request):
+    """
+    Remove a permission override (revert to role-based permission)
+    """
+    try:
+        if not hasattr(request.user, 'profile'):
+            return Response({
+                'error': 'User profile not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        profile = request.user.profile
+        target_user_id = request.data.get('user_id')
+        permission_name = request.data.get('permission')
+        
+        if not target_user_id or not permission_name:
+            return Response({
+                'error': 'user_id and permission are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if current user can delegate this permission
+        if not profile.can_delegate_permission(permission_name):
+            return Response({
+                'error': 'You do not have permission to manage this permission'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get target user
+        try:
+            target_user = User.objects.get(id=target_user_id)
+        except User.DoesNotExist:
+            return Response({
+                'error': 'Target user not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get permission object
+        try:
+            permission_obj = CustomPermission.objects.get(name=permission_name, is_active=True)
+        except CustomPermission.DoesNotExist:
+            return Response({
+                'error': 'Permission not found or inactive'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Remove override if it exists
+        try:
+            override = UserPermissionOverride.objects.get(
+                user=target_user,
+                permission=permission_obj
+            )
+            override.delete()
+            return Response({
+                'success': True,
+                'message': f'Permission override removed. {target_user.username} now has role-based access to {permission_obj.get_name_display()}'
+            })
+        except UserPermissionOverride.DoesNotExist:
+            return Response({
+                'success': True,
+                'message': 'No override existed for this permission'
+            })
+    
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@staff_member_required
+def permission_management_view(request):
+    """
+    Permission management interface for superusers and managers
+    """
+    # Check if user has permission management access
+    if not request.user.is_superuser:
+        # Check if user is a manager with delegation rights
+        if not (hasattr(request.user, 'profile') and 
+                request.user.profile.role == 'manager' and
+                request.user.profile.get_delegatable_permissions()):
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+    
+    return render(request, 'admin/permission_management.html', {
+        'title': 'Permission Management',
+        'user': request.user
+    })

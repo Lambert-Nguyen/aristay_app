@@ -33,7 +33,9 @@ from .views import (
     enhanced_excel_import_view, enhanced_excel_import_api,
     ConflictReviewView, resolve_conflicts, get_conflict_details,
     preview_conflict_resolution, quick_resolve_conflict,
-    file_cleanup_api
+    file_cleanup_api, user_permissions, available_permissions, 
+    manageable_users, grant_permission, revoke_permission, remove_permission_override,
+    permission_management_view
 )
 
 # Remove separate imports since they're now in the main views.py
@@ -129,6 +131,7 @@ urlpatterns = [
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),
     path('excel-import/api/', excel_import_api, name='excel-import-api'),
+    path('excel-import-with-conflicts/', excel_import_view, name='excel_import_with_conflicts'),
     path('property-approval/create/', property_approval_create, name='property-approval-create'),
     
     # Enhanced Excel Import endpoints
@@ -146,4 +149,15 @@ urlpatterns = [
     
     # File Cleanup endpoints
     path('file-cleanup/api/', file_cleanup_api, name='file-cleanup-api'),
+    
+    # Permission Management API endpoints
+    path('permissions/user/', user_permissions, name='user-permissions'),
+    path('permissions/available/', available_permissions, name='available-permissions'),
+    path('permissions/manageable-users/', manageable_users, name='manageable-users'),
+    path('permissions/grant/', grant_permission, name='grant-permission'),
+    path('permissions/revoke/', revoke_permission, name='revoke-permission'),
+    path('permissions/remove-override/', remove_permission_override, name='remove-permission-override'),
+    
+    # Permission Management UI
+    path('admin/permissions/', permission_management_view, name='permission-management'),
 ]
