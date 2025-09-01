@@ -29,13 +29,13 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("manager/", include((manager_site.urls[0], "admin"), namespace="manager_admin")),  # Manager console
     path("api/", include("api.urls")),
-    path("api - token - auth/", obtain_auth_token, name="api_token_auth"),  # Add this line
+    path("api-token-auth/", obtain_auth_token, name="api_token_auth"),  # Add this line
     # Unified login system
     path("login/", UnifiedLoginView.as_view(), name="unified_login"),
     path("logout/", logout_view, name="unified_logout"),
     path("", UnifiedLoginView.as_view(), name="home"),  # Root URL redirects to login
     # support password‐reset confirm, complete, etc.
-    path("api / auth/", include("django.contrib.auth.urls")),
+    path("api/auth/", include("django.contrib.auth.urls")),
 ]
 
 if settings.DEBUG:

@@ -33,7 +33,7 @@ class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
     site_title = "AriStay Manager"
     index_title = "Management Console"
-    index_template = "manager_admin / index.html"
+    index_template = "manager_admin/index.html"
     logout_template = None  # Use unified logout
 
     def logout(self, request, extra_context=None):
@@ -203,7 +203,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
             form = PasswordResetForm(data={"email": user.email})
             if form.is_valid():
                 form.save(
-                    email_template_name="registration / password_reset_email.html",
+                    email_template_name="registration/password_reset_email.html",
                     request=request,
                 )
                 sent += 1
@@ -310,7 +310,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
             form = PasswordResetForm(data={"email": user.email})
             if form.is_valid():
                 form.save(
-                    email_template_name="registration / password_reset_email.html",
+                    email_template_name="registration/password_reset_email.html",
                     request=request,
                 )
                 messages.success(request, f"Password reset email sent to {user.username}.")
@@ -356,7 +356,7 @@ class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     )
 
     def task_title(self, obj):
-        return obj.task.title if obj.task else "N / A"
+        return obj.task.title if obj.task else "N/A"
 
     task_title.short_description = "Task Title"
 

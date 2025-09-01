@@ -324,7 +324,7 @@ class AdminPasswordResetSerializer(serializers.Serializer):
 
         form = PasswordResetForm(data=validated_data)
         if form.is_valid():
-            form.save(email_template_name="registration / password_reset_email.html", request=self.context["request"])
+            form.save(email_template_name="registration/password_reset_email.html", request=self.context["request"])
             return validated_data
         else:
             raise serializers.ValidationError(form.errors)

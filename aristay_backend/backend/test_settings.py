@@ -115,19 +115,20 @@ CELERY_TASK_EAGER_PROPAGATES = True
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 # Test - specific apps (if any)
-INSTALLED_APPS = INSTALLED_APPS + [
-    "django_nose",  # Add if using nose for testing
-]
+# Using Django's default test runner instead of nose
+# INSTALLED_APPS = INSTALLED_APPS + [
+#     "django_nose",  # Add if using nose for testing
+# ]
 
-# Nose test runner settings (optional)
-TEST_RUNNER = "django_nose.NoseTestSuiteRunner"
-NOSE_ARGS = [
-    "--with - coverage",
-    "--cover - package=api",
-    "--cover - html",
-    "--cover - html - dir=coverage_html",
-    "--verbosity=2",
-]
+# Use Django's default test runner
+# TEST_RUNNER = "django_nose.NoseTestSuiteRunner"
+# NOSE_ARGS = [
+#     "--with - coverage",
+#     "--cover - package=api",
+#     "--cover - html",
+#     "--cover - html - dir=coverage_html",
+#     "--verbosity=2",
+# ]
 
 # Time zone for consistent testing
 USE_TZ = True

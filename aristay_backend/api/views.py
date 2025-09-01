@@ -303,7 +303,7 @@ def portal_home(request):
         "total_bookings_count": total_bookings_count,
         "recent_activity_count": 0,  # Could be implemented later
     }
-    return render(request, "portal / home.html", context)
+    return render(request, "portal/home.html", context)
 
 
 def _accessible_properties_for(user):
@@ -345,7 +345,7 @@ def portal_property_list(request):
         )
     return render(
         request,
-        "portal / property_list.html",
+        "portal/property_list.html",
         {
             "properties": property_cards,
         },
@@ -373,7 +373,7 @@ def portal_property_detail(request, pk):
             groups["past"].append(b)
     return render(
         request,
-        "portal / property_detail.html",
+        "portal/property_detail.html",
         {
             "property": prop,
             "groups": groups,
@@ -419,7 +419,7 @@ def portal_booking_detail(request, property_id, pk):
 
     return render(
         request,
-        "portal / booking_detail.html",
+        "portal/booking_detail.html",
         {
             "property": prop,
             "booking": booking,
@@ -475,7 +475,7 @@ def portal_task_detail(request, task_id):
         "can_edit": can_edit,
     }
 
-    return render(request, "portal / task_detail.html", context)
+    return render(request, "portal/task_detail.html", context)
 
 
 # DRF ViewSets and API Views start here
@@ -1053,7 +1053,7 @@ def manager_charts_dashboard(request):
         },
     }
 
-    return render(request, "admin / manager_charts.html", context)
+    return render(request, "admin/manager_charts.html", context)
 
 
 @staff_member_required
@@ -1214,7 +1214,7 @@ def admin_charts_dashboard(request):
         },
     }
 
-    return render(request, "admin / charts_dashboard.html", context)
+    return render(request, "admin/charts_dashboard.html", context)
 
 
 @staff_member_required
@@ -1266,14 +1266,14 @@ def system_metrics_dashboard(request):
             "title": "System Metrics Dashboard",
         }
 
-        return render(request, "admin / system_metrics.html", context)
+        return render(request, "admin/system_metrics.html", context)
 
     except Exception as e:
         context = {
             "error": str(e),
             "title": "System Metrics Dashboard - Error",
         }
-        return render(request, "admin / system_metrics.html", context)
+        return render(request, "admin/system_metrics.html", context)
 
 
 def system_metrics_api(request):
@@ -1369,7 +1369,7 @@ def system_logs_viewer(request):
         "log_levels": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     }
 
-    return render(request, "admin / system_logs.html", context)
+    return render(request, "admin/system_logs.html", context)
 
 
 def _extract_log_level(log_line):
@@ -1492,7 +1492,7 @@ def system_crash_recovery(request):
         "title": "System Crash Recovery",
     }
 
-    return render(request, "admin / system_recovery.html", context)
+    return render(request, "admin/system_recovery.html", context)
 
 
 def _extract_timestamp(log_line):
@@ -1637,7 +1637,7 @@ def excel_import_view(request):
                         "excel_file": excel_file,
                         "title": "New Properties Require Approval",
                     }
-                    return render(request, "admin / property_approval.html", context)
+                    return render(request, "admin/property_approval.html", context)
                 else:
                     # Manager gets a message about contacting admin
                     messages.warning(
@@ -1665,7 +1665,7 @@ def excel_import_view(request):
         "title": "Import Booking Schedule",
     }
 
-    return render(request, "admin / excel_import.html", context)
+    return render(request, "admin/excel_import.html", context)
 
 
 @login_required
@@ -1794,7 +1794,7 @@ class ConflictReviewView(LoginRequiredMixin, View):
 
             context = {"import_log": import_log, "conflicts": conflicts_data, "import_session_id": import_session_id}
 
-            return render(request, "admin / conflict_resolution.html", context)
+            return render(request, "admin/conflict_resolution.html", context)
 
         except BookingImportLog.DoesNotExist:
             return JsonResponse({"error": "Import session not found"}, status=404)
@@ -1963,7 +1963,7 @@ def enhanced_excel_import_view(request):
 
         if not excel_file:
             messages.error(request, "Please select an Excel file to upload.")
-            return render(request, "admin / enhanced_excel_import.html")
+            return render(request, "admin/enhanced_excel_import.html")
 
         try:
             # Use enhanced import service
@@ -2013,7 +2013,7 @@ def enhanced_excel_import_view(request):
 
     context = {"templates": templates, "title": "Enhanced Excel Import with Conflict Resolution"}
 
-    return render(request, "admin / enhanced_excel_import.html", context)
+    return render(request, "admin/enhanced_excel_import.html", context)
 
 
 @staff_member_required
@@ -2454,4 +2454,4 @@ def permission_management_view(request):
 
             return redirect_to_login(request.get_full_path())
 
-    return render(request, "admin / permission_management.html", {"title": "Permission Management", "user": request.user})
+    return render(request, "admin/permission_management.html", {"title": "Permission Management", "user": request.user})

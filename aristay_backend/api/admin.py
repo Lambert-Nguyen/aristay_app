@@ -88,7 +88,7 @@ class CustomAdminSite(admin.AdminSite):
 
     def analytics_view(self, request):
         # Redirect to our charts dashboard
-        return HttpResponseRedirect("/api / admin / charts/")
+        return HttpResponseRedirect("/api/admin/charts/")
 
 
 # Use the custom admin site
@@ -272,8 +272,8 @@ class TaskAdmin(admin.ModelAdmin):
             "America/Chicago": "Chicago, IL",
             "America/Denver": "Denver, CO",
             "America/Phoenix": "Phoenix, AZ",
-            "Asia / Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
-            "Europe / London": "London, UK",
+            "Asia/Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
+            "Europe/London": "London, UK",
             "UTC": "UTC",
         }
         return timezone_names.get(tz_string, tz_string)
@@ -516,8 +516,8 @@ class BookingAdmin(admin.ModelAdmin):
             "America/Chicago": "Chicago, IL",
             "America/Denver": "Denver, CO",
             "America/Phoenix": "Phoenix, AZ",
-            "Asia / Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
-            "Europe / London": "London, UK",
+            "Asia/Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
+            "Europe/London": "London, UK",
             "UTC": "UTC",
         }
         return timezone_names.get(tz_string, tz_string)
@@ -548,7 +548,7 @@ class NotificationAdmin(admin.ModelAdmin):
     )
 
     def task_title(self, obj):
-        return obj.task.title if obj.task else "N / A"
+        return obj.task.title if obj.task else "N/A"
 
     task_title.short_description = "Task Title"
 
@@ -699,7 +699,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
                 form = PasswordResetForm(data={"email": user.email})
                 if form.is_valid():
                     form.save(
-                        email_template_name="registration / password_reset_email.html",
+                        email_template_name="registration/password_reset_email.html",
                         request=request,
                     )
                     sent += 1
@@ -763,7 +763,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
 
         from django.shortcuts import render
 
-        return render(request, "admin / auth / user / change_password.html", context)
+        return render(request, "admin/auth/user/change_password.html", context)
 
     def password_reset_view(self, request, id):
         """Custom password reset view for individual users"""
@@ -786,7 +786,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
             form = PasswordResetForm(data={"email": user.email})
             if form.is_valid():
                 form.save(
-                    email_template_name="registration / password_reset_email.html",
+                    email_template_name="registration/password_reset_email.html",
                     request=request,
                 )
                 messages.success(request, f"Password reset email sent to {user.username}.")

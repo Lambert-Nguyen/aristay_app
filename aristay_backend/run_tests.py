@@ -1,4 +1,4 @@
-#!/usr / bin / env python
+#!/usr/bin/env python3
 """
 Comprehensive test runner for AriStay Backend
 Runs all tests and generates detailed reports

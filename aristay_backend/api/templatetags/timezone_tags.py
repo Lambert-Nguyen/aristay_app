@@ -24,9 +24,9 @@ TIMEZONE_NAMES = {
     "America/Denver": "Denver, CO",
     "America/Phoenix": "Phoenix, AZ",
     "America/Anchorage": "Anchorage, AK",
-    "Pacific / Honolulu": "Honolulu, HI",
-    "Asia / Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
-    "Europe / London": "London, UK",
+    "Pacific/Honolulu": "Honolulu, HI",
+    "Asia/Ho_Chi_Minh": "Ho Chi Minh, Vietnam",
+    "Europe/London": "London, UK",
     "UTC": "UTC",
 }
 
@@ -212,9 +212,9 @@ def get_timezone_choices():
         ("America/Denver", "Mountain Time (Denver, CO)"),
         ("America/Phoenix", "Arizona Time (Phoenix, AZ)"),
         ("America/Anchorage", "Alaska Time (Anchorage, AK)"),
-        ("Pacific / Honolulu", "Hawaii Time (Honolulu, HI)"),
-        ("Asia / Ho_Chi_Minh", "Vietnam Time (Ho Chi Minh City)"),
-        ("Europe / London", "GMT / BST (London, UK)"),
+        ("Pacific/Honolulu", "Hawaii Time (Honolulu, HI)"),
+        ("Asia/Ho_Chi_Minh", "Vietnam Time (Ho Chi Minh City)"),
+        ("Europe/London", "GMT / BST (London, UK)"),
         ("UTC", "UTC (Coordinated Universal Time)"),
     ]
 

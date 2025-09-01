@@ -256,7 +256,7 @@ TASK_TYPE_CHOICES = [
     ("cleaning", "Cleaning"),
     ("maintenance", "Maintenance"),
     ("laundry", "Laundry"),
-    ("lawn_pool", "Lawn / Pool"),
+    ("lawn_pool", "Lawn/Pool"),
 ]
 
 
@@ -372,7 +372,7 @@ class UserRole(models.TextChoices):
     User role hierarchy - defines access level and permissions
     """
 
-    STAFF = "staf", "Staff / Crew"  # Normal users who perform tasks
+    STAFF = "staf", "Staff/Crew"  # Normal users who perform tasks
     MANAGER = "manager", "Manager"  # Manages staff and properties
     SUPERUSER = "superuser", "Superuser"  # Full system admin access
     VIEWER = "viewer", "Viewer"  # Read - only access
@@ -388,7 +388,7 @@ class DepartmentGroups:
     CLEANING = "Cleaning"
     MAINTENANCE = "Maintenance"
     LAUNDRY = "Laundry"
-    LAWN_POOL = "Lawn / Pool"
+    LAWN_POOL = "Lawn/Pool"
 
     @classmethod
     def get_all_departments(cls):
@@ -412,14 +412,14 @@ class Profile(models.Model):
     # Curated timezone choices for AriStay locations
     TIMEZONE_CHOICES = [
         ("America/New_York", "Eastern Time (Tampa, FL)"),
-        ("America / Los_Angeles", "Pacific Time (San Jose, CA)"),
-        ("America / Chicago", "Central Time (Chicago, IL)"),
-        ("America / Denver", "Mountain Time (Denver, CO)"),
-        ("America / Phoenix", "Arizona Time (Phoenix, AZ)"),
-        ("America / Anchorage", "Alaska Time (Anchorage, AK)"),
-        ("Pacific / Honolulu", "Hawaii Time (Honolulu, HI)"),
-        ("Asia / Ho_Chi_Minh", "Vietnam Time (Ho Chi Minh City)"),
-        ("Europe / London", "GMT / BST (London, UK)"),
+        ("America/Los_Angeles", "Pacific Time (San Jose, CA)"),
+        ("America/Chicago", "Central Time (Chicago, IL)"),
+        ("America/Denver", "Mountain Time (Denver, CO)"),
+        ("America/Phoenix", "Arizona Time (Phoenix, AZ)"),
+        ("America/Anchorage", "Alaska Time (Anchorage, AK)"),
+        ("Pacific/Honolulu", "Hawaii Time (Honolulu, HI)"),
+        ("Asia/Ho_Chi_Minh", "Vietnam Time (Ho Chi Minh City)"),
+        ("Europe/London", "GMT / BST (London, UK)"),
         ("UTC", "UTC (Coordinated Universal Time)"),
     ]
 
@@ -1147,7 +1147,7 @@ class InventoryTransaction(models.Model):
         ("stock_in", "Stock In"),
         ("stock_out", "Stock Out"),
         ("adjustment", "Adjustment"),
-        ("damage", "Damage / Loss"),
+        ("damage", "Damage/Loss"),
         ("transfer", "Transfer"),
     ]
 
@@ -1482,7 +1482,7 @@ class BookingImportTemplate(models.Model):
         max_length=20,
         choices=[
             ("csv", "CSV File"),
-            ("ical", "iCal / Calendar"),
+            ("ical", "iCal/Calendar"),
             ("airbnb", "Airbnb Export"),
             ("vrbo", "VRBO Export"),
             ("api", "API Integration"),

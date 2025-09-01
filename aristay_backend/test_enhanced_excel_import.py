@@ -1,4 +1,4 @@
-#!/usr / bin / env python
+#!/usr/bin/env python3
 """
 Test script for Enhanced Excel Import Service with Conflict Resolution
 

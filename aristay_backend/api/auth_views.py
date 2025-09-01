@@ -19,12 +19,12 @@ logger = logging.getLogger("api.security")
 class UnifiedLoginView(LoginView):
     """
     Unified login view that routes all authenticated users to the home screen:
-    - All users → Home screen (/api / portal/) with role - based navigation options
+    - All users → Home screen (/api/portal/) with role - based navigation options
     - Users can then choose to go to Admin, Manager, Properties, or Tasks
     - Provides unified navigation experience across all user types
     """
 
-    template_name = "auth / unified_login.html"
+    template_name = "auth/unified_login.html"
     redirect_authenticated_user = True
 
     def get_success_url(self):
@@ -61,7 +61,7 @@ class UnifiedLoginView(LoginView):
 
         # Priority 2: Route ALL authenticated users to portal home screen
         # The portal will handle role - based access control and navigation
-        return "/api / portal/"
+        return "/api/portal/"
 
     def _is_safe_url(self, url):
         """

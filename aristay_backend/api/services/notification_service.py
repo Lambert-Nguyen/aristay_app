@@ -114,7 +114,7 @@ class NotificationService:
 
         access_token = cls._get_fcm_token()
         url = f"https://fcm.googleapis.com / v1 / projects/{settings.FIREBASE_PROJECT_ID}/messages:send"
-        headers = {"Authorization": f"Bearer {access_token}", "Content - Type": "application / json"}
+        headers = {"Authorization": f"Bearer {access_token}", "Content - Type": "application/json"}
 
         ok = True
         for token in tokens:

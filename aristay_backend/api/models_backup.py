@@ -82,7 +82,7 @@ TASK_TYPE_CHOICES = [
     ("cleaning", "Cleaning"),
     ("maintenance", "Maintenance"),
     ("laundry", "Laundry"),
-    ("lawn_pool", "Lawn / Pool"),
+    ("lawn_pool", "Lawn/Pool"),
 ]
 
 
@@ -514,7 +514,7 @@ class TaskTemplate(models.Model):
         ("cleaning", "Cleaning"),
         ("maintenance", "Maintenance"),
         ("laundry", "Laundry"),
-        ("lawn_pool", "Lawn / Pool"),
+        ("lawn_pool", "Lawn/Pool"),
     ]
 
     name = models.CharField(max_length=200, help_text="Template name")

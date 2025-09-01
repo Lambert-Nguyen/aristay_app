@@ -67,7 +67,7 @@ class FileCleanupAdminMixin:
         if "stats" not in context:
             context["stats"] = ImportFileCleanupService.get_storage_stats()
 
-        return render(request, "admin / file_cleanup.html", context)
+        return render(request, "admin/file_cleanup.html", context)
 
 
 # Custom admin actions

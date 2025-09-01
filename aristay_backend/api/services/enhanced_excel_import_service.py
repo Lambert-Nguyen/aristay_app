@@ -202,7 +202,7 @@ class EnhancedExcelImportService(ExcelImportService):
                 "external_status": ["Status"],
                 "guest_name": ["Guest name"],
                 "guest_contact": ["Contact"],
-                "source": ["Booking source", "Airbnb / VRBO"],  # Handle both column names
+                "source": ["Booking source", "Airbnb/VRBO"],  # Handle both column names
                 "listing_name": ["Listing"],
                 "earnings_amount": ["Earnings"],
                 "booked_on": ["Booked"],

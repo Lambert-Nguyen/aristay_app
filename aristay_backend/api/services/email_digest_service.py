@@ -100,7 +100,7 @@ class EmailDigestService:
             to_email = [user.email]
 
             text_body = render_to_string("emails / digest.txt", context)
-            html_body = render_to_string("emails / digest.html", context)
+            html_body = render_to_string("emails/digest.html", context)
 
             if test_mode:
                 print(f"To: {user.email}")
@@ -109,7 +109,7 @@ class EmailDigestService:
                 continue
 
             msg = EmailMultiAlternatives(subject, text_body, from_email, to_email)
-            msg.attach_alternative(html_body, "text / html")
+            msg.attach_alternative(html_body, "text/html")
             msg.send()
             sent += 1
         return sent

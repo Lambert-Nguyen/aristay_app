@@ -77,7 +77,7 @@ def staff_dashboard(request):
     }
 
     logger.info(f"Staff dashboard rendered successfully for user: {request.user.username}")
-    return render(request, "staff / dashboard.html", context)
+    return render(request, "staff/dashboard.html", context)
 
 
 @login_required
@@ -117,7 +117,7 @@ def cleaning_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff / cleaning_dashboard.html", context)
+    return render(request, "staff/cleaning_dashboard.html", context)
 
 
 @login_required
@@ -157,7 +157,7 @@ def maintenance_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff / maintenance_dashboard.html", context)
+    return render(request, "staff/maintenance_dashboard.html", context)
 
 
 @login_required
@@ -186,7 +186,7 @@ def laundry_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff / laundry_dashboard.html", context)
+    return render(request, "staff/laundry_dashboard.html", context)
 
 
 @login_required
@@ -217,7 +217,7 @@ def lawn_pool_dashboard(request):
         "total_assigned": assigned_tasks.count(),
     }
 
-    return render(request, "staff / lawn_pool_dashboard.html", context)
+    return render(request, "staff/lawn_pool_dashboard.html", context)
 
 
 @login_required
@@ -229,7 +229,7 @@ def task_detail(request, task_id):
     # Check if user can access this task
     if not (request.user.is_staff or task.assigned_to == request.user):
         messages.error(request, "You don't have permission to view this task.")
-        return redirect("/api / staff/")
+        return redirect("/api/staff/")
 
     # Get or create checklist
     try:
@@ -254,7 +254,7 @@ def task_detail(request, task_id):
         "can_edit": task.assigned_to == request.user or request.user.is_staff,
     }
 
-    return render(request, "staff / task_detail.html", context)
+    return render(request, "staff/task_detail.html", context)
 
 
 @login_required
@@ -339,7 +339,7 @@ def my_tasks(request):
         "type_choices": TASK_TYPE_CHOICES,
     }
 
-    return render(request, "staff / my_tasks.html", context)
+    return render(request, "staff/my_tasks.html", context)
 
 
 @login_required
@@ -356,11 +356,11 @@ def inventory_lookup(request):
             # Allow managers and users in Maintenance department
             if user_role != "manager" and not profile.is_in_department("Maintenance"):
                 messages.error(request, "You don't have access to inventory management.")
-                return redirect("/api / staff/")
+                return redirect("/api/staff/")
         except:
             # If no profile, only allow superusers
             messages.error(request, "You don't have access to inventory management.")
-            return redirect("/api / staff/")
+            return redirect("/api/staff/")
 
     # Get property filter
     property_filter = request.GET.get("property")
@@ -388,7 +388,7 @@ def inventory_lookup(request):
         "selected_property": property_filter,
     }
 
-    return render(request, "staff / inventory_lookup.html", context)
+    return render(request, "staff/inventory_lookup.html", context)
 
 
 @login_required
@@ -458,7 +458,7 @@ def lost_found_list(request):
         "status_choices": LostFoundItem.STATUS_CHOICES,
     }
 
-    return render(request, "staff / lost_found_list.html", context)
+    return render(request, "staff/lost_found_list.html", context)
 
 
 @login_required

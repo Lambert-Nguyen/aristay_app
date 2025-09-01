@@ -24,7 +24,7 @@ class AdminAccessMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         # Only process /admin/ requests (not /manager/ or /api/)
-        if request.path.startswith("/admin/") and not request.path.startswith("/admin / login/"):
+        if request.path.startswith("/admin/") and not request.path.startswith("/admin/login/"):
             if request.user.is_authenticated and not request.user.is_superuser:
                 # Check if user is a manager
                 try:
@@ -37,7 +37,7 @@ class AdminAccessMiddleware(MiddlewareMixin):
                 # For non - manager staff users trying to access admin
                 if request.user.is_staff:
                     messages.error(request, "Access Denied: Only superusers can access the admin area.")
-                    return redirect("/api / portal/")
+                    return redirect("/api/portal/")
         return None
 
 
@@ -156,7 +156,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
     def _log_security_events(self, request):
         """Log security - relevant events"""
         # Log authentication attempts
-        if "/api / auth/" in request.path:
+        if "/api/auth/" in request.path:
             self.security_logger.info(
                 f"Authentication attempt: {request.method} {request.path}",
                 extra={
@@ -192,7 +192,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             "<script",
             "../",
             "..\\",
-            "etc / passwd",
+            "etc/passwd",
         ]
 
         request_data = f"{request.path} {request.body.decode('utf - 8', errors='ignore')[:500]}"
@@ -262,7 +262,7 @@ class ErrorLoggingMiddleware(MiddlewareMixin):
         try:
             data = {}
             if request.method in ["POST", "PUT", "PATCH"]:
-                if request.content_type == "application / json":
+                if request.content_type == "application/json":
                     body = request.body.decode("utf - 8")
                     if body:
                         data["json"] = json.loads(body)
