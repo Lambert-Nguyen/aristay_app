@@ -1,10 +1,13 @@
 # api/services/notification_service.py
 import json
 from datetime import datetime, timedelta, timezone
-import requests
+
 from django.conf import settings
 
-from api.models import Notification, Task, NotificationVerb
+import requests
+
+from api.models import Notification, NotificationVerb, Task
+
 
 class NotificationService:
     _fcm_token: str | None = None
@@ -12,8 +15,8 @@ class NotificationService:
 
     @classmethod
     def _get_fcm_token(cls) -> str:
-        from google.oauth2 import service_account
         from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
 
         if cls._fcm_token and cls._fcm_token_expiry:
             if cls._fcm_token_expiry - datetime.now(timezone.utc) > timedelta(minutes=5):
@@ -24,7 +27,7 @@ class NotificationService:
             scopes=["https://www.googleapis.com/auth/firebase.messaging"],
         )
         cred.refresh(Request())
-        cls._fcm_token        = cred.token
+        cls._fcm_token = cred.token
         cls._fcm_token_expiry = cred.expiry.replace(tzinfo=timezone.utc)
         return cls._fcm_token
 
@@ -93,8 +96,7 @@ class NotificationService:
                 # de-dupe: if an unread row for same (user, task, verb) exists newer than the
                 # last modification, skip to avoid stacking banners
                 duplicate = Notification.objects.filter(
-                    recipient=user, task=task, verb=verb, read=False,
-                    timestamp__gte=task.modified_at
+                    recipient=user, task=task, verb=verb, read=False, timestamp__gte=task.modified_at
                 ).exists()
                 if duplicate:
                     continue
@@ -121,13 +123,13 @@ class NotificationService:
                     "token": token,
                     "notification": {
                         "title": f"Task {verb.replace('_', ' ')}",
-                        "body":  f"“{task.title}”",
+                        "body": f"“{task.title}”",
                     },
                     "data": {
-                        "task_id":         str(task.id),
+                        "task_id": str(task.id),
                         "notification_id": str(notification_id),
-                        "verb":            verb,
-                        "click_action":    "FLUTTER_NOTIFICATION_CLICK",
+                        "verb": verb,
+                        "click_action": "FLUTTER_NOTIFICATION_CLICK",
                     },
                 }
             }

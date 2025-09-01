@@ -15,25 +15,27 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.contrib import admin
-from django.urls import path, include
-from rest_framework.authtoken.views import obtain_auth_token  # Import the token view
 from django.conf import settings
 from django.conf.urls.static import static
-from api.managersite import manager_site
+from django.contrib import admin
+from django.urls import include, path
+
+from rest_framework.authtoken.views import obtain_auth_token  # Import the token view
+
 from api.auth_views import UnifiedLoginView, logout_view
+from api.managersite import manager_site
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
-    path('api/', include('api.urls')),
-    path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
+    path("admin/", admin.site.urls),
+    path("manager/", include((manager_site.urls[0], "admin"), namespace="manager_admin")),  # Manager console
+    path("api/", include("api.urls")),
+    path("api-token-auth/", obtain_auth_token, name="api_token_auth"),  # Add this line
     # Unified login system
-    path('login/', UnifiedLoginView.as_view(), name='unified_login'),
-    path('logout/', logout_view, name='unified_logout'),
-    path('', UnifiedLoginView.as_view(), name='home'),  # Root URL redirects to login
+    path("login/", UnifiedLoginView.as_view(), name="unified_login"),
+    path("logout/", logout_view, name="unified_logout"),
+    path("", UnifiedLoginView.as_view(), name="home"),  # Root URL redirects to login
     # support password‐reset confirm, complete, etc.
-    path('api/auth/', include('django.contrib.auth.urls')),
+    path("api/auth/", include("django.contrib.auth.urls")),
 ]
 
 if settings.DEBUG:

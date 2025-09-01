@@ -10,14 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 import socket
 from pathlib import Path
-import os
 
 # Production logging configuration
 from backend.logging_config import setup_logging
-
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +30,7 @@ SECRET_KEY = "django-insecure-*g+qjl3q3q8h1tnkws9(sd^tm(t!ld8rtdre6r5yc+d=jw_yn!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+
 def get_local_ip():
     s = None
     try:
@@ -40,13 +39,14 @@ def get_local_ip():
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
     except Exception:
-        ip = '127.0.0.1'
+        ip = "127.0.0.1"
     finally:
         if s:
             s.close()
     return ip
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', get_local_ip()]
+
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", get_local_ip()]
 
 # Application definition
 
@@ -79,7 +79,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
-    "backend.middleware.ErrorLoggingMiddleware", 
+    "backend.middleware.ErrorLoggingMiddleware",
     "backend.middleware.SecurityHeadersMiddleware",
 ]
 
@@ -88,7 +88,7 @@ ROOT_URLCONF = "backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'api' / 'templates'],
+        "DIRS": [BASE_DIR / "api" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -105,17 +105,17 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 # Add your REST framework configuration here:
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
     ],
 }
 
@@ -169,11 +169,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "static/"
-STATICFILES_DIRS = [ BASE_DIR / 'static' ]    # so project-level static/ is on the path
+STATICFILES_DIRS = [BASE_DIR / "static"]  # so project-level static/ is on the path
 
 # === Add these for media uploads ===
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Data upload settings - increase limits for bulk operations
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Allow up to 10,000 fields for bulk admin operations
@@ -192,19 +192,19 @@ DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
 FRONTEND_URL = "http://localhost:3000"
 
 # during development, just dump emails to the console instead of real SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.mailersend.net'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.mailersend.net"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = 'MS_T2FlZ8@aristay-internal.cloud'
-EMAIL_HOST_PASSWORD = 'mssp.Yun5OWw.v69oxl53kzkg785k.9UyPJrd'
+EMAIL_HOST_USER = "MS_T2FlZ8@aristay-internal.cloud"
+EMAIL_HOST_PASSWORD = "mssp.Yun5OWw.v69oxl53kzkg785k.9UyPJrd"
 
-DEFAULT_FROM_EMAIL = 'noreply@aristay-internal.cloud'
+DEFAULT_FROM_EMAIL = "noreply@aristay-internal.cloud"
 
 FCM_SERVER_KEY = "your-firebase-server-key-here"
-FIREBASE_PROJECT_ID = 'aristayapp'
-FIREBASE_CREDENTIALS_FILE = BASE_DIR / 'firebase_credentials.json'
+FIREBASE_PROJECT_ID = "aristayapp"
+FIREBASE_CREDENTIALS_FILE = BASE_DIR / "firebase_credentials.json"
 
 # --- Email digest feature flag ---------------------------------
 # Default: OFF.  Turn ON with   export EMAIL_DIGEST_ENABLED=true
@@ -221,8 +221,7 @@ CRONJOBS = [
         f"0 {EMAIL_DIGEST_HOUR_UTC} * * *",
         "django.core.management.call_command",
         ["send_digest"],
-        {"stdout": str(LOG_DIR / "digest.log"),
-         "stderr": str(LOG_DIR / "digest_err.log")},
+        {"stdout": str(LOG_DIR / "digest.log"), "stderr": str(LOG_DIR / "digest_err.log")},
     ),
 ]
 
@@ -233,15 +232,15 @@ CRONTAB_DJANGO_SETTINGS = "backend.settings"
 # ============================================================================
 
 # Environment configuration
-ENVIRONMENT = os.getenv('DJANGO_ENVIRONMENT', 'development')
-VERSION = os.getenv('APP_VERSION', '1.0.0')
+ENVIRONMENT = os.getenv("DJANGO_ENVIRONMENT", "development")
+VERSION = os.getenv("APP_VERSION", "1.0.0")
 
 # Sentry configuration for error tracking
-SENTRY_DSN = os.getenv('SENTRY_DSN', None)
+SENTRY_DSN = os.getenv("SENTRY_DSN", None)
 
 # Performance monitoring thresholds
-SLOW_REQUEST_THRESHOLD = int(os.getenv('SLOW_REQUEST_THRESHOLD', '1000'))  # milliseconds
-SLOW_QUERY_THRESHOLD = int(os.getenv('SLOW_QUERY_THRESHOLD', '100'))      # milliseconds
+SLOW_REQUEST_THRESHOLD = int(os.getenv("SLOW_REQUEST_THRESHOLD", "1000"))  # milliseconds
+SLOW_QUERY_THRESHOLD = int(os.getenv("SLOW_QUERY_THRESHOLD", "100"))  # milliseconds
 
 # Initialize logging system
 setup_logging(debug=DEBUG, sentry_dsn=SENTRY_DSN)
@@ -249,44 +248,38 @@ setup_logging(debug=DEBUG, sentry_dsn=SENTRY_DSN)
 # Sentry configuration (if DSN is provided)
 if SENTRY_DSN:
     from backend.sentry_config import setup_sentry
+
     setup_sentry(
-        dsn=SENTRY_DSN,
-        environment=ENVIRONMENT,
-        debug=DEBUG,
-        sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1'))
+        dsn=SENTRY_DSN, environment=ENVIRONMENT, debug=DEBUG, sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
     )
 
 # Security settings for production
 if not DEBUG:
     # HTTPS settings
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
-    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))  # 1 year
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() == "true"
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    
+
     # Security headers
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
-    X_FRAME_OPTIONS = 'DENY'
-    
+    X_FRAME_OPTIONS = "DENY"
+
     # Cookie security
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
-    
+
     # Tighten CORS for production
     CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = [
-        origin.strip() 
-        for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
-        if origin.strip()
-    ]
-    
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+
     # Database connection pooling for production
-    DATABASES['default']['CONN_MAX_AGE'] = 60
-    DATABASES['default']['OPTIONS'] = {
-        'MAX_CONNS': int(os.getenv('DB_MAX_CONNECTIONS', '20')),
+    DATABASES["default"]["CONN_MAX_AGE"] = 60
+    DATABASES["default"]["OPTIONS"] = {
+        "MAX_CONNS": int(os.getenv("DB_MAX_CONNECTIONS", "20")),
     }
 
 # Logging-specific settings
@@ -295,49 +288,49 @@ LOGGING_CONFIG = None  # Disable Django's default logging config
 # Email settings for admin notifications
 if not DEBUG:
     ADMINS = [
-        (name.strip(), email.strip()) 
-        for admin in os.getenv('DJANGO_ADMINS', '').split(',')
-        if admin.strip() and '@' in admin
-        for name, email in [admin.strip().split(':')]
+        (name.strip(), email.strip())
+        for admin in os.getenv("DJANGO_ADMINS", "").split(",")
+        if admin.strip() and "@" in admin
+        for name, email in [admin.strip().split(":")]
     ]
-    
+
     MANAGERS = ADMINS
-    
+
     # Email backend for error notifications
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'aristay@example.com')
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
+    EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "aristay@example.com")
     SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # Cache configuration for production
 if not DEBUG:
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-            'OPTIONS': {
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
-                    'retry_on_timeout': True,
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
+            "OPTIONS": {
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": int(os.getenv("REDIS_MAX_CONNECTIONS", "50")),
+                    "retry_on_timeout": True,
                 },
             },
-            'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),  # 5 minutes default
+            "TIMEOUT": int(os.getenv("CACHE_TIMEOUT", "300")),  # 5 minutes default
         }
     }
 
 # Rate limiting settings
 RATELIMIT_ENABLE = not DEBUG
-RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_USE_CACHE = "default"
 
 # ============================================================================
 # UNIFIED LOGIN CONFIGURATION
 # ============================================================================
 
 # Redirect users to unified login/logout
-LOGIN_URL = '/login/'
-LOGOUT_REDIRECT_URL = '/login/'
-LOGIN_REDIRECT_URL = '/login/'  # Will be overridden by our custom logic
+LOGIN_URL = "/login/"
+LOGOUT_REDIRECT_URL = "/login/"
+LOGIN_REDIRECT_URL = "/login/"  # Will be overridden by our custom logic

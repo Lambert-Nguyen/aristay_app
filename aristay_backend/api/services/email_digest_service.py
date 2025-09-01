@@ -1,15 +1,18 @@
 # api/services/email_digest_service.py
 
-from datetime import timedelta, timezone as dt_timezone
 from collections import defaultdict
+from datetime import timedelta
+from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.contrib.auth import get_user_model
-from api.models import Task, Profile
+
+from api.models import Profile, Task
+
 
 class EmailDigestService:
     @staticmethod
@@ -23,12 +26,12 @@ class EmailDigestService:
         sent = 0
         # ------------------------------------------------------------------
         User = get_user_model()
-        
+
         status_colors = {
-            'pending': '#e67e22',       # orange
-            'in-progress': '#3498db',   # blue
-            'completed': '#2ecc71',     # green
-            'canceled': '#e74c3c',      # red
+            "pending": "#e67e22",  # orange
+            "in-progress": "#3498db",  # blue
+            "completed": "#2ecc71",  # green
+            "canceled": "#e74c3c",  # red
         }
 
         for user in User.objects.all():
@@ -38,16 +41,13 @@ class EmailDigestService:
             try:
                 user_tz = ZoneInfo(profile.timezone)
             except Exception:
-                user_tz = dt_timezone.utc    # fallback
+                user_tz = dt_timezone.utc  # fallback
 
             local_now = timezone.now().astimezone(user_tz)
             local_yesterday = local_now - timedelta(days=1)
             utc_cutoff = local_yesterday.astimezone(dt_timezone.utc)
 
-            tasks = Task.objects.filter(
-                assigned_to=user,
-                modified_at__gte=utc_cutoff
-            ).select_related("property")
+            tasks = Task.objects.filter(assigned_to=user, modified_at__gte=utc_cutoff).select_related("property")
 
             if not tasks.exists():
                 continue
@@ -58,7 +58,7 @@ class EmailDigestService:
             for task in tasks:
                 print(f"- {task.title} | {task.status} | {task.property} | modified at {task.modified_at}")
                 prop = task.property.name if task.property else "Unassigned"
-                color = status_colors.get(task.status, '#333')
+                color = status_colors.get(task.status, "#333")
                 task.status_color = color
                 # Format relative due delta like "in 2 days" or "3 hours ago"
                 if task.due_date:
@@ -78,10 +78,7 @@ class EmailDigestService:
                         task.due_delta = f"in {int(seconds//86400)} days"
                 grouped[prop][task.status].append(task)
 
-            grouped_tasks = {
-                prop: dict(status_dict)
-                for prop, status_dict in grouped.items()
-            }.items()
+            grouped_tasks = {prop: dict(status_dict) for prop, status_dict in grouped.items()}.items()
 
             name = (
                 (user.get_full_name() if callable(user.get_full_name) else None)
@@ -114,5 +111,5 @@ class EmailDigestService:
             msg = EmailMultiAlternatives(subject, text_body, from_email, to_email)
             msg.attach_alternative(html_body, "text/html")
             msg.send()
-            sent += 1 
+            sent += 1
         return sent
