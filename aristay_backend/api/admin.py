@@ -5,6 +5,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import path, reverse
 from django.utils.safestring import mark_safe
+from django.utils.html import escape
 
 from .models import (
     Booking,
@@ -393,7 +394,9 @@ class BookingAdmin(admin.ModelAdmin):
             source_colors = {"airbnb": "#FF5A5F", "vrbo": "#0073E6", "direct": "#28A745", "owner": "#6F42C1"}
             source_lower = obj.source.lower()
             color = source_colors.get(source_lower, "#6C757D")
-            return mark_safe(f'<span style="color: {color}; font - weight: bold;">{obj.source}</span>')
+            # Escape user input to prevent XSS
+            escaped_source = escape(obj.source)
+            return mark_safe(f'<span style="color: {color}; font-weight: bold;">{escaped_source}</span>')
         return "-"
 
     source_display.short_description = "Booking Source"
@@ -404,15 +407,19 @@ class BookingAdmin(admin.ModelAdmin):
         flag = obj.get_conflict_flag()
         details = obj.get_conflict_details()
 
+        # Escape user input to prevent XSS
+        escaped_flag = escape(flag)
+        escaped_details = escape(details)
+
         # Add tooltip with conflict details
         if "No conflicts" in flag:
-            return mark_safe(f'<span style="color: green;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: green;" title="{escaped_details}">{escaped_flag}</span>')
         elif "Critical" in flag:
-            return mark_safe(f'<span style="color: red; font - weight: bold;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: red; font-weight: bold;" title="{escaped_details}">{escaped_flag}</span>')
         elif "High" in flag:
-            return mark_safe(f'<span style="color: orange; font - weight: bold;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: orange; font-weight: bold;" title="{escaped_details}">{escaped_flag}</span>')
         else:
-            return mark_safe(f'<span style="color: #ffc107; font - weight: bold;" title="{details}">{flag}</span>')
+            return mark_safe(f'<span style="color: #ffc107; font-weight: bold;" title="{escaped_details}">{escaped_flag}</span>')
 
     conflict_flag_display.short_description = "Conflicts"
 
@@ -1190,7 +1197,7 @@ class UserPermissionOverrideAdmin(admin.ModelAdmin):
     def is_expired_display(self, obj):
         """Display if the override has expired"""
         if obj.is_expired:
-            return mark_safe('<span style="color: red; font - weight: bold;">✗ EXPIRED</span>')
+            return mark_safe('<span style="color: red; font-weight: bold;">✗ EXPIRED</span>')
         elif obj.expires_at:
             return mark_safe('<span style="color: orange;">⏰ WILL EXPIRE</span>')
         else:
