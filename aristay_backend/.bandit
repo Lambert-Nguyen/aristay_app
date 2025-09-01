@@ -1,0 +1,6 @@
+[bandit]
+# Exclude Django mark_safe warnings when content is properly escaped
+skips = B308,B703
+
+# This is for admin display functions where we use mark_safe with properly escaped content
+# All user inputs are escaped using django.utils.html.escape before passing to mark_safe

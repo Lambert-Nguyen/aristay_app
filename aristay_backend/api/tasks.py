@@ -1,5 +1,6 @@
 from api.services.email_digest_service import EmailDigestService
 
+
 def send_daily_digest():
     """
     Thin wrapper so any scheduler that still imports api.tasks.send_daily_digest
