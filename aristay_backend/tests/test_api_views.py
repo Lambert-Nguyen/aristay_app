@@ -29,7 +29,7 @@ class UserRegistrationAPITest(BaseAPITestCase):
         """Test registration with duplicate username"""
         url = reverse('user-register')
         data = {
-            'username': 'admin',  # Already exists
+            'username': self.admin_user.username,  # Use actual existing username
             'email': 'newadmin@example.com',
             'password': 'strongpassword123'
         }
@@ -125,7 +125,7 @@ class TaskAPITest(BaseAPITestCase):
         url = reverse('task-detail', kwargs={'pk': self.task.id})
         data = {
             'title': 'Updated Task Title',
-            'status': 'in_progress'
+            'status': 'in-progress'  # Use the correct status value with hyphen
         }
         response = self.client.patch(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -192,7 +192,7 @@ class PropertyAPITest(BaseAPITestCase):
         url = reverse('property-detail', kwargs={'pk': self.property1.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['name'], 'Test Property 1')
+        self.assertEqual(response.data['name'], self.property1.name)
     
     def test_property_update_admin(self):
         """Test updating a property as admin"""
@@ -272,7 +272,8 @@ class AdminUserAPITest(BaseAPITestCase):
     def test_admin_user_list(self):
         """Test admin user list endpoint"""
         self.authenticate_user('admin')
-        url = reverse('admin-user-list')
+        # Use the general user-list endpoint since admin-user-list doesn't exist
+        url = reverse('user-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data['results']), 3)  # We have 3 test users
@@ -280,7 +281,7 @@ class AdminUserAPITest(BaseAPITestCase):
     def test_admin_user_create(self):
         """Test admin user creation"""
         self.authenticate_user('admin')
-        url = reverse('admin-user-create')
+        url = reverse('admin-create-user')  # Use the correct URL name
         data = {
             'username': 'newstaffuser',
             'email': 'newstaff@example.com',
@@ -294,7 +295,7 @@ class AdminUserAPITest(BaseAPITestCase):
     def test_admin_user_create_non_admin(self):
         """Test admin user creation by non-admin (should fail)"""
         self.authenticate_user('staff')
-        url = reverse('admin-user-create')
+        url = reverse('admin-create-user')  # Use the correct URL name
         data = {
             'username': 'hackuser',
             'email': 'hack@example.com',
@@ -309,7 +310,7 @@ class AdminUserAPITest(BaseAPITestCase):
         url = reverse('current-user')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['username'], 'admin')
+        self.assertEqual(response.data['username'], self.admin_user.username)
         self.assertTrue(response.data['is_superuser'])
 
 

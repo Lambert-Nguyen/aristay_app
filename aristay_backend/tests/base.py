@@ -14,35 +14,43 @@ class BaseTestCase(TestCase):
     
     def setUp(self):
         """Set up test data for each test method"""
-        # Create test users
+        # Create test users with unique usernames per test class
+        test_id = self._testMethodName + str(id(self))
+        
         self.admin_user = User.objects.create_user(
-            username='admin',
-            email='admin@aristay.com',
+            username=f'admin_{test_id}',
+            email=f'admin_{test_id}@aristay.com',
             password='testpass123',
             is_staff=True,
             is_superuser=True
         )
         
         self.manager_user = User.objects.create_user(
-            username='manager',
-            email='manager@aristay.com',
+            username=f'manager_{test_id}',
+            email=f'manager_{test_id}@aristay.com',
             password='testpass123',
             is_staff=True
         )
         
         self.staff_user = User.objects.create_user(
-            username='staff',
-            email='staff@aristay.com',
+            username=f'staff_{test_id}',
+            email=f'staff_{test_id}@aristay.com',
             password='testpass123'
         )
         
-        # Create profiles
-        Profile.objects.create(user=self.manager_user, role=UserRole.MANAGER)
-        Profile.objects.create(user=self.staff_user, role=UserRole.STAFF)
+        # Create profiles - use get_or_create to avoid duplicates
+        Profile.objects.get_or_create(
+            user=self.manager_user, 
+            defaults={'role': UserRole.MANAGER}
+        )
+        Profile.objects.get_or_create(
+            user=self.staff_user, 
+            defaults={'role': UserRole.STAFF}
+        )
         
         # Create test properties
-        self.property1 = Property.objects.create(name='Test Property 1')
-        self.property2 = Property.objects.create(name='Test Property 2')
+        self.property1 = Property.objects.create(name=f'Test Property 1_{test_id}')
+        self.property2 = Property.objects.create(name=f'Test Property 2_{test_id}')
         
         # Set up clients
         self.client = Client()
@@ -54,40 +62,48 @@ class BaseAPITestCase(APITestCase):
     
     def setUp(self):
         """Set up test data for API tests"""
-        # Create test users
+        # Create test users with unique usernames per test class
+        test_id = self._testMethodName + str(id(self))
+        
         self.admin_user = User.objects.create_user(
-            username='admin',
-            email='admin@aristay.com',
+            username=f'admin_{test_id}',
+            email=f'admin_{test_id}@aristay.com',
             password='testpass123',
             is_staff=True,
             is_superuser=True
         )
         
         self.manager_user = User.objects.create_user(
-            username='manager',
-            email='manager@aristay.com',
+            username=f'manager_{test_id}',
+            email=f'manager_{test_id}@aristay.com',
             password='testpass123',
             is_staff=True
         )
         
         self.staff_user = User.objects.create_user(
-            username='staff',
-            email='staff@aristay.com',
+            username=f'staff_{test_id}',
+            email=f'staff_{test_id}@aristay.com',
             password='testpass123'
         )
         
-        # Create profiles
-        Profile.objects.create(user=self.manager_user, role=UserRole.MANAGER)
-        Profile.objects.create(user=self.staff_user, role=UserRole.STAFF)
+        # Create profiles - use get_or_create to avoid duplicates
+        Profile.objects.get_or_create(
+            user=self.manager_user, 
+            defaults={'role': UserRole.MANAGER}
+        )
+        Profile.objects.get_or_create(
+            user=self.staff_user, 
+            defaults={'role': UserRole.STAFF}
+        )
         
         # Create tokens for API authentication
-        self.admin_token = Token.objects.create(user=self.admin_user)
-        self.manager_token = Token.objects.create(user=self.manager_user)
-        self.staff_token = Token.objects.create(user=self.staff_user)
+        self.admin_token = Token.objects.get_or_create(user=self.admin_user)[0]
+        self.manager_token = Token.objects.get_or_create(user=self.manager_user)[0]
+        self.staff_token = Token.objects.get_or_create(user=self.staff_user)[0]
         
         # Create test properties
-        self.property1 = Property.objects.create(name='Test Property 1')
-        self.property2 = Property.objects.create(name='Test Property 2')
+        self.property1 = Property.objects.create(name=f'Test Property 1_{test_id}')
+        self.property2 = Property.objects.create(name=f'Test Property 2_{test_id}')
     
     def authenticate_user(self, user_type='admin'):
         """Helper method to authenticate API client"""
