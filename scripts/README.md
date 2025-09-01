@@ -18,6 +18,8 @@ This directory contains utility scripts and tools for the AriStay project.
   - Demo scripts
   - Debug utilities
   - Authentication check scripts
+  - Permission system testing
+  - API endpoint testing
 
 ## Usage
 
@@ -51,6 +53,16 @@ python conflict_demo.py
 
 # Debug permissions
 python debug_permissions.py
+```
+
+### Testing Scripts
+
+```bash
+# Test permission system
+python test_permissions.py
+
+# Test API endpoints with permissions
+python test_api_permissions.py
 ```
 
 ## Adding New Scripts

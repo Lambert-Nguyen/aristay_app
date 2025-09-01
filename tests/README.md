@@ -8,6 +8,7 @@ This directory contains all test files organized by functionality.
   - Manager portal tests
   - Dynamic permission changes
   - Permission access validation
+  - Comprehensive permission system tests
 
 - **`api/`** - API endpoint tests
   - API authentication tests
@@ -30,6 +31,9 @@ python -m pytest tests/
 
 # Run permission tests
 python -m pytest tests/permissions/
+
+# Run specific permission test
+python -m pytest tests/permissions/test_dynamic_permissions.py
 
 # Run API tests
 python -m pytest tests/api/
