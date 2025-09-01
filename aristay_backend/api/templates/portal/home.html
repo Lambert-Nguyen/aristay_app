@@ -45,7 +45,7 @@
                 {% if user.is_superuser %}Admin Panel{% else %}Manager Panel{% endif %}
             </h3>
             <p style="margin-bottom: 1rem; color: #64748b;">Manage users, properties, and system settings</p>
-            <a href="{% if user.is_superuser %}/api/admin/dashboard/{% else %}/api/manager/dashboard/{% endif %}" class="button" style="width: 100%; display: block; margin-bottom: 0.5rem;">
+            <a href="{% if user.is_superuser %}/admin/{% else %}/manager/{% endif %}" class="button" style="width: 100%; display: block; margin-bottom: 0.5rem;">
                 {% if user.is_superuser %}Admin Dashboard{% else %}Manager Dashboard{% endif %}
             </a>
             <a href="{% if user.is_superuser %}/api/admin/enhanced-excel-import/{% else %}/api/manager/enhanced-excel-import/{% endif %}" class="button" style="width: 100%; display: block; background-color: #059669; border-color: #059669;">

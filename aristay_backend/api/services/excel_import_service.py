@@ -5,8 +5,7 @@ This service handles importing booking schedules from Excel files (specifically 
 and automatically creates/updates bookings and associated tasks.
 """
 
-import pandas as pd
-import openpyxl
+# import openpyxl  # Moved to function level to avoid circular imports
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 import logging
@@ -153,7 +152,7 @@ class ExcelImportService:
                 'error': f'Import failed: {str(e)}'
             }
     
-    def _identify_new_properties(self, df: pd.DataFrame) -> List[str]:
+    def _identify_new_properties(self, df) -> List[str]:
         """Identify new properties that don't exist in the database."""
         new_properties = []
         
@@ -183,9 +182,10 @@ class ExcelImportService:
         
         return new_properties
     
-    def _read_excel_file(self, excel_file, sheet_name: str) -> Optional[pd.DataFrame]:
+    def _read_excel_file(self, excel_file, sheet_name: str):
         """Read Excel file and return DataFrame."""
         try:
+            import pandas as pd
             # Handle Django uploaded file properly
             if hasattr(excel_file, 'read'):
                 # For Django uploaded files, we need to reset position and read as bytes
@@ -203,6 +203,7 @@ class ExcelImportService:
         except Exception as e:
             logger.warning(f"Pandas failed to read Excel: {e}, trying openpyxl")
             try:
+                import openpyxl
                 # Fallback to openpyxl with proper file handling
                 if hasattr(excel_file, 'read'):
                     excel_file.seek(0)
@@ -283,7 +284,7 @@ class ExcelImportService:
             imported_by=self.user
         )
     
-    def _process_booking_row(self, row: pd.Series, row_number: int):
+    def _process_booking_row(self, row, row_number: int):
         """Process a single booking row from the Excel file."""
         # Use individual transaction for each row to allow partial success
         with transaction.atomic():
@@ -337,9 +338,10 @@ class ExcelImportService:
                 # Re-raise to trigger transaction rollback for this row
                 raise
     
-    def _extract_booking_data(self, row: pd.Series, row_number: int) -> Optional[Dict]:
+    def _extract_booking_data(self, row, row_number: int) -> Optional[Dict]:
         """Extract and validate booking data from Excel row."""
         try:
+            import pandas as pd
             # Map Excel columns to our fields
             data = {}
             
@@ -472,6 +474,7 @@ class ExcelImportService:
     def _clean_field_value(self, field_name: str, value) -> any:
         """Clean and validate field values."""
         try:
+            import pandas as pd
             if pd.isna(value) or value == '':
                 return None
             
@@ -702,7 +705,7 @@ class ExcelImportService:
         
         return conflicts
     
-    def _create_booking(self, booking_data: Dict, property_obj: Property, row: pd.Series) -> Booking:
+    def _create_booking(self, booking_data: Dict, property_obj: Property, row) -> Booking:
         """Create new booking from Excel data."""
         # Ensure nights field has a valid value
         nights_value = booking_data.get('nights')
@@ -753,7 +756,7 @@ class ExcelImportService:
             logger.error(f"Failed to create booking with external_code '{booking_data.get('external_code')}': {e}")
             raise
     
-    def _update_booking(self, booking: Booking, booking_data: Dict, row: pd.Series):
+    def _update_booking(self, booking: Booking, booking_data: Dict, row):
         """Update existing booking with new data."""
         # Update fields that might have changed
         if 'guest_name' in booking_data:
@@ -938,8 +941,9 @@ class ExcelImportService:
         except Exception as e:
             logger.error(f"Failed to update associated task for booking {booking.external_code}: {e}")
     
-    def _serialize_row_data(self, row: pd.Series) -> Dict:
+    def _serialize_row_data(self, row) -> Dict:
         """Convert pandas row data to JSON-serializable format."""
+        import pandas as pd
         import json
         from datetime import datetime, date, time
         

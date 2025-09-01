@@ -15,6 +15,11 @@ from django.views.decorators.http import require_http_methods
 
 import json
 import logging
+import os
+import subprocess
+import psutil
+import re
+from datetime import timedelta
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -466,49 +471,6 @@ def portal_task_detail(request, task_id):
 
 # DRF ViewSets and API Views start here
 # ============================================================================
-
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['status', 'task_type', 'property', 'assigned_to']
-    search_fields = ['title', 'description']
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
-
-    def perform_update(self, serializer):
-        old = Task.objects.get(pk=serializer.instance.pk)
-        instance = serializer.save(modified_by=self.request.user)
-
-        changes = []
-        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
-            old_val = getattr(old, field)
-            new_val = getattr(instance, field)
-            if field == 'assigned_to':
-                old_val = old.assigned_to.username if old.assigned_to else None
-                new_val = instance.assigned_to.username if instance.assigned_to else None
-            if field == 'property':
-                old_val = old.property.name if old.property else None
-                new_val = instance.property.name if instance.property else None
-
-            if old_val != new_val:
-                changes.append(
-                    f"{timezone.now().isoformat()}: "
-                    f"{self.request.user.username} changed {field} "
-                    f"from '{old_val or ''}' to '{new_val or ''}'"
-                )
-
-        history = json.loads(old.history or '[]')
-        history.extend(changes)
-        Task.objects.filter(pk=instance.pk).update(history=json.dumps(history))
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def unmute(self, request, pk=None):
-        """
-        POST /api/tasks/<id>/unmute/
-        """
-        task = self.get_object()
-        task.muted_by.remove(request.user)
-        return Response({'muted': False})
         
 
 
@@ -564,11 +526,12 @@ class UserRegistrationView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
 
+# Legacy Task views - keeping for backward compatibility
 class TaskListCreate(generics.ListCreateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [DynamicTaskPermissions]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -578,7 +541,7 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrAssignedOrReadOnly]
+    permission_classes = [DynamicTaskPermissions, IsOwnerOrAssignedOrReadOnly]
 
     def perform_update(self, serializer):
         old = Task.objects.get(pk=serializer.instance.pk)
@@ -610,7 +573,7 @@ class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
 class PropertyListCreate(generics.ListCreateAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [DynamicPropertyPermissions]
     pagination_class = None
 
     def get_permissions(self):
@@ -622,7 +585,7 @@ class PropertyListCreate(generics.ListCreateAPIView):
 class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [DynamicPropertyPermissions]
 
     def get_permissions(self):
         # Only admins can modify/delete; reads remain open to authenticated (or read-only if you prefer)
@@ -1516,7 +1479,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .services.excel_import_service import ExcelImportService
-from .models import BookingImportTemplate, Property
+from .models import BookingImportTemplate, Property, BookingImportLog
 
 def is_superuser_or_manager(user):
     """Check if user is superuser or manager"""
@@ -1749,8 +1712,8 @@ from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from api.models import BookingImportLog
-from api.services.enhanced_excel_import_service import (
+from .models import BookingImportLog
+from .services.enhanced_excel_import_service import (
     EnhancedExcelImportService, ConflictResolutionService
 )
 
@@ -2061,7 +2024,7 @@ def file_cleanup_api(request):
     - days: Number of days to keep (for dry_run and cleanup actions)
     - target_mb: Target size in MB (for suggest action)
     """
-    from api.services.file_cleanup_service import ImportFileCleanupService
+    from .services.file_cleanup_service import ImportFileCleanupService
     
     if not request.user.is_staff:
         return JsonResponse({'error': 'Staff access required'}, status=403)
