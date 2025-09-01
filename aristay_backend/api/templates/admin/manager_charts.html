@@ -1,0 +1,861 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Dashboard Charts | {{ site_title|default:_('AriStay Manager') }}{% endblock %}
+
+{% block extrastyle %}
+<!-- AriStay Favicons -->
+<link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}">
+<link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicons/favicon-32x32.png' %}">
+<link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
+<meta name="theme-color" content="#8b5cf6">
+
+<style>
+/* Modern Dashboard Styles */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    --dark-gradient: linear-gradient(135deg, #434343 0%, #000000 100%);
+    
+    --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --card-shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.15);
+    --border-radius: 16px;
+    --border-radius-lg: 24px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 20px;
+    --spacing-lg: 32px;
+    --spacing-xl: 48px;
+}
+
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #2d3748;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* Header Section */
+.dashboard-header {
+    background: var(--primary-gradient);
+    color: white;
+    padding: var(--spacing-xl) var(--spacing-lg);
+    border-radius: var(--border-radius-lg);
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.header-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.header-logo:hover {
+    transform: scale(1.1);
+}
+
+.header-text {
+    text-align: left;
+}
+
+.header-text h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.header-text .dashboard-subtitle {
+    margin: 0;
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("{% static 'images/aristay_banner.jpg' %}");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.1;
+    z-index: 1;
+}
+
+.dashboard-header > * {
+    position: relative;
+    z-index: 2;
+}
+
+.dashboard-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 var(--spacing-sm) 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: var(--spacing-md);
+}
+
+.refresh-button {
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--spacing-lg);
+    font-weight: 600;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+}
+
+.refresh-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+/* Statistics Cards */
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+    transition: height 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.stat-card:hover::before {
+    height: 6px;
+}
+
+.stat-card:nth-child(1)::before { background: var(--primary-gradient); }
+.stat-card:nth-child(2)::before { background: var(--danger-gradient); }
+.stat-card:nth-child(3)::before { background: var(--success-gradient); }
+.stat-card:nth-child(4)::before { background: var(--warning-gradient); }
+.stat-card:nth-child(5)::before { background: var(--secondary-gradient); }
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: var(--spacing-xs);
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card:nth-child(2) .stat-number {
+    background: var(--danger-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card:nth-child(3) .stat-number {
+    background: var(--success-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card:nth-child(4) .stat-number {
+    background: var(--warning-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-card:nth-child(5) .stat-number {
+    background: var(--secondary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.stat-label {
+    color: #718096;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Charts Section */
+.charts-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.section-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background: var(--primary-gradient);
+    border-radius: 2px;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.chart-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--primary-gradient);
+    transition: height 0.3s ease;
+}
+
+.chart-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.chart-card:hover::before {
+    height: 3px;
+}
+
+.chart-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: var(--spacing-md);
+    text-align: center;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-top: var(--spacing-md);
+}
+
+/* Advanced Charts Grid */
+.charts-grid-large {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.chart-card-large {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+}
+
+.chart-card-large:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.chart-card-large .chart-title {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-lg);
+}
+
+.chart-card-large .chart-container {
+    height: 400px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .dashboard-header {
+        padding: var(--spacing-lg) var(--spacing-md);
+    }
+    
+    .logo-container {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+    
+    .header-logo {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .header-text {
+        text-align: center;
+    }
+    
+    .header-text h1 {
+        font-size: 2rem;
+    }
+    
+    .dashboard-stats {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: var(--spacing-sm);
+    }
+    
+    .charts-container {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .charts-grid-large {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+    
+    .chart-card-large .chart-container {
+        height: 300px;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dashboard-stats .stat-card {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.dashboard-stats .stat-card:nth-child(1) { animation-delay: 0.1s; }
+.dashboard-stats .stat-card:nth-child(2) { animation-delay: 0.2s; }
+.dashboard-stats .stat-card:nth-child(3) { animation-delay: 0.3s; }
+.dashboard-stats .stat-card:nth-child(4) { animation-delay: 0.4s; }
+.dashboard-stats .stat-card:nth-child(5) { animation-delay: 0.5s; }
+
+.chart-card {
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+.chart-card:nth-child(1) { animation-delay: 0.6s; }
+.chart-card:nth-child(2) { animation-delay: 0.7s; }
+.chart-card:nth-child(3) { animation-delay: 0.8s; }
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="logo-container">
+        <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay Logo" class="header-logo">
+        <div class="header-text">
+            <h1>AriStay Analytics Dashboard</h1>
+            <p class="dashboard-subtitle">Real-time insights into your task management system</p>
+        </div>
+    </div>
+    <button class="refresh-button" onclick="refreshData()">🔄 Refresh Data</button>
+</div>
+
+<div class="dashboard-stats">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_tasks }}</div>
+        <div class="stat-label">📋 Total Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ overdue_count }}</div>
+        <div class="stat-label">⚠️ Overdue Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ property_count }}</div>
+        <div class="stat-label">🏢 Active Properties</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ task_type_count }}</div>
+        <div class="stat-label">🔧 Task Types</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ active_users }}</div>
+        <div class="stat-label">👥 Active Users</div>
+    </div>
+</div>
+
+<div class="charts-section">
+    <h2 class="section-title">📊 Task Distribution</h2>
+    <div class="charts-container">
+        <div class="chart-card">
+            <div class="chart-title">📈 Tasks by Status</div>
+            <div class="chart-container">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">🔧 Tasks by Type</div>
+            <div class="chart-container">
+                <canvas id="taskTypeChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">🏢 Tasks by Property</div>
+            <div class="chart-container">
+                <canvas id="propertyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="charts-section">
+    <h2 class="section-title">👥 Team Analytics</h2>
+    <div class="charts-grid-large">
+        <div class="chart-card-large">
+            <div class="chart-title">🏆 User Performance</div>
+            <div class="chart-container">
+                <canvas id="userPerformanceChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card-large">
+            <div class="chart-title">⚡ Recent User Activity (7 days)</div>
+            <div class="chart-container">
+                <canvas id="userActivityChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart.js Configuration
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 13;
+Chart.defaults.color = '#4a5568';
+
+// Modern Color Palette
+const modernColors = {
+    primary: '#667eea',
+    secondary: '#764ba2',
+    success: '#48bb78',
+    warning: '#ed8936',
+    danger: '#f56565',
+    info: '#4299e1',
+    light: '#f7fafc',
+    dark: '#2d3748'
+};
+
+// Status Chart (Doughnut)
+const statusCtx = document.getElementById('statusChart').getContext('2d');
+const statusChart = new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ status_chart_data.labels|safe }},
+        datasets: [{
+            data: {{ status_chart_data.data|safe }},
+            backgroundColor: [
+                'rgba(237, 137, 54, 0.8)',   // Pending - Orange
+                'rgba(66, 153, 225, 0.8)',   // In Progress - Blue  
+                'rgba(72, 187, 120, 0.8)',   // Completed - Green
+                'rgba(245, 101, 101, 0.8)'   // Canceled - Red
+            ],
+            borderColor: [
+                '#ed8936', '#4299e1', '#48bb78', '#f56565'
+            ],
+            borderWidth: 3,
+            hoverOffset: 15
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 25,
+                    font: { size: 14, weight: '600' },
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} tasks (${percentage}%)`;
+                    }
+                }
+            }
+        },
+        cutout: '60%'
+    }
+});
+
+// Task Type Chart (Doughnut)
+const taskTypeCtx = document.getElementById('taskTypeChart').getContext('2d');
+const taskTypeChart = new Chart(taskTypeCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ task_type_chart_data.labels|safe }},
+        datasets: [{
+            data: {{ task_type_chart_data.data|safe }},
+            backgroundColor: [
+                'rgba(245, 101, 101, 0.8)',  // Cleaning - Red
+                'rgba(237, 137, 54, 0.8)',   // Maintenance - Orange
+                'rgba(155, 89, 182, 0.8)',   // Inspection - Purple
+                'rgba(52, 73, 94, 0.8)'      // Repair - Dark Blue
+            ],
+            borderColor: [
+                '#f56565', '#ed8936', '#9b59b6', '#34495e'
+            ],
+            borderWidth: 3,
+            hoverOffset: 15
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 25,
+                    font: { size: 14, weight: '600' },
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} tasks (${percentage}%)`;
+                    }
+                }
+            }
+        },
+        cutout: '60%'
+    }
+});
+
+// Property Chart (Modern Bar)
+const propertyCtx = document.getElementById('propertyChart').getContext('2d');
+const propertyChart = new Chart(propertyCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ property_chart_data.labels|safe }},
+        datasets: [{
+            label: 'Tasks',
+            data: {{ property_chart_data.data|safe }},
+            backgroundColor: 'rgba(102, 126, 234, 0.8)',
+            borderColor: '#667eea',
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                    title: function(context) {
+                        return context[0].label;
+                    },
+                    label: function(context) {
+                        return `${context.parsed.y} tasks`;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, font: { weight: '600' } },
+                title: { display: true, text: 'Number of Tasks', font: { weight: '700', size: 14 } },
+                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            },
+            x: {
+                title: { display: true, text: 'Properties', font: { weight: '700', size: 14 } },
+                grid: { display: false }
+            }
+        }
+    }
+});
+
+// User Performance Chart (Grouped Bar)
+const userPerformanceCtx = document.getElementById('userPerformanceChart').getContext('2d');
+const userPerformanceChart = new Chart(userPerformanceCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ user_performance_chart_data.labels|safe }},
+        datasets: [{
+            label: 'Completed Tasks',
+            data: {{ user_performance_chart_data.completed|safe }},
+            backgroundColor: 'rgba(72, 187, 120, 0.8)',
+            borderColor: '#48bb78',
+            borderWidth: 2,
+            borderRadius: 6,
+        }, {
+            label: 'Total Tasks',
+            data: {{ user_performance_chart_data.total|safe }},
+            backgroundColor: 'rgba(66, 153, 225, 0.6)',
+            borderColor: '#4299e1',
+            borderWidth: 2,
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: {
+                    padding: 20,
+                    font: { size: 14, weight: '600' },
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                    afterLabel: function(context) {
+                        if (context.datasetIndex === 0) {
+                            const total = context.chart.data.datasets[1].data[context.dataIndex];
+                            const completed = context.parsed.y;
+                            const percentage = total > 0 ? ((completed / total) * 100).toFixed(1) : 0;
+                            return `Completion Rate: ${percentage}%`;
+                        }
+                        return '';
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, font: { weight: '600' } },
+                title: { display: true, text: 'Number of Tasks', font: { weight: '700', size: 14 } },
+                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            },
+            x: {
+                title: { display: true, text: 'Team Members', font: { weight: '700', size: 14 } },
+                grid: { display: false }
+            }
+        }
+    }
+});
+
+// User Activity Chart (Doughnut)
+const userActivityCtx = document.getElementById('userActivityChart').getContext('2d');
+const userActivityChart = new Chart(userActivityCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ user_activity_chart_data.labels|safe }},
+        datasets: [{
+            data: {{ user_activity_chart_data.data|safe }},
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.8)',   // Pink
+                'rgba(54, 162, 235, 0.8)',   // Blue
+                'rgba(255, 206, 86, 0.8)',   // Yellow
+                'rgba(75, 192, 192, 0.8)',   // Teal
+                'rgba(153, 102, 255, 0.8)',  // Purple
+                'rgba(255, 159, 64, 0.8)',   // Orange
+                'rgba(199, 199, 199, 0.8)',  // Grey
+                'rgba(83, 102, 255, 0.8)'    // Indigo
+            ],
+            borderColor: [
+                '#ff6384', '#36a2eb', '#ffce56', '#4bc0c0',
+                '#9966ff', '#ff9f40', '#c7c7c7', '#5366ff'
+            ],
+            borderWidth: 3,
+            hoverOffset: 12
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    font: { size: 12, weight: '600' },
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: 'white',
+                bodyColor: 'white',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        return `${label}: ${value} updates`;
+                    }
+                }
+            }
+        },
+        cutout: '50%'
+    }
+});
+
+// Refresh Function
+function refreshData() {
+    const refreshBtn = document.querySelector('.refresh-button');
+    refreshBtn.classList.add('loading');
+    refreshBtn.textContent = '🔄 Refreshing...';
+    
+    // Simulate refresh (in real app, this would reload data)
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+// Auto-refresh every 5 minutes
+setInterval(refreshData, 300000);
+
+console.log('🚀 AriStay Manager Dashboard loaded successfully!');
+</script>
+{% endblock %}

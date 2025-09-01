@@ -1,0 +1,302 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Error - AriStay</title>
+    
+    <!-- AriStay Favicons -->
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicons/favicon-32x32.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
+    <meta name="theme-color" content="#ef4444">
+    
+    <style>
+    :root {
+        --primary-color: #ef4444;
+        --primary-dark: #dc2626;
+        --primary-light: #fef2f2;
+        --secondary-color: #8b5cf6;
+        --warning-color: #f59e0b;
+        --dark-color: #1f2937;
+        --light-color: #f8fafc;
+        --border-color: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --spacing-xs: 0.25rem;
+        --spacing-sm: 0.5rem;
+        --spacing-md: 1rem;
+        --spacing-lg: 1.5rem;
+        --spacing-xl: 2rem;
+        --spacing-2xl: 3rem;
+        --border-radius: 0.5rem;
+        --border-radius-lg: 1rem;
+        --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --error-gradient: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: var(--error-gradient);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--spacing-md);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Background pattern */
+    body::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("{% static 'images/aristay_banner.jpg' %}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        opacity: 0.1;
+        z-index: -1;
+    }
+
+    .error-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--box-shadow-lg);
+        padding: var(--spacing-2xl);
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .error-logo {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin: 0 auto var(--spacing-lg);
+        display: block;
+        border: 4px solid var(--primary-color);
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    }
+
+    .error-code {
+        font-size: 6rem;
+        font-weight: 900;
+        color: var(--primary-color);
+        line-height: 1;
+        margin-bottom: var(--spacing-md);
+        text-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+    }
+
+    .error-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .error-message {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+        margin-bottom: var(--spacing-xl);
+        line-height: 1.6;
+    }
+
+    .error-actions {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: center;
+    }
+
+    .action-button {
+        display: inline-block;
+        padding: var(--spacing-md) var(--spacing-xl);
+        background: var(--error-gradient);
+        color: white;
+        text-decoration: none;
+        border-radius: var(--border-radius);
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: var(--box-shadow);
+        min-width: 200px;
+    }
+
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--box-shadow-lg);
+        text-decoration: none;
+        color: white;
+    }
+
+    .action-button.secondary {
+        background: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+    }
+
+    .action-button.secondary:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .error-details {
+        background: var(--primary-light);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: var(--border-radius);
+        padding: var(--spacing-md);
+        margin: var(--spacing-lg) 0;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .error-footer {
+        margin-top: var(--spacing-xl);
+        padding-top: var(--spacing-lg);
+        border-top: 1px solid var(--border-color);
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .brand-name {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .floating-elements {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    .floating-circle {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .floating-circle:nth-child(1) {
+        width: 80px;
+        height: 80px;
+        top: 20%;
+        left: 10%;
+        animation-delay: 0s;
+    }
+
+    .floating-circle:nth-child(2) {
+        width: 60px;
+        height: 60px;
+        top: 60%;
+        right: 10%;
+        animation-delay: 2s;
+    }
+
+    .floating-circle:nth-child(3) {
+        width: 100px;
+        height: 100px;
+        bottom: 20%;
+        left: 15%;
+        animation-delay: 4s;
+    }
+
+    .floating-circle:nth-child(4) {
+        width: 40px;
+        height: 40px;
+        top: 40%;
+        right: 20%;
+        animation-delay: 3s;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 480px) {
+        .error-container {
+            padding: var(--spacing-xl);
+            margin: var(--spacing-sm);
+        }
+        
+        .error-code {
+            font-size: 4rem;
+        }
+        
+        .error-title {
+            font-size: 1.5rem;
+        }
+        
+        .error-logo {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .action-button {
+            min-width: 160px;
+            padding: var(--spacing-sm) var(--spacing-lg);
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="floating-elements">
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+        <div class="floating-circle"></div>
+    </div>
+
+    <div class="error-container">
+        <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay Logo" class="error-logo">
+        
+        <div class="error-code">500</div>
+        <h1 class="error-title">Server Error</h1>
+        <p class="error-message">
+            We're experiencing technical difficulties. Our team has been notified and is working to resolve the issue.
+        </p>
+
+        <div class="error-details">
+            <strong>🔧 What happened?</strong><br>
+            A server error occurred while processing your request. This issue has been automatically logged for our development team.
+        </div>
+
+        <div class="error-actions">
+            <a href="/admin/" class="action-button">
+                🏠 Return to Admin Home
+            </a>
+            <a href="javascript:history.back()" class="action-button secondary">
+                ↩️ Go Back
+            </a>
+        </div>
+
+        <div class="error-footer">
+            <p>&copy; 2025 <span class="brand-name">AriStay</span>. All rights reserved.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem;">
+                If this problem persists, please contact support.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

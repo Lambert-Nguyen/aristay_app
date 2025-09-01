@@ -1,0 +1,755 @@
+{% extends "staff/base.html" %}
+{% load timezone_tags %}
+
+{% block title %}Dashboard · AriStay{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- Welcome Card -->
+    <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+            👋 Welcome back, {{ user.get_full_name|default:user.username }}!
+        </div>
+        <div class="welcome-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <p style="margin: 0; color: #64748b;">
+                        Role: <strong>{{ user.profile.get_role_display|default:"Staff" }}</strong>
+                    </p>
+                    <p style="margin: 0.5rem 0 0 0; color: #64748b;">
+                        Current time: {% current_time_dual user %}
+                    </p>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <a href="/api/staff/tasks/" class="btn btn-primary">📋 View All Tasks</a>
+                    <a href="/api/portal/" class="btn btn-secondary">🏠 Portal Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Task Statistics with Quick Actions -->
+    <div class="stats-grid" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="stat-card clickable" onclick="filterTasks('all')">
+            <div class="stat-number">{{ total_tasks }}</div>
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-action">👆 Tap to view</div>
+        </div>
+        <div class="stat-card pending clickable" onclick="filterTasks('pending')">
+            <div class="stat-number">{{ task_counts.pending }}</div>
+            <div class="stat-label">Pending</div>
+            <div class="stat-action">👆 Tap to view</div>
+        </div>
+        <div class="stat-card in-progress clickable" onclick="filterTasks('in_progress')">
+            <div class="stat-number">{{ task_counts.in_progress }}</div>
+            <div class="stat-label">In Progress</div>
+            <div class="stat-action">👆 Tap to view</div>
+        </div>
+        <div class="stat-card completed clickable" onclick="filterTasks('completed')">
+            <div class="stat-number">{{ task_counts.completed }}</div>
+            <div class="stat-label">Completed</div>
+            <div class="stat-action">👆 Tap to view</div>
+        </div>
+        <div class="stat-card overdue clickable" onclick="filterTasks('overdue')">
+            <div class="stat-number">{{ task_counts.overdue }}</div>
+            <div class="stat-label">Overdue</div>
+            <div class="stat-action">👆 Tap to view</div>
+        </div>
+    </div>
+
+    <!-- Recent Tasks -->
+    <div class="card">
+        <div class="card-header">
+            📋 Recent Tasks
+            <a href="/api/staff/tasks/" style="margin-left: auto; font-size: 0.875rem;">View All →</a>
+        </div>
+        {% if recent_tasks %}
+            {% for task in recent_tasks %}
+            <div class="task-item" data-task-id="{{ task.id }}">
+                <div class="task-header">
+                    <h4>{{ task.title }}</h4>
+                    <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
+                </div>
+                <div class="task-meta">
+                    <span>🏠 {{ task.property.name|default:"No Property" }}</span>
+                    {% if task.due_date %}
+                    <span>⏰ {{ task.due_date|dual_timezone:user }}</span>
+                    {% endif %}
+                </div>
+                <div class="task-actions">
+                    <button class="btn-action start-task" onclick="startTask({{ task.id }})" 
+                            {% if task.status != 'pending' %}disabled{% endif %}>
+                        ▶️ Start
+                    </button>
+                    <button class="btn-action complete-task" onclick="completeTask({{ task.id }})"
+                            {% if task.status == 'completed' %}disabled{% endif %}>
+                        ✅ Complete
+                    </button>
+                    <button class="btn-action view-task" onclick="viewTask({{ task.id }})">
+                        👁️ View
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">📝</div>
+                <p>No tasks assigned to you yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">🚀 Quick Actions</div>
+        <div class="quick-actions">
+            <a href="/api/staff/tasks/" class="action-item">
+                <div class="action-icon">📋</div>
+                <div class="action-text">
+                    <div class="action-title">My Tasks</div>
+                    <div class="action-desc">View and manage your assigned tasks</div>
+                </div>
+            </a>
+
+            {% if user|is_in_department:'Maintenance' or user.is_staff %}
+            <a href="/api/staff/inventory/" class="action-item">
+                <div class="action-icon">📦</div>
+                <div class="action-text">
+                    <div class="action-title">Inventory</div>
+                    <div class="action-desc">Check inventory levels and log transactions</div>
+                </div>
+            </a>
+            {% endif %}
+
+            <a href="/api/staff/lost-found/" class="action-item">
+                <div class="action-icon">🔍</div>
+                <div class="action-text">
+                    <div class="action-title">Lost & Found</div>
+                    <div class="action-desc">Report and manage lost items</div>
+                </div>
+            </a>
+
+            <a href="/api/portal/properties/" class="action-item">
+                <div class="action-icon">🏠</div>
+                <div class="action-text">
+                    <div class="action-title">Properties</div>
+                    <div class="action-desc">Browse properties and bookings</div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.pending { border-left: 4px solid #f59e0b; }
+.stat-card.in-progress { border-left: 4px solid #3b82f6; }
+.stat-card.completed { border-left: 4px solid #10b981; }
+.stat-card.overdue { border-left: 4px solid #ef4444; }
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #1e293b;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.task-item {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.task-item:last-child {
+    border-bottom: none;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.task-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #1e293b;
+}
+
+.task-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.action-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.2s ease;
+}
+
+.action-item:hover {
+    background-color: #f8fafc;
+}
+
+.action-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    border-radius: 8px;
+}
+
+.action-text {
+    flex: 1;
+}
+
+.action-title {
+    font-weight: 500;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.action-desc {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.welcome-content {
+    padding: 1rem 0;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+        }
+
+        /* Enhanced Task Management Styles */
+        .stat-card.clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card.clickable:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card.clickable:active {
+            transform: translateY(-2px);
+        }
+
+        .stat-action {
+            font-size: 0.75rem;
+            color: #667eea;
+            margin-top: 0.5rem;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .stat-card.clickable:hover .stat-action {
+            opacity: 1;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .btn-action:hover:not(:disabled) {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-action:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-action.start-task {
+            background: #10b981;
+        }
+
+        .btn-action.start-task:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .btn-action.complete-task {
+            background: #3b82f6;
+        }
+
+        .btn-action.complete-task:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .btn-action.view-task {
+            background: #6b7280;
+        }
+
+        .btn-action.view-task:hover:not(:disabled) {
+            background: #4b5563;
+        }
+
+        /* Mobile-first responsive improvements */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 0.75rem;
+            }
+
+            .stat-card {
+                padding: 1rem;
+            }
+
+            .stat-number {
+                font-size: 1.5rem;
+            }
+
+            .task-actions {
+                gap: 0.25rem;
+            }
+
+            .btn-action {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.75rem;
+                min-width: 40px;
+            }
+        }
+
+        /* Real-time update indicators */
+        .stat-card.updating {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Live indicator */
+        .live-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .live-indicator {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                justify-content: center;
+            }
+        }
+    </style>
+
+    <script>
+        // Enhanced Task Management Functions
+        function filterTasks(status) {
+            // Redirect to tasks page with status filter
+            const baseUrl = '/api/staff/tasks/';
+            const url = status === 'all' ? baseUrl : `${baseUrl}?status=${status}`;
+            window.location.href = url;
+        }
+
+        function startTask(taskId) {
+            if (confirm('Start this task?')) {
+                // Update task status to in-progress
+                updateTaskStatus(taskId, 'in-progress');
+            }
+        }
+
+        function completeTask(taskId) {
+            if (confirm('Mark this task as completed?')) {
+                // Update task status to completed
+                updateTaskStatus(taskId, 'completed');
+            }
+        }
+
+        function viewTask(taskId) {
+            // Navigate to task detail page
+            window.location.href = `/api/staff/tasks/${taskId}/`;
+        }
+
+        function updateTaskStatus(taskId, status) {
+            // Show loading state
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '⏳ Updating...';
+            button.disabled = true;
+
+            // Make API call to update task status
+            fetch(`/api/tasks/${taskId}/set_status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ status: status })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showNotification('Task status updated successfully!', 'success');
+                    
+                    // Refresh the page to show updated status
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to update task status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Failed to update task status: ' + error.message, 'error');
+                
+                // Reset button state
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-message">${message}</span>
+                    <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+            
+            // Add to page
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Real-Time Task Updates
+        let updateInterval;
+        
+        function startRealTimeUpdates() {
+            // Update every 30 seconds
+            updateInterval = setInterval(updateTaskCounts, 30000);
+            
+            // Initial update
+            updateTaskCounts();
+        }
+        
+        function stopRealTimeUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        }
+        
+        function updateTaskCounts() {
+            fetch('/api/staff/task-counts/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateDashboardCounts(data.counts);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating task counts:', error);
+                });
+        }
+        
+        function updateDashboardCounts(counts) {
+            // Update stat cards with new counts
+            const totalTasks = document.querySelector('.stat-card.clickable[onclick*="all"] .stat-number');
+            const pendingTasks = document.querySelector('.stat-card.clickable[onclick*="pending"] .stat-number');
+            const inProgressTasks = document.querySelector('.stat-card.clickable[onclick*="in_progress"] .stat-number');
+            const completedTasks = document.querySelector('.stat-card.clickable[onclick*="completed"] .stat-number');
+            const overdueTasks = document.querySelector('.stat-card.clickable[onclick*="overdue"] .stat-number');
+            
+            if (totalTasks) totalTasks.textContent = counts.total || 0;
+            if (pendingTasks) pendingTasks.textContent = counts.pending || 0;
+            if (inProgressTasks) inProgressTasks.textContent = counts.in_progress || 0;
+            if (completedTasks) completedTasks.textContent = counts.completed || 0;
+            if (overdueTasks) overdueTasks.textContent = counts.overdue || 0;
+            
+            // Add visual feedback for changes
+            addUpdateIndicator();
+        }
+        
+        function addUpdateIndicator() {
+            const statCards = document.querySelectorAll('.stat-card.clickable');
+            statCards.forEach(card => {
+                card.style.transform = 'scale(1.05)';
+                card.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.3)';
+                
+                setTimeout(() => {
+                    card.style.transform = 'scale(1)';
+                    card.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                }, 500);
+            });
+        }
+
+        // Push Notification Support
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        showNotification('Push notifications enabled!', 'success');
+                        localStorage.setItem('notifications_enabled', 'true');
+                    }
+                });
+            }
+        }
+        
+        function sendPushNotification(title, body, icon = '/static/images/aristay_logo.jpg') {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: icon,
+                    badge: '/static/images/aristay_logo.jpg',
+                    tag: 'aristay-notification'
+                });
+            }
+        }
+
+        // Auto-refresh for new tasks
+        let lastTaskCount = 0;
+        
+        function checkForNewTasks() {
+            fetch('/api/staff/task-counts/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.counts.total > lastTaskCount && lastTaskCount > 0) {
+                        const newTasks = data.counts.total - lastTaskCount;
+                        sendPushNotification(
+                            'New Tasks Available',
+                            `${newTasks} new task${newTasks > 1 ? 's' : ''} have been assigned to you.`
+                        );
+                        showNotification(`${newTasks} new task${newTasks > 1 ? 's' : ''} available!`, 'info');
+                    }
+                    lastTaskCount = data.counts.total;
+                })
+                .catch(error => {
+                    console.error('Error checking for new tasks:', error);
+                });
+        }
+
+        // Initialize real-time features
+        document.addEventListener('DOMContentLoaded', function() {
+            // Start real-time updates
+            startRealTimeUpdates();
+            
+            // Check for new tasks every 2 minutes
+            setInterval(checkForNewTasks, 120000);
+            
+            // Request notification permission if not already granted
+            if ('Notification' in window && Notification.permission === 'default') {
+                setTimeout(requestNotificationPermission, 2000);
+            }
+            
+            // Check if notifications are enabled
+            if (localStorage.getItem('notifications_enabled') === 'true') {
+                showNotification('Real-time updates and notifications are active!', 'info');
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopRealTimeUpdates();
+        });
+
+        // Add notification styles
+        const notificationStyles = document.createElement('style');
+        notificationStyles.textContent = `
+            .notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                max-width: 400px;
+                animation: slideIn 0.3s ease;
+            }
+
+            .notification-content {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                color: white;
+            }
+
+            .notification-info {
+                background: #3b82f6;
+            }
+
+            .notification-success {
+                background: #10b981;
+            }
+
+            .notification-error {
+                background: #ef4444;
+            }
+
+            .notification-close {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 1.5rem;
+                cursor: pointer;
+                margin-left: 1rem;
+                padding: 0;
+                min-width: 24px;
+                min-height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .notification {
+                    top: 10px;
+                    right: 10px;
+                    left: 10px;
+                    max-width: none;
+                }
+            }
+        `;
+        document.head.appendChild(notificationStyles);
+
+        // Add live indicator
+        const liveIndicator = document.createElement('div');
+        liveIndicator.className = 'live-indicator';
+        liveIndicator.innerHTML = '🔄 Live Updates Active';
+        document.body.appendChild(liveIndicator);
+    </script>
+{% endblock %}

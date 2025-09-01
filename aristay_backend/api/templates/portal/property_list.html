@@ -1,0 +1,32 @@
+{% extends "portal/base.html" %}
+{% load timezone_tags %}
+{% block title %}Properties · AriStay Portal{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="section-title">Select a property</div>
+  <div class="grid cols-3">
+    {% for card in properties %}
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:700;">{{ card.obj.name }}</div>
+            <a class="button" href="{% url 'portal-property-detail' card.obj.id %}">Open</a>
+        </div>
+        {% if card.obj.address %}
+          <div class="muted" style="margin-top:6px;">{{ card.obj.address }}</div>
+        {% endif %}
+        <div style="margin-top:10px; display:flex; gap:8px;">
+            <span class="tag">Current {{ card.current_count }}</span>
+            <span class="tag">Future {{ card.future_count }}</span>
+            <span class="tag">Past {{ card.past_count }}</span>
+        </div>
+      </div>
+    {% empty %}
+      <div class="muted">No properties available.</div>
+    {% endfor %}
+  </div>
+  <div style="margin-top:16px;">
+    <a class="button" href="/admin/api/property/">Manage in Admin</a>
+  </div>
+</div>
+{% endblock %}
+

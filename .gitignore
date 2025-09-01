@@ -1,15 +1,31 @@
 # === Django/Python (for aristay_backend) ===
 # Ignore Python bytecode and caches
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
 
-# Ignore the development database if not needed in version control
+# Ignore the development database
 aristay_backend/db.sqlite3
+*.db
+
+# Django static files (collected static files)
+aristay_backend/staticfiles/
+
+# Django logs
+aristay_backend/logs/*.log
 
 # Ignore virtual environments (update the path to match your project structure)
 aristay_backend/venv/
+.venv/
 env/
 ENV/
+
+# Ignore local environment files
+.env
+.env.local
+.env.production
+.env.development
 
 # === Flutter/Dart (for aristay_flutter_frontend) ===
 # Build and generated files
@@ -28,5 +44,10 @@ aristay_flutter_frontend/.packages
 .DS_Store
 *.iml
 .idea/
-/aristay_backend/api/migrations
+
+# Ignore sensitive files but KEEP migrations
 aristay_backend/firebase_credentials.json
+
+# Media and static files (optional - uncomment if you don't want to track uploaded files)
+# aristay_backend/media/
+# aristay_backend/static/

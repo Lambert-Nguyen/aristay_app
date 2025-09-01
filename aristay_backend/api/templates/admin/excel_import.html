@@ -1,0 +1,711 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+<style>
+    /* Mobile-First Base Styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.6;
+        background: #f5f5f5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Mobile-First Container */
+    .excel-import-container {
+        max-width: 800px;
+        margin: 10px auto;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    @media (min-width: 768px) {
+        .excel-import-container {
+            margin: 20px auto;
+            padding: 20px;
+        }
+    }
+    
+    /* Mobile-Optimized Header */
+    .import-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    @media (min-width: 768px) {
+        .import-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+        }
+    }
+    
+    .import-header h1 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-size: 1.5rem;
+        line-height: 1.3;
+    }
+
+    @media (min-width: 768px) {
+        .import-header h1 {
+            font-size: 2rem;
+        }
+    }
+    
+    .import-header p {
+        color: #7f8c8d;
+        font-size: 14px;
+    }
+
+    @media (min-width: 768px) {
+        .import-header p {
+            font-size: 16px;
+        }
+    }
+    
+    /* Mobile-Optimized Upload Section */
+    .upload-section {
+        background: #f8f9fa;
+        padding: 20px 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 2px dashed #dee2e6;
+        text-align: center;
+    }
+
+    @media (min-width: 768px) {
+        .upload-section {
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+    }
+    
+    .upload-section.dragover {
+        border-color: #007bff;
+        background: #e3f2fd;
+    }
+    
+    /* Touch-Friendly File Input */
+    .file-input-wrapper {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        margin: 15px 0;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    @media (min-width: 768px) {
+        .file-input-wrapper {
+            margin: 20px 0;
+            width: auto;
+        }
+    }
+    
+    .file-input {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+    
+    /* Mobile-Optimized Upload Button */
+    .upload-button {
+        background: #007bff;
+        color: white;
+        padding: 15px 25px;
+        border: none;
+        border-radius: 25px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: block;
+        width: 100%;
+        min-height: 50px;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    @media (min-width: 768px) {
+        .upload-button {
+            display: inline-block;
+            width: auto;
+            padding: 15px 30px;
+        }
+    }
+    
+    .upload-button:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
+    .file-info {
+        margin-top: 15px;
+        padding: 10px;
+        background: #e9ecef;
+        border-radius: 5px;
+        display: none;
+        word-break: break-word;
+    }
+    
+    .file-info.show {
+        display: block;
+    }
+    
+    /* Mobile-Optimized Form */
+    .import-form {
+        margin-top: 20px;
+    }
+    
+    /* Touch-Friendly Submit Button */
+    .submit-button {
+        background: #28a745;
+        color: white;
+        padding: 15px 25px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        width: 100%;
+        min-height: 50px;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    @media (min-width: 768px) {
+        .submit-button {
+            width: auto;
+            padding: 12px 25px;
+            min-height: auto;
+        }
+    }
+    
+    .submit-button:hover {
+        background: #218838;
+    }
+    
+    .submit-button:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    /* Mobile-Optimized Progress Bar */
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 20px 0;
+        display: none;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    
+    /* Mobile-First Recent Imports */
+    .recent-imports {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    @media (min-width: 768px) {
+        .recent-imports {
+            margin-top: 40px;
+            padding-top: 30px;
+        }
+    }
+    
+    .import-log-item {
+        background: #f8f9fa;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+        word-break: break-word;
+    }
+    
+    .import-log-item.success {
+        border-left-color: #28a745;
+    }
+    
+    .import-log-item.error {
+        border-left-color: #dc3545;
+    }
+    
+    /* Mobile-Optimized Import Stats */
+    .import-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-top: 10px;
+        font-size: 14px;
+        color: #6c757d;
+    }
+
+    @media (min-width: 768px) {
+        .import-stats {
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 0;
+        }
+    }
+    
+    /* Mobile-Optimized Instructions */
+    .instructions {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #2196f3;
+    }
+
+    @media (min-width: 768px) {
+        .instructions {
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+    }
+    
+    .instructions h3 {
+        color: #1976d2;
+        margin-top: 0;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+    }
+
+    @media (min-width: 768px) {
+        .instructions h3 {
+            font-size: 1.25rem;
+        }
+    }
+    
+    .instructions ul {
+        margin: 10px 0;
+        padding-left: 20px;
+    }
+    
+    .instructions li {
+        margin: 5px 0;
+        color: #424242;
+        line-height: 1.5;
+    }
+    
+    /* Mobile-Optimized Alerts */
+    .alert {
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 8px;
+        border-left: 4px solid;
+        word-break: break-word;
+    }
+
+    @media (min-width: 768px) {
+        .alert {
+            margin: 20px 0;
+        }
+    }
+    
+    .alert-success {
+        background: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+    }
+    
+    .alert-error {
+        background: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+    }
+    
+    .alert-warning {
+        background: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+    }
+    
+    .alert-info {
+        background: #d1ecf1;
+        border-color: #17a2b8;
+        color: #0c5460;
+    }
+
+    /* Mobile-Optimized Import Log Display */
+    .import-log {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    @media (min-width: 768px) {
+        .import-log {
+            padding: 20px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+    }
+
+    /* Mobile-Optimized Buttons */
+    .btn {
+        display: inline-block;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+        transition: all 0.3s ease;
+        min-height: 44px;
+        line-height: 1.2;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    @media (min-width: 768px) {
+        .btn {
+            padding: 10px 18px;
+            min-height: auto;
+        }
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    /* Mobile-First Grid System */
+    .grid {
+        display: grid;
+        gap: 15px;
+        grid-template-columns: 1fr;
+    }
+
+    .grid.cols-2 {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+
+    @media (min-width: 768px) {
+        .grid {
+            gap: 20px;
+        }
+    }
+
+    /* Mobile Utilities */
+    .mobile-only {
+        display: block;
+    }
+
+    .desktop-only {
+        display: none;
+    }
+
+    @media (min-width: 768px) {
+        .mobile-only {
+            display: none;
+        }
+        .desktop-only {
+            display: block;
+        }
+    }
+
+    /* Mobile Spacing */
+    .mb-1 { margin-bottom: 0.5rem; }
+    .mb-2 { margin-bottom: 1rem; }
+    .mb-3 { margin-bottom: 1.5rem; }
+
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .mt-3 { margin-top: 1.5rem; }
+
+    @media (min-width: 768px) {
+        .mb-1 { margin-bottom: 0.75rem; }
+        .mb-2 { margin-bottom: 1.25rem; }
+        .mb-3 { margin-bottom: 2rem; }
+
+        .mt-1 { margin-top: 0.75rem; }
+        .mt-2 { margin-top: 1.25rem; }
+        .mt-3 { margin-top: 2rem; }
+    }
+
+    /* Mobile Touch Enhancements */
+    .touch-friendly {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    /* Mobile Scrollbar Hiding */
+    .scroll-container {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Mobile Form Elements */
+    input, select, textarea {
+        min-height: 44px;
+        font-size: 16px;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    /* Mobile Responsive Images */
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="excel-import-container">
+    <div class="import-header">
+        <h1>📊 Excel Booking Import</h1>
+        <p>Import daily booking schedules from Excel files to automatically create and update tasks</p>
+    </div>
+
+    <!-- Mobile-Optimized Instructions -->
+    <div class="instructions">
+        <h3>📋 Import Instructions</h3>
+        <ul>
+            <li><strong>File Format:</strong> Excel (.xlsx) files only</li>
+            <li><strong>Required Sheet:</strong> "Cleaning schedule" (case sensitive)</li>
+            <li><strong>Columns:</strong> Confirmation code, Status, Guest name, Contact, Booking Source, Listing, Earnings, Booked, Adults/Children/Infants, Start/End dates, Nights, Properties</li>
+            <li><strong>Auto-Tasks:</strong> Cleaning tasks will be automatically created for each booking</li>
+        </ul>
+    </div>
+
+    <!-- Mobile-Optimized Upload Section -->
+    <div class="upload-section" id="uploadSection">
+        <h3 style="margin-bottom: 15px; color: #495057;">📁 Upload Excel File</h3>
+        <p style="margin-bottom: 15px; color: #6c757d;">Drag and drop your Excel file here or click to browse</p>
+        
+        <div class="file-input-wrapper">
+            <input type="file" id="excelFile" class="file-input" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+            <label for="excelFile" class="upload-button">📁 Choose Excel File</label>
+        </div>
+        
+        <div class="file-info" id="fileInfo"></div>
+    </div>
+
+    <!-- Mobile-Optimized Import Form -->
+    <form class="import-form" id="importForm" style="display: none;">
+        <div class="grid cols-1">
+            <div>
+                <label for="sheetName" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Sheet Name:</label>
+                <input type="text" id="sheetName" name="sheet_name" value="Cleaning schedule" readonly>
+            </div>
+            
+            <div>
+                <label for="autoCreateTasks" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Auto-Create Tasks:</label>
+                <select id="autoCreateTasks" name="auto_create_tasks">
+                    <option value="true">✅ Yes - Create cleaning tasks automatically</option>
+                    <option value="false">❌ No - Import bookings only</option>
+                </select>
+            </div>
+        </div>
+        
+        <button type="submit" class="submit-button" id="submitBtn">
+            🚀 Start Import
+        </button>
+    </form>
+
+    <!-- Mobile-Optimized Progress Bar -->
+    <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- Mobile-Optimized Import Log Display -->
+    {% if import_log %}
+    <div class="recent-imports">
+        <h3 style="margin-bottom: 15px; color: #495057;">📊 Last Import Results</h3>
+        
+        <div class="import-log-item {% if import_log.errors_count == 0 %}success{% else %}error{% endif %}">
+            <div style="font-weight: 600; margin-bottom: 8px;">
+                Import completed at {{ import_log.imported_at|date:"M d, Y H:i" }}
+            </div>
+            
+            <div class="import-stats">
+                <span>📥 Total: {{ import_log.total_rows }}</span>
+                <span>✅ Success: {{ import_log.successful_imports }}</span>
+                <span>❌ Errors: {{ import_log.errors_count }}</span>
+                {% if import_log.errors_count > 0 %}
+                <span>⚠️ Warnings: {{ import_log.errors_count }}</span>
+                {% endif %}
+            </div>
+            
+            {% if import_log.errors_log %}
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary btn-sm" onclick="toggleImportLog()">
+                    📋 View Details
+                </button>
+                <div class="import-log" id="importLog" style="display: none; margin-top: 10px;">
+                    {{ import_log.errors_log|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mobile-Optimized Success/Error Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<script>
+    // Mobile-Optimized File Handling
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const fileInfo = document.getElementById('fileInfo');
+            const importForm = document.getElementById('importForm');
+            
+            fileInfo.innerHTML = `
+                <strong>Selected File:</strong> ${file.name}<br>
+                <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                <strong>Type:</strong> ${file.type}
+            `;
+            fileInfo.classList.add('show');
+            importForm.style.display = 'block';
+        }
+    }
+
+    // Mobile-Optimized Form Submission
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = '⏳ Importing...';
+        progressBar.style.display = 'block';
+        
+        // Simulate progress (in real implementation, this would be AJAX)
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 10;
+            progressFill.style.width = progress + '%';
+            if (progress >= 100) {
+                clearInterval(interval);
+                submitBtn.textContent = '✅ Import Complete!';
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+        }, 200);
+        
+        // Submit the form
+        this.submit();
+    });
+
+    // Mobile-Optimized Import Log Toggle
+    function toggleImportLog() {
+        const importLog = document.getElementById('importLog');
+        const isVisible = importLog.style.display !== 'none';
+        importLog.style.display = isVisible ? 'none' : 'block';
+    }
+
+    // Mobile Drag and Drop Support
+    const uploadSection = document.getElementById('uploadSection');
+    
+    uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    
+    uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    
+    uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('excelFile');
+            fileInput.files = files;
+            handleFileSelect({ target: { files: files } });
+        }
+    });
+
+    // Mobile Touch Enhancements
+    if ('ontouchstart' in window) {
+        document.body.classList.add('touch-device');
+    }
+
+    // Mobile-Friendly Table Scrolling
+    document.addEventListener('DOMContentLoaded', function() {
+        const tables = document.querySelectorAll('table');
+        tables.forEach(function(table) {
+            if (table.parentElement) {
+                table.parentElement.classList.add('scroll-container');
+            }
+        });
+    });
+</script>
+{% endblock %}

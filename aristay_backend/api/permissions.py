@@ -4,12 +4,12 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .models import TaskImage
 
 class IsOwner(BasePermission):
-    """Superusers only."""
+    """Superusers only (Superuser)."""
     def has_permission(self, request, view):
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
 
 class IsManagerOrOwner(BasePermission):
-    """Managers (profile.role=='manager') or superusers."""
+    """Managers (profile.role=='manager') or Superusers."""
     def has_permission(self, request, view):
         u = request.user
         if not (u and u.is_authenticated):

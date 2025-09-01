@@ -14,6 +14,9 @@ import socket
 from pathlib import Path
 import os
 
+# Production logging configuration
+from backend.logging_config import setup_logging
+
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -30,6 +33,7 @@ SECRET_KEY = "django-insecure-*g+qjl3q3q8h1tnkws9(sd^tm(t!ld8rtdre6r5yc+d=jw_yn!
 DEBUG = True
 
 def get_local_ip():
+    s = None
     try:
         # This creates a temporary connection to determine your IP address
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -38,7 +42,8 @@ def get_local_ip():
     except Exception:
         ip = '127.0.0.1'
     finally:
-        s.close()
+        if s:
+            s.close()
     return ip
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', get_local_ip()]
@@ -64,12 +69,18 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    # Django’s auth middleware must run before you try to use request.user
+    # Django's auth middleware must run before you try to use request.user
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Admin access control middleware (must run after authentication)
+    "backend.middleware.AdminAccessMiddleware",
     # Now your timezone middleware can safely reference request.user
     "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Production logging and monitoring middleware
+    "backend.middleware.RequestLoggingMiddleware",
+    "backend.middleware.ErrorLoggingMiddleware", 
+    "backend.middleware.SecurityHeadersMiddleware",
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -77,7 +88,7 @@ ROOT_URLCONF = "backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / 'api' / 'templates'],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -143,7 +154,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/New_York"  # System default: Tampa, FL (Eastern Time)
+
+# AriStay Timezone Configuration
+ARISTAY_DEFAULT_TIMEZONE = "America/New_York"  # Tampa, FL
+ARISTAY_TIMEZONE_DISPLAY_NAME = "Tampa, FL"
 
 USE_I18N = True
 
@@ -159,6 +174,10 @@ STATICFILES_DIRS = [ BASE_DIR / 'static' ]    # so project-level static/ is on t
 # === Add these for media uploads ===
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Data upload settings - increase limits for bulk operations
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Allow up to 10,000 fields for bulk admin operations
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB (increased from default 2.5MB)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -208,3 +227,117 @@ CRONJOBS = [
 ]
 
 CRONTAB_DJANGO_SETTINGS = "backend.settings"
+
+# ============================================================================
+# PRODUCTION LOGGING & MONITORING CONFIGURATION
+# ============================================================================
+
+# Environment configuration
+ENVIRONMENT = os.getenv('DJANGO_ENVIRONMENT', 'development')
+VERSION = os.getenv('APP_VERSION', '1.0.0')
+
+# Sentry configuration for error tracking
+SENTRY_DSN = os.getenv('SENTRY_DSN', None)
+
+# Performance monitoring thresholds
+SLOW_REQUEST_THRESHOLD = int(os.getenv('SLOW_REQUEST_THRESHOLD', '1000'))  # milliseconds
+SLOW_QUERY_THRESHOLD = int(os.getenv('SLOW_QUERY_THRESHOLD', '100'))      # milliseconds
+
+# Initialize logging system
+setup_logging(debug=DEBUG, sentry_dsn=SENTRY_DSN)
+
+# Sentry configuration (if DSN is provided)
+if SENTRY_DSN:
+    from backend.sentry_config import setup_sentry
+    setup_sentry(
+        dsn=SENTRY_DSN,
+        environment=ENVIRONMENT,
+        debug=DEBUG,
+        sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1'))
+    )
+
+# Security settings for production
+if not DEBUG:
+    # HTTPS settings
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Security headers
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # Cookie security
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    
+    # Tighten CORS for production
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip() 
+        for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
+        if origin.strip()
+    ]
+    
+    # Database connection pooling for production
+    DATABASES['default']['CONN_MAX_AGE'] = 60
+    DATABASES['default']['OPTIONS'] = {
+        'MAX_CONNS': int(os.getenv('DB_MAX_CONNECTIONS', '20')),
+    }
+
+# Logging-specific settings
+LOGGING_CONFIG = None  # Disable Django's default logging config
+
+# Email settings for admin notifications
+if not DEBUG:
+    ADMINS = [
+        (name.strip(), email.strip()) 
+        for admin in os.getenv('DJANGO_ADMINS', '').split(',')
+        if admin.strip() and '@' in admin
+        for name, email in [admin.strip().split(':')]
+    ]
+    
+    MANAGERS = ADMINS
+    
+    # Email backend for error notifications
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'aristay@example.com')
+    SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Cache configuration for production
+if not DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+            'OPTIONS': {
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+                    'retry_on_timeout': True,
+                },
+            },
+            'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),  # 5 minutes default
+        }
+    }
+
+# Rate limiting settings
+RATELIMIT_ENABLE = not DEBUG
+RATELIMIT_USE_CACHE = 'default'
+
+# ============================================================================
+# UNIFIED LOGIN CONFIGURATION
+# ============================================================================
+
+# Redirect users to unified login/logout
+LOGIN_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/login/'
+LOGIN_REDIRECT_URL = '/login/'  # Will be overridden by our custom logic

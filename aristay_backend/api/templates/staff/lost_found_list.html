@@ -1,0 +1,169 @@
+{% extends "staff/base.html" %}
+
+{% block title %}Lost & Found · AriStay{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        🔍 Lost & Found Items
+    </div>
+    
+    <!-- Status Filter -->
+    <form method="get" style="margin-bottom: 1.5rem;">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <label for="status">Status:</label>
+            <select name="status" id="status" style="padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px;">
+                <option value="">All Statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if status_filter %}
+            <a href="/api/staff/lost-found/" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+    
+    {% if items %}
+        <div class="grid">
+            {% for item in items %}
+            <div class="card" style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 1rem;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">{{ item.title }}</div>
+                        <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">
+                            🏠 {{ item.property_ref.name }}
+                            {% if item.location %}· 📍 {{ item.location }}{% endif %}
+                        </div>
+                        {% if item.description %}
+                        <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">
+                            {{ item.description }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="text-align: right;">
+                        <div class="status-badge status-{{ item.status|cut:'-' }}" style="margin-bottom: 0.25rem;">
+                            {{ item.get_status_display }}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #666;">
+                            Found: {{ item.found_date|date:"M d, Y" }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    {% if item.estimated_value %}
+                    <div style="font-size: 0.875rem;">
+                        <strong>Est. Value:</strong> ${{ item.estimated_value }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if item.found_by %}
+                    <div style="font-size: 0.875rem;">
+                        <strong>Found by:</strong> {{ item.found_by.get_full_name|default:item.found_by.username }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Photos -->
+                {% if item.photos.all %}
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Photos:</div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        {% for photo in item.photos.all %}
+                        <img src="{{ photo.image.url }}" 
+                             alt="Lost item photo"
+                             style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer;"
+                             onclick="openPhotoModal('{{ photo.image.url }}')">
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Action buttons -->
+                <div style="display: flex; gap: 0.5rem;">
+                    {% if user.is_staff %}
+                    <a href="/admin/api/lostfounditem/{{ item.id }}/change/" class="btn btn-secondary btn-sm">
+                        ✏️ Edit
+                    </a>
+                    {% endif %}
+                    
+                    {% if item.status == 'found' %}
+                    <button class="btn btn-success btn-sm" onclick="markAsClaimed({{ item.id }})">
+                        ✅ Mark Claimed
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+            <h3>No lost & found items</h3>
+            {% if status_filter %}
+            <p>No items found with the selected status.</p>
+            <a href="/api/staff/lost-found/" class="btn btn-primary">View All Items</a>
+            {% else %}
+            <p>No items have been reported yet.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header">
+        📝 Report Found Item
+    </div>
+    <p>Found something? Report it through the admin interface or notify your manager.</p>
+    <div style="display: flex; gap: 1rem;">
+        {% if user.is_staff %}
+        <a href="/admin/api/lostfounditem/add/" class="btn btn-primary">
+            ➕ Add Found Item
+        </a>
+        {% endif %}
+        <a href="/api/staff/" class="btn btn-secondary">
+            🏠 Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Photo Modal -->
+<div id="photoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; cursor: pointer;" onclick="closePhotoModal()">
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 2rem;">
+        <img id="modalPhoto" style="max-width: 90%; max-height: 90%; object-fit: contain;">
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Photo modal functions
+function openPhotoModal(src) {
+    document.getElementById('modalPhoto').src = src;
+    document.getElementById('photoModal').style.display = 'block';
+}
+
+function closePhotoModal() {
+    document.getElementById('photoModal').style.display = 'none';
+}
+
+// Mark item as claimed
+function markAsClaimed(itemId) {
+    if (confirm('Mark this item as claimed? This action cannot be undone.')) {
+        // For now, redirect to admin - could be made into AJAX later
+        window.location.href = `/admin/api/lostfounditem/${itemId}/change/`;
+    }
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePhotoModal();
+    }
+});
+</script>
+{% endblock %}
+

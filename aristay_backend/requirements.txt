@@ -13,7 +13,25 @@ pillow==11.3.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pytz==2025.2
+python-dateutil==2.9.0.post0
 requests==2.32.4
 rsa==4.9.1
 sqlparse==0.5.3
 urllib3==2.5.0
+
+# Production logging and monitoring dependencies
+sentry-sdk[django]==2.35.1
+psutil==7.0.0
+
+# Production dependencies (optional - uncomment as needed)
+# PostgreSQL adapter for production database
+# psycopg2-binary==2.9.10
+
+# Redis for production caching
+# redis==5.2.0
+
+# Production WSGI server
+# gunicorn==23.0.0
+
+# Environment variable management
+# python-decouple==3.8

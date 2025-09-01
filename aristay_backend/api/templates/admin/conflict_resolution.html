@@ -1,0 +1,501 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Resolve Booking Conflicts - {{ block.super }}{% endblock %}
+
+{% block extrahead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    .conflict-container {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+    }
+    
+    .conflict-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #fff3cd;
+        border-radius: 5px;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .confidence-score {
+        font-weight: bold;
+        color: #856404;
+    }
+    
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        text-align: left;
+    }
+    
+    .comparison-table th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+    
+    .existing-data {
+        background-color: #fff3cd;
+    }
+    
+    .excel-data {
+        background-color: #d1ecf1;
+    }
+    
+    .conflict-type-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        margin: 2px;
+        background-color: #dc3545;
+        color: white;
+        border-radius: 12px;
+        font-size: 0.8em;
+    }
+    
+    .resolution-buttons {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn:hover {
+        opacity: 0.8;
+    }
+    
+    .resolution-summary {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #d4edda;
+        border-radius: 5px;
+        border-left: 4px solid #28a745;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background-color: #28a745;
+        transition: width 0.3s ease;
+    }
+    
+    .mobile-responsive {
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .comparison-table {
+            font-size: 12px;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 5px;
+        }
+        
+        .resolution-buttons {
+            flex-direction: column;
+        }
+        
+        .btn {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .conflict-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+    
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+</div>
+
+<h1>Resolve Booking Conflicts</h1>
+
+<div class="import-summary">
+    <h3>Import Summary</h3>
+    <p><strong>Import Session:</strong> {{ import_session_id }}</p>
+    <p><strong>Total Conflicts:</strong> {{ conflicts|length }}</p>
+    <p><strong>Import Date:</strong> {{ import_log.imported_at|date:"M d, Y H:i" }}</p>
+    <p><strong>Imported By:</strong> {{ import_log.imported_by.username }}</p>
+</div>
+
+<div class="progress-container">
+    <p>Resolution Progress:</p>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+    </div>
+    <p id="progressText">0 of {{ conflicts|length }} resolved</p>
+</div>
+
+{% if conflicts %}
+    {% for conflict in conflicts %}
+    <div class="conflict-container" data-conflict-index="{{ forloop.counter0 }}">
+        <div class="conflict-header">
+            <div>
+                <h4>Conflict #{{ forloop.counter }} - Row {{ conflict.row_number }}</h4>
+                <div class="conflict-types">
+                    {% for conflict_type in conflict.conflict_types %}
+                        <span class="conflict-type-badge">{{ conflict_type|title }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="confidence-score">
+                Confidence: {{ conflict.confidence_score|floatformat:1 }}
+            </div>
+        </div>
+        
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th class="existing-data">Current Booking</th>
+                    <th class="excel-data">Excel Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>External Code</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.external_code }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.external_code }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Guest Name</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.guest_name }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.guest_name }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Property</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.property_name }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.property_name }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Check-in Date</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.check_in_date }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.start_date }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Check-out Date</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.check_out_date }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.end_date }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Status</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.external_status }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.external_status }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Source</strong></td>
+                    <td class="existing-data">{{ conflict.existing_booking.source }}</td>
+                    <td class="excel-data">{{ conflict.excel_data.source }}</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="resolution-buttons">
+            <button class="btn btn-primary" onclick="resolveConflict({{ forloop.counter0 }}, 'update_existing')">
+                Update Existing Booking
+            </button>
+            <button class="btn btn-success" onclick="resolveConflict({{ forloop.counter0 }}, 'create_new')">
+                Create New Booking
+            </button>
+            <button class="btn btn-secondary" onclick="resolveConflict({{ forloop.counter0 }}, 'skip')">
+                Skip This Conflict
+            </button>
+            <button class="btn btn-warning" onclick="previewResolution({{ forloop.counter0 }})">
+                Preview Changes
+            </button>
+        </div>
+        
+        <div class="resolution-status" id="status-{{ forloop.counter0 }}" style="display: none;">
+            <!-- Resolution status will be shown here -->
+        </div>
+    </div>
+    {% endfor %}
+    
+    <div class="bulk-actions" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 5px;">
+        <h4>Bulk Actions</h4>
+        <div class="resolution-buttons">
+            <button class="btn btn-primary" onclick="resolveAllConflicts('update_existing')">
+                Update All Existing Bookings
+            </button>
+            <button class="btn btn-success" onclick="resolveAllConflicts('create_new')">
+                Create All as New Bookings
+            </button>
+            <button class="btn btn-secondary" onclick="resolveAllConflicts('skip')">
+                Skip All Conflicts
+            </button>
+        </div>
+    </div>
+    
+{% else %}
+    <div class="resolution-summary">
+        <h3>No Conflicts Found</h3>
+        <p>All bookings were imported successfully without conflicts.</p>
+        <a href="{% url 'admin:api_bookingimportlog_changelist' %}" class="btn btn-primary">
+            Back to Import Logs
+        </a>
+    </div>
+{% endif %}
+
+<script>
+let resolvedCount = 0;
+const totalConflicts = {{ conflicts|length }};
+
+function showLoading() {
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function updateProgress() {
+    const progressPercent = (resolvedCount / totalConflicts) * 100;
+    document.getElementById('progressFill').style.width = progressPercent + '%';
+    document.getElementById('progressText').textContent = `${resolvedCount} of ${totalConflicts} resolved`;
+}
+
+function resolveConflict(conflictIndex, action) {
+    showLoading();
+    
+    const resolutions = [{
+        conflict_index: conflictIndex,
+        action: action,
+        apply_changes: ['guest_name', 'dates', 'status'] // Apply all changes for updates
+    }];
+    
+    fetch(`/api/resolve-conflicts/{{ import_session_id }}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ resolutions: resolutions })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            // Show success status
+            const statusDiv = document.getElementById(`status-${conflictIndex}`);
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = `
+                <div style="padding: 10px; background-color: #d4edda; border-radius: 5px; margin-top: 10px;">
+                    <strong>✓ Resolved:</strong> ${getActionDescription(action)}
+                    <br><small>Results: ${JSON.stringify(data.results)}</small>
+                </div>
+            `;
+            
+            // Disable buttons for this conflict
+            const conflictContainer = document.querySelector(`[data-conflict-index="${conflictIndex}"]`);
+            const buttons = conflictContainer.querySelectorAll('.btn');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            resolvedCount++;
+            updateProgress();
+            
+            // Check if all conflicts are resolved
+            if (resolvedCount === totalConflicts) {
+                showCompletionMessage();
+            }
+        } else {
+            alert('Error resolving conflict: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to resolve conflict. Please try again.');
+    });
+}
+
+function resolveAllConflicts(action) {
+    if (!confirm(`Are you sure you want to ${getActionDescription(action)} for all conflicts?`)) {
+        return;
+    }
+    
+    showLoading();
+    
+    const resolutions = [];
+    for (let i = 0; i < totalConflicts; i++) {
+        resolutions.push({
+            conflict_index: i,
+            action: action,
+            apply_changes: ['guest_name', 'dates', 'status']
+        });
+    }
+    
+    fetch(`/api/resolve-conflicts/{{ import_session_id }}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({ resolutions: resolutions })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        
+        if (data.success) {
+            alert(`All conflicts resolved! Results: ${JSON.stringify(data.results)}`);
+            location.reload(); // Refresh to show updated status
+        } else {
+            alert('Error resolving conflicts: ' + data.error);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('Error:', error);
+        alert('Failed to resolve conflicts. Please try again.');
+    });
+}
+
+function previewResolution(conflictIndex) {
+    fetch(`/api/preview-conflict/{{ import_session_id }}/${conflictIndex}/`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showPreviewModal(data.preview);
+        } else {
+            alert('Error previewing resolution: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to preview resolution.');
+    });
+}
+
+function showPreviewModal(preview) {
+    // Simple preview - could be enhanced with a proper modal
+    const changes = preview.changes_summary;
+    let message = 'Preview of changes:\n\n';
+    
+    for (const [field, change] of Object.entries(changes)) {
+        message += `${field.toUpperCase()}:\n`;
+        message += `  Current: ${JSON.stringify(change.current)}\n`;
+        message += `  New: ${JSON.stringify(change.excel)}\n\n`;
+    }
+    
+    alert(message);
+}
+
+function getActionDescription(action) {
+    switch (action) {
+        case 'update_existing':
+            return 'update existing booking with Excel data';
+        case 'create_new':
+            return 'create new booking from Excel data';
+        case 'skip':
+            return 'skip this conflict (no changes)';
+        default:
+            return action;
+    }
+}
+
+function showCompletionMessage() {
+    const summary = document.createElement('div');
+    summary.className = 'resolution-summary';
+    summary.innerHTML = `
+        <h3>🎉 All Conflicts Resolved!</h3>
+        <p>All ${totalConflicts} conflicts have been successfully resolved.</p>
+        <a href="/admin/api/bookingimportlog/" class="btn btn-primary">
+            Back to Import Logs
+        </a>
+    `;
+    
+    document.querySelector('.bulk-actions').appendChild(summary);
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+</script>
+
+{% csrf_token %}
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "portal/base.html" %}
+{% load tz %}
+{% load timezone_tags %}
+{% block title %}Booking · {{ property.name }} · AriStay Portal{% endblock %}
+{% block content %}
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="section-title">Booking</div>
+      <div class="muted">Check-in: {{ booking.check_in_date|dual_timezone:user }}</div>
+      <div class="muted">Check-out: {{ booking.check_out_date|dual_timezone:user }}</div>
+    </div>
+    <div>
+      <a class="button" href="{% url 'portal-property-detail' property.id %}">Back to {{ property.name }}</a>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <form method="get" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+      <label class="muted">Status:</label>
+      <select name="status">
+        <option value="">All</option>
+        {% for st in all_statuses %}
+          <option value="{{ st }}" {% if st == active_status %}selected{% endif %}>{{ st }}</option>
+        {% endfor %}
+      </select>
+
+      <label class="muted">Type:</label>
+      <select name="type">
+        <option value="">All</option>
+        <option value="administration" {% if active_type == 'administration' %}selected{% endif %}>Administration</option>
+        <option value="cleaning" {% if active_type == 'cleaning' %}selected{% endif %}>Cleaning</option>
+        <option value="maintenance" {% if active_type == 'maintenance' %}selected{% endif %}>Maintenance</option>
+        <option value="laundry" {% if active_type == 'laundry' %}selected{% endif %}>Laundry</option>
+        <option value="lawn_pool" {% if active_type == 'lawn_pool' %}selected{% endif %}>Lawn/Pool</option>
+      </select>
+
+      <input type="text" name="q" value="{{ search_q }}" placeholder="Search tasks..." />
+      <button class="button" type="submit">Apply</button>
+    </form>
+  </div>
+
+  <div class="grid">
+    {% for ttype, tasks in by_type.items %}
+      <div class="card">
+        <div class="section-title" style="text-transform:capitalize;">{{ ttype|cut:'_' }}</div>
+        {% if tasks %}
+          <ul style="margin:0; padding-left:18px;">
+            {% for t in tasks %}
+              <li style="margin:6px 0;">
+                <strong>{{ t.title }}</strong>
+                {% if t.assigned_to %}<span class="muted">· {{ t.assigned_to.username }}</span>{% endif %}
+                {% if t.due_date %}<span class="muted">· Due {{ t.due_date|date:"M d H:i" }}</span>{% endif %}
+                <div class="muted">Status: {{ t.status }}</div>
+                <div style="margin-top:6px; display:flex; gap:8px;">
+                  <a class="button" href="/api/portal/tasks/{{ t.id }}/">View Task</a>
+                  <form action="/api/tasks/{{ t.id }}/notify_manager/" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button class="button" type="submit">Notify Manager</button>
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="muted">No tasks in this group.</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:12px; display:flex; gap:8px;">
+    {% if has_prev %}
+      <a class="button" href="?status={{ active_status }}&type={{ active_type }}&q={{ search_q }}&page={{ page|add:'-1' }}">Prev</a>
+    {% endif %}
+    {% if has_next %}
+      <a class="button" href="?status={{ active_status }}&type={{ active_type }}&q={{ search_q }}&page={{ page|add:'1' }}">Next</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

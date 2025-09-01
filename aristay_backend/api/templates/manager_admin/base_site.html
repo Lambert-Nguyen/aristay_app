@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | AriStay Manager Console{% endblock %}
+
+{% block branding %}
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 20px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="{% static 'images/aristay_logo.jpg' %}" 
+             alt="AriStay" 
+             style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">
+        <h1 id="site-name" style="margin: 0; color: #fafafa;">
+            <a href="/manager/" style="color: inherit; text-decoration: none;">
+                AriStay Manager Console
+            </a>
+        </h1>
+    </div>
+    
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <!-- Portal Home Link -->
+        <a href="/api/portal/" 
+           style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease;">
+            🏠 Portal Home
+        </a>
+        
+        <!-- Admin Console (if superuser) -->
+        {% if user.is_superuser %}
+        <a href="/admin/" 
+           style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease;">
+            ⚙️ Admin
+        </a>
+        {% endif %}
+        
+        <!-- User info -->
+        <span style="color: rgba(255,255,255,0.8); font-size: 14px;">
+            {{ user.get_full_name|default:user.username }}
+        </span>
+    </div>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+/* Enhanced navigation hover effects */
+.branding a[href="/api/portal/"]:hover,
+.branding a[href="/admin/"]:hover {
+    background: rgba(255,255,255,0.3) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Manager-specific styling */
+#header {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+</style>
+{% endblock %}

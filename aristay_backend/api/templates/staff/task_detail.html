@@ -1,0 +1,1278 @@
+{% extends "staff/base.html" %}
+
+{% block title %}{{ task.title }} · AriStay<style>
+    /* Mobile-First Task Detail Styling */
+    .task-header-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-header-mobile {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: start;
+        }
+    }
+
+    .task-title {
+        margin: 0;
+        color: #333;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+
+    @media (max-width: 768px) {
+        .task-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    .task-meta {
+        margin-top: 0.5rem;
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .task-status-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-status-section {
+            align-items: flex-end;
+            text-align: right;
+        }
+    }
+
+    .due-date {
+        font-size: 0.875rem;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Mobile Quick Actions */
+    .mobile-quick-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    @media (min-width: 768px) {
+        .mobile-quick-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    .quick-action-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 48px;
+        min-width: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        white-space: nowrap;
+    }
+
+    .quick-action-btn:hover:not(:disabled) {
+        background: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .quick-action-btn:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .quick-action-btn.start-task {
+        background: #10b981;
+    }
+
+    .quick-action-btn.start-task:hover:not(:disabled) {
+        background: #059669;
+    }
+
+    .quick-action-btn.complete-task {
+        background: #3b82f6;
+    }
+
+    .quick-action-btn.complete-task:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .quick-action-btn.back-to-tasks {
+        background: #6b7280;
+    }
+
+    .quick-action-btn.back-to-tasks:hover:not(:disabled) {
+        background: #4b5563;
+    }
+
+    /* Enhanced Checklist Styling */
+    .checklist-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr;
+    }
+
+    .checklist-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .checklist-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .checklist-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .checklist-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .checklist-checkbox {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    .checklist-status {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .checklist-title {
+        font-weight: 500;
+        font-size: 1rem;
+        line-height: 1.4;
+        flex: 1;
+    }
+
+    .required-indicator {
+        color: #e53e3e;
+        font-size: 0.875rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Mobile-Optimized Form Elements */
+    .auto-save {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 48px;
+        transition: all 0.2s ease;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .auto-save:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .auto-save[type="number"] {
+        width: 150px;
+    }
+
+    @media (max-width: 768px) {
+        .auto-save[type="number"] {
+            width: 100%;
+        }
+    }
+
+    /* Enhanced Progress Bar */
+    .progress-bar {
+        background: #e2e8f0;
+        border-radius: 10px;
+        height: 12px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-fill {
+        background: linear-gradient(90deg, #667eea, #5a67d8);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    /* Mobile-First Responsive Improvements */
+    @media (max-width: 768px) {
+        .checklist-item {
+            padding: 1rem;
+        }
+
+        .checklist-header {
+            gap: 0.75rem;
+        }
+
+        .checklist-title {
+            font-size: 0.875rem;
+        }
+
+        .mobile-quick-actions {
+            gap: 0.5rem;
+        }
+
+        .quick-action-btn {
+            padding: 10px 16px;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Touch-Friendly Improvements */
+    .checklist-checkbox:focus,
+    .quick-action-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Loading States */
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid #667eea;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    // Enhanced Task Management Functions
+    function startTask(taskId) {
+        if (confirm('Start this task?')) {
+            updateTaskStatus(taskId, 'in-progress');
+        }
+    }
+
+    function completeTask(taskId) {
+        if (confirm('Mark this task as completed?')) {
+            updateTaskStatus(taskId, 'completed');
+        }
+    }
+
+    function updateTaskStatus(taskId, status) {
+        // Show loading state
+        const buttons = document.querySelectorAll('.quick-action-btn');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        });
+
+        // Make API call to update task status
+        fetch(`/api/tasks/${taskId}/set_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Task status updated successfully!', 'success');
+                
+                // Refresh the page to show updated status
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to update task status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Failed to update task status: ' + error.message, 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            });
+        });
+    }
+
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-message">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Add notification styles
+    const notificationStyles = document.createElement('style');
+    notificationStyles.textContent = `
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: white;
+        }
+
+        .notification-info {
+            background: #3b82f6;
+        }
+
+        .notification-success {
+            background: #10b981;
+        }
+
+        .notification-error {
+            background: #ef4444;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-left: 1rem;
+            padding: 0;
+            min-width: 24px;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .notification {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    `;
+    document.head.appendChild(notificationStyles);
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="task-header-mobile">
+        <div class="task-title-section">
+            <h1 class="task-title">{{ task.title }}</h1>
+            <div class="task-meta">
+                🏠 {{ task.property.name }}
+                {% if task.booking %}
+                · 📅 {{ task.booking.check_in_date|date:"M d" }} → {{ task.booking.check_out_date|date:"M d" }}
+                {% endif %}
+            </div>
+        </div>
+        <div class="task-status-section">
+            <div class="status-badge status-{{ task.status|cut:'-' }}">
+                {{ task.get_status_display }}
+            </div>
+            {% if task.due_date %}
+            <div class="due-date">
+                ⏰ Due: {{ task.due_date|date:"M d, Y H:i" }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Mobile Quick Actions -->
+    <div class="mobile-quick-actions">
+        <button class="quick-action-btn start-task" onclick="startTask({{ task.id }})" 
+                {% if task.status != 'pending' %}disabled{% endif %}>
+            ▶️ Start Task
+        </button>
+        <button class="quick-action-btn complete-task" onclick="completeTask({{ task.id }})"
+                {% if task.status == 'completed' %}disabled{% endif %}>
+            ✅ Complete Task
+        </button>
+        <button class="quick-action-btn back-to-tasks" onclick="window.history.back()">
+            ← Back to Tasks
+        </button>
+    </div>
+
+    {% if task.description %}
+    <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f7fafc; border-radius: 8px;">
+        <strong>Description:</strong><br>
+        {{ task.description|linebreaks }}
+    </div>
+    {% endif %}
+
+    <div style="margin-bottom: 1.5rem;">
+        <strong>Assigned to:</strong> {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
+        {% if task.created_by %}
+        · <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}
+        {% endif %}
+    </div>
+</div>
+
+{% if checklist %}
+<div class="card">
+    <div class="card-header">
+        📋 {{ checklist.template.name }}
+        <div style="margin-left: auto; font-size: 1rem; font-weight: normal;">
+            Progress: {{ checklist.completion_percentage }}%
+        </div>
+    </div>
+    
+    <div class="progress-bar" style="margin-bottom: 1.5rem;">
+        <div class="progress-fill" style="width: {{ checklist.completion_percentage }}%"></div>
+    </div>
+
+    {% csrf_token %}
+    
+    {% for room, responses in responses_by_room.items %}
+    <div style="margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1rem; color: #667eea; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem;">
+            {% if room == 'General' %}
+                📋 General Tasks
+            {% elif room == 'bathroom' %}
+                🚿 Bathroom
+            {% elif room == 'bedroom' %}
+                🛏️ Bedroom
+            {% elif room == 'kitchen' %}
+                🍽️ Kitchen
+            {% elif room == 'living_room' %}
+                🛋️ Living Room
+            {% else %}
+                📍 {{ room|title }}
+            {% endif %}
+        </h3>
+        
+        <div class="checklist-grid">
+            {% for response in responses %}
+            <div class="checklist-item" data-response-id="{{ response.id }}">
+                <div class="checklist-content">
+                    <div class="checklist-header">
+                        {% if can_edit %}
+                        <input type="checkbox" 
+                               class="checklist-checkbox"
+                               data-response-id="{{ response.id }}"
+                               {% if response.is_completed %}checked{% endif %}>
+                        {% else %}
+                        <span class="checklist-status">
+                            {% if response.is_completed %}✅{% else %}⬜{% endif %}
+                        </span>
+                        {% endif %}
+                        
+                        <div class="checklist-title">
+                            {{ response.item.title }}
+                            {% if response.item.is_required %}
+                            <span class="required-indicator">*</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                        
+                        {% if response.item.description %}
+                        <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">
+                            {{ response.item.description }}
+                        </div>
+                        {% endif %}
+                        
+                        <div style="font-size: 0.75rem; color: #999; margin-bottom: 0.5rem;">
+                            Type: {{ response.item.get_item_type_display }}
+                            {% if response.item.item_type == 'blocking' %}
+                            <span style="background: #fed7d7; color: #c53030; padding: 0.125rem 0.5rem; border-radius: 4px; margin-left: 0.5rem;">
+                                Blocking
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Text input for certain item types -->
+                        {% if response.item.item_type == 'text_input' and can_edit %}
+                        <textarea placeholder="Enter details..."
+                                  class="auto-save"
+                                  data-response-id="{{ response.id }}"
+                                  data-field="text_response"
+                                  style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 0.5rem; min-height: 60px;">{{ response.text_response }}</textarea>
+                        {% elif response.item.item_type == 'text_input' and response.text_response %}
+                        <div style="background: #f7fafc; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                            {{ response.text_response|linebreaks }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Number input for certain item types -->
+                        {% if response.item.item_type == 'number_input' and can_edit %}
+                        <input type="number"
+                               placeholder="Enter number..."
+                               class="auto-save"
+                               data-response-id="{{ response.id }}"
+                               data-field="number_response"
+                               value="{{ response.number_response|default:'' }}"
+                               style="width: 150px; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 0.5rem;">
+                        {% elif response.item.item_type == 'number_input' and response.number_response %}
+                        <div style="background: #f7fafc; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                            <strong>{{ response.number_response }}</strong>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Photo requirements -->
+                        {% if 'photo' in response.item.item_type %}
+                        <div style="margin-top: 0.5rem;">
+                            {% if response.photos.all %}
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+                                {% for photo in response.photos.all %}
+                                <img src="{{ photo.image.url }}" 
+                                     alt="Checklist photo"
+                                     style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer;"
+                                     onclick="openPhotoModal('{{ photo.image.url }}')">
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            {% if can_edit %}
+                            <button type="button" 
+                                    class="btn btn-secondary btn-sm"
+                                    onclick="document.getElementById('photo-{{ response.id }}').click()">
+                                📷 
+                                {% if response.photos.all %}Update Photo{% else %}Add Photo{% endif %}
+                                {% if response.item.item_type == 'photo_required' %}*{% endif %}
+                            </button>
+                            <input type="file" 
+                                   id="photo-{{ response.id }}"
+                                   accept="image/*"
+                                   style="display: none;"
+                                   onchange="uploadPhoto({{ response.id }}, this)">
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Notes field -->
+                        {% if can_edit %}
+                        <textarea placeholder="Add notes (optional)..."
+                                  class="auto-save"
+                                  data-response-id="{{ response.id }}"
+                                  data-field="notes"
+                                  style="width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 0.5rem; min-height: 40px; font-size: 0.875rem;">{{ response.notes }}</textarea>
+                        {% elif response.notes %}
+                        <div style="background: #fffbeb; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.875rem;">
+                            <strong>Notes:</strong> {{ response.notes|linebreaks }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Completion info -->
+                        {% if response.is_completed and response.completed_at %}
+                        <div style="font-size: 0.75rem; color: #38a169; margin-top: 0.5rem;">
+                            ✅ Completed {{ response.completed_at|date:"M d, H:i" }}
+                            {% if response.completed_by %}by {{ response.completed_by.get_full_name|default:response.completed_by.username }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if can_edit %}
+    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; text-align: center;">
+        {% if checklist.completion_percentage == 100 %}
+        <div class="alert alert-success" style="margin-bottom: 1rem;">
+            🎉 All checklist items completed! You can now mark this task as complete.
+        </div>
+        <button type="button" class="btn btn-success" onclick="completeTask()">
+            ✅ Mark Task Complete
+        </button>
+        {% else %}
+        <div class="alert alert-info">
+            Complete all required checklist items to finish this task. 
+            Progress: {{ checklist.completion_percentage }}%
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+        <h3>No Checklist Available</h3>
+        <p>This task doesn't have a checklist template assigned.</p>
+        {% if can_edit %}
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn-success" onclick="completeTask()">
+                ✅ Mark Task Complete
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Photo Modal -->
+<div id="photoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; cursor: pointer;" onclick="closePhotoModal()">
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 2rem;">
+        <img id="modalPhoto" style="max-width: 90%; max-height: 90%; object-fit: contain;">
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Handle checkbox changes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('checklist-checkbox')) {
+            const responseId = e.target.dataset.responseId;
+            const isCompleted = e.target.checked;
+            
+            updateChecklistItem(responseId, 'is_completed', isCompleted)
+                .then(data => {
+                    if (data.success) {
+                        // Update progress bar
+                        const progressBar = document.querySelector('.progress-fill');
+                        if (progressBar) {
+                            progressBar.style.width = data.progress + '%';
+                        }
+                        
+                        // Update progress text
+                        const progressText = document.querySelector('.card-header div');
+                        if (progressText) {
+                            progressText.textContent = 'Progress: ' + data.progress + '%';
+                        }
+                        
+                        // Reload page if task is now complete
+                        if (data.progress === 100) {
+                            setTimeout(() => location.reload(), 1000);
+                        }
+                    }
+                });
+        }
+    });
+    
+    // Photo modal functions
+    function openPhotoModal(src) {
+        document.getElementById('modalPhoto').src = src;
+        document.getElementById('photoModal').style.display = 'block';
+    }
+    
+    function closePhotoModal() {
+        document.getElementById('photoModal').style.display = 'none';
+    }
+    
+    // Photo upload
+    function uploadPhoto(responseId, input) {
+        if (input.files && input.files[0]) {
+            const formData = new FormData();
+            formData.append('photo', input.files[0]);
+            formData.append('response_id', responseId);
+            
+            fetch('/api/staff/checklist-photo/upload/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload to show new photo
+                } else {
+                    alert('Error uploading photo: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error uploading photo. Please try again.');
+            });
+        }
+    }
+    
+    // Complete task
+    function completeTask() {
+        if (confirm('Are you sure you want to mark this task as complete?')) {
+            fetch(`/api/tasks/{{ task.id }}/set_status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({'status': 'completed'})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    alert('Task marked as complete!');
+                    window.location.href = '/api/staff/';
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error completing task. Please try again.');
+            });
+        }
+    }
+
+    // Enhanced Task Management Functions
+    function startTask(taskId) {
+        if (confirm('Start this task?')) {
+            updateTaskStatus(taskId, 'in-progress');
+        }
+    }
+
+    function updateTaskStatus(taskId, status) {
+        // Show loading state
+        const buttons = document.querySelectorAll('.quick-action-btn');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('loading');
+        });
+
+        // Make API call to update task status
+        fetch(`/api/tasks/${taskId}/set_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Task status updated successfully!', 'success');
+                
+                // Refresh the page to show updated status
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to update task status');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Failed to update task status: ' + error.message, 'error');
+        })
+        .finally(() => {
+            // Reset button state
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            });
+        });
+    }
+
+    function showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-message">${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+
+<style>
+    /* Mobile-First Task Detail Styling */
+    .task-header-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-header-mobile {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: start;
+        }
+    }
+
+    .task-title {
+        margin: 0;
+        color: #333;
+        font-size: 1.5rem;
+        line-height: 1.2;
+    }
+
+    @media (max-width: 768px) {
+        .task-title {
+            font-size: 1.25rem;
+        }
+    }
+
+    .task-meta {
+        margin-top: 0.5rem;
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .task-status-section {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    @media (min-width: 768px) {
+        .task-status-section {
+            align-items: flex-end;
+            text-align: right;
+        }
+    }
+
+    .due-date {
+        font-size: 0.875rem;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Mobile Quick Actions */
+    .mobile-quick-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    @media (min-width: 768px) {
+        .mobile-quick-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    .quick-action-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-height: 48px;
+        min-width: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        white-space: nowrap;
+    }
+
+    .quick-action-btn:hover:not(:disabled) {
+        background: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .quick-action-btn:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .quick-action-btn.start-task {
+        background: #10b981;
+    }
+
+    .quick-action-btn.start-task:hover:not(:disabled) {
+        background: #059669;
+    }
+
+    .quick-action-btn.complete-task {
+        background: #3b82f6;
+    }
+
+    .quick-action-btn.complete-task:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .quick-action-btn.back-to-tasks {
+        background: #6b7280;
+    }
+
+    .quick-action-btn.back-to-tasks:hover:not(:disabled) {
+        background: #4b5563;
+    }
+
+    /* Enhanced Checklist Styling */
+    .checklist-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: 1fr;
+    }
+
+    .checklist-item {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .checklist-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .checklist-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .checklist-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .checklist-checkbox {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    .checklist-status {
+        margin: 0;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .checklist-title {
+        font-weight: 500;
+        font-size: 1rem;
+        line-height: 1.4;
+        flex: 1;
+    }
+
+    .required-indicator {
+        color: #e53e3e;
+        font-size: 0.875rem;
+        margin-left: 0.25rem;
+    }
+
+    /* Mobile-Optimized Form Elements */
+    .auto-save {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 48px;
+        transition: all 0.2s ease;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .auto-save:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .auto-save[type="number"] {
+        width: 150px;
+    }
+
+    @media (max-width: 768px) {
+        .auto-save[type="number"] {
+            width: 100%;
+        }
+    }
+
+    /* Enhanced Progress Bar */
+    .progress-bar {
+        background: #e2e8f0;
+        border-radius: 10px;
+        height: 12px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-fill {
+        background: linear-gradient(90deg, #667eea, #5a67d8);
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    /* Mobile-First Responsive Improvements */
+    @media (max-width: 768px) {
+        .checklist-item {
+            padding: 1rem;
+        }
+
+        .checklist-header {
+            gap: 0.75rem;
+        }
+
+        .checklist-title {
+            font-size: 0.875rem;
+        }
+
+        .mobile-quick-actions {
+            gap: 0.5rem;
+        }
+
+        .quick-action-btn {
+            padding: 10px 16px;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Touch-Friendly Improvements */
+    .checklist-checkbox:focus,
+    .quick-action-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Loading States */
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid #667eea;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Notification Styles */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+    }
+
+    .notification-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        color: white;
+    }
+
+    .notification-info {
+        background: #3b82f6;
+    }
+
+    .notification-success {
+        background: #10b981;
+    }
+
+    .notification-error {
+        background: #ef4444;
+    }
+
+    .notification-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        margin-left: 1rem;
+        padding: 0;
+        min-width: 24px;
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .notification {
+            top: 10px;
+            right: 10px;
+            left: 10px;
+            max-width: none;
+        }
+    }
+</style>
+{% endblock %}

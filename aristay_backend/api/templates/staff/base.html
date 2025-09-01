@@ -1,0 +1,746 @@
+{% load timezone_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>{% block title %}AriStay Staff Portal{% endblock %}</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Mobile-First Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        @media (min-width: 768px) {
+            .header {
+                padding: 1rem 2rem;
+            }
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #667eea;
+            white-space: nowrap;
+        }
+
+        @media (min-width: 768px) {
+            .logo {
+                font-size: 1.5rem;
+            }
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 768px) {
+            .user-info {
+                gap: 1rem;
+            }
+        }
+
+        /* Enhanced Mobile Navigation */
+        .mobile-nav-toggle {
+            display: block;
+            background: none;
+            border: none;
+            color: #667eea;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .mobile-nav-toggle:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.05);
+        }
+
+        .mobile-nav-toggle:active {
+            transform: scale(0.95);
+        }
+
+        @media (min-width: 768px) {
+            .mobile-nav-toggle {
+                display: none;
+            }
+        }
+
+        /* Quick Action Bar */
+        .quick-action-bar {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 1rem;
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+            gap: 0.5rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(-100%);
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .quick-action-bar.active {
+            display: flex;
+        }
+
+        .quick-action-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            text-decoration: none;
+        }
+
+        .quick-action-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-action-btn:active {
+            transform: translateY(0);
+        }
+
+        @media (min-width: 768px) {
+            .quick-action-bar {
+                display: none !important;
+            }
+        }
+
+        .nav-links {
+            display: none;
+            width: 100%;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(102, 126, 234, 0.2);
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-links.active {
+            display: flex;
+        }
+
+        @media (min-width: 768px) {
+            .nav-links {
+                display: flex;
+                width: auto;
+                margin-top: 0;
+                padding-top: 0;
+                border-top: none;
+                flex-direction: row;
+                gap: 0.5rem;
+                align-items: center;
+            }
+        }
+
+        .nav-link {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            text-align: center;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav-link:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .role-badge {
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Mobile Navigation Bar */
+        .nav {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 1rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .nav::-webkit-scrollbar {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .nav {
+                padding: 0.75rem 2rem;
+                gap: 2rem;
+            }
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: #666;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav a:hover, .nav a.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Mobile-First Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding: 2rem;
+            }
+        }
+
+        /* Mobile-Optimized Cards */
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        @media (min-width: 768px) {
+            .card {
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+        }
+
+        .card-header {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        @media (min-width: 768px) {
+            .card-header {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Mobile-First Grid System */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        @media (min-width: 768px) {
+            .grid {
+                gap: 1.5rem;
+            }
+            
+            .grid-2 {
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            }
+            
+            .grid-3 {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        /* Touch-Friendly Buttons */
+        .btn {
+            display: inline-block;
+            padding: 0.875rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-height: 44px;
+            line-height: 1.2;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        @media (min-width: 768px) {
+            .btn {
+                padding: 0.75rem 1.5rem;
+                min-height: auto;
+            }
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.625rem 0.875rem;
+            font-size: 0.875rem;
+            min-height: 40px;
+        }
+
+        @media (min-width: 768px) {
+            .btn-sm {
+                padding: 0.5rem 1rem;
+                min-height: auto;
+            }
+        }
+
+        /* Mobile Status Badges */
+        .status-badge {
+            padding: 0.375rem 0.875rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: inline-block;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        @media (min-width: 768px) {
+            .status-badge {
+                padding: 0.25rem 0.75rem;
+                min-width: auto;
+            }
+        }
+
+        .status-pending {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .status-in-progress {
+            background: #fef5e7;
+            color: #d69e2e;
+        }
+
+        .status-completed {
+            background: #c6f6d5;
+            color: #38a169;
+        }
+
+        .status-cancelled {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        /* Mobile Form Elements */
+        input, select, textarea {
+            min-height: 44px;
+            font-size: 16px;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        /* Mobile Navigation Overlay */
+        .mobile-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .mobile-overlay.active {
+            display: block;
+        }
+
+        /* Mobile Utilities */
+        .mobile-only {
+            display: block;
+        }
+
+        .desktop-only {
+            display: none;
+        }
+
+        @media (min-width: 768px) {
+            .mobile-only {
+                display: none;
+            }
+            .desktop-only {
+                display: block;
+            }
+        }
+
+        /* Mobile Spacing */
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+
+        @media (min-width: 768px) {
+            .mb-1 { margin-bottom: 0.75rem; }
+            .mb-2 { margin-bottom: 1.25rem; }
+            .mb-3 { margin-bottom: 2rem; }
+
+            .mt-1 { margin-top: 0.75rem; }
+            .mt-2 { margin-top: 1.25rem; }
+            .mt-3 { margin-top: 2rem; }
+        }
+
+        /* Mobile Table Styles */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* Mobile Responsive Images */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Mobile Touch Enhancements */
+        .touch-friendly {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        /* Mobile Scrollbar Hiding */
+        .scroll-container {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">AriStay Staff Portal</div>
+            
+                    <!-- Mobile Navigation Toggle -->
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()">
+            ☰
+        </button>
+
+        <!-- Quick Action Bar (Mobile Only) -->
+        <div class="quick-action-bar" id="quickActionBar">
+            <a href="/api/staff/tasks/" class="quick-action-btn">📋 Tasks</a>
+            <a href="/api/staff/cleaning/" class="quick-action-btn">🧹 Cleaning</a>
+            <a href="/api/staff/maintenance/" class="quick-action-btn">🔧 Maintenance</a>
+            <a href="/api/staff/inventory/" class="quick-action-btn">📦 Inventory</a>
+            <a href="/api/staff/lost-found/" class="quick-action-btn">🔍 Lost & Found</a>
+        </div>
+
+            <!-- Navigation Links -->
+            <div class="nav-links" id="navLinks">
+                <a href="/api/portal/" class="nav-link">🏠 Portal</a>
+                <a href="/api/staff/" class="nav-link">📋 Tasks</a>
+                <a href="/api/staff/inventory/" class="nav-link">📦 Inventory</a>
+                <a href="/api/staff/lost-found/" class="nav-link">🔍 Lost & Found</a>
+            </div>
+
+            <div class="user-info">
+                <span class="role-badge">{{ user.profile.get_role_display|default:"Staff" }}</span>
+                <span>{{ user.get_full_name|default:user.username }}</span>
+                <a href="{% url 'unified_logout' %}" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Navigation Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileNav()"></div>
+
+    <nav class="nav">
+        <a href="/api/staff/" class="{% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/api/staff/tasks/" class="{% if 'tasks' in request.path %}active{% endif %}">My Tasks</a>
+        <a href="/api/staff/maintenance/" class="{% if 'maintenance' in request.path %}active{% endif %}">Maintenance</a>
+        <a href="/api/staff/cleaning/" class="{% if 'cleaning' in request.path %}active{% endif %}">Cleaning</a>
+        <a href="/api/staff/inventory/" class="{% if 'inventory' in request.path %}active{% endif %}">Inventory</a>
+        <a href="/api/staff/lost-found/" class="{% if 'lost-found' in request.path %}active{% endif %}">Lost & Found</a>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // Enhanced Mobile Navigation with Quick Actions
+        function toggleMobileNav() {
+            const navLinks = document.getElementById('navLinks');
+            const overlay = document.getElementById('mobileOverlay');
+            const quickActionBar = document.getElementById('quickActionBar');
+            
+            navLinks.classList.toggle('active');
+            overlay.classList.toggle('active');
+            quickActionBar.classList.toggle('active');
+            
+            // Add smooth animation for quick action bar
+            if (quickActionBar.classList.contains('active')) {
+                quickActionBar.style.display = 'flex';
+                setTimeout(() => {
+                    quickActionBar.style.opacity = '1';
+                    quickActionBar.style.transform = 'translateY(0)';
+                }, 10);
+            } else {
+                quickActionBar.style.opacity = '0';
+                quickActionBar.style.transform = 'translateY(-100%)';
+                setTimeout(() => {
+                    quickActionBar.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        function closeMobileNav() {
+            const navLinks = document.getElementById('navLinks');
+            const overlay = document.getElementById('mobileOverlay');
+            const quickActionBar = document.getElementById('quickActionBar');
+            
+            navLinks.classList.remove('active');
+            overlay.classList.remove('active');
+            quickActionBar.classList.remove('active');
+            quickActionBar.style.opacity = '0';
+            quickActionBar.style.transform = 'translateY(-100%)';
+        }
+
+        // Auto-hide quick action bar on scroll
+        let lastScrollTop = 0;
+        window.addEventListener('scroll', function() {
+            const quickActionBar = document.getElementById('quickActionBar');
+            const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            if (currentScrollTop > lastScrollTop && currentScrollTop > 100) {
+                // Scrolling down - hide quick actions
+                quickActionBar.style.transform = 'translateY(-100%)';
+            } else {
+                // Scrolling up - show quick actions
+                quickActionBar.style.transform = 'translateY(0)';
+            }
+            lastScrollTop = currentScrollTop;
+        });
+
+        // Touch gesture support for mobile
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        document.addEventListener('touchend', function(e) {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            
+            // Swipe right to open menu (if on left edge)
+            if (diffX > 50 && Math.abs(diffY) < 50 && touchStartX < 50) {
+                toggleMobileNav();
+            }
+            
+            // Swipe left to close menu (if menu is open)
+            if (diffX < -50 && Math.abs(diffY) < 50) {
+                const navLinks = document.getElementById('navLinks');
+                if (navLinks.classList.contains('active')) {
+                    closeMobileNav();
+                }
+            }
+        });
+
+        // Close mobile nav when clicking outside
+        document.addEventListener('click', function(event) {
+            const navLinks = document.getElementById('navLinks');
+            const mobileToggle = document.querySelector('.mobile-nav-toggle');
+            
+            if (!navLinks.contains(event.target) && !mobileToggle.contains(event.target)) {
+                closeMobileNav();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) {
+                closeMobileNav();
+            }
+        });
+
+        // Add touch support for mobile devices
+        if ('ontouchstart' in window) {
+            document.body.classList.add('touch-device');
+        }
+
+        // Mobile-friendly table scrolling
+        document.addEventListener('DOMContentLoaded', function() {
+            const tables = document.querySelectorAll('table');
+            tables.forEach(function(table) {
+                if (table.parentElement) {
+                    table.parentElement.classList.add('table-container');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

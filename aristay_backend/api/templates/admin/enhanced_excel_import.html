@@ -1,0 +1,411 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Enhanced Excel Import - {{ block.super }}{% endblock %}
+
+{% block extrahead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    .import-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn:hover {
+        opacity: 0.8;
+    }
+    
+    .feature-highlight {
+        background-color: #e7f3ff;
+        border-left: 4px solid #007bff;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+    }
+    
+    .feature-highlight h4 {
+        margin-top: 0;
+        color: #007bff;
+    }
+    
+    .feature-list {
+        list-style-type: none;
+        padding-left: 0;
+    }
+    
+    .feature-list li {
+        padding: 5px 0;
+        position: relative;
+        padding-left: 25px;
+    }
+    
+    .feature-list li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background-color: white;
+        transition: border-color 0.3s ease;
+    }
+    
+    .upload-area:hover {
+        border-color: #007bff;
+    }
+    
+    .upload-area.dragover {
+        border-color: #007bff;
+        background-color: #f0f8ff;
+    }
+    
+    .upload-icon {
+        font-size: 48px;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+    
+    .progress-container {
+        display: none;
+        margin: 20px 0;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background-color: #007bff;
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    
+    .result-container {
+        display: none;
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 5px;
+    }
+    
+    .result-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .result-warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+    }
+    
+    .result-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    @media (max-width: 768px) {
+        .import-container {
+            margin: 10px;
+            padding: 15px;
+        }
+        
+        .upload-area {
+            padding: 20px;
+        }
+        
+        .upload-icon {
+            font-size: 32px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <h1>📊 Enhanced Excel Import with Conflict Resolution</h1>
+    
+    <div class="feature-highlight">
+        <h4>🚀 New Features</h4>
+        <ul class="feature-list">
+            <li><strong>Smart Conflict Detection:</strong> Automatically detects conflicts between existing bookings and Excel data</li>
+            <li><strong>Platform vs Direct Booking Intelligence:</strong> Platform bookings (Airbnb, VRBO) auto-update, direct bookings require review</li>
+            <li><strong>Interactive Conflict Resolution:</strong> Visual interface to review and resolve conflicts manually</li>
+            <li><strong>Confidence Scoring:</strong> AI-powered confidence scores help identify likely matches</li>
+            <li><strong>Bulk Actions:</strong> Resolve multiple conflicts at once with bulk operations</li>
+            <li><strong>Complete Audit Trail:</strong> Full history of all changes and decisions made</li>
+        </ul>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" id="importForm">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="excel_file">Select Excel File:</label>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <p>Drag & drop your Excel file here or click to browse</p>
+                <input type="file" name="excel_file" id="excel_file" class="form-control" accept=".xlsx,.xls" required style="display: none;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('excel_file').click();">
+                    Choose File
+                </button>
+            </div>
+            <div id="fileName" style="margin-top: 10px; font-weight: bold; display: none;"></div>
+        </div>
+        
+        <div class="form-group">
+            <label for="sheet_name">Sheet Name:</label>
+            <input type="text" name="sheet_name" id="sheet_name" value="Cleaning schedule" class="form-control" 
+                   placeholder="Enter the name of the Excel sheet to import">
+            <small style="color: #666;">Default: "Cleaning schedule"</small>
+        </div>
+        
+        {% if templates %}
+        <div class="form-group">
+            <label for="template">Import Template (Optional):</label>
+            <select name="template" id="template" class="form-control">
+                <option value="">-- No Template --</option>
+                {% for template in templates %}
+                    <option value="{{ template.pk }}">{{ template.name }} - {{ template.description }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                🚀 Start Enhanced Import
+            </button>
+            <a href="{% url 'admin:api_bookingimportlog_changelist' %}" class="btn btn-secondary">
+                📋 View Import History
+            </a>
+        </div>
+    </form>
+    
+    <div class="progress-container" id="progressContainer">
+        <h4>Import Progress</h4>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <p id="progressText">Processing...</p>
+    </div>
+    
+    <div class="result-container" id="resultContainer">
+        <div id="resultContent"></div>
+    </div>
+</div>
+
+<script>
+// File upload handling
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('excel_file');
+const fileName = document.getElementById('fileName');
+const form = document.getElementById('importForm');
+const submitBtn = document.getElementById('submitBtn');
+const progressContainer = document.getElementById('progressContainer');
+const resultContainer = document.getElementById('resultContainer');
+
+// Drag and drop functionality
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        showFileName(files[0].name);
+    }
+});
+
+// File input change handler
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        showFileName(e.target.files[0].name);
+    }
+});
+
+function showFileName(name) {
+    fileName.textContent = `Selected: ${name}`;
+    fileName.style.display = 'block';
+}
+
+// Form submission with AJAX
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(form);
+    
+    // Show progress
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+    progressContainer.style.display = 'block';
+    resultContainer.style.display = 'none';
+    
+    // Simulate progress animation
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 85) progress = 85;
+        document.getElementById('progressFill').style.width = progress + '%';
+    }, 500);
+    
+    try {
+        const response = await fetch('/api/enhanced-excel-import/api/', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        // Complete progress
+        clearInterval(progressInterval);
+        document.getElementById('progressFill').style.width = '100%';
+        
+        setTimeout(() => {
+            showResult(result);
+        }, 500);
+        
+    } catch (error) {
+        clearInterval(progressInterval);
+        showResult({
+            success: false,
+            error: 'Network error: ' + error.message
+        });
+    }
+    
+    // Reset form
+    submitBtn.disabled = false;
+    submitBtn.textContent = '🚀 Start Enhanced Import';
+});
+
+function showResult(result) {
+    progressContainer.style.display = 'none';
+    resultContainer.style.display = 'block';
+    
+    if (result.success) {
+        const hasConflicts = result.requires_review && result.conflicts_detected > 0;
+        
+        if (hasConflicts) {
+            // Show warning with conflict resolution link
+            resultContainer.className = 'result-container result-warning';
+            document.getElementById('resultContent').innerHTML = `
+                <h4>⚠️ Import Completed with Conflicts</h4>
+                <p><strong>${result.successful_imports}</strong> bookings imported successfully</p>
+                <p><strong>${result.auto_updated}</strong> platform bookings auto-updated</p>
+                <p><strong>${result.conflicts_detected}</strong> conflicts require manual review</p>
+                <div style="margin-top: 15px;">
+                    <a href="${result.conflict_review_url}" class="btn btn-primary">
+                        🔍 Review and Resolve Conflicts
+                    </a>
+                </div>
+                <div style="margin-top: 10px;">
+                    <details>
+                        <summary>View Import Details</summary>
+                        <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px;">
+${JSON.stringify(result, null, 2)}
+                        </pre>
+                    </details>
+                </div>
+            `;
+        } else {
+            // Show success
+            resultContainer.className = 'result-container result-success';
+            document.getElementById('resultContent').innerHTML = `
+                <h4>✅ Import Completed Successfully</h4>
+                <p><strong>${result.successful_imports}</strong> bookings imported</p>
+                <p><strong>${result.auto_updated}</strong> bookings auto-updated</p>
+                <p>No conflicts detected - all data processed automatically</p>
+                <div style="margin-top: 15px;">
+                    <a href="/admin/api/booking/" class="btn btn-primary">
+                        📋 View Imported Bookings
+                    </a>
+                </div>
+            `;
+        }
+    } else {
+        // Show error
+        resultContainer.className = 'result-container result-error';
+        document.getElementById('resultContent').innerHTML = `
+            <h4>❌ Import Failed</h4>
+            <p><strong>Error:</strong> ${result.error}</p>
+            ${result.errors ? `
+                <div style="margin-top: 10px;">
+                    <strong>Detailed Errors:</strong>
+                    <ul style="margin-top: 5px;">
+                        ${result.errors.slice(0, 5).map(error => `<li>${error}</li>`).join('')}
+                    </ul>
+                    ${result.errors.length > 5 ? `<p><em>... and ${result.errors.length - 5} more errors</em></p>` : ''}
+                </div>
+            ` : ''}
+        `;
+    }
+}
+</script>
+
+{% endblock %}

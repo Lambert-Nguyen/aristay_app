@@ -1,0 +1,232 @@
+{% extends "portal/base.html" %}
+{% load timezone_tags %}
+
+{% block title %}{{ task.title }} · AriStay Portal{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
+        <div>
+            <div class="section-title">{{ task.title }}</div>
+            <div class="muted">
+                🏠 {{ task.property.name }}
+                {% if task.booking %}
+                · 📅 {{ task.booking.check_in_date|date:"M d" }} → {{ task.booking.check_out_date|date:"M d" }}
+                {% endif %}
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div class="tag" style="margin-bottom: 0.5rem;">{{ task.get_status_display }}</div>
+            {% if task.due_date %}
+            <div class="muted">Due: {{ task.due_date|dual_timezone:user }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if task.description %}
+    <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px;">
+        <strong>Description:</strong><br>
+        {{ task.description|linebreaks }}
+    </div>
+    {% endif %}
+
+    <div style="margin-bottom: 1.5rem;">
+        <strong>Task Type:</strong> {{ task.get_task_type_display }}<br>
+        <strong>Assigned to:</strong> 
+        {% if task.assigned_to %}
+            {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
+        {% else %}
+            <em>Unassigned</em>
+        {% endif %}<br>
+        {% if task.created_by %}
+        <strong>Created by:</strong> {{ task.created_by.get_full_name|default:task.created_by.username }}<br>
+        {% endif %}
+        <strong>Created:</strong> {{ task.created_at|dual_timezone:user }}
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+        {% if can_edit and task.assigned_to == user %}
+        <a href="/api/staff/tasks/{{ task.id }}/" class="button">
+            📋 Interactive Checklist
+        </a>
+        {% endif %}
+        
+        {% if task.property %}
+        <a href="/api/portal/properties/{{ task.property.id }}/" class="button">
+            🏠 Back to Property
+        </a>
+        {% endif %}
+        
+        {% if task.booking %}
+        <a href="/api/portal/properties/{{ task.property.id }}/bookings/{{ task.booking.id }}/" class="button">
+            📅 Back to Booking
+        </a>
+        {% endif %}
+        
+        <form action="/api/tasks/{{ task.id }}/notify_manager/" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button class="button" type="submit">📢 Notify Manager</button>
+        </form>
+    </div>
+</div>
+
+{% if checklist %}
+<div class="card">
+    <div class="section-title">
+        📋 {{ checklist.template.name }}
+        <span style="font-size: 1rem; font-weight: normal; margin-left: 1rem;">
+            Progress: {{ checklist.completion_percentage }}%
+        </span>
+    </div>
+    
+    <div style="background: #e2e8f0; border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 1.5rem;">
+        <div style="background: linear-gradient(90deg, #6366f1, #8b5cf6); height: 100%; width: {{ checklist.completion_percentage }}%; transition: width 0.3s ease;"></div>
+    </div>
+
+    {% for room, responses in responses_by_room.items %}
+    <div style="margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1rem; color: #6366f1; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem;">
+            {% if room == 'General' %}
+                📋 General Tasks
+            {% elif room == 'bathroom' %}
+                🚿 Bathroom
+            {% elif room == 'bedroom' %}
+                🛏️ Bedroom
+            {% elif room == 'kitchen' %}
+                🍽️ Kitchen
+            {% elif room == 'living_room' %}
+                🛋️ Living Room
+            {% else %}
+                📍 {{ room|title }}
+            {% endif %}
+        </h3>
+        
+        <div class="grid">
+            {% for response in responses %}
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
+                <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
+                    <span style="margin-top: 0.25rem; font-size: 1.2rem;">
+                        {% if response.is_completed %}✅{% else %}⬜{% endif %}
+                    </span>
+                    
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500; margin-bottom: 0.5rem;">
+                            {{ response.item.title }}
+                            {% if response.item.is_required %}
+                            <span style="color: #e53e3e; font-size: 0.875rem;">*</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if response.item.description %}
+                        <div class="muted" style="margin-bottom: 0.5rem;">
+                            {{ response.item.description }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="muted" style="font-size: 0.75rem; margin-bottom: 0.5rem;">
+                            Type: {{ response.item.get_item_type_display }}
+                            {% if response.item.item_type == 'blocking' %}
+                            <span style="background: #fed7d7; color: #c53030; padding: 0.125rem 0.5rem; border-radius: 4px; margin-left: 0.5rem;">
+                                Required
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Show responses -->
+                        {% if response.text_response %}
+                        <div style="background: #f8fafc; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                            <strong>Response:</strong> {{ response.text_response|linebreaks }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if response.number_response %}
+                        <div style="background: #f8fafc; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                            <strong>Value:</strong> {{ response.number_response }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Photos -->
+                        {% if response.photos.all %}
+                        <div style="margin-top: 0.5rem;">
+                            <div style="font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">Photos:</div>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                {% for photo in response.photos.all %}
+                                <img src="{{ photo.image.url }}" 
+                                     alt="Checklist photo"
+                                     style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; cursor: pointer;"
+                                     onclick="openPhotoModal('{{ photo.image.url }}')">
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if response.notes %}
+                        <div style="background: #fffbeb; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                            <strong>Notes:</strong> {{ response.notes|linebreaks }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if response.is_completed and response.completed_at %}
+                        <div style="font-size: 0.75rem; color: #38a169; margin-top: 0.5rem;">
+                            ✅ Completed {{ response.completed_at|date:"M d, H:i" }}
+                            {% if response.completed_by %}by {{ response.completed_by.get_full_name|default:response.completed_by.username }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if can_edit and task.assigned_to == user %}
+    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; text-align: center;">
+        <p class="muted">Want to update checklist items? Use the interactive interface:</p>
+        <a href="/api/staff/tasks/{{ task.id }}/" class="button">
+            📋 Go to Interactive Checklist
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <div style="text-align: center; padding: 2rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+        <h3>No Checklist Available</h3>
+        <p>This task doesn't have a checklist template assigned.</p>
+        {% if can_edit and task.assigned_to == user %}
+        <p class="muted">Contact your manager if you need a checklist for this task type.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Photo Modal -->
+<div id="photoModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; cursor: pointer;" onclick="closePhotoModal()">
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding: 2rem;">
+        <img id="modalPhoto" style="max-width: 90%; max-height: 90%; object-fit: contain;">
+    </div>
+</div>
+
+<script>
+// Photo modal functions
+function openPhotoModal(src) {
+    document.getElementById('modalPhoto').src = src;
+    document.getElementById('photoModal').style.display = 'block';
+}
+
+function closePhotoModal() {
+    document.getElementById('photoModal').style.display = 'none';
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePhotoModal();
+    }
+});
+</script>
+{% endblock %}
+
