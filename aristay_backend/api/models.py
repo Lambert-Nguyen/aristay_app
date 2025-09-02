@@ -346,10 +346,26 @@ class Task(models.Model):
         super().save(*args, **kwargs)
 
 
+def task_image_upload_path(instance, filename):
+    """Generate upload path for task images with proper organization"""
+    import os
+    from django.utils.text import slugify
+    
+    # Create organized folder structure: tasks/{task_id}/{filename}
+    task_id = instance.task.id if instance.task else 'unknown'
+    
+    # Clean up filename
+    name, ext = os.path.splitext(filename)
+    clean_name = slugify(name)[:50]  # Limit length
+    
+    return f'tasks/{task_id}/{clean_name}{ext}'
+
+
 class TaskImage(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='task_images/%Y/%m/%d/')
+    image = models.ImageField(upload_to=task_image_upload_path)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
 
     def __str__(self):
         return f"Image for {self.task.title}"

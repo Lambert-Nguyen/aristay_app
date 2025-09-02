@@ -24,7 +24,7 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 from .decorators import staff_or_perm, perm_required, manager_required
-from .authz import AuthzHelper
+from .authz import AuthzHelper, can_edit_task
 from .filters import TaskFilter
 from .system_metrics import get_system_metrics
 
@@ -34,6 +34,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework import status
+from rest_framework.throttling import ScopedRateThrottle
 
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.decorators import action
@@ -66,7 +67,6 @@ from .permissions import (
     DynamicPropertyPermissions, CanViewReports, CanViewAnalytics, CanAccessAdminPanel,
     CanManageFiles, HasCustomPermission
 )
-from .services.notification_service import NotificationService
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -490,18 +490,25 @@ class TaskImageCreateView(generics.CreateAPIView):
     serializer_class = TaskImageSerializer
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated, IsOwnerOrAssignedOrReadOnly]
+    permission_classes = [IsAuthenticated]  # object-level check in perform_create
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'taskimage'
 
     def perform_create(self, serializer):
-        # 1) load the Task
+        # 1) load the Task and check permissions
         task = generics.get_object_or_404(Task, pk=self.kwargs['task_pk'])
-        # 2) save the new TaskImage
-        image = serializer.save(task=task)
-        # history (kept as you have)
+        if not can_edit_task(self.request.user, task):
+            raise PermissionDenied("You can't add images to this task.")
+        
+        # 2) save the new TaskImage with uploaded_by tracking
+        image = serializer.save(task=task, uploaded_by=self.request.user)
+        
+        # 3) update task history
         history = json.loads(task.history or '[]')
         history.append(f"{timezone.now().isoformat()}: {self.request.user.username} added photo {image.image.url}")
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
-        # notify
+        
+        # 4) notify stakeholders
         NotificationService.notify_task_photo(task, added=True, actor=self.request.user)
 
 
@@ -509,11 +516,19 @@ class TaskImageDetailView(generics.RetrieveDestroyAPIView):
     """
     GET, DELETE /api/tasks/{task_pk}/images/{pk}/
     """
-    queryset = TaskImage.objects.all()
     serializer_class = TaskImageSerializer
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated, IsOwnerOrAssignedOrReadOnly]
+    permission_classes = [IsAuthenticated]  # object-level check in get_object
+
+    def get_queryset(self):
+        return TaskImage.objects.filter(task_id=self.kwargs['task_pk']).select_related('task')
+
+    def get_object(self):
+        obj = super().get_object()
+        if not can_edit_task(self.request.user, obj.task):
+            raise PermissionDenied("You can't modify images on this task.")
+        return obj
 
     def perform_destroy(self, instance):
         # 1) capture metadata before deletion
@@ -1179,13 +1194,6 @@ def system_metrics_dashboard(request):
     System metrics and health dashboard for superusers and users with system_metrics_access permission
     Provides comprehensive system monitoring and performance insights
     """
-    # Check permission - superusers or users with system_metrics_access
-    if not request.user.is_superuser:
-        if not (hasattr(request.user, 'profile') and request.user.profile and 
-                request.user.profile.has_permission('system_metrics_access')):
-            from django.core.exceptions import PermissionDenied
-            raise PermissionDenied("System metrics access requires appropriate permissions.")
-    
     try:
         # Get comprehensive system metrics
         metrics = get_system_metrics()
@@ -1228,15 +1236,12 @@ def system_metrics_dashboard(request):
         return render(request, 'admin/system_metrics.html', context)
 
 
+@staff_or_perm('system_metrics_access')
 def system_metrics_api(request):
     """
     API endpoint for real-time system metrics (JSON)
     Used for dashboard auto-refresh
     """
-    # Only allow superusers to access system metrics
-    if not request.user.is_superuser:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
     try:
         metrics = get_system_metrics()
         return JsonResponse(metrics)

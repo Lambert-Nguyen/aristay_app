@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.db.models import Q, Count, Prefetch, F
 from django.core.paginator import Paginator
 from django.db import transaction
+from datetime import timedelta
 import json
 import logging
 
@@ -65,7 +66,7 @@ def staff_dashboard(request):
     
     task_counts = {
         'pending': my_tasks.filter(status='pending').count(),
-        'in_progress': my_tasks.filter(status='in-progress').count(),
+        'in-progress': my_tasks.filter(status='in-progress').count(),
         'completed': my_tasks.filter(status='completed').count(),
         'overdue': my_tasks.filter(
             status__in=['pending', 'in-progress'],
@@ -112,7 +113,7 @@ def cleaning_dashboard(request):
     # Get upcoming tasks (next 7 days)
     upcoming_tasks = assigned_tasks.filter(
         due_date__date__gt=today,
-        due_date__date__lte=today + timezone.timedelta(days=7)
+        due_date__date__lte=today + timedelta(days=7)
     )
     
     # Get checklist progress
@@ -444,21 +445,9 @@ def inventory_lookup(request):
 @staff_or_perm('manage_inventory')
 @transaction.atomic
 def log_inventory_transaction(request):
-    """Log an inventory transaction (requires change/manage inventory permissions)."""
+    """Log an inventory transaction (requires manage_inventory permission)."""
     
     try:
-        # Check permissions: superuser OR manager OR has change/manage inventory OR Maintenance dept
-        profile = getattr(request.user, 'profile', None)
-        allowed = (
-            request.user.is_superuser or
-            (profile and profile.role == 'manager') or
-            (profile and (profile.has_permission('change_inventory') or
-                          profile.has_permission('manage_inventory'))) or
-            (profile and profile.is_in_department('Maintenance'))
-        )
-        if not allowed:
-            return JsonResponse({'error': 'Permission denied'}, status=403)
-            
         data = json.loads(request.body)
         
         inventory_item = get_object_or_404(
@@ -643,7 +632,7 @@ def task_counts_api(request):
         task_counts = {
             'total': total_tasks,
             'pending': my_tasks.filter(status='pending').count(),
-            'in_progress': my_tasks.filter(status='in-progress').count(),
+            'in-progress': my_tasks.filter(status='in-progress').count(),
             'completed': my_tasks.filter(status='completed').count(),
             'overdue': my_tasks.filter(
                 status__in=['pending', 'in-progress'],
