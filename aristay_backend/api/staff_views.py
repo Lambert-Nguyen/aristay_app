@@ -1,6 +1,21 @@
 """
 Staff Portal Views - Role-based interfaces for different staff types.
-Provides specialized dashboards and workflows for each user role.
+
+This module provides specialized dashboard views and functionality for different 
+categories of staff users including cleaning, maintenance, laundry, and lawn/pool teams.
+Each dashboard is tailored to the specific workflows and needs of that department.
+
+Key Features:
+- Department-specific task lists and workflows
+- Real-time task status updates
+- Photo upload and management for task documentation
+- Inventory lookup for maintenance staff
+- Lost & found item management
+
+Authorization:
+- Uses centralized AuthzHelper for consistent permission checking
+- Supports both role-based and permission-based access control
+- Compatible with legacy is_staff users during transition period
 """
 
 from django.shortcuts import render, get_object_or_404, redirect
@@ -12,6 +27,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Q, Count, Prefetch, F
 from django.core.paginator import Paginator
+from django.db import transaction
+from datetime import timedelta
 import json
 import logging
 
@@ -24,6 +41,8 @@ from .models import (
     TASK_TYPE_CHOICES
 )
 from .serializers import TaskSerializer
+from .authz import AuthzHelper, can_edit_task, can_view_task
+from .decorators import staff_or_perm
 
 
 @login_required
@@ -47,7 +66,7 @@ def staff_dashboard(request):
     
     task_counts = {
         'pending': my_tasks.filter(status='pending').count(),
-        'in_progress': my_tasks.filter(status='in-progress').count(),
+        'in-progress': my_tasks.filter(status='in-progress').count(),
         'completed': my_tasks.filter(status='completed').count(),
         'overdue': my_tasks.filter(
             status__in=['pending', 'in-progress'],
@@ -60,8 +79,9 @@ def staff_dashboard(request):
     # Get recent tasks
     recent_tasks = my_tasks.select_related('property', 'booking').order_by('-created_at')[:5]
     
-    # Get properties user has access to
-    accessible_properties = Property.objects.all()[:5]
+    # Get properties user has access to using centralized authorization
+    from .authz import AuthzHelper
+    accessible_properties = AuthzHelper.get_accessible_properties(request.user)[:5]
     
     context = {
         'user_role': user_role,
@@ -83,7 +103,7 @@ def cleaning_dashboard(request):
     assigned_tasks = Task.objects.filter(
         assigned_to=request.user,
         task_type='cleaning',
-        status__in=['pending', 'in_progress']
+        status__in=['pending', 'in-progress']
     ).select_related('property', 'booking').prefetch_related('checklist__responses')
     
     # Get today's tasks
@@ -93,7 +113,7 @@ def cleaning_dashboard(request):
     # Get upcoming tasks (next 7 days)
     upcoming_tasks = assigned_tasks.filter(
         due_date__date__gt=today,
-        due_date__date__lte=today + timezone.timedelta(days=7)
+        due_date__date__lte=today + timedelta(days=7)
     )
     
     # Get checklist progress
@@ -130,7 +150,7 @@ def maintenance_dashboard(request):
     assigned_tasks = Task.objects.filter(
         assigned_to=request.user,
         task_type='maintenance',
-        status__in=['pending', 'in_progress']
+        status__in=['pending', 'in-progress']
     ).select_related('property', 'booking')
     
     # Get low-stock inventory items across properties
@@ -173,12 +193,12 @@ def laundry_dashboard(request):
     assigned_tasks = Task.objects.filter(
         assigned_to=request.user,
         task_type='laundry',
-        status__in=['pending', 'in_progress']
+        status__in=['pending', 'in-progress']
     ).select_related('property', 'booking')
     
     # Organize by workflow stage based on task status/progress
     pickup_tasks = assigned_tasks.filter(status='pending')
-    processing_tasks = assigned_tasks.filter(status='in_progress')
+    processing_tasks = assigned_tasks.filter(status='in-progress')
     
     # Get linen inventory items
     linen_items = PropertyInventory.objects.filter(
@@ -205,7 +225,7 @@ def lawn_pool_dashboard(request):
     assigned_tasks = Task.objects.filter(
         assigned_to=request.user,
         task_type='lawn_pool',
-        status__in=['pending', 'in_progress']
+        status__in=['pending', 'in-progress']
     ).select_related('property', 'booking')
     
     # Get pool/spa inventory items
@@ -242,7 +262,7 @@ def task_detail(request, task_id):
     )
     
     # Check if user can access this task
-    if not (request.user.is_staff or task.assigned_to == request.user):
+    if not can_view_task(request.user, task):
         messages.error(request, "You don't have permission to view this task.")
         return redirect('/api/staff/')
     
@@ -266,7 +286,7 @@ def task_detail(request, task_id):
         'task': task,
         'checklist': checklist,
         'responses_by_room': responses_by_room,
-        'can_edit': task.assigned_to == request.user or request.user.is_staff,
+        'can_edit': can_edit_task(request.user, task),
     }
     
     return render(request, 'staff/task_detail.html', context)
@@ -279,8 +299,8 @@ def update_checklist_response(request, response_id):
     
     response = get_object_or_404(ChecklistResponse, id=response_id)
     
-    # Check permissions
-    if not (request.user.is_staff or response.checklist.task.assigned_to == request.user):
+    # Check permissions using centralized authorization
+    if not can_edit_task(request.user, response.checklist.task):
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     try:
@@ -369,15 +389,21 @@ def my_tasks(request):
 def inventory_lookup(request):
     """Inventory lookup interface for maintenance staff."""
     
-    # Check if user should have inventory access
-    # Superusers, managers, and maintenance department staff have access
+    # Check if user should have inventory access using centralized authorization
+    # Superusers, managers, users with inventory permissions, and maintenance department staff have access
     if not request.user.is_superuser:
         try:
             profile = request.user.profile
             user_role = profile.role
             
-            # Allow managers and users in Maintenance department
-            if user_role != 'manager' and not profile.is_in_department('Maintenance'):
+            # Allow managers, users with inventory permissions, and users in Maintenance department
+            has_access = (
+                user_role == 'manager' or
+                profile.has_permission('view_inventory') or
+                profile.is_in_department('Maintenance')
+            )
+            
+            if not has_access:
                 messages.error(request, "You don't have access to inventory management.")
                 return redirect('/api/staff/')
         except:
@@ -416,8 +442,10 @@ def inventory_lookup(request):
 
 @login_required
 @require_POST
+@staff_or_perm('manage_inventory')
+@transaction.atomic
 def log_inventory_transaction(request):
-    """Log an inventory transaction."""
+    """Log an inventory transaction (requires manage_inventory permission)."""
     
     try:
         data = json.loads(request.body)
@@ -427,24 +455,35 @@ def log_inventory_transaction(request):
             id=data['inventory_id']
         )
         
+        # Use Decimal for precise calculations and atomic updates
+        from decimal import Decimal
+        from django.db.models import F
+        qty = Decimal(str(data['quantity']))
+        
         # Create transaction
         transaction = InventoryTransaction.objects.create(
             property_inventory=inventory_item,
             transaction_type=data['transaction_type'],
-            quantity=float(data['quantity']),
+            quantity=qty,
             notes=data.get('notes', ''),
             task_id=data.get('task_id'),
             created_by=request.user
         )
         
-        # Update inventory levels
+        # Atomic stock update to avoid race conditions
         if data['transaction_type'] in ['stock_in', 'adjustment']:
-            inventory_item.current_stock += float(data['quantity'])
+            PropertyInventory.objects.filter(pk=inventory_item.pk).update(
+                current_stock=F('current_stock') + qty, 
+                updated_by=request.user
+            )
         elif data['transaction_type'] in ['stock_out', 'damage']:
-            inventory_item.current_stock -= float(data['quantity'])
+            PropertyInventory.objects.filter(pk=inventory_item.pk).update(
+                current_stock=F('current_stock') - qty, 
+                updated_by=request.user
+            )
         
-        inventory_item.updated_by = request.user
-        inventory_item.save()
+        # Refresh to get updated values
+        inventory_item.refresh_from_db()
         
         return JsonResponse({
             'success': True,
@@ -460,15 +499,29 @@ def log_inventory_transaction(request):
 def lost_found_list(request):
     """List lost and found items for the current user's accessible properties."""
     
-    # Get accessible properties
-    if request.user.is_staff:
+    # Get accessible properties using centralized authorization
+    if request.user.is_superuser:
         properties = Property.objects.all()
     else:
-        # For regular staff, show items from properties where they have tasks
-        property_ids = Task.objects.filter(
-            assigned_to=request.user
-        ).values_list('property', flat=True).distinct()
-        properties = Property.objects.filter(id__in=property_ids)
+        try:
+            profile = request.user.profile
+            user_role = profile.role
+            
+            if user_role == 'manager':
+                # Managers can see all properties
+                properties = Property.objects.all()
+            else:
+                # For regular staff, show items from properties where they have tasks
+                property_ids = Task.objects.filter(
+                    assigned_to=request.user
+                ).values_list('property', flat=True).distinct()
+                properties = Property.objects.filter(id__in=property_ids)
+        except:
+            # If no profile, only show properties with assigned tasks
+            property_ids = Task.objects.filter(
+                assigned_to=request.user
+            ).values_list('property', flat=True).distinct()
+            properties = Property.objects.filter(id__in=property_ids)
     
     # Get lost & found items
     items = LostFoundItem.objects.filter(
@@ -503,8 +556,8 @@ def upload_checklist_photo(request):
         
         response = get_object_or_404(ChecklistResponse, id=response_id)
         
-        # Check permissions
-        if not (request.user.is_staff or response.checklist.task.assigned_to == request.user):
+        # Check permissions using centralized authorization
+        if not can_edit_task(request.user, response.checklist.task):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         
         # Create photo record
@@ -535,8 +588,8 @@ def set_task_status(request, task_id):
         task = get_object_or_404(Task, id=task_id)
         old_status = task.status
         
-        # Check permissions
-        if not (request.user.is_staff or task.assigned_to == request.user):
+        # Check permissions using centralized authorization
+        if not can_edit_task(request.user, task):
             logger.warning(f"Permission denied for user {request.user.username} to update task {task_id}")
             return JsonResponse({'error': 'Permission denied'}, status=403)
         
@@ -579,7 +632,7 @@ def task_counts_api(request):
         task_counts = {
             'total': total_tasks,
             'pending': my_tasks.filter(status='pending').count(),
-            'in_progress': my_tasks.filter(status='in-progress').count(),
+            'in-progress': my_tasks.filter(status='in-progress').count(),
             'completed': my_tasks.filter(status='completed').count(),
             'overdue': my_tasks.filter(
                 status__in=['pending', 'in-progress'],

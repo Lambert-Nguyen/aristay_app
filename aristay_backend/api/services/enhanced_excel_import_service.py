@@ -5,7 +5,7 @@ This enhanced service provides intelligent conflict detection and resolution
 for booking imports, with different handling for platform vs direct bookings.
 """
 
-import pandas as pd
+# import pandas as pd  # Moved to function level to avoid circular imports
 import json
 import random
 from datetime import datetime, timedelta, time
@@ -125,6 +125,7 @@ class EnhancedExcelImportService(ExcelImportService):
     def import_excel_file(self, excel_file, sheet_name: str = 'Cleaning schedule') -> Dict[str, Any]:
         """Enhanced import with conflict detection"""
         try:
+            import pandas as pd
             # Create import log
             self.import_log = self._create_import_log(excel_file)
             
@@ -193,9 +194,10 @@ class EnhancedExcelImportService(ExcelImportService):
                 'errors': self.errors
             }
     
-    def _extract_booking_data_enhanced(self, row: pd.Series, row_number: int) -> Optional[Dict]:
+    def _extract_booking_data_enhanced(self, row, row_number: int) -> Optional[Dict]:
         """Extract booking data WITHOUT automatic external code suffix addition"""
         try:
+            import pandas as pd
             import random
             from api.models import Booking
             
@@ -344,7 +346,7 @@ class EnhancedExcelImportService(ExcelImportService):
             self.errors.append(f"Row {row_number}: {str(e)}")
             return None
     
-    def _process_booking_row_with_conflicts(self, row: pd.Series, row_number: int):
+    def _process_booking_row_with_conflicts(self, row, row_number: int):
         """Process single row with enhanced conflict detection"""
         
         # Extract booking data WITHOUT automatic external code suffix logic
@@ -516,7 +518,7 @@ class EnhancedExcelImportService(ExcelImportService):
         
         return conflicts
     
-    def _auto_update_booking(self, booking: Booking, booking_data: Dict[str, Any], row: pd.Series):
+    def _auto_update_booking(self, booking: Booking, booking_data: Dict[str, Any], row):
         """Automatically update platform bookings"""
         try:
             # Update fields from Excel
@@ -725,7 +727,7 @@ class ConflictResolutionService:
         
         return booking
 
-    def _create_booking(self, booking_data: Dict, property_obj: Property, row: pd.Series) -> Booking:
+    def _create_booking(self, booking_data: Dict, property_obj: Property, row) -> Booking:
         """Create new booking from Excel data - enhanced version that bypasses duplicate checking"""
         # Ensure nights field has a valid value
         nights_value = booking_data.get('nights')
@@ -752,6 +754,7 @@ class ConflictResolutionService:
                 django_status = 'confirmed'  # Default to confirmed
             
             # Simple row serialization
+            import pandas as pd
             raw_row = {str(k): str(v) for k, v in row.items() if pd.notna(v)}
             
             booking = Booking.objects.create(

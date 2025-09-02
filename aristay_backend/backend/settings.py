@@ -22,15 +22,29 @@ from backend.logging_config import setup_logging
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- Optional local .env loading for development ---
+if os.getenv("LOAD_DOTENV", "true").lower() == "true":
+    try:
+        from dotenv import load_dotenv
+        for _candidate in [(BASE_DIR / ".env"), (BASE_DIR.parent / ".env")]:
+            try:
+                if _candidate.exists():
+                    load_dotenv(_candidate)
+            except Exception:
+                pass
+    except Exception:
+        pass
+# ---------------------------------------------------
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-*g+qjl3q3q8h1tnkws9(sd^tm(t!ld8rtdre6r5yc+d=jw_yn!"
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-*g+qjl3q3q8h1tnkws9(sd^tm(t!ld8rtdre6r5yc+d=jw_yn!')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'true').lower() == 'true'
 
 def get_local_ip():
     s = None
@@ -46,26 +60,60 @@ def get_local_ip():
             s.close()
     return ip
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', get_local_ip()]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [get_local_ip()]
 
 # Application definition
 
-INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "rest_framework",
-    "rest_framework.authtoken",
-    "api.apps.ApiConfig",
-    "django_filters",
-    "django_crontab",
-]
+# Cloudinary Integration (toggleable via environment variable)
+USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'false').lower() == 'true'
+
+if USE_CLOUDINARY:
+    # Add Cloudinary to installed apps
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'api',
+        "rest_framework",
+        "rest_framework.authtoken",
+        "corsheaders",
+        "django_filters",
+        'cloudinary',
+        'cloudinary_storage',
+    ]
+    
+    # Cloudinary configuration
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+        'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+        'SECURE': True,
+    }
+    
+    # Use Cloudinary for media files
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+else:
+    # Standard installed apps (existing configuration)
+    INSTALLED_APPS = [
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'api',
+        "rest_framework",
+        "rest_framework.authtoken",
+        "corsheaders",
+        "django_filters",
+    ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -117,6 +165,13 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'taskimage': '20/day',
+        'api': '1000/hour',
+    },
 }
 
 # Database
@@ -191,16 +246,24 @@ DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
 # (point this at your front-end, e.g. localhost:3000)
 FRONTEND_URL = "http://localhost:3000"
 
-# during development, just dump emails to the console instead of real SMTP
+# Email configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.mailersend.net'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.mailersend.net')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
 
-EMAIL_HOST_USER = 'MS_T2FlZ8@aristay-internal.cloud'
-EMAIL_HOST_PASSWORD = 'mssp.Yun5OWw.v69oxl53kzkg785k.9UyPJrd'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
-DEFAULT_FROM_EMAIL = 'noreply@aristay-internal.cloud'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@aristay-internal.cloud')
+
+# CORS configuration
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'true').lower() == 'true'
+CORS_ALLOWED_ORIGINS = [
+    origin.strip() 
+    for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
+    if origin.strip()
+]
 
 FCM_SERVER_KEY = "your-firebase-server-key-here"
 FIREBASE_PROJECT_ID = 'aristayapp'

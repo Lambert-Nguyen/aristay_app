@@ -346,10 +346,26 @@ class Task(models.Model):
         super().save(*args, **kwargs)
 
 
+def task_image_upload_path(instance, filename):
+    """Generate upload path for task images with proper organization"""
+    import os
+    from django.utils.text import slugify
+    
+    # Create organized folder structure: tasks/{task_id}/{filename}
+    task_id = instance.task.id if instance.task else 'unknown'
+    
+    # Clean up filename
+    name, ext = os.path.splitext(filename)
+    clean_name = slugify(name)[:50]  # Limit length
+    
+    return f'tasks/{task_id}/{clean_name}{ext}'
+
+
 class TaskImage(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='task_images/%Y/%m/%d/')
+    image = models.ImageField(upload_to=task_image_upload_path)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
 
     def __str__(self):
         return f"Image for {self.task.title}"
@@ -597,9 +613,15 @@ class CustomPermission(models.Model):
         
         # System Administration
         ('access_admin_panel', 'Access Admin Panel'),
+        ('manager_portal_access', 'Manager Portal Access'),
         ('manage_system_settings', 'Manage System Settings'),
         ('view_system_logs', 'View System Logs'),
         ('manage_notifications', 'Manage Notifications'),
+        ('manage_files', 'Manage Files'),
+        ('manage_permissions', 'Manage Permissions'),
+        ('system_metrics_access', 'System Metrics Access'),
+        ('system_recovery_access', 'System Crash Recovery Access'),
+        ('manage_bookings', 'Manage Booking Operations'),
         
         # Checklist Management
         ('view_checklists', 'View Checklists'),
@@ -612,6 +634,11 @@ class CustomPermission(models.Model):
         ('add_devices', 'Add Devices'),
         ('change_devices', 'Edit Devices'),
         ('delete_devices', 'Delete Devices'),
+        
+        # Inventory Management
+        ('view_inventory', 'View Inventory'),
+        ('change_inventory', 'Edit Inventory'),
+        ('manage_inventory', 'Manage Inventory'),
     ]
     
     name = models.CharField(max_length=100, unique=True, choices=PERMISSION_CHOICES)
@@ -690,28 +717,20 @@ class UserPermissionOverride(models.Model):
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        # Set default role based on Django user flags
-        if instance.is_superuser:
-            default_role = UserRole.SUPERUSER
-        elif instance.is_staff:
-            default_role = UserRole.MANAGER
-        else:
-            default_role = UserRole.STAFF
-            
+        # Set default role based on Django user flags - decouple is_staff from manager role
+        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
         Profile.objects.create(user=instance, role=default_role)
 
 @receiver(post_save, sender=User)
 def sync_profile_role_on_user_save(sender, instance, **kwargs):
     profile, _ = Profile.objects.get_or_create(user=instance)
     
-    # Auto-sync profile role with Django user flags (only if it makes sense)
+    # Only auto-sync superuser role - do NOT sync is_staff to manager
+    # This keeps Django admin permissions separate from business roles
     if instance.is_superuser and profile.role != UserRole.SUPERUSER:
         profile.role = UserRole.SUPERUSER
         profile.save()
-    elif instance.is_staff and not instance.is_superuser and profile.role == UserRole.STAFF:
-        # Only auto-promote staff to manager if they're currently just staff
-        profile.role = UserRole.MANAGER
-        profile.save()
+    # REMOVED: is_staff -> manager auto-conversion for clean separation
 
 class Device(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='devices')

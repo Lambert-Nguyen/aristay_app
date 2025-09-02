@@ -107,9 +107,26 @@ class PropertySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class TaskImageSerializer(serializers.ModelSerializer):
+    uploaded_by_username = serializers.CharField(source='uploaded_by.username', read_only=True)
+    
     class Meta:
         model = TaskImage
-        fields = ['id', 'image', 'uploaded_at']
+        fields = ['id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username']
+        read_only_fields = ['uploaded_by', 'uploaded_by_username']
+    
+    def validate_image(self, file):
+        # File size validation (10MB max)
+        max_mb = 10
+        if file.size > max_mb * 1024 * 1024:
+            raise serializers.ValidationError(f"Max file size is {max_mb}MB.")
+        
+        # File type validation
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/jpg'}
+        content_type = getattr(file, 'content_type', None)
+        if content_type not in allowed_types:
+            raise serializers.ValidationError("Allowed types: JPG, PNG, WEBP, HEIC.")
+        
+        return file
 
 class TaskSerializer(serializers.ModelSerializer):
     property_name           = serializers.CharField(source='property.name',    read_only=True)

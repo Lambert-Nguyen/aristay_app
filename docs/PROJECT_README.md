@@ -9,12 +9,15 @@ Users can sign up, log in, browse, filter and manage cleaning/maintenance tasks‚
 ## üèÜ Features
 
 ### Authentication & Users
-- **Token-based login/registration** via Django REST Framework‚Äôs `authtoken`.
+- **Token-based login/registration** via Django REST Framework's `authtoken`.
+- **Dynamic permission system** with role-based access control (Superuser, Manager, Staff, Viewer).
+- **User permission overrides** with expiration dates and delegation capabilities.
 - **`/api/users/me/`**: Fetch or PATCH your own profile (e.g. `timezone`).
 - **Admin**:  
   - Inline **Profile** (stores `timezone`) on the User admin page.  
   - Visible `timezone` column in the user list.  
   - Invite users & reset passwords via admin endpoints.
+  - Permission management interface.
 
 ### Task Management
 - **CRUD** tasks with fields:  
@@ -64,10 +67,13 @@ Users can sign up, log in, browse, filter and manage cleaning/maintenance tasks‚
    ```bash
    python manage.py makemigrations
    python manage.py migrate
-5. **Create a superuser (for admin UI):**
+5. **Set up permissions system:**
+   ```bash
+   python manage.py setup_permissions
+6. **Create a superuser (for admin UI):**
    ```bash
    python manage.py createsuperuser
-6. **Run the dev server:**
+7. **Run the dev server:**
    ```bash
    python manage.py runserver 0.0.0.0:8000
 
