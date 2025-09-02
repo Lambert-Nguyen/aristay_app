@@ -37,3 +37,10 @@ psutil==7.0.0
 
 # Environment variable management
 # python-decouple==3.8
+
+python - <<'PY'
+import pkgutil, pkg_resources, sys
+name = "python-dotenv"
+version = pkg_resources.get_distribution(name).version
+print(f"{name}>={version}")
+PY
