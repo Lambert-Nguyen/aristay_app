@@ -29,7 +29,7 @@ if os.getenv("LOAD_DOTENV", "true").lower() == "true":
         for _candidate in [(BASE_DIR / ".env"), (BASE_DIR.parent / ".env")]:
             try:
                 if _candidate.exists():
-                    load_dotenv(_candidate)
+                    load_dotenv(_candidate, override=True)  # <-- add override=True
             except Exception:
                 pass
     except Exception:
