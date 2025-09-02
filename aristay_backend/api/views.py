@@ -7,7 +7,6 @@ from .services.notification_service import NotificationService
 from .models import NotificationVerb
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -24,6 +23,8 @@ from datetime import timedelta
 # Set up logging
 logger = logging.getLogger(__name__)
 
+from .decorators import staff_or_perm, perm_required, manager_required
+from .authz import AuthzHelper
 from .filters import TaskFilter
 from .system_metrics import get_system_metrics
 
@@ -101,12 +102,14 @@ class TaskViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return queryset
         
-        # Check if user has view_tasks permission
-        if hasattr(self.request.user, 'profile') and self.request.user.profile:
-            if self.request.user.profile.has_permission('view_tasks'):
-                return queryset
+        # Check if user has view_tasks or view_all_tasks permission (see all tasks)
+        profile = getattr(self.request.user, 'profile', None)
+        if profile and (profile.has_permission('view_tasks') or profile.has_permission('view_all_tasks')):
+            return queryset
         
-        return queryset.none()
+        # Fallback: show tasks the user is involved with
+        from django.db.models import Q
+        return queryset.filter(Q(assigned_to=self.request.user) | Q(created_by=self.request.user))
 
     def perform_create(self, serializer):
         task = serializer.save(created_by=self.request.user, modified_by=self.request.user)
@@ -164,9 +167,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         Sends a high-priority notification to managers/owners about this task.
         """
         task = self.get_object()
-        # naive implementation: create Notification rows for staff managers + owners
-        from django.contrib.auth.models import User
-        managers = User.objects.filter(is_superuser=True) | User.objects.filter(is_staff=True)
+        # Use centralized authorization to get managers
+        from .authz import AuthzHelper
+        managers = AuthzHelper.get_manager_users()
         created = 0
         for user in managers.distinct():
             if user == request.user:
@@ -316,8 +319,17 @@ def portal_home(request):
 
 def _accessible_properties_for(user):
     """Return a queryset of properties visible to this user."""
-    if user.is_superuser or user.is_staff:
+    if user.is_superuser:
         return Property.objects.all().order_by('name')
+    
+    # Check if user has manager role or wide property access permissions
+    try:
+        profile = user.profile
+        if profile.role == 'manager' or profile.has_permission('view_properties'):
+            return Property.objects.all().order_by('name')
+    except:
+        pass
+    
     # viewer/owner or crew: properties they own/view or have tasks on
     owned = Property.objects.filter(ownerships__user=user)
     assigned = Property.objects.filter(tasks__assigned_to=user)
@@ -432,11 +444,8 @@ def portal_task_detail(request, task_id):
     
     task = get_object_or_404(Task.objects.select_related('property', 'booking', 'assigned_to', 'created_by'), id=task_id)
     
-    # Check permissions - users can view tasks they're assigned to, or if they're staff, or if they have access to the property
-    accessible_properties = _accessible_properties_for(request.user)
-    if not (request.user.is_staff or 
-            task.assigned_to == request.user or 
-            task.property in accessible_properties):
+    # Check permissions using centralized authorization
+    if not AuthzHelper.can_view_task(request.user, task):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied("You don't have permission to view this task.")
     
@@ -456,8 +465,8 @@ def portal_task_detail(request, task_id):
     except:
         pass
     
-    # Check if user can edit (assigned to them or staff)
-    can_edit = task.assigned_to == request.user or request.user.is_staff
+    # Check if user can edit using centralized authorization
+    can_edit = AuthzHelper.can_edit_task(request.user, task)
     
     context = {
         'task': task,
@@ -818,26 +827,13 @@ class ManagerUserDetail(generics.RetrieveUpdateAPIView):
     permission_classes = [IsManagerOrOwner]
 
 # ---------- NEW: Manager Charts Dashboard ----------
-def _check_manager_permission(user):
-    """Helper to check if user has manager permissions"""
-    if not (user and user.is_authenticated and user.is_active):
-        return False
-    if user.is_superuser:
-        return True
-    role = getattr(getattr(user, 'profile', None), 'role', 'staff')
-    return role == 'manager'
 
-@staff_member_required
+@staff_or_perm('manager_portal_access')
 def manager_charts_dashboard(request):
     """
     Charts dashboard view for managers accessible at /manager/charts/
     Shows tasks by status, property, and task types with Chart.js visualizations
     """
-    # Check manager permission
-    if not _check_manager_permission(request.user):
-        from django.contrib.auth.views import redirect_to_login
-        return redirect_to_login(request.get_full_path())
-    
     # Get tasks by status
     tasks_by_status = (
         Task.objects
@@ -889,11 +885,12 @@ def manager_charts_dashboard(request):
     
     # Task completion trends (last 30 days)
     from datetime import timedelta
+    from django.db.models.functions import TruncDate
     thirty_days_ago = now - timedelta(days=30)
     daily_completions = (
         Task.objects
         .filter(status='completed', modified_at__gte=thirty_days_ago)
-        .extra(select={'day': 'DATE(modified_at)'})
+        .annotate(day=TruncDate('modified_at'))
         .values('day')
         .annotate(count=Count('id'))
         .order_by('day')
@@ -1009,19 +1006,12 @@ def manager_charts_dashboard(request):
     
     return render(request, 'admin/manager_charts.html', context)
 
-@staff_member_required
+@staff_or_perm('view_reports')
 def admin_charts_dashboard(request):
     """
     Regular admin charts dashboard at /api/admin/charts/
     Shows same analytics but accessible to all Django admin users with view_reports permission
     """
-    # Check permission
-    if not request.user.is_superuser:
-        if not (hasattr(request.user, 'profile') and request.user.profile and 
-                request.user.profile.has_permission('view_reports')):
-            from django.contrib.auth.views import redirect_to_login
-            return redirect_to_login(request.get_full_path())
-    
     # Get tasks by status
     tasks_by_status = (
         Task.objects
@@ -1183,7 +1173,7 @@ def admin_charts_dashboard(request):
     return render(request, 'admin/charts_dashboard.html', context)
 
 
-@staff_member_required
+@staff_or_perm('system_metrics_access')
 def system_metrics_dashboard(request):
     """
     System metrics and health dashboard for superusers and users with system_metrics_access permission
@@ -1254,7 +1244,7 @@ def system_metrics_api(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@staff_member_required
+@login_required
 def system_logs_viewer(request):
     """
     Log file viewer for superusers to examine system logs
@@ -1348,7 +1338,7 @@ def _extract_log_level(log_line):
     return 'UNKNOWN'
 
 
-@staff_member_required
+@login_required
 def system_crash_recovery(request):
     """
     System crash recovery and diagnostic information
@@ -1817,7 +1807,7 @@ def get_conflict_details(request, import_session_id):
         return JsonResponse({'error': 'Failed to get conflict details'}, status=500)
 
 
-@staff_member_required
+@staff_or_perm('manage_bookings')
 @require_http_methods(["GET"])
 def preview_conflict_resolution(request, import_session_id, conflict_index):
     """Preview what changes would be made for a specific conflict resolution"""
@@ -1865,7 +1855,7 @@ def preview_conflict_resolution(request, import_session_id, conflict_index):
         return JsonResponse({'error': 'Failed to preview conflict'}, status=500)
 
 
-@staff_member_required 
+@staff_or_perm('manage_bookings')
 @require_http_methods(["POST"])
 @csrf_exempt
 def quick_resolve_conflict(request, import_session_id, conflict_index):
@@ -1912,7 +1902,7 @@ def quick_resolve_conflict(request, import_session_id, conflict_index):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@staff_member_required
+@staff_or_perm('manage_bookings')
 def enhanced_excel_import_view(request):
     """Enhanced Excel import view with conflict detection"""
     
@@ -1977,7 +1967,7 @@ def enhanced_excel_import_view(request):
     return render(request, 'admin/enhanced_excel_import.html', context)
 
 
-@staff_member_required  
+@staff_or_perm('manage_bookings')
 def enhanced_excel_import_api(request):
     """Enhanced Excel import API endpoint"""
     
@@ -2026,8 +2016,12 @@ def file_cleanup_api(request):
     """
     from .services.file_cleanup_service import ImportFileCleanupService
     
-    if not request.user.is_staff:
-        return JsonResponse({'error': 'Staff access required'}, status=403)
+    # Check permissions using centralized authorization
+    if not (request.user.is_superuser or 
+            (hasattr(request.user, 'profile') and 
+             (request.user.profile.role == 'manager' or 
+              request.user.profile.has_permission('manage_files')))):
+        return JsonResponse({'error': 'File management access required'}, status=403)
     
     if request.method == 'GET':
         # Return current storage statistics
@@ -2479,20 +2473,11 @@ def remove_permission_override(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@staff_member_required
+@staff_or_perm('manage_permissions')
 def permission_management_view(request):
     """
     Permission management interface for superusers and managers
     """
-    # Check if user has permission management access
-    if not request.user.is_superuser:
-        # Check if user is a manager with delegation rights
-        if not (hasattr(request.user, 'profile') and 
-                request.user.profile.role == 'manager' and
-                request.user.profile.get_delegatable_permissions()):
-            from django.contrib.auth.views import redirect_to_login
-            return redirect_to_login(request.get_full_path())
-    
     return render(request, 'admin/permission_management.html', {
         'title': 'Permission Management',
         'user': request.user
