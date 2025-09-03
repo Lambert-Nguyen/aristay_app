@@ -246,12 +246,11 @@ DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
 # (point this at your front-end, e.g. localhost:3000)
 FRONTEND_URL = "http://localhost:3000"
 
-# Email configuration
+# email configuration; Always use SMTP backend; read values from env (works for dev & prod)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.mailersend.net')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
-
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost' if DEBUG else 'smtp.example.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '1025' if DEBUG else '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false' if DEBUG else 'true').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
