@@ -53,3 +53,9 @@ aristay_backend/firebase_credentials.json
 # Media and static files (optional - uncomment if you don't want to track uploaded files)
 # aristay_backend/media/
 # aristay_backend/static/
+.env.backup
+
+# Logs (including rotated logs like debug.log.1, .2, etc.)
+aristay_backend/logs/
+*.log
+*.log.*

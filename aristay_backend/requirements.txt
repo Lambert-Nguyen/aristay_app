@@ -26,21 +26,9 @@ sentry-sdk[django]==2.35.1
 psutil==7.0.0
 
 # Production dependencies (optional - uncomment as needed)
-# PostgreSQL adapter for production database
 # psycopg2-binary==2.9.10
-
-# Redis for production caching
 # redis==5.2.0
-
-# Production WSGI server
 # gunicorn==23.0.0
 
-# Environment variable management
-# python-decouple==3.8
-
-python - <<'PY'
-import pkgutil, pkg_resources, sys
-name = "python-dotenv"
-version = pkg_resources.get_distribution(name).version
-print(f"{name}>={version}")
-PY
+# .env loader for local/dev convenience
+python-dotenv==1.0.1
