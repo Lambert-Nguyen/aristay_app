@@ -54,3 +54,8 @@ aristay_backend/firebase_credentials.json
 # aristay_backend/media/
 # aristay_backend/static/
 .env.backup
+
+# Logs (including rotated logs like debug.log.1, .2, etc.)
+aristay_backend/logs/
+*.log
+*.log.*
