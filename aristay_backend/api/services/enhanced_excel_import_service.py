@@ -58,8 +58,36 @@ def _analyze_guest_name_difference(existing_name: str, new_name: str) -> Dict[st
     import unicodedata
     import re
     
+    # Try ftfy for mojibake detection if available
+    try:
+        import ftfy
+        existing_fixed = ftfy.fix_text(existing_name)
+        new_fixed = ftfy.fix_text(new_name)
+        if existing_fixed != existing_name or new_fixed != new_name:
+            existing_name = existing_fixed
+            new_name = new_fixed
+    except ImportError:
+        pass  # Fall back gracefully if ftfy not available
+    
     # Normalize for comparison (remove diacritics, case, extra spaces)
     def normalize(name):
+        # Handle common character mappings
+        char_mapping = {
+            'ß': 'ss',  # German eszett
+            'Ø': 'O',   # Danish/Norwegian O
+            'ø': 'o',
+            'Ł': 'L',   # Polish L
+            'ł': 'l',
+            'Æ': 'AE',  # Various AE ligatures
+            'æ': 'ae',
+            'Œ': 'OE',  # French OE ligature
+            'œ': 'oe'
+        }
+        
+        # Apply character mappings first
+        for old_char, new_char in char_mapping.items():
+            name = name.replace(old_char, new_char)
+        
         # Remove diacritics
         normalized = unicodedata.normalize('NFKD', name)
         normalized = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
@@ -140,18 +168,34 @@ class BookingConflict:
         if self.existing_booking.property.name == self.excel_data.get('property_name'):
             score += 0.2
         
-        # Date overlap
+        # Date overlap - handle both date and datetime objects safely
         excel_start = self.excel_data.get('start_date')
         excel_end = self.excel_data.get('end_date')
         if excel_start and excel_end:
-            existing_start = self.existing_booking.check_in_date.date()
-            existing_end = self.existing_booking.check_out_date.date()
+            # Safe date extraction for existing booking dates
+            existing_start = self.existing_booking.check_in_date
+            if hasattr(existing_start, 'date'):
+                existing_start = existing_start.date()
             
-            if isinstance(excel_start, datetime) and isinstance(excel_end, datetime):
-                if excel_start.date() == existing_start and excel_end.date() == existing_end:
-                    score += 0.1
-                elif (excel_start.date() <= existing_end and excel_end.date() >= existing_start):
-                    score += 0.05  # Partial overlap
+            existing_end = self.existing_booking.check_out_date
+            if hasattr(existing_end, 'date'):
+                existing_end = existing_end.date()
+            
+            # Safe date extraction for Excel dates
+            if hasattr(excel_start, 'date'):
+                excel_start_date = excel_start.date()
+            else:
+                excel_start_date = excel_start
+                
+            if hasattr(excel_end, 'date'):
+                excel_end_date = excel_end.date()
+            else:
+                excel_end_date = excel_end
+            
+            if excel_start_date == existing_start and excel_end_date == existing_end:
+                score += 0.1
+            elif (excel_start_date <= existing_end and excel_end_date >= existing_start):
+                score += 0.05  # Partial overlap
         
         return score
     
@@ -575,8 +619,8 @@ class EnhancedExcelImportService(ExcelImportService):
                 check_in_date__lt=end_date.date(),
                 check_out_date__gt=start_date.date()
             ).exclude(
-                check_in_date=start_date.date(),
-                check_out_date=end_date.date()
+                check_in_date__date=start_date.date(),
+                check_out_date__date=end_date.date()
             )
             
             if overlapping_bookings.exists():
@@ -683,10 +727,11 @@ class EnhancedExcelImportService(ExcelImportService):
     
     def _serialize_conflict(self, conflict: BookingConflict) -> Dict[str, Any]:
         """Serialize conflict for frontend consumption with hardened JSON handling"""
-        # GPT Agent Fix: Harden JSON serialization
+        # GPT Agent Fix: Harden JSON serialization with deep serialization
         from datetime import date
-        def safe_serialize(value):
-            """Safely serialize values that might not be JSON serializable"""
+        
+        def _safe(value):
+            """Safely serialize scalar values that might not be JSON serializable"""
             if value is None:
                 return None
             if isinstance(value, (str, int, float, bool)):
@@ -702,31 +747,39 @@ class EnhancedExcelImportService(ExcelImportService):
             except:
                 return '<serialization error>'
         
+        def _safe_deep(obj):
+            """Deep serialization for nested dicts/lists"""
+            if isinstance(obj, dict):
+                return {k: _safe_deep(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_safe_deep(v) for v in obj]
+            return _safe(obj)
+        
         return {
-            'row_number': safe_serialize(conflict.row_number),
-            'confidence_score': safe_serialize(conflict.confidence_score),
-            'conflict_types': safe_serialize(conflict.conflict_types),
+            'row_number': _safe(conflict.row_number),
+            'confidence_score': _safe(conflict.confidence_score),
+            'conflict_types': _safe(conflict.conflict_types),
             'existing_booking': {
-                'id': safe_serialize(conflict.existing_booking.pk),
-                'external_code': safe_serialize(conflict.existing_booking.external_code),
-                'guest_name': safe_serialize(conflict.existing_booking.guest_name),
-                'property_name': safe_serialize(conflict.existing_booking.property.name),
-                'check_in_date': safe_serialize(conflict.existing_booking.check_in_date),
-                'check_out_date': safe_serialize(conflict.existing_booking.check_out_date),
-                'status': safe_serialize(conflict.existing_booking.status),
-                'external_status': safe_serialize(conflict.existing_booking.external_status),
-                'source': safe_serialize(conflict.existing_booking.source)
+                'id': _safe(conflict.existing_booking.pk),
+                'external_code': _safe(conflict.existing_booking.external_code),
+                'guest_name': _safe(conflict.existing_booking.guest_name),
+                'property_name': _safe(conflict.existing_booking.property.name),
+                'check_in_date': _safe(conflict.existing_booking.check_in_date),
+                'check_out_date': _safe(conflict.existing_booking.check_out_date),
+                'status': _safe(conflict.existing_booking.status),
+                'external_status': _safe(conflict.existing_booking.external_status),
+                'source': _safe(conflict.existing_booking.source)
             },
             'excel_data': {
-                'external_code': safe_serialize(conflict.excel_data.get('external_code')),
-                'guest_name': safe_serialize(conflict.excel_data.get('guest_name')),
-                'property_name': safe_serialize(conflict.excel_data.get('property_name')),
-                'start_date': safe_serialize(conflict.excel_data.get('start_date')),
-                'end_date': safe_serialize(conflict.excel_data.get('end_date')),
-                'external_status': safe_serialize(conflict.excel_data.get('external_status')),
-                'source': safe_serialize(conflict.excel_data.get('source'))
+                'external_code': _safe(conflict.excel_data.get('external_code')),
+                'guest_name': _safe(conflict.excel_data.get('guest_name')),
+                'property_name': _safe(conflict.excel_data.get('property_name')),
+                'start_date': _safe(conflict.excel_data.get('start_date')),
+                'end_date': _safe(conflict.excel_data.get('end_date')),
+                'external_status': _safe(conflict.excel_data.get('external_status')),
+                'source': _safe(conflict.excel_data.get('source'))
             },
-            'changes_summary': safe_serialize(conflict.get_changes_summary())
+            'changes_summary': _safe_deep(conflict.get_changes_summary())
         }
     
     def _safe_format_date(self, date_value: Any) -> Optional[str]:
@@ -798,9 +851,33 @@ class ConflictResolutionService:
         """Update existing booking with selected changes"""
         booking = Booking.objects.get(id=conflict_data['existing_booking']['id'])
         excel_data = conflict_data['excel_data']
+        changes_summary = conflict_data.get('changes_summary', {})
         
+        # Track guest name changes for audit
         if 'guest_name' in apply_changes and 'guest_name' in excel_data:
-            booking.guest_name = excel_data['guest_name']
+            old_name = booking.guest_name
+            new_name = excel_data['guest_name']
+            booking.guest_name = new_name
+            
+            # Add audit entry for guest name changes
+            guest_analysis = changes_summary.get('guest', {})
+            change_type = guest_analysis.get('change_type', 'unknown')
+            import_session_id = getattr(self, 'current_import_id', 'unknown')
+            
+            # Import AuditEvent model
+            from api.models import AuditEvent
+            
+            AuditEvent.objects.create(
+                object_type='Booking',
+                object_id=str(booking.pk),
+                action='UPDATE',
+                field_name='guest_name',
+                old_value=old_name,
+                new_value=new_name,
+                user=self.user,
+                description=f'Guest name updated via import (change_type={change_type}, import_id={import_session_id})'
+            )
+        
         if 'dates' in apply_changes:
             if 'start_date' in excel_data:
                 start_date = excel_data['start_date']
