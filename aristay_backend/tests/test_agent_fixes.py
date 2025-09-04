@@ -5,15 +5,20 @@ Phase 1.5 implementation - validates all agent recommendations
 
 import os
 import tempfile
+import logging
 from decimal import Decimal
 from datetime import datetime, time
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection
+from django.utils import timezone
 from PIL import Image
 from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
+
+# Quiet PIL debug logs per agent's suggestion
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 from api.models import (
     Property, Booking, Task, TaskImage, 
@@ -40,6 +45,10 @@ class AgentSecurityFixesTestSuite(TestCase):
             created_by=self.user
         )
 
+    def _make_aware_datetime(self, year, month, day, hour, minute):
+        """Helper to create timezone-aware datetime"""
+        return timezone.make_aware(datetime(year, month, day, hour, minute))
+
     def test_1_property_unique_constraint_preparation(self):
         """Test Property.name uniqueness prepared for soft delete"""
         # Should allow creation
@@ -61,8 +70,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         """Test agent's booking provenance fields"""
         booking = Booking.objects.create(
             property=self.property,
-            check_in_date=datetime(2025, 1, 15, 15, 0),
-            check_out_date=datetime(2025, 1, 20, 11, 0),
+            check_in_date=self._make_aware_datetime(2025, 1, 15, 15, 0),
+            check_out_date=self._make_aware_datetime(2025, 1, 20, 11, 0),
             guest_name='Test Guest',
             # Agent's provenance fields
             created_by=self.user,
@@ -81,8 +90,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         # Valid booking should work
         booking = Booking.objects.create(
             property=self.property,
-            check_in_date=datetime(2025, 1, 15, 15, 0),
-            check_out_date=datetime(2025, 1, 20, 11, 0),
+            check_in_date=self._make_aware_datetime(2025, 1, 15, 15, 0),
+            check_out_date=self._make_aware_datetime(2025, 1, 20, 11, 0),
             guest_name='Valid Guest'
         )
         
@@ -90,8 +99,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         with self.assertRaises(ValidationError):
             invalid_booking = Booking(
                 property=self.property,
-                check_in_date=datetime(2025, 1, 20, 15, 0),  # After check-out
-                check_out_date=datetime(2025, 1, 15, 11, 0),  # Before check-in
+                check_in_date=self._make_aware_datetime(2025, 1, 20, 15, 0),  # After check-out
+                check_out_date=self._make_aware_datetime(2025, 1, 15, 11, 0),  # Before check-in
                 guest_name='Invalid Guest'
             )
             invalid_booking.clean()  # Should raise ValidationError
@@ -101,8 +110,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         # Create booking with external code
         booking1 = Booking.objects.create(
             property=self.property,
-            check_in_date=datetime(2025, 1, 15, 15, 0),
-            check_out_date=datetime(2025, 1, 20, 11, 0),
+            check_in_date=self._make_aware_datetime(2025, 1, 15, 15, 0),
+            check_out_date=self._make_aware_datetime(2025, 1, 20, 11, 0),
             guest_name='Guest 1',
             source='Airbnb',
             external_code='ABC123'
@@ -112,8 +121,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         with self.assertRaises(IntegrityError):
             Booking.objects.create(
                 property=self.property,
-                check_in_date=datetime(2025, 2, 15, 15, 0),
-                check_out_date=datetime(2025, 2, 20, 11, 0),
+                check_in_date=self._make_aware_datetime(2025, 2, 15, 15, 0),
+                check_out_date=self._make_aware_datetime(2025, 2, 20, 11, 0),
                 guest_name='Guest 2',
                 source='Airbnb',
                 external_code='ABC123'  # Duplicate
@@ -144,8 +153,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         # Create booking for other property
         booking = Booking.objects.create(
             property=other_property,
-            check_in_date=datetime(2025, 1, 15, 15, 0),
-            check_out_date=datetime(2025, 1, 20, 11, 0),
+            check_in_date=self._make_aware_datetime(2025, 1, 15, 15, 0),
+            check_out_date=self._make_aware_datetime(2025, 1, 20, 11, 0),
             guest_name='Test Guest'
         )
         
@@ -274,8 +283,8 @@ class AgentSecurityFixesTestSuite(TestCase):
         """Test agent's strategic booking indexes"""
         booking = Booking.objects.create(
             property=self.property,
-            check_in_date=datetime(2025, 1, 15, 15, 0),
-            check_out_date=datetime(2025, 1, 20, 11, 0),
+            check_in_date=self._make_aware_datetime(2025, 1, 15, 15, 0),
+            check_out_date=self._make_aware_datetime(2025, 1, 20, 11, 0),
             guest_name='Test Guest',
             status='booked',
             source='Airbnb',
@@ -303,6 +312,10 @@ class AgentFixesIntegrationTest(TestCase):
             password='testpass123'
         )
 
+    def _make_aware_datetime(self, year, month, day, hour, minute):
+        """Helper to create timezone-aware datetime"""
+        return timezone.make_aware(datetime(year, month, day, hour, minute))
+
     def test_complete_booking_workflow_with_agent_fixes(self):
         """Test complete workflow using all agent's improvements"""
         # 1. Create property with agent's unique constraint
@@ -315,8 +328,8 @@ class AgentFixesIntegrationTest(TestCase):
         # 2. Create booking with agent's provenance and constraints
         booking = Booking.objects.create(
             property=property,
-            check_in_date=datetime(2025, 3, 15, 15, 0),
-            check_out_date=datetime(2025, 3, 20, 11, 0),
+            check_in_date=self._make_aware_datetime(2025, 3, 15, 15, 0),
+            check_out_date=self._make_aware_datetime(2025, 3, 20, 11, 0),
             guest_name='Integration Guest',
             source='Direct',
             external_code='INT123',

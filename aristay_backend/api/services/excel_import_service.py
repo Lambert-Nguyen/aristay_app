@@ -927,6 +927,11 @@ class ExcelImportService:
             associated_task = Task.objects.filter(booking=booking).first()
             
             if associated_task and 'external_status' in booking_data:
+                # Agent's recommendation: Respect lock mechanism for import protection
+                if associated_task.is_locked_by_user:
+                    logger.info(f"Skipping task {associated_task.id} update - locked by user")
+                    return
+                
                 # Map new Excel status to task status
                 new_task_status = self._map_excel_status_to_task_status(booking_data['external_status'])
                 
