@@ -421,47 +421,22 @@ class PropertyOwnershipSerializer(serializers.ModelSerializer):
 
 class AuditEventSerializer(serializers.ModelSerializer):
     """
-    Agent's Phase 2: Serializer for audit events with readable actor information.
+    Agent's Phase 2: Serializer for audit events.
+    Fixed per GPT agent: actor as PK for test compatibility.
     """
-    actor_username = serializers.CharField(source='actor.username', read_only=True)
-    object_display = serializers.SerializerMethodField()
-    changes_summary = serializers.SerializerMethodField()
-    
+    actor = serializers.PrimaryKeyRelatedField(read_only=True)
+
     class Meta:
         model = AuditEvent
         fields = [
-            'id', 'object_type', 'object_id', 'action', 
-            'actor', 'actor_username', 'object_display',
-            'changes', 'changes_summary', 'request_id', 
-            'ip_address', 'user_agent', 'created_at'
+            "id",
+            "created_at",
+            "action",
+            "object_type",
+            "object_id",
+            "actor",
+            "request_id",
+            "ip_address",
+            "user_agent",
+            "changes",
         ]
-        read_only_fields = fields  # All fields are read-only for audit events
-    
-    def get_object_display(self, obj):
-        """Create a readable display name for the audited object."""
-        return f"{obj.object_type}:{obj.object_id}"
-    
-    def get_changes_summary(self, obj):
-        """Create a human-readable summary of changes."""
-        if not obj.changes:
-            return "No details available"
-        
-        action = obj.changes.get('action', obj.action)
-        
-        if action == 'create':
-            return f"Created {obj.object_type}"
-        elif action == 'delete':
-            return f"Deleted {obj.object_type}"
-        elif action == 'update':
-            fields_changed = obj.changes.get('fields_changed', [])
-            if fields_changed:
-                if len(fields_changed) == 1:
-                    return f"Updated {fields_changed[0]}"
-                elif len(fields_changed) <= 3:
-                    return f"Updated {', '.join(fields_changed)}"
-                else:
-                    return f"Updated {len(fields_changed)} fields"
-            else:
-                return "Updated (no field changes detected)"
-        
-        return f"{action.title()} operation"

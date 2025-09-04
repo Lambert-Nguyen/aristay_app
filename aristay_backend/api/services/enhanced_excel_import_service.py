@@ -21,8 +21,8 @@ from api.models import (
     Booking, Property, Task, BookingImportLog, BookingImportTemplate
 )
 
-# Import the original service for methods we'll reuse
-from .excel_import_service import ExcelImportService
+# Import base ExcelImportService from backup for inheritance
+from .excel_import_service_backup import ExcelImportService
 
 logger = logging.getLogger(__name__)
 
@@ -405,8 +405,11 @@ class EnhancedExcelImportService(ExcelImportService):
         existing_booking = None
         
         # Step 1: Check for exact external code match (for platform bookings with original codes)
+        # GPT Agent Fix: Use scoped booking lookup (property, source, external_code) instead of external_code alone
         if external_code:
             existing_bookings = Booking.objects.filter(
+                property=property_obj,
+                source=source,
                 external_code=external_code
             )
             

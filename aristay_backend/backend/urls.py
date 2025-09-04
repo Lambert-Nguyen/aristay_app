@@ -23,10 +23,19 @@ from django.conf.urls.static import static
 from api.managersite import manager_site
 from api.auth_views import UnifiedLoginView, logout_view
 
+# Agent's Phase 2: Add audit API router
+from rest_framework.routers import DefaultRouter
+from api.audit_views import AuditEventViewSet
+
+# Create router for audit API
+audit_router = DefaultRouter()
+audit_router.register(r'audit-events', AuditEventViewSet, basename='auditevent')
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
     path('api/', include('api.urls')),
+    path('api/', include(audit_router.urls)),  # Add audit API endpoints
     path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
     # Unified login system
     path('login/', UnifiedLoginView.as_view(), name='unified_login'),

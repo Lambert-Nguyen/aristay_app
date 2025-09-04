@@ -76,7 +76,7 @@ if USE_CLOUDINARY:
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        'api',
+        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
         "rest_framework",
         "rest_framework.authtoken",
         "corsheaders",
@@ -104,7 +104,7 @@ else:
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        'api',
+        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
         "rest_framework",
         "rest_framework.authtoken",
         "corsheaders",

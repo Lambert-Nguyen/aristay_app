@@ -3,11 +3,12 @@
 Phase 2 Audit System API Validation
 Test the complete audit system via HTTP API endpoints
 """
+import os
 import requests
 import json
 from datetime import datetime
 
-BASE_URL = 'http://127.0.0.1:8001'
+BASE_URL = os.getenv("ARISTAY_BASE_URL", "http://127.0.0.1:8001")
 
 def test_audit_api():
     """Test the audit system API endpoints."""
