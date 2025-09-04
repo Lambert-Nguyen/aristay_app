@@ -1,16 +1,27 @@
 # api/models.py
 
 import json
+from datetime import time
 # Removed available_timezones import - using curated timezone choices instead
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models import Q, F
+from django.db.models.signals import post_save, m2m_changed
 from django.utils import timezone
 from django.dispatch import receiver
-from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
+# Postgres-specific features
+try:
+    from django.contrib.postgres.constraints import ExclusionConstraint
+    from django.contrib.postgres.fields import DateTimeRangeField
+    from django.contrib.postgres.indexes import GistIndex
+    POSTGRES = True
+except ImportError:
+    POSTGRES = False
 
 class Property(models.Model):
-    name       = models.CharField(max_length=100, unique=True)
+    name       = models.CharField(max_length=100)
     address    = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -31,6 +42,13 @@ class Property(models.Model):
     
     # History tracking
     history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+
+    class Meta:
+        constraints = [
+            # Prepare for soft delete - will add Q(is_deleted=False) condition later
+            models.UniqueConstraint(fields=['name'], name='uniq_property_name'),
+        ]
+        indexes = [models.Index(fields=['name'])]
 
     def __str__(self):
         return self.name
@@ -113,6 +131,16 @@ class Booking(models.Model):
     raw_row = models.JSONField(null=True, blank=True, help_text="Raw Excel row data for audit")
     last_import_update = models.DateTimeField(null=True, blank=True, help_text="Last time this booking was updated via import")
     
+    # PROVENANCE FIELDS (Agent's recommendation)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='bookings_created')
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name='bookings_modified')
+    created_via = models.CharField(max_length=32, default='manual',
+                                   help_text="manual|excel_import|api|system")
+    modified_via = models.CharField(max_length=32, default='manual',
+                                    help_text="manual|excel_import|api|system")
+    
     # History tracking
     history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
     
@@ -121,6 +149,46 @@ class Booking(models.Model):
 
     class Meta:
         ordering = ['-check_in_date']
+        indexes = [
+            models.Index(fields=['property', 'check_in_date']),
+            models.Index(fields=['property', 'check_out_date']),
+            models.Index(fields=['status']),
+            models.Index(fields=['source', 'external_code']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(check_in_date__lt=F('check_out_date')),
+                name='booking_checkin_before_checkout'
+            ),
+            models.UniqueConstraint(
+                fields=['property', 'source', 'external_code'],
+                condition=Q(external_code__gt=''),
+                name='uniq_booking_external_code_per_property_source'
+            ),
+        ] + ([
+            # Prevent overlaps for active bookings on same property (Postgres)
+            ExclusionConstraint(
+                name='booking_no_overlap_active',
+                expressions=[
+                    (F('property'), '='),
+                    (
+                        models.Func(
+                            F('check_in_date'),
+                            F('check_out_date'),
+                            function='tstzrange',
+                            output_field=DateTimeRangeField()
+                        ),
+                        '&&',
+                    ),
+                ],
+                condition=~Q(status__in=['cancelled', 'completed']),
+                index_type='gist',
+            ),
+        ] if POSTGRES else [])
+
+    def clean(self):
+        if self.check_in_date and self.check_out_date and self.check_in_date >= self.check_out_date:
+            raise ValidationError("check_in_date must be before check_out_date")
 
     def __str__(self):
         return f"Booking {self.property.name} {self.check_in_date:%Y-%m-%d} → {self.check_out_date:%Y-%m-%d}"
@@ -280,6 +348,9 @@ class Task(models.Model):
     depends_on   = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='dependent_tasks',
                                           help_text="This task is blocked by the selected prerequisite tasks")
     
+    # Agent's recommendation: Lock mechanism for import protection
+    is_locked_by_user = models.BooleanField(default=False, help_text="Prevent auto-updates from imports")
+    
     # users that do **not** want pushes for *this* task
     muted_by     = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -287,6 +358,14 @@ class Task(models.Model):
         blank=True,
         help_text="Users that muted notifications for this task"
     )
+
+    def clean(self):
+        # Agent's improvement: Auto-set property from booking to reduce user error
+        if self.booking_id and not self.property_id:
+            self.property = self.booking.property
+        # Agent's recommendation: Prevent cross-property task linking
+        if self.booking_id and self.property_id and self.booking.property_id != self.property_id:
+            raise ValidationError("Task.property must match Task.booking.property")
 
 
     def __str__(self):
@@ -347,25 +426,53 @@ class Task(models.Model):
 
 
 def task_image_upload_path(instance, filename):
-    """Generate upload path for task images with proper organization"""
+    """Generate secure upload path for task images with UUID naming"""
     import os
+    import uuid
     from django.utils.text import slugify
     
-    # Create organized folder structure: tasks/{task_id}/{filename}
-    task_id = instance.task.id if instance.task else 'unknown'
+    # Generate UUID-based filename for security
+    original_name, ext = os.path.splitext(filename)
+    ext = ext.lower() if ext else '.bin'
     
-    # Clean up filename
-    name, ext = os.path.splitext(filename)
-    clean_name = slugify(name)[:50]  # Limit length
+    # Validate file extension (security)
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    if ext not in allowed_extensions:
+        ext = '.jpg'  # Default to jpg for invalid extensions
     
-    return f'tasks/{task_id}/{clean_name}{ext}'
+    # Create organized folder structure: task_images/{task_id}/{uuid}.ext
+    task_id = instance.task.id if instance.task else 'staging'
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    
+    return f'task_images/{task_id}/{unique_filename}'
+
+
+def validate_task_image(file):
+    """Validate uploaded task image file - Agent's enhanced version with PIL inspection"""
+    from django.core.exceptions import ValidationError
+    from PIL import Image, UnidentifiedImageError
+    
+    # File size validation (5MB max)
+    max_size = 5 * 1024 * 1024  # 5MB
+    if getattr(file, 'size', 0) > max_size:
+        raise ValidationError("Image file too large. Maximum size is 5MB.")
+    
+    # Verify actual image by decoding bytes (Agent's security improvement)
+    pos = file.tell()
+    try:
+        img = Image.open(file)
+        img.verify()  # validates without decoding full image
+    except (UnidentifiedImageError, OSError):
+        raise ValidationError("Invalid image file.")
+    finally:
+        file.seek(pos)
 
 
 class TaskImage(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to=task_image_upload_path)
+    image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
 
     def __str__(self):
         return f"Image for {self.task.title}"
@@ -715,21 +822,21 @@ class UserPermissionOverride(models.Model):
         return timezone.now() > self.expires_at
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs):
+def create_and_sync_user_profile(sender, instance, created, **kwargs):
+    """Create profile for new users and sync superuser role."""
     if created:
         # Set default role based on Django user flags - decouple is_staff from manager role
         default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
         Profile.objects.create(user=instance, role=default_role)
-
-@receiver(post_save, sender=User)
-def sync_profile_role_on_user_save(sender, instance, **kwargs):
-    profile, _ = Profile.objects.get_or_create(user=instance)
-    
-    # Only auto-sync superuser role - do NOT sync is_staff to manager
-    # This keeps Django admin permissions separate from business roles
-    if instance.is_superuser and profile.role != UserRole.SUPERUSER:
-        profile.role = UserRole.SUPERUSER
-        profile.save()
+    else:
+        # For existing users, ensure profile exists and sync superuser role
+        profile, _ = Profile.objects.get_or_create(user=instance)
+        
+        # Only auto-sync superuser role - do NOT sync is_staff to manager
+        # This keeps Django admin permissions separate from business roles
+        if instance.is_superuser and profile.role != UserRole.SUPERUSER:
+            profile.role = UserRole.SUPERUSER
+            profile.save()
     # REMOVED: is_staff -> manager auto-conversion for clean separation
 
 class Device(models.Model):
@@ -737,6 +844,10 @@ class Device(models.Model):
     token = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        # Agent's recommendation: Practical indexes for performance
+        indexes = [models.Index(fields=['user'])]
         
     def __str__(self):
         return f"Device {self.token} for {self.user.username}"
@@ -775,6 +886,12 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+        # Agent's recommendation: Practical indexes for performance
+        indexes = [
+            models.Index(fields=['recipient', 'read']),
+            models.Index(fields=['push_sent']),
+            models.Index(fields=['timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.verb} → {self.task.title} for {self.recipient.username}"
@@ -1089,13 +1206,20 @@ class InventoryItem(models.Model):
 
 class PropertyInventory(models.Model):
     """Tracks inventory levels for specific items at specific properties."""
+    from django.core.validators import MinValueValidator
+    
     property_ref = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='inventory')
     item = models.ForeignKey('InventoryItem', on_delete=models.CASCADE)
     
-    # Stock levels
-    current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    par_level = models.DecimalField(max_digits=10, decimal_places=2, help_text="Minimum stock level before reorder")
-    max_level = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Maximum stock capacity")
+    # Stock levels with agent's safety validators
+    current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                        validators=[MinValueValidator(0)])
+    par_level = models.DecimalField(max_digits=10, decimal_places=2,
+                                    validators=[MinValueValidator(0)],
+                                    help_text="Minimum stock level before reorder")
+    max_level = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                    validators=[MinValueValidator(0)],
+                                    help_text="Maximum stock capacity")
     
     # Location within property
     storage_location = models.CharField(max_length=200, blank=True, help_text="Where this item is stored")
@@ -1356,7 +1480,7 @@ class ScheduleTemplate(models.Model):
     # Timing
     start_date = models.DateField(help_text="When to start generating tasks")
     end_date = models.DateField(null=True, blank=True, help_text="When to stop (optional)")
-    time_of_day = models.TimeField(default='09:00:00', help_text="Default time for generated tasks")
+    time_of_day = models.TimeField(default=time(9, 0), help_text="Default time for generated tasks")
     advance_days = models.IntegerField(default=1, help_text="Create task X days in advance")
     
     # Assignment
@@ -1550,4 +1674,16 @@ class BookingImportLog(models.Model):
     
     def __str__(self):
         return f"Import {self.imported_at.strftime('%Y-%m-%d %H:%M')} - {self.successful_imports}/{self.total_rows} success"
+
+
+# =============================================================================
+# SIGNAL RECEIVERS
+# =============================================================================
+
+# Agent's recommendation: Prevent self-dependency in Task.depends_on
+@receiver(m2m_changed, sender=Task.depends_on.through)
+def prevent_task_self_dependency(sender, instance, action, pk_set, **kwargs):
+    """Prevent a task from depending on itself"""
+    if action == 'pre_add' and instance.pk and instance.pk in pk_set:
+        raise ValidationError("A task cannot depend on itself.")
     

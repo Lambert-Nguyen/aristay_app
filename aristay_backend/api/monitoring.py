@@ -15,7 +15,10 @@ from django.db import connection
 from django.conf import settings
 from django.core.cache import cache
 from django.contrib.admin.views.decorators import staff_member_required
-from api.models import Task, User, Notification
+from django.contrib.auth import get_user_model
+from api.models import Task, Notification
+
+User = get_user_model()
 
 
 logger = logging.getLogger('api')
