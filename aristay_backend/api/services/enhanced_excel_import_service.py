@@ -451,19 +451,20 @@ class EnhancedExcelImportService(ExcelImportService):
                 if existing_booking:
                     conflict_types = self._identify_conflict_types(existing_booking, booking_data)
                     
-                    # Check if this is an exact duplicate
-                    is_exact_duplicate = len(conflict_types) == 0 or all(
-                        ct in [ConflictType.STATUS_CHANGE] for ct in conflict_types
-                    )
+                    # Check if this is an exact duplicate (no meaningful changes)
+                    is_exact_duplicate = len(conflict_types) == 0
                     
-                    # Always flag exact external code matches as conflicts for review
+                    # Status-only changes should be auto-updated for platform bookings, not treated as exact duplicates
+                    is_status_only_change = len(conflict_types) == 1 and ConflictType.STATUS_CHANGE in conflict_types
+                    
+                    # Always flag external code matches as conflicts for review
                     conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
                     return {
                         'has_conflicts': True,
-                        'auto_resolve': not is_direct_booking and not is_exact_duplicate,  # Platform bookings auto-resolve if not exact duplicate
+                        'auto_resolve': not is_direct_booking and (not is_exact_duplicate or is_status_only_change),  # Platform bookings auto-resolve, including status changes
                         'existing_booking': existing_booking,
                         'conflict': conflict,
-                        'is_exact_duplicate': is_exact_duplicate
+                        'is_exact_duplicate': is_exact_duplicate and not is_status_only_change
                     }
         
         # Step 2: Comprehensive duplicate detection for ALL bookings (platform and direct)
@@ -483,18 +484,19 @@ class EnhancedExcelImportService(ExcelImportService):
                     conflict_types = self._identify_conflict_types(existing_booking, booking_data)
                     
                     # Check if this is an exact duplicate (no meaningful differences)
-                    is_exact_duplicate = len(conflict_types) == 0 or all(
-                        ct in [ConflictType.STATUS_CHANGE] for ct in conflict_types
-                    )
+                    is_exact_duplicate = len(conflict_types) == 0
+                    
+                    # Status-only changes should be auto-updated for platform bookings, not treated as exact duplicates
+                    is_status_only_change = len(conflict_types) == 1 and ConflictType.STATUS_CHANGE in conflict_types
                     
                     # This is likely a duplicate from the same Excel file
                     conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
                     return {
                         'has_conflicts': True,
-                        'auto_resolve': not is_direct_booking and not is_exact_duplicate,  # Platform bookings can auto-update if not exact duplicate
+                        'auto_resolve': not is_direct_booking and (not is_exact_duplicate or is_status_only_change),  # Platform bookings can auto-update including status changes
                         'existing_booking': existing_booking,
                         'conflict': conflict,
-                        'is_exact_duplicate': is_exact_duplicate
+                        'is_exact_duplicate': is_exact_duplicate and not is_status_only_change
                     }
             
             # Step 3: Check for date overlaps (different from exact match)
@@ -534,9 +536,16 @@ class EnhancedExcelImportService(ExcelImportService):
         """Identify specific types of conflicts"""
         conflicts = []
         
-        # Date changes
-        existing_start = existing_booking.check_in_date.date()
-        existing_end = existing_booking.check_out_date.date()
+        # Date changes - handle both date and datetime objects
+        existing_start = existing_booking.check_in_date
+        existing_end = existing_booking.check_out_date
+        
+        # Convert to date if datetime
+        if hasattr(existing_start, 'date'):
+            existing_start = existing_start.date()
+        if hasattr(existing_end, 'date'):
+            existing_end = existing_end.date()
+            
         excel_start = booking_data.get('start_date')
         excel_end = booking_data.get('end_date')
         
@@ -564,14 +573,20 @@ class EnhancedExcelImportService(ExcelImportService):
                 booking.guest_contact = booking_data['guest_contact']
             if 'external_status' in booking_data:
                 booking.external_status = booking_data['external_status']
-                # Update Django status - simplified mapping
+                # Update Django status - enhanced mapping for all status variations
                 external_status = booking_data['external_status'].lower()
                 if 'confirmed' in external_status:
                     booking.status = 'confirmed'
                 elif 'cancelled' in external_status:
                     booking.status = 'cancelled'
+                elif 'checking out' in external_status or 'checkout' in external_status:
+                    booking.status = 'confirmed'  # "Checking out today" is still a confirmed booking
+                elif 'checked in' in external_status or 'checkin' in external_status:
+                    booking.status = 'confirmed'  # "Checked in" is still confirmed
+                elif 'completed' in external_status:
+                    booking.status = 'confirmed'  # Completed bookings are confirmed
                 else:
-                    booking.status = 'confirmed'  # Default
+                    booking.status = 'confirmed'  # Default to confirmed for unknown statuses
             if 'start_date' in booking_data:
                 booking.check_in_date = booking_data['start_date']
             if 'end_date' in booking_data:
