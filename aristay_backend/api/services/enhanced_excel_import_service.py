@@ -46,6 +46,65 @@ def _normalize_source(source: str) -> str:
     return normalized.get(source_lower, source.title())
 
 
+def _analyze_guest_name_difference(existing_name: str, new_name: str) -> Dict[str, Any]:
+    """Analyze guest name differences to provide helpful conflict information"""
+    if not existing_name or not new_name:
+        return {
+            'type': 'missing_data',
+            'description': 'One name is missing',
+            'likely_encoding_issue': False
+        }
+    
+    import unicodedata
+    import re
+    
+    # Normalize for comparison (remove diacritics, case, extra spaces)
+    def normalize(name):
+        # Remove diacritics
+        normalized = unicodedata.normalize('NFKD', name)
+        normalized = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+        # Lowercase and clean spaces
+        normalized = re.sub(r'\s+', ' ', normalized.lower().strip())
+        return normalized
+    
+    existing_norm = normalize(existing_name)
+    new_norm = normalize(new_name)
+    
+    # Check for various types of differences
+    if existing_norm == new_norm:
+        return {
+            'type': 'diacritics_only',
+            'description': f'Only diacritics/accent differences: "{existing_name}" vs "{new_name}"',
+            'likely_encoding_issue': True
+        }
+    
+    # Check if it might be an encoding issue (like MĂ¼ller → Muller)
+    # Look for non-ASCII characters in existing that become ASCII in new
+    existing_has_non_ascii = any(ord(c) > 127 for c in existing_name)
+    new_is_mostly_ascii = all(ord(c) < 127 for c in new_name)
+    
+    if existing_has_non_ascii and new_is_mostly_ascii and len(existing_name) > len(new_name):
+        return {
+            'type': 'encoding_correction',
+            'description': f'Possible encoding fix: "{existing_name}" → "{new_name}"',
+            'likely_encoding_issue': True
+        }
+    
+    # Check for simple typo corrections vs significant changes
+    if abs(len(existing_name) - len(new_name)) <= 2 and len(set(existing_norm) & set(new_norm)) / max(len(existing_norm), len(new_norm)) > 0.5:
+        return {
+            'type': 'minor_correction',
+            'description': f'Minor name correction: "{existing_name}" → "{new_name}"',
+            'likely_encoding_issue': False
+        }
+    
+    return {
+        'type': 'significant_change',
+        'description': f'Significant name change: "{existing_name}" → "{new_name}"',
+        'likely_encoding_issue': False
+    }
+
+
 class ConflictType:
     """Types of conflicts that can occur during import"""
     DATE_CHANGE = 'date_change'
@@ -115,11 +174,15 @@ class BookingConflict:
                 }
             }
         
-        # Guest changes
+        # Guest changes with analysis
         if ConflictType.GUEST_CHANGE in self.conflict_types:
+            guest_analysis = self.excel_data.get('_guest_name_analysis', {})
             changes['guest'] = {
                 'current': self.existing_booking.guest_name,
-                'excel': self.excel_data.get('guest_name')
+                'excel': self.excel_data.get('guest_name'),
+                'analysis': guest_analysis.get('description', 'Guest name change'),
+                'likely_encoding_issue': guest_analysis.get('likely_encoding_issue', False),
+                'change_type': guest_analysis.get('type', 'unknown')
             }
         
         # Status changes
@@ -454,14 +517,17 @@ class EnhancedExcelImportService(ExcelImportService):
                     # Check if this is an exact duplicate (no meaningful changes)
                     is_exact_duplicate = len(conflict_types) == 0
                     
-                    # Status-only changes should be auto-updated for platform bookings, not treated as exact duplicates
+                    # Status-only changes should be auto-updated for platform bookings
                     is_status_only_change = len(conflict_types) == 1 and ConflictType.STATUS_CHANGE in conflict_types
+                    
+                    # Guest name changes should always require manual review (per user requirement)
+                    has_guest_change = ConflictType.GUEST_CHANGE in conflict_types
                     
                     # Always flag external code matches as conflicts for review
                     conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
                     return {
                         'has_conflicts': True,
-                        'auto_resolve': not is_direct_booking and (not is_exact_duplicate or is_status_only_change),  # Platform bookings auto-resolve, including status changes
+                        'auto_resolve': not is_direct_booking and not has_guest_change and (not is_exact_duplicate or is_status_only_change),  # Platform bookings auto-resolve only status changes, not guest changes
                         'existing_booking': existing_booking,
                         'conflict': conflict,
                         'is_exact_duplicate': is_exact_duplicate and not is_status_only_change
@@ -486,14 +552,17 @@ class EnhancedExcelImportService(ExcelImportService):
                     # Check if this is an exact duplicate (no meaningful differences)
                     is_exact_duplicate = len(conflict_types) == 0
                     
-                    # Status-only changes should be auto-updated for platform bookings, not treated as exact duplicates
+                    # Status-only changes should be auto-updated for platform bookings
                     is_status_only_change = len(conflict_types) == 1 and ConflictType.STATUS_CHANGE in conflict_types
+                    
+                    # Guest name changes should always require manual review (per user requirement)
+                    has_guest_change = ConflictType.GUEST_CHANGE in conflict_types
                     
                     # This is likely a duplicate from the same Excel file
                     conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
                     return {
                         'has_conflicts': True,
-                        'auto_resolve': not is_direct_booking and (not is_exact_duplicate or is_status_only_change),  # Platform bookings can auto-update including status changes
+                        'auto_resolve': not is_direct_booking and not has_guest_change and (not is_exact_duplicate or is_status_only_change),  # Platform bookings can auto-update status changes only, not guest changes
                         'existing_booking': existing_booking,
                         'conflict': conflict,
                         'is_exact_duplicate': is_exact_duplicate and not is_status_only_change
@@ -553,9 +622,15 @@ class EnhancedExcelImportService(ExcelImportService):
             if existing_start != excel_start.date() or existing_end != excel_end.date():
                 conflicts.append(ConflictType.DATE_CHANGE)
         
-        # Guest name changes
-        if existing_booking.guest_name.lower() != booking_data.get('guest_name', '').lower():
+        # Guest name changes with detailed analysis
+        existing_guest = existing_booking.guest_name or ''
+        new_guest = booking_data.get('guest_name', '') or ''
+        
+        if existing_guest.lower() != new_guest.lower():
             conflicts.append(ConflictType.GUEST_CHANGE)
+            # Store analysis for conflict resolution UI
+            name_analysis = _analyze_guest_name_difference(existing_guest, new_guest)
+            booking_data['_guest_name_analysis'] = name_analysis
         
         # Status changes
         if existing_booking.external_status != booking_data.get('external_status'):
