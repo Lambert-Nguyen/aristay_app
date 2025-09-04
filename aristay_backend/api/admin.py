@@ -9,7 +9,8 @@ from .models import (
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
-    BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride
+    BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride,
+    AuditEvent  # Agent's Phase 2: Add audit system
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
@@ -1222,4 +1223,96 @@ admin.site.register(BookingImportLog, BookingImportLogAdmin)
 # Permission management (also register with default admin)
 admin.site.register(CustomPermission, CustomPermissionAdmin)
 admin.site.register(RolePermission, RolePermissionAdmin)
+
+
+# =============================================================================
+# AGENT'S PHASE 2: AUDIT SYSTEM ADMIN
+# =============================================================================
+
+@admin.register(AuditEvent)
+class AuditEventAdmin(admin.ModelAdmin):
+    """
+    Agent's Phase 2: Admin interface for audit events with searchable fields and export.
+    """
+    list_display = [
+        'created_at', 'action', 'object_type', 'object_id', 
+        'actor', 'ip_address', 'request_id_short'
+    ]
+    list_filter = [
+        'action',
+        'object_type', 
+        'created_at',
+        ('actor', admin.RelatedOnlyFieldListFilter),
+    ]
+    search_fields = [
+        'object_type',
+        'object_id',
+        'actor__username',
+        'ip_address',
+        'request_id',
+    ]
+    readonly_fields = [
+        'object_type', 'object_id', 'action', 'actor', 
+        'changes', 'request_id', 'ip_address', 'user_agent', 'created_at'
+    ]
+    date_hierarchy = 'created_at'
+    ordering = ['-created_at']
+    list_per_page = 50
+    
+    def request_id_short(self, obj):
+        """Display shortened request ID for better readability."""
+        if obj.request_id:
+            return obj.request_id[:8] + '...'
+        return '-'
+    request_id_short.short_description = 'Request ID'
+    
+    def has_add_permission(self, request):
+        """Audit events are read-only."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Audit events are append-only, no deletion allowed."""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Audit events are immutable."""
+        return False
+    
+    def get_readonly_fields(self, request, obj=None):
+        """All fields are readonly for audit events."""
+        return [field.name for field in self.model._meta.fields]
+    
+    actions = ['export_audit_events']
+    
+    def export_audit_events(self, request, queryset):
+        """Export selected audit events to CSV."""
+        import csv
+        from django.http import HttpResponse
+        from datetime import datetime
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="audit_events_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Created At', 'Action', 'Object Type', 'Object ID', 
+            'Actor', 'IP Address', 'Request ID', 'User Agent', 'Changes'
+        ])
+        
+        for event in queryset:
+            writer.writerow([
+                event.created_at.isoformat(),
+                event.action,
+                event.object_type,
+                event.object_id,
+                event.actor.username if event.actor else 'System',
+                event.ip_address or '',
+                event.request_id,
+                event.user_agent,
+                str(event.changes)
+            ])
+        
+        return response
+    
+    export_audit_events.short_description = "Export selected audit events to CSV"
 admin.site.register(UserPermissionOverride, UserPermissionOverrideAdmin)

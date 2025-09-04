@@ -7,3 +7,5 @@ class ApiConfig(AppConfig):
     
     def ready(self):
         import api.signals
+        # Agent's Phase 2: Register audit signals for auto-capture
+        import api.audit_signals

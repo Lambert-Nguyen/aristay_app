@@ -9,15 +9,22 @@ and automatically creates/updates bookings and associated tasks.
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, TYPE_CHECKING
 from django.db import transaction
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+import zoneinfo
 
 from api.models import (
     Booking, Property, Task, BookingImportLog, BookingImportTemplate
 )
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser
+    User = AbstractBaseUser
+else:
+    User = get_user_model()  # Agent's recommendation: Use get_user_model() for future-proofing
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +39,31 @@ class ExcelImportService:
         self.warnings = []
         self.success_count = 0
         self.total_rows = 0
+    
+    def _import_tz(self):
+        """Get the appropriate timezone for import operations."""
+        try:
+            # Try to get user's profile timezone, fallback to Tampa/New York
+            return zoneinfo.ZoneInfo(getattr(getattr(self.user, "profile", None), "timezone", "America/New_York"))
+        except Exception:
+            return zoneinfo.ZoneInfo("America/New_York")
         
     def import_excel_file(self, excel_file, sheet_name: str = 'Cleaning schedule') -> Dict:
+        """
+        Import bookings from Excel file with proper timezone activation.
+        
+        Args:
+            excel_file: Excel file to import
+            sheet_name: Name of the sheet to import from
+            
+        Returns:
+            Dict with import results
+        """
+        # Agent's recommendation: Wrap the import in timezone override
+        with timezone.override(self._import_tz()):
+            return self._import_excel_file_inner(excel_file, sheet_name)
+    
+    def _import_excel_file_inner(self, excel_file, sheet_name: str = 'Cleaning schedule') -> Dict:
         """
         Import bookings from Excel file.
         
@@ -426,30 +456,8 @@ class ExcelImportService:
                 else:
                     raise ValueError("Confirmation code is required for platform bookings")
             
-            # Handle duplicate external codes by making them unique
-            if data.get('external_code'):
-                original_code = data['external_code']
-                counter = 1
-                while True:
-                    # Check if this exact code already exists
-                    existing_booking = Booking.objects.filter(external_code=data['external_code']).first()
-                    if not existing_booking:
-                        break
-                    
-                    # Generate unique code by appending counter
-                    if counter == 1:
-                        data['external_code'] = f"{original_code} #{counter + 1}"
-                    else:
-                        data['external_code'] = f"{original_code} #{counter + 1}"
-                    
-                    counter += 1
-                    if counter > 99:  # Safety limit
-                        data['external_code'] = f"{original_code} #{counter + 1}"
-                        break
-                
-                if counter > 1:
-                    logger.warning(f"Row {row_number}: Duplicate external code '{original_code}' - generated unique code: '{data['external_code']}'")
-                    self.warnings.append(f"Row {row_number}: Duplicate external code '{original_code}' - generated unique code: '{data['external_code']}'")
+            # Agent's recommendation: Remove global uniqueness check here
+            # Will be handled in _create_booking/_update_booking with proper scope
             
             # Validate required fields
             if not data.get('start_date') or not data.get('end_date'):
@@ -724,6 +732,26 @@ class ExcelImportService:
         try:
             # Map Excel status to Django status
             django_status = self._map_excel_status_to_booking_status(booking_data.get('external_status'))
+            
+            # Agent's recommendation: External code de-dupe scope
+            # Handle duplicate external codes scoped to (property, source, external_code)
+            if booking_data.get('external_code'):
+                original_code = booking_data['external_code']
+                code = original_code
+                src = booking_data.get('source', '')
+                i = 1
+                
+                while Booking.objects.filter(
+                    property=property_obj, 
+                    source=src, 
+                    external_code=code
+                ).exists():
+                    i += 1
+                    code = f"{original_code} #{i}"
+                
+                if i > 1:
+                    logger.warning(f"Duplicate external code '{original_code}' for property/source - generated unique code: '{code}'")
+                    booking_data['external_code'] = code
             
             booking = Booking.objects.create(
                 property=property_obj,

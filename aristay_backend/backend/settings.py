@@ -121,6 +121,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Admin access control middleware (must run after authentication)
     "backend.middleware.AdminAccessMiddleware",
+    # Agent's Phase 2: Audit middleware for request context capture
+    "api.audit_middleware.AuditMiddleware",
     # Now your timezone middleware can safely reference request.user
     "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

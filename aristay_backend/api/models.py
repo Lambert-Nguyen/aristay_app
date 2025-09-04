@@ -1677,6 +1677,66 @@ class BookingImportLog(models.Model):
 
 
 # =============================================================================
+# =============================================================================
+# AUDIT SYSTEM MODELS
+# =============================================================================
+
+class AuditEvent(models.Model):
+    """
+    Agent's Phase 2: Structured audit system for comprehensive activity tracking.
+    Append-only model for tracking all create/update/delete operations.
+    """
+    ACTION_CHOICES = [
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+    ]
+    
+    # Core audit fields
+    object_type = models.CharField(max_length=100, help_text="Model name of the object being audited")
+    object_id = models.CharField(max_length=100, help_text="Primary key of the object being audited")
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES, help_text="Type of action performed")
+    
+    # Actor information
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="User who performed the action"
+    )
+    
+    # Change tracking with JSONB diff
+    changes = models.JSONField(
+        default=dict,
+        help_text="JSONB diff of changes made (before/after values)"
+    )
+    
+    # Request context
+    request_id = models.CharField(max_length=100, blank=True, help_text="Unique request identifier")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of the request")
+    user_agent = models.TextField(blank=True, help_text="User agent string from the request")
+    
+    # Timestamp
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When the audit event was recorded")
+    
+    class Meta:
+        verbose_name = "Audit Event"
+        verbose_name_plural = "Audit Events"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['object_type', 'object_id']),
+            models.Index(fields=['action']),
+            models.Index(fields=['actor']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        actor_name = self.actor.username if self.actor else "System"
+        return f"{actor_name} {self.action}d {self.object_type}:{self.object_id}"
+
+
+# =============================================================================
 # SIGNAL RECEIVERS
 # =============================================================================
 
