@@ -656,11 +656,11 @@ class ExcelImportService:
             return None
         
         try:
-            # GPT Agent Fix: Use scoped booking lookup (property, source, external_code) instead of external_code alone
+            # GPT Agent Fix: Use scoped booking lookup with case-insensitive source comparison
             source = booking_data.get('source', '').lower()
             return Booking.objects.get(
                 property=property_obj,
-                source=source,
+                source__iexact=source,  # Case-insensitive source comparison
                 external_code=booking_data['external_code']
             )
         except Booking.DoesNotExist:

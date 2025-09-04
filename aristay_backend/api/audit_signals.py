@@ -92,70 +92,46 @@ def create_audit_event(instance, action, changes=None):
         logger.error(f"Failed to create audit event for {instance}: {e}")
 
 
-def get_model_changes(instance, created=False):
-    """Get changes for a model instance."""
+def _diff_from_snapshot(sender, instance, created):
+    """Generate change diff using pre_save snapshot (GPT Agent Fix)"""
     if created:
-        # For new instances, all fields are "changes"
+        # For new instances, all fields are "new"
         changes = {
             'action': 'create',
-            'fields_changed': [],
-            'new_values': {}
+            'new_values': {f.name: _serialize_value(getattr(instance, f.name, None)) 
+                          for f in instance._meta.fields}
         }
-        
-        for field in instance._meta.fields:
-            field_name = field.name
-            value = getattr(instance, field_name, None)
-            
-            # Convert to JSON-serializable format
-            if hasattr(value, 'isoformat') and value is not None:  # datetime objects
-                value = value.isoformat()
-            elif hasattr(value, 'pk') and value is not None:  # Foreign key objects
-                value = {'id': value.pk, 'str': str(value)}
-            
-            changes['new_values'][field_name] = value
-            changes['fields_changed'].append(field_name)
-        
         return changes
-    else:
-        # For updates, check what actually changed
-        if not hasattr(instance, '_state') or not instance._state.db:
-            return {}
-        
-        try:
-            # Get the old instance from database
-            old_instance = instance.__class__.objects.get(pk=instance.pk)
-            changes = {
-                'action': 'update',
-                'fields_changed': [],
-                'old_values': {},
-                'new_values': {}
-            }
-            
-            for field in instance._meta.fields:
-                field_name = field.name
-                old_value = getattr(old_instance, field_name, None)
-                new_value = getattr(instance, field_name, None)
-                
-                if old_value != new_value:
-                    # Convert to JSON-serializable format
-                    if hasattr(old_value, 'isoformat') and old_value is not None:
-                        old_value = old_value.isoformat()
-                    elif hasattr(old_value, 'pk') and old_value is not None:
-                        old_value = {'id': old_value.pk, 'str': str(old_value)}
-                    
-                    if hasattr(new_value, 'isoformat') and new_value is not None:
-                        new_value = new_value.isoformat()
-                    elif hasattr(new_value, 'pk') and new_value is not None:
-                        new_value = {'id': new_value.pk, 'str': str(new_value)}
-                    
-                    changes['fields_changed'].append(field_name)
-                    changes['old_values'][field_name] = old_value
-                    changes['new_values'][field_name] = new_value
-            
-            return changes
-        except instance.__class__.DoesNotExist:
-            # Instance doesn't exist in DB yet, treat as create
-            return get_model_changes(instance, created=True)
+    
+    # For updates, use the pre_save snapshot
+    key = (sender, instance.pk or id(instance))
+    cache = dict(_pre_save_snapshots.get())
+    old_values = cache.get(key, {})
+    
+    changes = {'action': 'update', 'fields_changed': [], 'old_values': {}, 'new_values': {}}
+    
+    for f in instance._meta.fields:
+        name = f.name
+        old_val = old_values.get(name)
+        new_val = getattr(instance, name, None)
+        if old_val != new_val:
+            changes['fields_changed'].append(name)
+            changes['old_values'][name] = _serialize_value(old_val)
+            changes['new_values'][name] = _serialize_value(new_val)
+    
+    # Clean up the snapshot after use
+    if key in cache:
+        cache.pop(key)
+        _pre_save_snapshots.set(cache)
+    
+    return changes
+
+
+def get_model_changes(instance, created=False):
+    """DEPRECATED: Get changes for a model instance - use _diff_from_snapshot instead"""
+    # This is kept for backward compatibility but should not be used
+    # The GPT agent identified this as broken because it queries DB after save
+    return _diff_from_snapshot(instance.__class__, instance, created)
 
 
 def _serialize_value(value):
@@ -192,13 +168,14 @@ def audit_pre_save(sender, instance, **kwargs):
 # Agent's recommendation: Auto-capture create/update/delete signals
 @receiver(post_save)
 def audit_post_save(sender, instance, created, **kwargs):
-    """Audit create and update operations."""
+    """Audit create and update operations using pre_save snapshots."""
     # GPT Agent Fix: Use safer model-based checks instead of string-based checks
     if _should_skip_audit(sender):
         return
     
+    # GPT Agent Fix: Use snapshot-based diff instead of broken DB re-query
+    changes = _diff_from_snapshot(sender, instance, created)
     action = 'create' if created else 'update'
-    changes = get_model_changes(instance, created=created)
     
     create_audit_event(instance, action, changes)
 

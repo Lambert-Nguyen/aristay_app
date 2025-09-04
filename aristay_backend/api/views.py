@@ -1911,14 +1911,33 @@ def quick_resolve_conflict(request, import_session_id, conflict_index):
 def enhanced_excel_import_view(request):
     """Enhanced Excel import view with conflict detection"""
     
+    # GPT Agent Fix: Enhanced import access validation and logging
+    logger.info(f"Enhanced Excel import accessed by {request.user.username} (staff={request.user.is_staff}, superuser={request.user.is_superuser})")
+    
+    # Additional validation: Ensure user has active profile
+    if not hasattr(request.user, 'profile') and not request.user.is_superuser:
+        logger.warning(f"User {request.user.username} attempted import without proper profile setup")
+        messages.error(request, 'Your account is not properly configured for Excel imports. Contact an administrator.')
+        return redirect('admin:index')
+    
     if request.method == 'POST':
         # Handle file upload and processing
         excel_file = request.FILES.get('excel_file')
         sheet_name = request.POST.get('sheet_name', 'Cleaning schedule')
         
         if not excel_file:
+            logger.warning(f"User {request.user.username} attempted import without file")
             messages.error(request, 'Please select an Excel file to upload.')
             return render(request, 'admin/enhanced_excel_import.html')
+        
+        # Validate file size (prevent huge uploads)
+        max_size = 10 * 1024 * 1024  # 10MB limit
+        if excel_file.size > max_size:
+            logger.warning(f"User {request.user.username} attempted to upload oversized file: {excel_file.size} bytes")
+            messages.error(request, 'File too large. Maximum size is 10MB.')
+            return render(request, 'admin/enhanced_excel_import.html')
+        
+        logger.info(f"User {request.user.username} starting import of {excel_file.name} ({excel_file.size} bytes)")
         
         try:
             # Use enhanced import service
@@ -1976,14 +1995,32 @@ def enhanced_excel_import_view(request):
 def enhanced_excel_import_api(request):
     """Enhanced Excel import API endpoint"""
     
+    # GPT Agent Fix: Enhanced import access validation and logging
+    logger.info(f"Enhanced Excel import API accessed by {request.user.username} (staff={request.user.is_staff}, superuser={request.user.is_superuser})")
+    
     if request.method != 'POST':
+        logger.warning(f"User {request.user.username} attempted non-POST access to import API")
         return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    # Additional validation: Ensure user has active profile
+    if not hasattr(request.user, 'profile') and not request.user.is_superuser:
+        logger.warning(f"User {request.user.username} attempted API import without proper profile setup")
+        return JsonResponse({'success': False, 'error': 'Account not properly configured for imports'})
     
     excel_file = request.FILES.get('excel_file')
     sheet_name = request.POST.get('sheet_name', 'Cleaning schedule')
     
     if not excel_file:
+        logger.warning(f"User {request.user.username} attempted API import without file")
         return JsonResponse({'success': False, 'error': 'No Excel file provided'})
+    
+    # Validate file size (prevent huge uploads)
+    max_size = 10 * 1024 * 1024  # 10MB limit
+    if excel_file.size > max_size:
+        logger.warning(f"User {request.user.username} attempted to upload oversized file via API: {excel_file.size} bytes")
+        return JsonResponse({'success': False, 'error': 'File too large. Maximum size is 10MB.'})
+    
+    logger.info(f"User {request.user.username} starting API import of {excel_file.name} ({excel_file.size} bytes)")
     
     try:
         # Use enhanced import service

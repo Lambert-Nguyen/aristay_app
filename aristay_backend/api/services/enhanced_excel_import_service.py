@@ -27,6 +27,25 @@ from .excel_import_service_backup import ExcelImportService
 logger = logging.getLogger(__name__)
 
 
+def _normalize_source(source: str) -> str:
+    """Normalize source names to canonical values for consistent storage and lookup"""
+    if not source:
+        return ''
+    
+    source_lower = source.lower().strip()
+    normalized = {
+        'airbnb': 'Airbnb',
+        'vrbo': 'VRBO', 
+        'booking.com': 'Booking.com',
+        'expedia': 'Expedia',
+        'owner staying': 'Owner Staying',
+        'owner': 'Owner',
+        'direct': 'Direct',
+        'directly': 'Direct'
+    }
+    return normalized.get(source_lower, source.title())
+
+
 class ConflictType:
     """Types of conflicts that can occur during import"""
     DATE_CHANGE = 'date_change'
@@ -287,22 +306,36 @@ class EnhancedExcelImportService(ExcelImportService):
                 else:
                     raise ValueError("Confirmation code is required for platform bookings")
             
-            # Process dates properly
+            # Process dates properly with timezone awareness
             for date_field in ['start_date', 'end_date', 'booked_on']:
                 if data.get(date_field):
                     value = data[date_field]
                     if isinstance(value, str):
                         # Try to parse string dates
                         try:
-                            data[date_field] = pd.to_datetime(value).to_pydatetime()
+                            parsed_dt = pd.to_datetime(value).to_pydatetime()
+                            # Make timezone-aware if naive
+                            if parsed_dt.tzinfo is None:
+                                from django.utils import timezone
+                                parsed_dt = timezone.make_aware(parsed_dt)
+                            data[date_field] = parsed_dt
                         except Exception:
                             logger.warning(f"Could not parse date field {date_field}: {value}")
                             if date_field in ['start_date', 'end_date']:
                                 raise ValueError(f"Could not parse {date_field}: {value}")
                     elif isinstance(value, datetime):
+                        # Make timezone-aware if naive
+                        if value.tzinfo is None:
+                            from django.utils import timezone
+                            value = timezone.make_aware(value)
                         data[date_field] = value
                     elif hasattr(value, 'to_pydatetime'):
-                        data[date_field] = value.to_pydatetime()
+                        converted_dt = value.to_pydatetime()
+                        # Make timezone-aware if naive
+                        if converted_dt.tzinfo is None:
+                            from django.utils import timezone
+                            converted_dt = timezone.make_aware(converted_dt)
+                        data[date_field] = converted_dt
             
             # Process numeric fields
             for numeric_field in ['adults', 'children', 'infants', 'nights']:
@@ -395,21 +428,21 @@ class EnhancedExcelImportService(ExcelImportService):
         
         external_code = booking_data.get('external_code')
         guest_name = booking_data.get('guest_name')
-        source = booking_data.get('source', '').lower()
+        source = _normalize_source(booking_data.get('source', ''))  # GPT Agent Fix: Normalize source
         start_date = booking_data.get('start_date')
         end_date = booking_data.get('end_date')
         
-        # Check if this is a direct/owner booking
-        is_direct_booking = 'direct' in source or 'owner' in source
+        # Check if this is a direct/owner booking using normalized source
+        is_direct_booking = 'Direct' in source or 'Owner' in source
         
         existing_booking = None
         
         # Step 1: Check for exact external code match (for platform bookings with original codes)
-        # GPT Agent Fix: Use scoped booking lookup (property, source, external_code) instead of external_code alone
+        # GPT Agent Fix: Use scoped booking lookup with case-insensitive source comparison
         if external_code:
             existing_bookings = Booking.objects.filter(
                 property=property_obj,
-                source=source,
+                source__iexact=source,  # Case-insensitive source comparison
                 external_code=external_code
             )
             
@@ -436,12 +469,12 @@ class EnhancedExcelImportService(ExcelImportService):
         # Step 2: Comprehensive duplicate detection for ALL bookings (platform and direct)
         # This catches cases where platform bookings had generated codes on first import
         if guest_name and start_date and end_date and isinstance(start_date, datetime) and isinstance(end_date, datetime):
-            # Look for potential duplicates based on guest + property + exact dates
+            # GPT Agent Fix: Use __date lookups to handle date-vs-datetime mismatches properly
             potential_duplicates = Booking.objects.filter(
                 property=property_obj,
                 guest_name__iexact=guest_name,
-                check_in_date=start_date.date(),
-                check_out_date=end_date.date()
+                check_in_date__date=start_date.date(),
+                check_out_date__date=end_date.date()
             )
             
             if potential_duplicates.exists():
@@ -559,32 +592,51 @@ class EnhancedExcelImportService(ExcelImportService):
             raise
     
     def _serialize_conflict(self, conflict: BookingConflict) -> Dict[str, Any]:
-        """Serialize conflict for frontend consumption"""
+        """Serialize conflict for frontend consumption with hardened JSON handling"""
+        # GPT Agent Fix: Harden JSON serialization
+        from datetime import date
+        def safe_serialize(value):
+            """Safely serialize values that might not be JSON serializable"""
+            if value is None:
+                return None
+            if isinstance(value, (str, int, float, bool)):
+                return value
+            if isinstance(value, datetime):
+                return value.strftime('%Y-%m-%d %H:%M:%S')
+            if isinstance(value, date):
+                return value.strftime('%Y-%m-%d')
+            if hasattr(value, 'pk'):  # Model instances
+                return value.pk
+            try:
+                return str(value)
+            except:
+                return '<serialization error>'
+        
         return {
-            'row_number': conflict.row_number,
-            'confidence_score': conflict.confidence_score,
-            'conflict_types': conflict.conflict_types,
+            'row_number': safe_serialize(conflict.row_number),
+            'confidence_score': safe_serialize(conflict.confidence_score),
+            'conflict_types': safe_serialize(conflict.conflict_types),
             'existing_booking': {
-                'id': conflict.existing_booking.pk,
-                'external_code': conflict.existing_booking.external_code,
-                'guest_name': conflict.existing_booking.guest_name,
-                'property_name': conflict.existing_booking.property.name,
-                'check_in_date': conflict.existing_booking.check_in_date.strftime('%Y-%m-%d'),
-                'check_out_date': conflict.existing_booking.check_out_date.strftime('%Y-%m-%d'),
-                'status': conflict.existing_booking.status,
-                'external_status': conflict.existing_booking.external_status,
-                'source': conflict.existing_booking.source
+                'id': safe_serialize(conflict.existing_booking.pk),
+                'external_code': safe_serialize(conflict.existing_booking.external_code),
+                'guest_name': safe_serialize(conflict.existing_booking.guest_name),
+                'property_name': safe_serialize(conflict.existing_booking.property.name),
+                'check_in_date': safe_serialize(conflict.existing_booking.check_in_date),
+                'check_out_date': safe_serialize(conflict.existing_booking.check_out_date),
+                'status': safe_serialize(conflict.existing_booking.status),
+                'external_status': safe_serialize(conflict.existing_booking.external_status),
+                'source': safe_serialize(conflict.existing_booking.source)
             },
             'excel_data': {
-                'external_code': conflict.excel_data.get('external_code'),
-                'guest_name': conflict.excel_data.get('guest_name'),
-                'property_name': conflict.excel_data.get('property_name'),
-                'start_date': self._safe_format_date(conflict.excel_data.get('start_date')),
-                'end_date': self._safe_format_date(conflict.excel_data.get('end_date')),
-                'external_status': conflict.excel_data.get('external_status'),
-                'source': conflict.excel_data.get('source')
+                'external_code': safe_serialize(conflict.excel_data.get('external_code')),
+                'guest_name': safe_serialize(conflict.excel_data.get('guest_name')),
+                'property_name': safe_serialize(conflict.excel_data.get('property_name')),
+                'start_date': safe_serialize(conflict.excel_data.get('start_date')),
+                'end_date': safe_serialize(conflict.excel_data.get('end_date')),
+                'external_status': safe_serialize(conflict.excel_data.get('external_status')),
+                'source': safe_serialize(conflict.excel_data.get('source'))
             },
-            'changes_summary': conflict.get_changes_summary()
+            'changes_summary': safe_serialize(conflict.get_changes_summary())
         }
     
     def _safe_format_date(self, date_value: Any) -> Optional[str]:
@@ -731,7 +783,28 @@ class ConflictResolutionService:
         return booking
 
     def _create_booking(self, booking_data: Dict, property_obj: Property, row) -> Booking:
-        """Create new booking from Excel data - enhanced version that bypasses duplicate checking"""
+        """Create new booking from Excel data with scoped external code suffixing to prevent duplicates"""
+        
+        # GPT Agent Fix: Add scoped external code suffixing to prevent duplicate creation
+        original_code = booking_data.get('external_code', '')
+        source = _normalize_source(booking_data.get('source', ''))
+        
+        # Ensure unique external_code within property + source scope
+        code = original_code
+        i = 1
+        while Booking.objects.filter(
+            property=property_obj,
+            source__iexact=source,
+            external_code=code
+        ).exists():
+            i += 1
+            code = f"{original_code} #{i}"
+        
+        # Update booking_data with the unique code and normalized source
+        booking_data = booking_data.copy()  # Don't modify original
+        booking_data['external_code'] = code
+        booking_data['source'] = source  # Store normalized source
+        
         # Ensure nights field has a valid value
         nights_value = booking_data.get('nights')
         if nights_value is None or not isinstance(nights_value, (int, float)):
