@@ -1,0 +1,45 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'aristay_backend/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install deps
+        run: pip install -r aristay_backend/requirements.txt
+
+      - name: Migrate DB
+        working-directory: aristay_backend
+        env:
+          DJANGO_SETTINGS_MODULE: backend.settings
+          PYTHONPATH: ${{ github.workspace }}/aristay_backend
+          SECRET_KEY: dummy
+          DEBUG: '0'
+        run: python manage.py migrate --noinput
+
+      - name: Run pytest
+        env:
+          DJANGO_SETTINGS_MODULE: backend.settings
+          PYTHONPATH: ${{ github.workspace }}/aristay_backend
+        run: python -m pytest -q
+
+      - name: Run final validation
+        env:
+          DJANGO_SETTINGS_MODULE: backend.settings
+          PYTHONPATH: ${{ github.workspace }}/aristay_backend
+        run: python tests/run_final_validation.py
