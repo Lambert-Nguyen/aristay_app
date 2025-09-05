@@ -40,52 +40,77 @@ def test_idempotent_task_creation():
         defaults={'address': '123 Idempotent St'}
     )
     
-    # Clean up any existing test templates but keep system ones
-    AutoTaskTemplate.objects.filter(name__icontains='Idempotent').delete()
+    # Store existing active templates and temporarily disable them for isolation
+    existing_active_templates = list(AutoTaskTemplate.objects.filter(is_active=True).values_list('id', flat=True))
+    AutoTaskTemplate.objects.filter(id__in=existing_active_templates).update(is_active=False)
     
-    # Get count of active templates to know how many tasks to expect
-    active_template_count = AutoTaskTemplate.objects.filter(is_active=True).count()
-    print(f"📊 Active task templates: {active_template_count}")
-    
-    # Create test booking
-    Booking.objects.filter(external_code='IDEM001').delete()
-    
-    booking = Booking.objects.create(
-        property=property_obj,
-        check_in_date=timezone.make_aware(datetime(2025, 1, 15)),
-        check_out_date=timezone.make_aware(datetime(2025, 1, 17)),
-        guest_name='Test Guest Idempotent',
-        external_code='IDEM001',
-        status='confirmed'
-    )
-    
-    service = EnhancedExcelImportService(user=user)
-    
-    # First call - should create tasks
-    print("📞 First call to create_automated_tasks...")
-    count1 = service.create_automated_tasks([booking])
-    tasks_after_first = Task.objects.filter(booking=booking, created_by_template__isnull=False).count()
-    
-    # Second call - should NOT create additional tasks (idempotent)
-    print("📞 Second call to create_automated_tasks...")
-    count2 = service.create_automated_tasks([booking])
-    tasks_after_second = Task.objects.filter(booking=booking, created_by_template__isnull=False).count()
-    
-    print(f"✓ First call created: {count1} tasks")
-    print(f"✓ Second call created: {count2} tasks") 
-    print(f"✓ Tasks after first call: {tasks_after_first}")
-    print(f"✓ Tasks after second call: {tasks_after_second}")
-    
-    # Assertions - expect tasks equal to number of active templates
-    expected_tasks = active_template_count
-    if count1 == expected_tasks and count2 == 0 and tasks_after_first == tasks_after_second == expected_tasks:
-        print("🎉 IDEMPOTENCE TEST PASSED: Second call created no duplicates!")
-    else:
-        print(f"❌ IDEMPOTENCE TEST FAILED: Expected ({expected_tasks}, 0, {expected_tasks}, {expected_tasks}), got ({count1}, {count2}, {tasks_after_first}, {tasks_after_second})")
-        raise AssertionError("Idempotence test failed - duplicate tasks created on second call")
-    
-    # Cleanup
-    booking.delete()
+    try:
+        # Create exactly 2 test templates for predictable behavior
+        template1 = AutoTaskTemplate.objects.create(
+            name='Test Clean Template',
+            task_type='cleaning',
+            title_template='Clean {property} for {guest_name}',
+            timing_type='before_checkin',
+            timing_offset=1,
+            created_by=user,
+            is_active=True
+        )
+        
+        template2 = AutoTaskTemplate.objects.create(
+            name='Test Inspect Template',
+            task_type='inspection', 
+            title_template='Inspect {property} after {guest_name}',
+            timing_type='after_checkout',
+            timing_offset=1,
+            created_by=user,
+            is_active=True
+        )
+        
+        # Create test booking
+        Booking.objects.filter(external_code='IDEM001').delete()
+        
+        booking = Booking.objects.create(
+            property=property_obj,
+            check_in_date=timezone.make_aware(datetime(2025, 1, 15)),
+            check_out_date=timezone.make_aware(datetime(2025, 1, 17)),
+            guest_name='Test Guest Idempotent',
+            external_code='IDEM001',
+            status='confirmed'
+        )
+        
+        service = EnhancedExcelImportService(user=user)
+        
+        # First call - should create exactly 2 tasks (one per template)
+        print("📞 First call to create_automated_tasks...")
+        count1 = service.create_automated_tasks([booking])
+        tasks_after_first = Task.objects.filter(booking=booking, created_by_template__isnull=False).count()
+        
+        # Second call - should NOT create additional tasks (idempotent)
+        print("📞 Second call to create_automated_tasks...")
+        count2 = service.create_automated_tasks([booking])
+        tasks_after_second = Task.objects.filter(booking=booking, created_by_template__isnull=False).count()
+        
+        print(f"✓ First call created: {count1} tasks")
+        print(f"✓ Second call created: {count2} tasks") 
+        print(f"✓ Tasks after first call: {tasks_after_first}")
+        print(f"✓ Tasks after second call: {tasks_after_second}")
+        
+        # Assertions - expect exactly 2 tasks (one per template), no duplicates
+        if count1 == 2 and count2 == 0 and tasks_after_first == tasks_after_second == 2:
+            print("🎉 IDEMPOTENCE TEST PASSED: Second call created no duplicates!")
+        else:
+            print(f"❌ IDEMPOTENCE TEST FAILED: Expected (2, 0, 2, 2), got ({count1}, {count2}, {tasks_after_first}, {tasks_after_second})")
+            raise AssertionError("Idempotence test failed - duplicate tasks created on second call")
+        
+        # Cleanup test data
+        booking.delete()
+        template1.delete()
+        template2.delete()
+        
+    finally:
+        # Restore original active template state
+        AutoTaskTemplate.objects.all().update(is_active=False)
+        AutoTaskTemplate.objects.filter(id__in=existing_active_templates).update(is_active=True)
     
     return True
 

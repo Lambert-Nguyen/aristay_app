@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from .services.notification_service import NotificationService
-from .models import NotificationVerb
+from .models import NotificationVerb, Booking, BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride, UserRole
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -270,7 +270,6 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
 
 @login_required
 def portal_home(request):
-    from django.shortcuts import render
     from django.db.models import Count
     
     # Get accessible properties and basic stats
@@ -288,15 +287,13 @@ def portal_home(request):
             assigned_tasks = Task.objects.filter(assigned_to=request.user)
             assigned_tasks_count = assigned_tasks.count()
             pending_tasks_count = assigned_tasks.filter(status='pending').count()
-    except:
+    except AttributeError:
         # User has no profile, still get basic task counts
         assigned_tasks = Task.objects.filter(assigned_to=request.user)
         assigned_tasks_count = assigned_tasks.count()
         pending_tasks_count = assigned_tasks.filter(status='pending').count()
-        pass
     
     # Get booking counts for accessible properties
-    from .models import Booking
     total_bookings_count = Booking.objects.filter(property__in=accessible_properties).count()
     
     context = {
@@ -321,7 +318,7 @@ def _accessible_properties_for(user):
         profile = user.profile
         if profile.role == 'manager' or profile.has_permission('view_properties'):
             return Property.objects.all().order_by('name')
-    except:
+    except AttributeError:
         pass
     
     # viewer/owner or crew: properties they own/view or have tasks on
@@ -332,8 +329,7 @@ def _accessible_properties_for(user):
 
 @login_required
 def portal_property_list(request):
-    from django.utils import timezone as djtz
-    now = djtz.now()
+    now = timezone.now()
     props = _accessible_properties_for(request.user)
     q = request.GET.get('q')
     if q:
@@ -359,8 +355,7 @@ def portal_property_list(request):
 
 @login_required
 def portal_property_detail(request, pk):
-    from django.utils import timezone as djtz
-    now = djtz.now()
+    now = timezone.now()
     prop = get_object_or_404(_accessible_properties_for(request.user), pk=pk)
     bookings = prop.bookings.all().order_by('-check_in_date')
     groups = {
@@ -455,7 +450,7 @@ def portal_task_detail(request, task_id):
             if room not in responses_by_room:
                 responses_by_room[room] = []
             responses_by_room[room].append(response)
-    except:
+    except AttributeError:
         pass
     
     # Check if user can edit using centralized authorization
@@ -1460,7 +1455,6 @@ from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect  # render/JsonResponse/csrf_exempt/require_http_methods already imported above
 from django.contrib import messages
 from .services.excel_import_service import ExcelImportService
-from .models import BookingImportTemplate, Property, BookingImportLog
 
 def is_superuser_or_manager(user):
     """Check if user is superuser or manager"""
@@ -1581,7 +1575,6 @@ def excel_import_view(request):
     # Get recent import logs
     recent_imports = []
     if hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser']:
-        from .models import BookingImportLog
         recent_imports = BookingImportLog.objects.filter(
             imported_by=request.user
         ).order_by('-imported_at')[:10]
@@ -1691,7 +1684,6 @@ def property_approval_create(request):
 
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .models import BookingImportLog
 from .services.enhanced_excel_import_service import (
     EnhancedExcelImportService, ConflictResolutionService
 )
@@ -1961,7 +1953,6 @@ def enhanced_excel_import_view(request):
             messages.error(request, f"Import failed: {str(e)}")
     
     # Get available templates for the form
-    from .models import BookingImportTemplate
     templates = BookingImportTemplate.objects.all()
     
     context = {
