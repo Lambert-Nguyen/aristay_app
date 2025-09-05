@@ -283,6 +283,15 @@ class EnhancedExcelImportService(ExcelImportService):
             # Update import log with conflicts
             self._update_import_log()
             
+            # 4. Create automated tasks for imported bookings
+            task_count = 0
+            if hasattr(self, 'import_log') and self.import_log:
+                created_bookings = getattr(self.import_log, 'created_bookings', [])
+                if created_bookings:
+                    task_count = self.create_automated_tasks(created_bookings)
+                    self.import_log.total_tasks_created = task_count
+                    self.import_log.save()
+            
             # Store conflicts in import log for later review
             if self.conflicts_detected:
                 conflicts_data = [self._serialize_conflict(c) for c in self.conflicts_detected]
@@ -544,6 +553,30 @@ class EnhancedExcelImportService(ExcelImportService):
         
         existing_booking = None
         
+        # Step 0: Check for same source+code on a different property → property_change conflict
+        if external_code and source:
+            cross_property_bookings = Booking.objects.filter(
+                source__iexact=source,
+                external_code=external_code
+            ).exclude(property=property_obj)
+            
+            if cross_property_bookings.exists():
+                existing_booking = cross_property_bookings.first()
+                if existing_booking:  # Type guard
+                    conflict = BookingConflict(
+                        existing_booking=existing_booking,
+                        excel_data=booking_data,
+                        conflict_types=[ConflictType.PROPERTY_CHANGE],
+                        row_number=row_number,
+                    )
+                    return {
+                        'has_conflicts': True,
+                        'auto_resolve': False,  # never auto-resolve property changes
+                        'existing_booking': existing_booking,
+                        'conflict': conflict,
+                        'is_exact_duplicate': False
+                    }
+        
         # Step 1: Check for exact external code match (for platform bookings with original codes)
         # GPT Agent Fix: Use scoped booking lookup with case-insensitive source comparison
         if external_code:
@@ -567,11 +600,14 @@ class EnhancedExcelImportService(ExcelImportService):
                     # Guest name changes should always require manual review (per user requirement)
                     has_guest_change = ConflictType.GUEST_CHANGE in conflict_types
                     
+                    # AGENT FIX: Only auto-resolve status-only changes for platform bookings
+                    auto_resolve = (not is_direct_booking) and is_status_only_change
+                    
                     # Always flag external code matches as conflicts for review
                     conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
                     return {
                         'has_conflicts': True,
-                        'auto_resolve': not is_direct_booking and not has_guest_change and (not is_exact_duplicate or is_status_only_change),  # Platform bookings auto-resolve only status changes, not guest changes
+                        'auto_resolve': auto_resolve,
                         'existing_booking': existing_booking,
                         'conflict': conflict,
                         'is_exact_duplicate': is_exact_duplicate and not is_status_only_change
@@ -602,11 +638,14 @@ class EnhancedExcelImportService(ExcelImportService):
                     # Guest name changes should always require manual review (per user requirement)
                     has_guest_change = ConflictType.GUEST_CHANGE in conflict_types
                     
+                    # AGENT FIX: Only auto-resolve status-only changes for platform bookings
+                    auto_resolve = (not is_direct_booking) and is_status_only_change
+                    
                     # This is likely a duplicate from the same Excel file
                     conflict = BookingConflict(existing_booking, booking_data, conflict_types, row_number)
                     return {
                         'has_conflicts': True,
-                        'auto_resolve': not is_direct_booking and not has_guest_change and (not is_exact_duplicate or is_status_only_change),  # Platform bookings can auto-update status changes only, not guest changes
+                        'auto_resolve': auto_resolve,
                         'existing_booking': existing_booking,
                         'conflict': conflict,
                         'is_exact_duplicate': is_exact_duplicate and not is_status_only_change
@@ -680,46 +719,31 @@ class EnhancedExcelImportService(ExcelImportService):
         if existing_booking.external_status != booking_data.get('external_status'):
             conflicts.append(ConflictType.STATUS_CHANGE)
         
+        # Property changes
+        existing_property = existing_booking.property.name
+        excel_property = booking_data.get('property_name', '')
+        
+        if existing_property != excel_property:
+            conflicts.append(ConflictType.PROPERTY_CHANGE)
+        
         return conflicts
     
     def _auto_update_booking(self, booking: Booking, booking_data: Dict[str, Any], row):
-        """Automatically update platform bookings"""
+        """Automatically update platform bookings - AGENT FIX: Only update status for auto-resolve"""
         try:
-            # Update fields from Excel
-            if 'guest_name' in booking_data:
-                booking.guest_name = booking_data['guest_name']
-            if 'guest_contact' in booking_data:
-                booking.guest_contact = booking_data['guest_contact']
+            # AGENT FIX: Only update external_status and internal status for auto-resolved conflicts
             if 'external_status' in booking_data:
                 booking.external_status = booking_data['external_status']
                 # Update Django status - enhanced mapping for all status variations
                 external_status = booking_data['external_status'].lower()
-                if 'confirmed' in external_status:
-                    booking.status = 'confirmed'
-                elif 'cancelled' in external_status:
+                if 'cancelled' in external_status:
                     booking.status = 'cancelled'
-                elif 'checking out' in external_status or 'checkout' in external_status:
-                    booking.status = 'confirmed'  # "Checking out today" is still a confirmed booking
-                elif 'checked in' in external_status or 'checkin' in external_status:
-                    booking.status = 'confirmed'  # "Checked in" is still confirmed
-                elif 'completed' in external_status:
-                    booking.status = 'confirmed'  # Completed bookings are confirmed
                 else:
-                    booking.status = 'confirmed'  # Default to confirmed for unknown statuses
-            if 'start_date' in booking_data:
-                booking.check_in_date = booking_data['start_date']
-            if 'end_date' in booking_data:
-                booking.check_out_date = booking_data['end_date']
-            if 'earnings_amount' in booking_data:
-                booking.earnings_amount = booking_data['earnings_amount']
+                    booking.status = 'confirmed'  # All other statuses map to confirmed
             
             # Update import tracking
             booking.last_import_update = timezone.now()
-            
             booking.save()
-            
-            # Update associated tasks if dates changed
-            self._update_associated_task(booking, booking_data)
             
         except Exception as e:
             logger.error(f"Failed to auto-update booking {booking.external_code}: {e}")
@@ -758,7 +782,7 @@ class EnhancedExcelImportService(ExcelImportService):
         return {
             'row_number': _safe(conflict.row_number),
             'confidence_score': _safe(conflict.confidence_score),
-            'conflict_types': _safe(conflict.conflict_types),
+            'conflict_types': _safe_deep(conflict.conflict_types),  # Use deep serialization for lists
             'existing_booking': {
                 'id': _safe(conflict.existing_booking.pk),
                 'external_code': _safe(conflict.existing_booking.external_code),
@@ -867,15 +891,22 @@ class ConflictResolutionService:
             # Import AuditEvent model
             from api.models import AuditEvent
             
+            # AGENT FIX: Use consistent AuditEvent schema with JSON changes
             AuditEvent.objects.create(
                 object_type='Booking',
                 object_id=str(booking.pk),
-                action='UPDATE',
-                field_name='guest_name',
-                old_value=old_name,
-                new_value=new_name,
-                user=self.user,
-                description=f'Guest name updated via import (change_type={change_type}, import_id={import_session_id})'
+                action='update',
+                actor=self.user,
+                changes={
+                    'guest_name': {
+                        'old': old_name,
+                        'new': new_name
+                    },
+                    'metadata': {
+                        'change_type': change_type,
+                        'import_id': import_session_id
+                    }
+                }
             )
         
         if 'dates' in apply_changes:
@@ -1031,3 +1062,23 @@ class ConflictResolutionService:
         except Exception as e:
             logger.error(f"Failed to create booking: {e}")
             raise
+
+    def create_automated_tasks(self, bookings):
+        """Create tasks from active templates for imported bookings"""
+        from ..models import AutoTaskTemplate
+        
+        task_count = 0
+        try:
+            active_templates = AutoTaskTemplate.objects.filter(is_active=True)
+            
+            for booking in bookings:
+                for template in active_templates:
+                    task = template.create_task_for_booking(booking)
+                    if task:
+                        task_count += 1
+                        logger.info(f"Created task '{task.title}' for booking {booking.external_code}")
+                        
+        except Exception as e:
+            logger.error(f"Error creating automated tasks: {str(e)}")
+            
+        return task_count

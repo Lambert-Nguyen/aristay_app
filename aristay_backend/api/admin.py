@@ -10,7 +10,7 @@ from .models import (
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
     BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride,
-    AuditEvent  # Agent's Phase 2: Add audit system
+    AuditEvent, AutoTaskTemplate  # Agent's Phase 2: Add audit system and task templates
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
@@ -1219,6 +1219,9 @@ admin.site.register(ScheduleTemplate, ScheduleTemplateAdmin)
 admin.site.register(GeneratedTask, GeneratedTaskAdmin)
 admin.site.register(BookingImportTemplate, BookingImportTemplateAdmin)
 admin.site.register(BookingImportLog, BookingImportLogAdmin)
+
+# Task Template System (registered via decorator in task_template_admin.py)
+from . import task_template_admin  # Import to register admin
 
 # Permission management (also register with default admin)
 admin.site.register(CustomPermission, CustomPermissionAdmin)
