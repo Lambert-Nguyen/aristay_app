@@ -92,7 +92,7 @@ def main():
         import inspect, ast, importlib
         mod = importlib.import_module("api.views")
         tree = ast.parse(inspect.getsource(mod))
-        seen, critical_dups = set(), set()
+        seen, critical_dups, all_dups = set(), set(), set()
         
         # Only flag critical duplicates that could cause real issues
         critical_modules = [
@@ -101,10 +101,12 @@ def main():
         
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                if node.module and node.names and node.module in critical_modules:
+                if node.module and node.names:
                     key = (node.module, tuple(sorted(a.name for a in node.names if a.name)))
                     if key in seen:
-                        critical_dups.add(key)
+                        all_dups.add(key)
+                        if node.module in critical_modules:
+                            critical_dups.add(key)
                     seen.add(key)
         
         if critical_dups:
@@ -112,6 +114,14 @@ def main():
         else:
             print("\n5. 📦 Checking for critical duplicate imports...\n   ✅ No critical duplicates detected")
             passed += 1
+            
+        # Show non-critical duplicates as warnings (non-blocking)
+        non_critical_dups = all_dups - critical_dups
+        if non_critical_dups:
+            print(f"\n⚠️  Non-critical duplicate imports (info only):")
+            for dup in sorted(non_critical_dups):
+                print(f"   • {dup[0]} imports {', '.join(dup[1])}")
+                
     except Exception as e:
         print(f"\n5. 📦 Checking for critical duplicate imports...\n   ❌ {e}")
         import traceback

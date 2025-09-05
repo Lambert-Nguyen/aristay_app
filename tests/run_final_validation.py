@@ -44,18 +44,21 @@ def main():
     
     passed = 0
     total = len(tests)
+    results = []
     
     for test_name, test_path in tests:
-        if run_test(test_name, test_path):
+        ok = run_test(test_name, test_path)
+        results.append((test_name, ok))
+        if ok:
             passed += 1
     
     print("\n" + "="*80)
     print("📊 FINAL RESULTS")
     print("="*80)
     
-    for i, (test_name, _) in enumerate(tests, 1):
-        status = "✅" if i <= passed else "❌"
-        print(f"{status} {i}. {test_name}")
+    for i, (name, ok) in enumerate(results, 1):
+        mark = "✅" if ok else "❌"
+        print(f"{mark} {i}. {name}")
     
     print(f"\n🎯 Overall Status: {passed}/{total} tests passed")
     

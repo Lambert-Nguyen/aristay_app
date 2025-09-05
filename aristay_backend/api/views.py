@@ -1,14 +1,12 @@
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
-from django.db import models
 from .services.notification_service import NotificationService
 from .models import NotificationVerb
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -16,8 +14,6 @@ from django.views.decorators.http import require_http_methods
 import json
 import logging
 import os
-import subprocess
-import psutil
 import re
 from datetime import timedelta
 
@@ -33,13 +29,12 @@ from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
@@ -447,7 +442,7 @@ def portal_task_detail(request, task_id):
     
     # Check permissions using centralized authorization
     if not AuthzHelper.can_view_task(request.user, task):
-        raise PermissionDenied("You don't have permission to view this task.")
+        raise DjangoPermissionDenied("You don't have permission to view this task.")
     
     # Get checklist if it exists
     checklist = None
@@ -498,7 +493,7 @@ class TaskImageCreateView(generics.CreateAPIView):
         # 1) load the Task and check permissions
         task = generics.get_object_or_404(Task, pk=self.kwargs['task_pk'])
         if not can_edit_task(self.request.user, task):
-            raise PermissionDenied("You can't add images to this task.")
+            raise DRFPermissionDenied("You can't add images to this task.")
         
         # 2) save the new TaskImage with uploaded_by tracking
         image = serializer.save(task=task, uploaded_by=self.request.user)
@@ -527,7 +522,7 @@ class TaskImageDetailView(generics.RetrieveDestroyAPIView):
     def get_object(self):
         obj = super().get_object()
         if not can_edit_task(self.request.user, obj.task):
-            raise PermissionDenied("You can't modify images on this task.")
+            raise DRFPermissionDenied("You can't modify images on this task.")
         return obj
 
     def perform_destroy(self, instance):
@@ -682,7 +677,7 @@ class AdminUserDetailView(generics.RetrieveUpdateAPIView):
 
         # never allow anyone to toggle a superuser other than themselves
         if target.is_superuser and target != actor:
-            raise PermissionDenied("Cannot modify another owner account.")
+            raise DRFPermissionDenied("Cannot modify another owner account.")
 
         serializer.save()
 
@@ -1255,7 +1250,7 @@ def system_logs_viewer(request):
     """
     # Only allow superusers to access logs
     if not request.user.is_superuser:
-        raise PermissionDenied("Log viewer is only available to superusers.")
+        raise DjangoPermissionDenied("Log viewer is only available to superusers.")
     
     import os
     from django.conf import settings
@@ -1348,7 +1343,7 @@ def system_crash_recovery(request):
     """
     # Only allow superusers
     if not request.user.is_superuser:
-        raise PermissionDenied("Crash recovery is only available to superusers.")
+        raise DjangoPermissionDenied("Crash recovery is only available to superusers.")
     
     import os
     import subprocess
@@ -2125,7 +2120,6 @@ def file_cleanup_api(request):
 # ========== PERMISSION MANAGEMENT API ==========
 
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import CustomPermission, RolePermission, UserPermissionOverride, UserRole
