@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from django.db import models
@@ -446,7 +447,6 @@ def portal_task_detail(request, task_id):
     
     # Check permissions using centralized authorization
     if not AuthzHelper.can_view_task(request.user, task):
-        from django.core.exceptions import PermissionDenied
         raise PermissionDenied("You don't have permission to view this task.")
     
     # Get checklist if it exists
@@ -899,7 +899,6 @@ def manager_charts_dashboard(request):
     )
     
     # Task completion trends (last 30 days)
-    from datetime import timedelta
     from django.db.models.functions import TruncDate
     thirty_days_ago = now - timedelta(days=30)
     daily_completions = (
@@ -1077,7 +1076,6 @@ def admin_charts_dashboard(request):
     )
     
     # User activity (tasks created/modified in last 7 days)
-    from datetime import timedelta
     seven_days_ago = now - timedelta(days=7)
     user_activity = (
         Task.objects
@@ -1257,7 +1255,6 @@ def system_logs_viewer(request):
     """
     # Only allow superusers to access logs
     if not request.user.is_superuser:
-        from django.core.exceptions import PermissionDenied
         raise PermissionDenied("Log viewer is only available to superusers.")
     
     import os
@@ -1351,7 +1348,6 @@ def system_crash_recovery(request):
     """
     # Only allow superusers
     if not request.user.is_superuser:
-        from django.core.exceptions import PermissionDenied
         raise PermissionDenied("Crash recovery is only available to superusers.")
     
     import os
@@ -2133,9 +2129,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import CustomPermission, RolePermission, UserPermissionOverride, UserRole
-from django.contrib.auth.models import User
-
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_permissions(request):

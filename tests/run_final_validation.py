@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""
+Final validation runner - demonstrates "all green" test status.
+Runs all critical tests to validate production readiness.
+"""
+
+import os, sys, subprocess
+from pathlib import Path
+
+# Project root: .../aristay_app
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND = ROOT / "aristay_backend"
+VENV_PYTHON = ROOT / ".venv" / "bin" / "python"
+
+def run_test(test_name, test_path):
+    """Run a test and return True if it passes"""
+    print(f"\n{'='*60}")
+    print(f"🧪 Running {test_name}")
+    print(f"{'='*60}")
+    
+    try:
+        result = subprocess.run([
+            str(VENV_PYTHON), str(test_path)
+        ], capture_output=False, text=True, cwd=str(BACKEND))
+        
+        success = result.returncode == 0
+        status = "✅ PASSED" if success else "❌ FAILED"
+        print(f"\n{status}: {test_name}")
+        return success
+        
+    except Exception as e:
+        print(f"❌ ERROR: {test_name} - {e}")
+        return False
+
+def main():
+    print("🚀 FINAL VALIDATION: All Green Test Status")
+    print("="*80)
+    
+    tests = [
+        ("Production Hardening", "../tests/production/test_production_hardening.py"),
+        ("Phase 6 Integration", "../tests/integration/test_final_phases.py"),
+        ("Production Readiness", "../tests/integration/verify_production_readiness.py"),
+    ]
+    
+    passed = 0
+    total = len(tests)
+    
+    for test_name, test_path in tests:
+        if run_test(test_name, test_path):
+            passed += 1
+    
+    print("\n" + "="*80)
+    print("📊 FINAL RESULTS")
+    print("="*80)
+    
+    for i, (test_name, _) in enumerate(tests, 1):
+        status = "✅" if i <= passed else "❌"
+        print(f"{status} {i}. {test_name}")
+    
+    print(f"\n🎯 Overall Status: {passed}/{total} tests passed")
+    
+    if passed == total:
+        print("\n🌟 CONGRATULATIONS! 🌟")
+        print("🎉 ALL GREEN - Production system fully validated!")
+        print("✅ Production hardening complete")
+        print("✅ Integration tests passing")  
+        print("✅ Production readiness verified")
+        print("\n🚀 System is ready for deployment!")
+        return 0
+    else:
+        print(f"\n⚠️  {total - passed} test(s) failing - review output above")
+        return 1
+
+if __name__ == "__main__":
+    raise SystemExit(main())

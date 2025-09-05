@@ -46,11 +46,6 @@ def _normalize_source(source: str) -> str:
     return normalized.get(source_lower, source.title())
 
 
-    def _map_external_status(self, external_status: str) -> str:
-        """Centralized mapping of external status to internal status"""
-        return _map_external_status(external_status)
-
-
 def _map_external_status(external_status: str) -> str:
     """Global function for mapping external status to internal status"""
     if not external_status:

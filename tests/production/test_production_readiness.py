@@ -21,6 +21,7 @@ django.setup()
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 from django.urls import reverse
+from uuid import uuid4
 from api.models import Task, Property, TaskImage
 from api.staff_views import cleaning_dashboard
 from api.views import TaskImageDetailView
@@ -33,12 +34,14 @@ class ProductionReadinessTestSuite(TestCase):
     def setUp(self):
         """Set up test data."""
         self.factory = RequestFactory()
+        # Use unique values so running this file directly never hits UNIQUE constraints
+        unique = uuid4().hex[:8]
         self.user = User.objects.create_user(
-            username='testuser',
+            username=f'testuser_{unique}',
             password='testpass123'
         )
         self.property = Property.objects.create(
-            name='Test Property',
+            name=f'Test Property {unique}',
             address='123 Test St'
         )
         self.task = Task.objects.create(

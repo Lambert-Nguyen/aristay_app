@@ -5,7 +5,6 @@ Robust production readiness verification (imports instead of hardcoded paths).
 
 import os, sys
 from pathlib import Path
-from uuid import uuid4
 
 # Project root: .../aristay_app
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,15 +29,11 @@ def main():
     print("==================================================")
     passed = 0
     total = 6
-    
-    # Create unique identifiers for this test run
-    unique = uuid4().hex[:8]
-    user = None  # Declare at function scope
 
     # 1) Timedelta import fix (call the view; no AttributeError on timedelta)
     try:
         rf = RequestFactory()
-        user = User.objects.create_user(username=f"verify_user_{unique}", password="x")
+        user = User.objects.create_user(username="verify_user", password="x")
         req = rf.get("/staff/cleaning/")
         req.user = user
         cleaning_dashboard(req)
@@ -49,11 +44,9 @@ def main():
 
     # 2) TaskImage queryset constraint (scoped by task_pk)
     try:
-        if not user:  # Create user if first test failed
-            user = User.objects.create_user(username=f"verify_user_backup_{unique}", password="x")
-        prop = Property.objects.create(name=f"Verify Prop {unique}", address="x")
-        task1 = Task.objects.create(title=f"t1_{unique}", property=prop, assigned_to=user, status="pending")
-        task2 = Task.objects.create(title=f"t2_{unique}", property=prop, assigned_to=user, status="pending")
+        prop = Property.objects.create(name="Verify Prop", address="x")
+        task1 = Task.objects.create(title="t1", property=prop, assigned_to=user, status="pending")
+        task2 = Task.objects.create(title="t2", property=prop, assigned_to=user, status="pending")
         img1 = TaskImage.objects.create(task=task1, image="a.jpg", uploaded_by=user)
         img2 = TaskImage.objects.create(task=task2, image="b.jpg", uploaded_by=user)
 
@@ -87,35 +80,22 @@ def main():
     except Exception as e:
         print(f"\n4. 🌐 Checking CORS middleware configuration...\n   ❌ {e}")
 
-    # 5) Critical imports check (AST-based) - Focus on most critical duplicates
+    # 5) Duplicate imports in api.views (AST-based, not path-based)
     try:
         import inspect, ast, importlib
         mod = importlib.import_module("api.views")
         tree = ast.parse(inspect.getsource(mod))
-        seen, critical_dups = set(), set()
-        
-        # Only flag critical duplicates that could cause real issues
-        critical_modules = [
-            'datetime', 'django.contrib.auth.models', 'django.core.exceptions'
-        ]
-        
+        seen, dups = set(), set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                if node.module and node.names and node.module in critical_modules:
-                    key = (node.module, tuple(sorted(a.name for a in node.names if a.name)))
-                    if key in seen:
-                        critical_dups.add(key)
-                    seen.add(key)
-        
-        if critical_dups:
-            print(f"\n5. 📦 Checking for critical duplicate imports...\n   ❌ Found critical duplicates: {list(critical_dups)}")
-        else:
-            print("\n5. 📦 Checking for critical duplicate imports...\n   ✅ No critical duplicates detected")
-            passed += 1
+                key = (node.module, tuple(sorted(a.name for a in node.names)))
+                (dups if key in seen else seen).add(key) if key in seen else None
+                seen.add(key)
+        assert not dups
+        print("\n5. 📦 Checking for duplicate imports...\n   ✅ None detected")
+        passed += 1
     except Exception as e:
-        print(f"\n5. 📦 Checking for critical duplicate imports...\n   ❌ {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"\n5. 📦 Checking for duplicate imports...\n   ❌ {e}")
 
     # 6) Cloudinary feature flag is a boolean; if enabled, settings exist
     try:
