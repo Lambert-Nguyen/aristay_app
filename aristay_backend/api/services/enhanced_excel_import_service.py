@@ -734,12 +734,16 @@ class EnhancedExcelImportService(ExcelImportService):
             # AGENT FIX: Only update external_status and internal status for auto-resolved conflicts
             if 'external_status' in booking_data:
                 booking.external_status = booking_data['external_status']
-                # Update Django status - enhanced mapping for all status variations
+                # Update Django status - improved mapping for all status variations
                 external_status = booking_data['external_status'].lower()
-                if 'cancelled' in external_status:
+                if 'cancelled' in external_status or 'cancel' in external_status:
                     booking.status = 'cancelled'
+                elif 'confirmed' in external_status or 'confirm' in external_status:
+                    booking.status = 'confirmed'
+                elif 'pending' in external_status or 'requested' in external_status:
+                    booking.status = 'pending'
                 else:
-                    booking.status = 'confirmed'  # All other statuses map to confirmed
+                    booking.status = 'confirmed'  # Default fallback
             
             # Update import tracking
             booking.last_import_update = timezone.now()
@@ -806,6 +810,26 @@ class EnhancedExcelImportService(ExcelImportService):
             'changes_summary': _safe_deep(conflict.get_changes_summary())
         }
     
+    def create_automated_tasks(self, bookings):
+        """Create tasks from active templates for imported bookings"""
+        from ..models import AutoTaskTemplate
+        
+        task_count = 0
+        try:
+            active_templates = AutoTaskTemplate.objects.filter(is_active=True)
+            
+            for booking in bookings:
+                for template in active_templates:
+                    task = template.create_task_for_booking(booking)
+                    if task:
+                        task_count += 1
+                        logger.info(f"Created task '{task.title}' for booking {booking.external_code}")
+                        
+        except Exception as e:
+            logger.error(f"Error creating automated tasks: {str(e)}")
+            
+        return task_count
+    
     def _safe_format_date(self, date_value: Any) -> Optional[str]:
         """Safely format date value for JSON serialization"""
         if date_value is None:
@@ -834,6 +858,8 @@ class ConflictResolutionService:
         }
         """
         try:
+            # Make import id available to update helpers
+            self.current_import_id = import_session_id
             import_log = BookingImportLog.objects.get(id=import_session_id)
             results = {
                 'updated': 0,
@@ -1063,22 +1089,6 @@ class ConflictResolutionService:
             logger.error(f"Failed to create booking: {e}")
             raise
 
-    def create_automated_tasks(self, bookings):
-        """Create tasks from active templates for imported bookings"""
-        from ..models import AutoTaskTemplate
-        
-        task_count = 0
-        try:
-            active_templates = AutoTaskTemplate.objects.filter(is_active=True)
-            
-            for booking in bookings:
-                for template in active_templates:
-                    task = template.create_task_for_booking(booking)
-                    if task:
-                        task_count += 1
-                        logger.info(f"Created task '{task.title}' for booking {booking.external_code}")
-                        
-        except Exception as e:
-            logger.error(f"Error creating automated tasks: {str(e)}")
-            
-        return task_count
+    def _create_booking_from_data(self, booking_data: Dict, property_obj):
+        """Wrapper method for backward compatibility"""
+        return self._create_booking(booking_data, property_obj, row={})

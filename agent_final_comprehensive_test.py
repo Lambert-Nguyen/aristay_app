@@ -5,6 +5,7 @@ Final validation that all requested features work together
 import pandas as pd
 import json
 from datetime import datetime, date, timedelta
+from django.utils import timezone
 import sys
 import os
 from decimal import Decimal
@@ -164,12 +165,13 @@ def test_comprehensive_system():
             # Convert row to booking data format
             booking_data = {
                 'property_label_raw': row['Property'],
-                'start_date': datetime.strptime(row['Check-in date'], '%Y-%m-%d').date(),
-                'end_date': datetime.strptime(row['Check-out date'], '%Y-%m-%d').date(),
+                # Use timezone-aware datetimes (required by Booking DateTimeFields)
+                'start_date': timezone.make_aware(datetime.strptime(row['Check-in date'], '%Y-%m-%d')),
+                'end_date': timezone.make_aware(datetime.strptime(row['Check-out date'], '%Y-%m-%d')),
                 'guest_name': row['Guest name'],
                 'source': row['Source'],
                 'external_code': row['Confirmation code'],
-                'status': row['Status'],
+                'external_status': row['Status'],  # Use external_status instead of status
                 'adults': row['Adults'],
                 'children': row['Children'],
                 'guest_contact': row['Guest phone'],
@@ -182,8 +184,8 @@ def test_comprehensive_system():
             else:
                 property_obj = property2
             
-            # Create booking 
-            booking = service._create_booking_from_data(booking_data, property_obj)
+            # Create booking (call the real method since wrapper doesn't exist)
+            booking = service._create_booking(booking_data, property_obj, row={})
             created_bookings.append(booking)
             processed_count += 1
             
@@ -229,8 +231,7 @@ def test_comprehensive_system():
         object_type='Booking',
         object_id='test-123',
         action='create',
-        actor=user.username,
-        timestamp=timezone.now(),
+        actor=user,  # Pass the User instance, not username
         changes={'guest_name': 'Test Guest', 'status': 'confirmed'}
     )
     print("✓ Created test audit event")

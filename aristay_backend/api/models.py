@@ -53,8 +53,12 @@ class Property(SoftDeleteMixin, models.Model):
 
     class Meta:
         constraints = [
-            # Prepare for soft delete - will add Q(is_deleted=False) condition later
-            models.UniqueConstraint(fields=['name'], name='uniq_property_name'),
+            # Soft-delete aware uniqueness constraint
+            models.UniqueConstraint(
+                fields=['name'],
+                condition=Q(is_deleted=False),
+                name='uniq_property_name'
+            ),
         ]
         indexes = [models.Index(fields=['name'])]
 
@@ -174,7 +178,7 @@ class Booking(SoftDeleteMixin, models.Model):
             ),
             models.UniqueConstraint(
                 fields=['property', 'source', 'external_code'],
-                condition=Q(external_code__gt=''),
+                condition=Q(external_code__gt='') & Q(is_deleted=False),
                 name='uniq_booking_external_code_per_property_source'
             ),
         ] + ([
