@@ -267,8 +267,6 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
 # ----------------------------------------------------------------------------
 # Portal (web) views – property → bookings → tasks flow
 # ----------------------------------------------------------------------------
-from django.contrib.auth.decorators import login_required
-
 
 @login_required
 def portal_home(request):
@@ -1458,12 +1456,9 @@ def _extract_timestamp(log_line):
 # Excel Import Views
 # ----------------------------------------------------------------------------
 
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import redirect  # render/JsonResponse/csrf_exempt/require_http_methods already imported above
 from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from .services.excel_import_service import ExcelImportService
 from .models import BookingImportTemplate, Property, BookingImportLog
 
@@ -1696,8 +1691,6 @@ def property_approval_create(request):
 
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from .models import BookingImportLog
 from .services.enhanced_excel_import_service import (
     EnhancedExcelImportService, ConflictResolutionService
@@ -1733,10 +1726,7 @@ class ConflictReviewView(LoginRequiredMixin, View):
             return JsonResponse({'error': 'Failed to load conflicts'}, status=500)
 
 
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
+# (login_required, csrf_exempt, JsonResponse, json) already imported at top
 
 @csrf_exempt
 @login_required
@@ -1971,7 +1961,7 @@ def enhanced_excel_import_view(request):
             messages.error(request, f"Import failed: {str(e)}")
     
     # Get available templates for the form
-    from api.models import BookingImportTemplate
+    from .models import BookingImportTemplate
     templates = BookingImportTemplate.objects.all()
     
     context = {
@@ -2119,9 +2109,7 @@ def file_cleanup_api(request):
 
 # ========== PERMISSION MANAGEMENT API ==========
 
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+# (status, IsAuthenticated, Response) already imported at top
 from .models import CustomPermission, RolePermission, UserPermissionOverride, UserRole
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
