@@ -59,8 +59,12 @@ def test_comprehensive_system():
     )
     print(f"✓ Test properties: {property1.name}, {property2.name}")
     
-    # 2. Create Task Templates
+    # 2. Create task templates for automation
     print("\n2️⃣  Creating task templates...")
+    
+    # First, deactivate any old test templates to ensure clean test
+    from api.models import AutoTaskTemplate
+    AutoTaskTemplate.objects.filter(name__icontains='Test').update(is_active=False)
     
     # Template 1: Pre-arrival cleaning
     cleaning_template, _ = AutoTaskTemplate.objects.get_or_create(

@@ -329,6 +329,9 @@ TASK_TYPE_CHOICES = [
     ('maintenance', 'Maintenance'),
     ('laundry', 'Laundry'),
     ('lawn_pool', 'Lawn/Pool'),
+    ('inspection', 'Inspection'),      # Add to match template options
+    ('preparation', 'Preparation'),    # Add to match template options
+    ('other', 'Other'),                # Add to match template options
 ]
 
 class Task(SoftDeleteMixin, models.Model):
@@ -452,6 +455,16 @@ class Task(SoftDeleteMixin, models.Model):
                 self.history = json.dumps(hist)
 
         super().save(*args, **kwargs)
+    
+    class Meta:
+        constraints = [
+            # Prevent multiple tasks from the same template for the same booking (ignores soft-deleted)
+            models.UniqueConstraint(
+                fields=['booking', 'created_by_template'],
+                condition=models.Q(created_by_template__isnull=False) & models.Q(is_deleted=False),
+                name='uniq_template_task_per_booking',
+            ),
+        ]
 
 
 def task_image_upload_path(instance, filename):
@@ -1729,8 +1742,11 @@ class AutoTaskTemplate(models.Model):
     ]
     
     TASK_TYPE_CHOICES = [
+        ('administration', 'Administration'),
         ('cleaning', 'Cleaning'),
         ('maintenance', 'Maintenance'),
+        ('laundry', 'Laundry'),
+        ('lawn_pool', 'Lawn/Pool'),
         ('inspection', 'Inspection'),
         ('preparation', 'Preparation'),
         ('other', 'Other'),
@@ -1794,7 +1810,9 @@ class AutoTaskTemplate(models.Model):
         return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
     
     def create_task_for_booking(self, booking):
-        """Create a task for a specific booking using this template"""
+        """Create a task for a specific booking using this template (idempotent)"""
+        from django.db import transaction
+        
         # Check conditions
         if self.property_types.exists() and booking.property not in self.property_types.all():
             return None
@@ -1833,19 +1851,26 @@ class AutoTaskTemplate(models.Model):
         title = self.title_template.format(**context)
         description = self.description_template.format(**context) if self.description_template else ""
         
-        # Create task
-        task = Task.objects.create(
-            title=title,
-            description=description,
-            task_type=self.task_type,
-            booking=booking,
-            property=booking.property,
-            assigned_to=self.default_assignee,
-            due_date=due_date,
-            created_by_template=self,
-        )
-        
-        return task
+        # Idempotent creation with DB-level safety
+        with transaction.atomic():
+            # Quick exist check for speed
+            if Task.objects.filter(booking=booking, created_by_template=self, is_deleted=False).exists():
+                return None  # already created earlier
+            
+            task, created = Task.objects.get_or_create(
+                booking=booking,
+                created_by_template=self,
+                defaults={
+                    'title': title,
+                    'description': description,
+                    'task_type': self.task_type,
+                    'property': booking.property,
+                    'assigned_to': self.default_assignee,
+                    'due_date': due_date,
+                },
+            )
+            
+        return task if created else None
 
 
 # Add at the end of models.py before Audit classes

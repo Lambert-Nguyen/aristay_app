@@ -11,7 +11,7 @@ import django
 from pathlib import Path
 
 # Add the backend directory to the Python path
-backend_path = Path(__file__).parent.parent / 'aristay_backend'
+backend_path = Path(__file__).parent.parent.parent / 'aristay_backend'
 sys.path.insert(0, str(backend_path))
 
 # Set up Django

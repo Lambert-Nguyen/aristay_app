@@ -135,14 +135,28 @@ def get_model_changes(instance, created=False):
 
 
 def _serialize_value(value):
-    """Serialize a value for JSON storage."""
+    """Serialize a value for JSON storage with FieldFile handling."""
+    from django.db.models.fields.files import FieldFile
+    from decimal import Decimal
+    from datetime import datetime, date
+    
     if value is None:
         return None
-    if hasattr(value, 'isoformat') and value is not None:
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)) and value is not None:
         return value.isoformat()
+    if isinstance(value, FieldFile):
+        # Save the stored path or empty string
+        return value.name or ""
     if hasattr(value, 'pk') and value is not None:
         return {'id': value.pk, 'str': str(value)}
-    return value
+    try:
+        return str(value)
+    except Exception:
+        return "<unserializable>"
 
 
 @receiver(pre_save)

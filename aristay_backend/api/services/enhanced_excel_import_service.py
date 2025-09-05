@@ -46,6 +46,31 @@ def _normalize_source(source: str) -> str:
     return normalized.get(source_lower, source.title())
 
 
+    def _map_external_status(self, external_status: str) -> str:
+        """Centralized mapping of external status to internal status"""
+        return _map_external_status(external_status)
+
+
+def _map_external_status(external_status: str) -> str:
+    """Global function for mapping external status to internal status"""
+    if not external_status:
+        return 'confirmed'  # Default
+        
+    external_lower = external_status.lower().strip()
+    
+    # Status mapping logic
+    if external_lower in ['cancelled', 'canceled']:
+        return 'cancelled'
+    elif external_lower in ['pending', 'requested']:
+        return 'booked'
+    elif external_lower in ['completed', 'checked_out']:
+        return 'completed'
+    elif external_lower in ['owner_staying', 'owner staying']:
+        return 'owner_staying'
+    elif external_lower in ['currently_hosting', 'currently hosting', 'checked_in']:
+        return 'currently_hosting'
+    else:
+        return 'confirmed'  # Default for confirmed, accepted, etc.
 def _analyze_guest_name_difference(existing_name: str, new_name: str) -> Dict[str, Any]:
     """Analyze guest name differences to provide helpful conflict information"""
     if not existing_name or not new_name:
@@ -535,7 +560,7 @@ class EnhancedExcelImportService(ExcelImportService):
         else:
             # No conflicts - create new booking
             new_booking = self._create_booking(booking_data, property_obj, row)
-            self._create_cleaning_task(new_booking)
+            # REMOVED: self._create_cleaning_task(new_booking) - now handled by AutoTaskTemplates
             self.success_count += 1
             logger.info(f"Created new booking: {new_booking.external_code}")
     
@@ -734,16 +759,8 @@ class EnhancedExcelImportService(ExcelImportService):
             # AGENT FIX: Only update external_status and internal status for auto-resolved conflicts
             if 'external_status' in booking_data:
                 booking.external_status = booking_data['external_status']
-                # Update Django status - improved mapping for all status variations
-                external_status = booking_data['external_status'].lower()
-                if 'cancelled' in external_status or 'cancel' in external_status:
-                    booking.status = 'cancelled'
-                elif 'confirmed' in external_status or 'confirm' in external_status:
-                    booking.status = 'confirmed'
-                elif 'pending' in external_status or 'requested' in external_status:
-                    booking.status = 'pending'
-                else:
-                    booking.status = 'confirmed'  # Default fallback
+                # Use unified status mapping for consistency
+                booking.status = _map_external_status(booking_data['external_status'])
             
             # Update import tracking
             booking.last_import_update = timezone.now()
@@ -829,6 +846,10 @@ class EnhancedExcelImportService(ExcelImportService):
             logger.error(f"Error creating automated tasks: {str(e)}")
             
         return task_count
+    
+    def _create_cleaning_task(self, *args, **kwargs):
+        """Override legacy auto-cleaning to avoid duplicate template tasks."""
+        return None
     
     def _safe_format_date(self, date_value: Any) -> Optional[str]:
         """Safely format date value for JSON serialization"""
@@ -1044,14 +1065,9 @@ class ConflictResolutionService:
         
         # Create booking with all the new fields - NO duplicate checking
         try:
-            # Simple status mapping
+            # Use unified status mapping
             external_status = booking_data.get('external_status', '')
-            if 'confirmed' in external_status.lower():
-                django_status = 'confirmed'
-            elif 'cancelled' in external_status.lower():
-                django_status = 'cancelled'
-            else:
-                django_status = 'confirmed'  # Default to confirmed
+            django_status = _map_external_status(external_status)
             
             # Simple row serialization
             import pandas as pd
