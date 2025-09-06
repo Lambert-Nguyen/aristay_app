@@ -4,6 +4,10 @@ This directory contains comprehensive documentation for the AriStay property man
 
 ## 📁 Documentation Structure
 
+### 🧪 **Testing Documentation** 
+- **[TESTING_MANUAL.md](TESTING_MANUAL.md)** - Complete user guide for running all tests
+- **[SYSTEM_TESTING_GUIDE.md](SYSTEM_TESTING_GUIDE.md)** - System-level and end-to-end testing guide
+
 ### Backend Documentation (`backend/`)
 - **[DYNAMIC_PERMISSIONS_ROBUST_IMPLEMENTATION.md](backend/DYNAMIC_PERMISSIONS_ROBUST_IMPLEMENTATION.md)** - Complete guide to the dynamic permission system
 - **[DOCUMENTATION.md](backend/DOCUMENTATION.md)** - General backend documentation

@@ -15,12 +15,20 @@ from django.test import RequestFactory
 from api.managersite import manager_site
 from api.models import CustomPermission, UserPermissionOverride
 
-def test_dynamic_permission_changes():
+def test_dynamic_permission_changes(teststaff_user):
     """Test that permission changes are immediately reflected"""
     print("=== Testing Dynamic Permission Changes ===\n")
     
-    # Get teststaff user
-    user = User.objects.get(username='teststaff')
+    # Create the required permission if it doesn't exist
+    portal_perm, created = CustomPermission.objects.get_or_create(
+        name='manager_portal_access',
+        defaults={'description': 'Access to manager portal'}
+    )
+    if created:
+        print("📝 Created manager_portal_access permission")
+    
+    # Use teststaff user from fixture
+    user = teststaff_user
     print(f"👤 User: {user.username}")
     
     # Create mock request
@@ -34,7 +42,6 @@ def test_dynamic_permission_changes():
     
     # Test 2: Revoke manager_portal_access permission
     print(f"\n🚫 Revoking manager_portal_access permission...")
-    portal_perm = CustomPermission.objects.get(name='manager_portal_access')
     override, created = UserPermissionOverride.objects.get_or_create(
         user=user,
         permission=portal_perm,

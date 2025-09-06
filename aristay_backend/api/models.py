@@ -1,16 +1,31 @@
 # api/models.py
 
 import json
+from datetime import time, timedelta
 # Removed available_timezones import - using curated timezone choices instead
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models import Q, F
+from django.db.models.signals import post_save, m2m_changed
 from django.utils import timezone
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 
-class Property(models.Model):
-    name       = models.CharField(max_length=100, unique=True)
+# Import soft delete functionality
+from .soft_delete import SoftDeleteMixin, SoftDeleteManager
+
+# Postgres-specific features
+try:
+    from django.contrib.postgres.constraints import ExclusionConstraint
+    from django.contrib.postgres.fields import DateTimeRangeField
+    from django.contrib.postgres.indexes import GistIndex
+    POSTGRES = True
+except ImportError:
+    POSTGRES = False
+
+class Property(SoftDeleteMixin, models.Model):
+    name       = models.CharField(max_length=100)
     address    = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
@@ -31,6 +46,21 @@ class Property(models.Model):
     
     # History tracking
     history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
+
+    # Managers
+    objects = SoftDeleteManager()  # Default manager excludes deleted
+    all_objects = models.Manager()  # Includes deleted objects
+
+    class Meta:
+        constraints = [
+            # Soft-delete aware uniqueness constraint
+            models.UniqueConstraint(
+                fields=['name'],
+                condition=Q(is_deleted=False),
+                name='uniq_property_name'
+            ),
+        ]
+        indexes = [models.Index(fields=['name'])]
 
     def __str__(self):
         return self.name
@@ -73,7 +103,7 @@ class Property(models.Model):
 # Booking & Ownership domain (Property-centric design)
 # ----------------------------------------------------------------------------
 
-class Booking(models.Model):
+class Booking(SoftDeleteMixin, models.Model):
     """A booking window for a property. Tasks will typically be linked to a booking."""
     STATUS_CHOICES = [
         ('booked', 'Booked'),
@@ -113,14 +143,68 @@ class Booking(models.Model):
     raw_row = models.JSONField(null=True, blank=True, help_text="Raw Excel row data for audit")
     last_import_update = models.DateTimeField(null=True, blank=True, help_text="Last time this booking was updated via import")
     
+    # PROVENANCE FIELDS (Agent's recommendation)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='bookings_created')
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name='bookings_modified')
+    created_via = models.CharField(max_length=32, default='manual',
+                                   help_text="manual|excel_import|api|system")
+    modified_via = models.CharField(max_length=32, default='manual',
+                                    help_text="manual|excel_import|api|system")
+    
     # History tracking
     history = models.TextField(blank=True, default='[]', help_text="JSON array of change history")
     
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
+    # Managers
+    objects = SoftDeleteManager()  # Default manager excludes deleted
+    all_objects = models.Manager()  # Includes deleted objects
+
     class Meta:
         ordering = ['-check_in_date']
+        indexes = [
+            models.Index(fields=['property', 'check_in_date']),
+            models.Index(fields=['property', 'check_out_date']),
+            models.Index(fields=['status']),
+            models.Index(fields=['source', 'external_code']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(check_in_date__lt=F('check_out_date')),
+                name='booking_checkin_before_checkout'
+            ),
+            models.UniqueConstraint(
+                fields=['property', 'source', 'external_code'],
+                condition=Q(external_code__gt='') & Q(is_deleted=False),
+                name='uniq_booking_external_code_per_property_source'
+            ),
+        ] + ([
+            # Prevent overlaps for active bookings on same property (Postgres)
+            ExclusionConstraint(
+                name='booking_no_overlap_active',
+                expressions=[
+                    (F('property'), '='),
+                    (
+                        models.Func(
+                            F('check_in_date'),
+                            F('check_out_date'),
+                            function='tstzrange',
+                            output_field=DateTimeRangeField()
+                        ),
+                        '&&',
+                    ),
+                ],
+                condition=~Q(status__in=['cancelled', 'completed']),
+                index_type='gist',
+            ),
+        ] if POSTGRES else [])
+
+    def clean(self):
+        if self.check_in_date and self.check_out_date and self.check_in_date >= self.check_out_date:
+            raise ValidationError("check_in_date must be before check_out_date")
 
     def __str__(self):
         return f"Booking {self.property.name} {self.check_in_date:%Y-%m-%d} → {self.check_out_date:%Y-%m-%d}"
@@ -245,9 +329,12 @@ TASK_TYPE_CHOICES = [
     ('maintenance', 'Maintenance'),
     ('laundry', 'Laundry'),
     ('lawn_pool', 'Lawn/Pool'),
+    ('inspection', 'Inspection'),      # Add to match template options
+    ('preparation', 'Preparation'),    # Add to match template options
+    ('other', 'Other'),                # Add to match template options
 ]
 
-class Task(models.Model):
+class Task(SoftDeleteMixin, models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('waiting_dependency', 'Waiting for Dependency'),
@@ -280,6 +367,18 @@ class Task(models.Model):
     depends_on   = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='dependent_tasks',
                                           help_text="This task is blocked by the selected prerequisite tasks")
     
+    # Agent's recommendation: Lock mechanism for import protection
+    is_locked_by_user = models.BooleanField(default=False, help_text="Prevent auto-updates from imports")
+    
+    # Template tracking for auto-generated tasks
+    created_by_template = models.ForeignKey(
+        'AutoTaskTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="Template that created this task (if auto-generated)"
+    )
+    
     # users that do **not** want pushes for *this* task
     muted_by     = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
@@ -287,6 +386,18 @@ class Task(models.Model):
         blank=True,
         help_text="Users that muted notifications for this task"
     )
+
+    # Managers
+    objects = SoftDeleteManager()  # Default manager excludes deleted
+    all_objects = models.Manager()  # Includes deleted objects
+
+    def clean(self):
+        # Agent's improvement: Auto-set property from booking to reduce user error
+        if self.booking_id and not self.property_id:
+            self.property = self.booking.property
+        # Agent's recommendation: Prevent cross-property task linking
+        if self.booking_id and self.property_id and self.booking.property_id != self.property_id:
+            raise ValidationError("Task.property must match Task.booking.property")
 
 
     def __str__(self):
@@ -344,28 +455,66 @@ class Task(models.Model):
                 self.history = json.dumps(hist)
 
         super().save(*args, **kwargs)
+    
+    class Meta:
+        constraints = [
+            # Prevent multiple tasks from the same template for the same booking (ignores soft-deleted)
+            models.UniqueConstraint(
+                fields=['booking', 'created_by_template'],
+                condition=models.Q(created_by_template__isnull=False) & models.Q(is_deleted=False),
+                name='uniq_template_task_per_booking',
+            ),
+        ]
 
 
 def task_image_upload_path(instance, filename):
-    """Generate upload path for task images with proper organization"""
+    """Generate secure upload path for task images with UUID naming"""
     import os
+    import uuid
     from django.utils.text import slugify
     
-    # Create organized folder structure: tasks/{task_id}/{filename}
-    task_id = instance.task.id if instance.task else 'unknown'
+    # Generate UUID-based filename for security
+    original_name, ext = os.path.splitext(filename)
+    ext = ext.lower() if ext else '.bin'
     
-    # Clean up filename
-    name, ext = os.path.splitext(filename)
-    clean_name = slugify(name)[:50]  # Limit length
+    # Validate file extension (security)
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    if ext not in allowed_extensions:
+        ext = '.jpg'  # Default to jpg for invalid extensions
     
-    return f'tasks/{task_id}/{clean_name}{ext}'
+    # Create organized folder structure: task_images/{task_id}/{uuid}.ext
+    task_id = instance.task.id if instance.task else 'staging'
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    
+    return f'task_images/{task_id}/{unique_filename}'
+
+
+def validate_task_image(file):
+    """Validate uploaded task image file - Agent's enhanced version with PIL inspection"""
+    from django.core.exceptions import ValidationError
+    from PIL import Image, UnidentifiedImageError
+    
+    # File size validation (5MB max)
+    max_size = 5 * 1024 * 1024  # 5MB
+    if getattr(file, 'size', 0) > max_size:
+        raise ValidationError("Image file too large. Maximum size is 5MB.")
+    
+    # Verify actual image by decoding bytes (Agent's security improvement)
+    pos = file.tell()
+    try:
+        img = Image.open(file)
+        img.verify()  # validates without decoding full image
+    except (UnidentifiedImageError, OSError):
+        raise ValidationError("Invalid image file.")
+    finally:
+        file.seek(pos)
 
 
 class TaskImage(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to=task_image_upload_path)
+    image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
 
     def __str__(self):
         return f"Image for {self.task.title}"
@@ -490,7 +639,7 @@ class Profile(models.Model):
     def has_permission(self, permission_name):
         """
         Check if user has a specific permission
-        Priority: User Override > Role Permission > Default Deny
+        Priority: User Override > Role Permission > Baseline Role > Default Deny
         """
         from django.utils import timezone
         
@@ -517,10 +666,23 @@ class Profile(models.Model):
             )
             return role_perm.granted
         except RolePermission.DoesNotExist:
-            pass
+            # Only use baseline if no explicit role permission is defined
+            baseline_perms = self._get_baseline_role_permissions()
+            if permission_name in baseline_perms:
+                return baseline_perms[permission_name]
         
         # Default deny
         return False
+    
+    def _get_baseline_role_permissions(self):
+        """Get baseline permissions for each role type"""
+        _TASK_PERMS_BY_ROLE = {
+            'superuser': {'view_tasks': True, 'add_tasks': True, 'change_tasks': True, 'delete_tasks': True},
+            'manager':   {'view_tasks': True, 'add_tasks': True, 'change_tasks': True},
+            'staff':     {'view_tasks': True, 'add_tasks': True},
+            'viewer':    {'view_tasks': True},
+        }
+        return _TASK_PERMS_BY_ROLE.get(self.role, {})
     
     def can_delegate_permission(self, permission_name):
         """
@@ -541,9 +703,10 @@ class Profile(models.Model):
         Get all permissions for this user (both role-based and overrides)
         Returns dict with permission names as keys and granted status as values
         """
-        permissions = {}
+        # Start with baseline role permissions
+        permissions = self._get_baseline_role_permissions().copy()
         
-        # Start with role permissions
+        # Override with role permissions from database
         for role_perm in RolePermission.objects.filter(
             role=self.role,
             permission__is_active=True
@@ -565,12 +728,37 @@ class Profile(models.Model):
         """
         Get list of permissions this user can delegate to others
         """
-        return RolePermission.objects.filter(
+        # Get explicit delegatable permissions from RolePermissions
+        delegatable = set(RolePermission.objects.filter(
             role=self.role,
             permission__is_active=True,
             granted=True,
             can_delegate=True
-        ).values_list('permission__name', flat=True)
+        ).values_list('permission__name', flat=True))
+        
+        # Get permissions that have explicit RolePermission records (delegatable or not)
+        explicit_permissions = set(RolePermission.objects.filter(
+            role=self.role,
+            permission__is_active=True,
+        ).values_list('permission__name', flat=True))
+        
+        # Only add baseline delegatable permissions for permissions that don't have explicit records
+        baseline_delegatable = self._get_baseline_delegatable_permissions()
+        for perm in baseline_delegatable:
+            if perm not in explicit_permissions:
+                delegatable.add(perm)
+        
+        return delegatable
+    
+    def _get_baseline_delegatable_permissions(self):
+        """Get baseline delegatable permissions for each role"""
+        _DELEGATABLE_BY_ROLE = {
+            'superuser': {'view_tasks', 'add_tasks', 'change_tasks', 'delete_tasks'},
+            'manager':   {'view_tasks', 'add_tasks'},
+            'staff':     set(),
+            'viewer':    set(),
+        }
+        return _DELEGATABLE_BY_ROLE.get(self.role, set())
 
 
 class CustomPermission(models.Model):
@@ -715,21 +903,26 @@ class UserPermissionOverride(models.Model):
         return timezone.now() > self.expires_at
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def create_user_profile(sender, instance, created, **kwargs):
+def create_and_sync_user_profile(sender, instance, created, **kwargs):
+    """Create profile for new users and sync superuser role."""
     if created:
         # Set default role based on Django user flags - decouple is_staff from manager role
         default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
         Profile.objects.create(user=instance, role=default_role)
-
-@receiver(post_save, sender=User)
-def sync_profile_role_on_user_save(sender, instance, **kwargs):
-    profile, _ = Profile.objects.get_or_create(user=instance)
-    
-    # Only auto-sync superuser role - do NOT sync is_staff to manager
-    # This keeps Django admin permissions separate from business roles
-    if instance.is_superuser and profile.role != UserRole.SUPERUSER:
-        profile.role = UserRole.SUPERUSER
-        profile.save()
+    else:
+        # For existing users, ensure profile exists and sync superuser role
+        # Use proper defaults to avoid overwriting existing roles
+        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
+        profile, created_profile = Profile.objects.get_or_create(
+            user=instance,
+            defaults={'role': default_role}
+        )
+        
+        # Only auto-sync superuser role - do NOT sync is_staff to manager
+        # This keeps Django admin permissions separate from business roles
+        if instance.is_superuser and profile.role != UserRole.SUPERUSER:
+            profile.role = UserRole.SUPERUSER
+            profile.save()
     # REMOVED: is_staff -> manager auto-conversion for clean separation
 
 class Device(models.Model):
@@ -737,6 +930,10 @@ class Device(models.Model):
     token = models.CharField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        # Agent's recommendation: Practical indexes for performance
+        indexes = [models.Index(fields=['user'])]
         
     def __str__(self):
         return f"Device {self.token} for {self.user.username}"
@@ -775,6 +972,12 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+        # Agent's recommendation: Practical indexes for performance
+        indexes = [
+            models.Index(fields=['recipient', 'read']),
+            models.Index(fields=['push_sent']),
+            models.Index(fields=['timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.verb} → {self.task.title} for {self.recipient.username}"
@@ -1089,13 +1292,20 @@ class InventoryItem(models.Model):
 
 class PropertyInventory(models.Model):
     """Tracks inventory levels for specific items at specific properties."""
+    from django.core.validators import MinValueValidator
+    
     property_ref = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='inventory')
     item = models.ForeignKey('InventoryItem', on_delete=models.CASCADE)
     
-    # Stock levels
-    current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    par_level = models.DecimalField(max_digits=10, decimal_places=2, help_text="Minimum stock level before reorder")
-    max_level = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Maximum stock capacity")
+    # Stock levels with agent's safety validators
+    current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                        validators=[MinValueValidator(0)])
+    par_level = models.DecimalField(max_digits=10, decimal_places=2,
+                                    validators=[MinValueValidator(0)],
+                                    help_text="Minimum stock level before reorder")
+    max_level = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                    validators=[MinValueValidator(0)],
+                                    help_text="Maximum stock capacity")
     
     # Location within property
     storage_location = models.CharField(max_length=200, blank=True, help_text="Where this item is stored")
@@ -1356,7 +1566,7 @@ class ScheduleTemplate(models.Model):
     # Timing
     start_date = models.DateField(help_text="When to start generating tasks")
     end_date = models.DateField(null=True, blank=True, help_text="When to stop (optional)")
-    time_of_day = models.TimeField(default='09:00:00', help_text="Default time for generated tasks")
+    time_of_day = models.TimeField(default=time(9, 0), help_text="Default time for generated tasks")
     advance_days = models.IntegerField(default=1, help_text="Create task X days in advance")
     
     # Assignment
@@ -1541,6 +1751,9 @@ class BookingImportLog(models.Model):
     errors_count = models.IntegerField(default=0)
     errors_log = models.TextField(blank=True)
     
+    # Task creation tracking
+    total_tasks_created = models.IntegerField(default=0, help_text="Number of automated tasks created")
+    
     # Metadata
     imported_at = models.DateTimeField(auto_now_add=True)
     imported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -1550,4 +1763,225 @@ class BookingImportLog(models.Model):
     
     def __str__(self):
         return f"Import {self.imported_at.strftime('%Y-%m-%d %H:%M')} - {self.successful_imports}/{self.total_rows} success"
+
+
+class TaskTemplateTracking(models.Model):
+    """Track which template created which task"""
+    task = models.OneToOneField('Task', on_delete=models.CASCADE, related_name='template_info')
+    template = models.ForeignKey('AutoTaskTemplate', on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Task Template Tracking"
+        verbose_name_plural = "Task Template Tracking"
+
+
+class AutoTaskTemplate(models.Model):
+    """Template for automatically creating tasks during booking import"""
+    
+    TIMING_CHOICES = [
+        ('before_checkin', 'Days Before Check-in'),
+        ('after_checkout', 'Days After Check-out'),
+        ('fixed_time', 'Fixed Time of Day'),
+    ]
+    
+    TASK_TYPE_CHOICES = [
+        ('administration', 'Administration'),
+        ('cleaning', 'Cleaning'),
+        ('maintenance', 'Maintenance'),
+        ('laundry', 'Laundry'),
+        ('lawn_pool', 'Lawn/Pool'),
+        ('inspection', 'Inspection'),
+        ('preparation', 'Preparation'),
+        ('other', 'Other'),
+    ]
+    
+    name = models.CharField(max_length=100, help_text="Template name for identification")
+    is_active = models.BooleanField(default=True, help_text="Whether this template is active")
+    
+    # Task Configuration
+    task_type = models.CharField(max_length=20, choices=TASK_TYPE_CHOICES, default='cleaning')
+    title_template = models.CharField(
+        max_length=200, 
+        help_text="Task title template. Use {property}, {guest_name}, {check_in_date}, etc."
+    )
+    description_template = models.TextField(
+        blank=True,
+        help_text="Task description template. Use {property}, {guest_name}, {check_in_date}, etc."
+    )
+    
+    # Timing Configuration
+    timing_type = models.CharField(max_length=20, choices=TIMING_CHOICES, default='before_checkin')
+    timing_offset = models.IntegerField(
+        default=1,
+        help_text="Days before/after check-in/out (positive number)"
+    )
+    timing_hour = models.TimeField(
+        null=True, 
+        blank=True,
+        help_text="Specific time of day (optional)"
+    )
+    
+    # Conditions
+    property_types = models.ManyToManyField(
+        'Property', 
+        blank=True,
+        help_text="Apply only to specific properties (empty = all properties)"
+    )
+    booking_sources = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Comma-separated list of booking sources (e.g., 'Airbnb,VRBO') or empty for all"
+    )
+    
+    # Assignment
+    default_assignee = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text="Default user to assign tasks to"
+    )
+    
+    # Metadata
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_task_templates')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+        
+    def __str__(self):
+        return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
+    
+    def create_task_for_booking(self, booking):
+        """Create a task for a specific booking using this template (idempotent)"""
+        from django.db import transaction
+        
+        # Check conditions
+        if self.property_types.exists() and booking.property not in self.property_types.all():
+            return None
+            
+        if self.booking_sources:
+            allowed_sources = [s.strip().lower() for s in self.booking_sources.split(',')]
+            if booking.source.lower() not in allowed_sources:
+                return None
+        
+        # Calculate due date
+        due_date = None
+        if self.timing_type == 'before_checkin':
+            due_date = booking.check_in_date - timedelta(days=self.timing_offset)
+        elif self.timing_type == 'after_checkout':
+            due_date = booking.check_out_date + timedelta(days=self.timing_offset)
+        
+        # Apply specific time if provided
+        if due_date and self.timing_hour:
+            due_date = due_date.replace(
+                hour=self.timing_hour.hour,
+                minute=self.timing_hour.minute,
+                second=0,
+                microsecond=0
+            )
+        
+        # Render templates
+        context = {
+            'property': booking.property.name,
+            'guest_name': booking.guest_name,
+            'check_in_date': booking.check_in_date.strftime('%Y-%m-%d'),
+            'check_out_date': booking.check_out_date.strftime('%Y-%m-%d'),
+            'source': booking.source,
+            'external_code': booking.external_code,
+        }
+        
+        title = self.title_template.format(**context)
+        description = self.description_template.format(**context) if self.description_template else ""
+        
+        # Idempotent creation with DB-level safety
+        with transaction.atomic():
+            # Quick exist check for speed
+            if Task.objects.filter(booking=booking, created_by_template=self, is_deleted=False).exists():
+                return None  # already created earlier
+            
+            task, created = Task.objects.get_or_create(
+                booking=booking,
+                created_by_template=self,
+                defaults={
+                    'title': title,
+                    'description': description,
+                    'task_type': self.task_type,
+                    'property': booking.property,
+                    'assigned_to': self.default_assignee,
+                    'due_date': due_date,
+                },
+            )
+            
+        return task if created else None
+
+
+# Add at the end of models.py before Audit classes
+
+class AuditEvent(models.Model):
+    """
+    Agent's Phase 2: Structured audit system for comprehensive activity tracking.
+    Append-only model for tracking all create/update/delete operations.
+    """
+    ACTION_CHOICES = [
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+    ]
+    
+    # Core audit fields
+    object_type = models.CharField(max_length=100, help_text="Model name of the object being audited")
+    object_id = models.CharField(max_length=100, help_text="Primary key of the object being audited")
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES, help_text="Type of action performed")
+    
+    # Actor information
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="User who performed the action"
+    )
+    
+    # Change tracking with JSONB diff
+    changes = models.JSONField(
+        default=dict,
+        help_text="JSONB diff of changes made (before/after values)"
+    )
+    
+    # Request context
+    request_id = models.CharField(max_length=100, blank=True, help_text="Unique request identifier")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address of the request")
+    user_agent = models.TextField(blank=True, help_text="User agent string from the request")
+    
+    # Timestamp
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When the audit event was recorded")
+    
+    class Meta:
+        verbose_name = "Audit Event"
+        verbose_name_plural = "Audit Events"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['object_type', 'object_id']),
+            models.Index(fields=['action']),
+            models.Index(fields=['actor']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        actor_name = self.actor.username if self.actor else "System"
+        return f"{actor_name} {self.action}d {self.object_type}:{self.object_id}"
+
+
+# =============================================================================
+# SIGNAL RECEIVERS
+# =============================================================================
+
+# Agent's recommendation: Prevent self-dependency in Task.depends_on
+@receiver(m2m_changed, sender=Task.depends_on.through)
+def prevent_task_self_dependency(sender, instance, action, pk_set, **kwargs):
+    """Prevent a task from depending on itself"""
+    if action == 'pre_add' and instance.pk and instance.pk in pk_set:
+        raise ValidationError("A task cannot depend on itself.")
     

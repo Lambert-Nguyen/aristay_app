@@ -38,6 +38,9 @@ from .views import (
     permission_management_view
 )
 
+# Agent's Phase 2: Import audit views
+from .audit_views import AuditEventViewSet
+
 # Remove separate imports since they're now in the main views.py
 
 from .staff_views import (
@@ -58,6 +61,8 @@ router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
+# Agent's Phase 2: Register audit API endpoints
+router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),

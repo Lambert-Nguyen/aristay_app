@@ -16,7 +16,7 @@ from django.conf import settings
 
 from rest_framework import serializers
 from .models import Task, Property, TaskImage, Profile, Device, Notification, UserRole
-from .models import Booking, PropertyOwnership
+from .models import Booking, PropertyOwnership, AuditEvent  # Agent's Phase 2: Add AuditEvent
 import json
 import pytz
 
@@ -413,3 +413,30 @@ class PropertyOwnershipSerializer(serializers.ModelSerializer):
             'ownership_type', 'can_edit', 'created_at'
         ]
         read_only_fields = ['created_at']
+
+
+# =============================================================================
+# AGENT'S PHASE 2: AUDIT SYSTEM SERIALIZERS
+# =============================================================================
+
+class AuditEventSerializer(serializers.ModelSerializer):
+    """
+    Agent's Phase 2: Serializer for audit events.
+    Fixed per GPT agent: actor as PK for test compatibility.
+    """
+    actor = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = AuditEvent
+        fields = [
+            "id",
+            "created_at",
+            "action",
+            "object_type",
+            "object_id",
+            "actor",
+            "request_id",
+            "ip_address",
+            "user_agent",
+            "changes",
+        ]

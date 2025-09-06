@@ -10,7 +10,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from api.services.excel_import_service import ExcelImportService
-from api.models import User, Property
+from django.contrib.auth import get_user_model
+from api.models import Property
+
+User = get_user_model()
 import pandas as pd
 
 def test_nights_handling():

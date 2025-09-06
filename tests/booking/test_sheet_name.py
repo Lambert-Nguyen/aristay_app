@@ -10,7 +10,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from api.services.excel_import_service import ExcelImportService
-from api.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 def test_sheet_name():
     """Test that the service can handle the correct sheet name"""

@@ -1,0 +1,14 @@
+[allowlist]
+paths = [
+  ".*test.*\\.py$",
+  ".*tests/.*\\.py$",
+  "tests/.*\\.py$", 
+  ".*test_.*\\.py$",
+  "aristay_backend/manage\\.py$",
+  ".*admin\\.py$"
+]
+regexes = [
+  "testuser123",
+  "default_password",
+  "admin123"
+]

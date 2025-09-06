@@ -12,11 +12,11 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
-from aristay_backend.api.models import (
+from api.models import (
     Profile, CustomPermission, RolePermission, UserPermissionOverride,
     UserRole, Task, Property, Booking
 )
-from aristay_backend.api.permissions import (
+from api.permissions import (
     HasCustomPermission, HasAnyCustomPermission, DynamicTaskPermissions,
     DynamicBookingPermissions, DynamicUserPermissions, DynamicPropertyPermissions,
     CanViewReports, CanViewAnalytics, CanAccessAdminPanel, CanManageFiles
@@ -36,41 +36,58 @@ class DynamicPermissionsTestCase(APITestCase):
             is_superuser=True,
             is_staff=True
         )
-        self.superuser_profile, _ = Profile.objects.get_or_create(
+        self.superuser_profile, created = Profile.objects.get_or_create(
             user=self.superuser,
             defaults={'role': UserRole.SUPERUSER}
         )
+        if not created:
+            self.superuser_profile.role = UserRole.SUPERUSER
+            self.superuser_profile.save()
         
         self.manager = User.objects.create_user(
             username='manager',
             email='manager@test.com',
-            password='testpass123',
-            is_staff=True
+            password='testpass123'
         )
-        self.manager_profile, _ = Profile.objects.get_or_create(
+        self.manager_profile, created = Profile.objects.get_or_create(
             user=self.manager,
             defaults={'role': UserRole.MANAGER}
         )
+        if not created:
+            self.manager_profile.role = UserRole.MANAGER
+            self.manager_profile.save()
         
         self.staff = User.objects.create_user(
             username='staff',
             email='staff@test.com',
             password='testpass123'
         )
-        self.staff_profile, _ = Profile.objects.get_or_create(
+        self.staff_profile, created = Profile.objects.get_or_create(
             user=self.staff,
             defaults={'role': UserRole.STAFF}
         )
+        if not created:
+            self.staff_profile.role = UserRole.STAFF
+            self.staff_profile.save()
         
         self.viewer = User.objects.create_user(
             username='viewer',
             email='viewer@test.com',
             password='testpass123'
         )
-        self.viewer_profile, _ = Profile.objects.get_or_create(
+        # Use create to ensure we get the correct role, not get_or_create
+        profile, created = Profile.objects.get_or_create(
             user=self.viewer,
             defaults={'role': UserRole.VIEWER}
         )
+        if not created:
+            profile.role = UserRole.VIEWER
+            profile.save()
+        self.viewer_profile = profile
+        
+        # Force refresh to clear Django's cache
+        self.viewer.refresh_from_db()
+        self.viewer_profile.refresh_from_db()
         
         # Create test permissions
         self.view_tasks_perm = CustomPermission.objects.create(
@@ -307,31 +324,32 @@ class DynamicPermissionsTestCase(APITestCase):
     def test_dynamic_task_permissions(self):
         """Test DynamicTaskPermissions class"""
         perm = DynamicTaskPermissions()
-        
+
         # Test with manager (has view_tasks and add_tasks)
         request = type('Request', (), {'user': self.manager, 'method': 'GET'})()
         self.assertTrue(perm.has_permission(request, None))
-        
+
         request = type('Request', (), {'user': self.manager, 'method': 'POST'})()
         self.assertTrue(perm.has_permission(request, None))
-        
+
         # Test with staff (has view_tasks and add_tasks, but not change_tasks)
         request = type('Request', (), {'user': self.staff, 'method': 'GET'})()
         self.assertTrue(perm.has_permission(request, None))
-        
+
         request = type('Request', (), {'user': self.staff, 'method': 'POST'})()
         self.assertTrue(perm.has_permission(request, None))
-        
+
         request = type('Request', (), {'user': self.staff, 'method': 'PUT'})()
         self.assertFalse(perm.has_permission(request, None))
-        
+
         # Test with viewer (only has view_tasks)
         request = type('Request', (), {'user': self.viewer, 'method': 'GET'})()
         self.assertTrue(perm.has_permission(request, None))
-        
+
+        # Test POST request (viewer should NOT have add_tasks permission)
         request = type('Request', (), {'user': self.viewer, 'method': 'POST'})()
         self.assertFalse(perm.has_permission(request, None))
-        
+
     def test_has_any_custom_permission(self):
         """Test HasAnyCustomPermission class"""
         perm = HasAnyCustomPermission(['view_tasks', 'view_reports'])
@@ -394,17 +412,24 @@ class DynamicPermissionsTestCase(APITestCase):
         self.assertFalse(perm.has_permission(request, None))
         
     def test_user_without_profile(self):
-        """Test user without profile is denied access"""
+        """Test user gets default permissions when profile is auto-created"""
+        # Since signals now auto-create profiles, this test verifies the default permissions
         user_no_profile = User.objects.create_user(
             username='noprofile',
             email='noprofile@test.com',
             password='testpass123'
         )
         
+        # The signal will auto-create a profile with default STAFF role
+        self.assertTrue(hasattr(user_no_profile, 'profile'))
+        self.assertEqual(user_no_profile.profile.role, UserRole.STAFF)
+        
+        # Test that STAFF role has appropriate permissions
         perm = HasCustomPermission('view_tasks')
         request = type('Request', (), {'user': user_no_profile, 'method': 'GET'})()
-        self.assertFalse(perm.has_permission(request, None))
-        
+        # STAFF role should have view_tasks permission
+        self.assertTrue(perm.has_permission(request, None))
+
     def test_permission_cleanup_on_expiry(self):
         """Test that expired overrides are cleaned up"""
         # Create an expired override
@@ -475,14 +500,24 @@ class PermissionIntegrationTestCase(APITestCase):
             password='testpass123',
             is_staff=True
         )
-        Profile.objects.get_or_create(user=self.manager, defaults={'role': UserRole.MANAGER})
+        manager_profile, created = Profile.objects.get_or_create(user=self.manager, defaults={'role': UserRole.MANAGER})
+        if not created:
+            manager_profile.role = UserRole.MANAGER
+            manager_profile.save()
         
         self.staff = User.objects.create_user(
             username='staff',
             email='staff@test.com',
             password='testpass123'
         )
-        Profile.objects.get_or_create(user=self.staff, defaults={'role': UserRole.STAFF})
+        staff_profile, created = Profile.objects.get_or_create(user=self.staff, defaults={'role': UserRole.STAFF})
+        if not created:
+            staff_profile.role = UserRole.STAFF
+            staff_profile.save()
+            
+        # Force refresh to clear Django's cache
+        self.manager.refresh_from_db()
+        self.staff.refresh_from_db()
         
         # Create permissions
         self.view_tasks_perm = CustomPermission.objects.create(name='view_tasks')

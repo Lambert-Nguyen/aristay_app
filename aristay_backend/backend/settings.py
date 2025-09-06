@@ -76,7 +76,7 @@ if USE_CLOUDINARY:
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        'api',
+        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
         "rest_framework",
         "rest_framework.authtoken",
         "corsheaders",
@@ -104,7 +104,7 @@ else:
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        'api',
+        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
         "rest_framework",
         "rest_framework.authtoken",
         "corsheaders",
@@ -121,6 +121,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Admin access control middleware (must run after authentication)
     "backend.middleware.AdminAccessMiddleware",
+    # Agent's Phase 2: Audit middleware for request context capture
+    "api.audit_middleware.AuditMiddleware",
     # Now your timezone middleware can safely reference request.user
     "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -350,6 +352,23 @@ if not DEBUG:
     DATABASES['default']['OPTIONS'] = {
         'MAX_CONNS': int(os.getenv('DB_MAX_CONNECTIONS', '20')),
     }
+
+# --- Guard against SQLite-unsupported database options ---
+engine = DATABASES["default"]["ENGINE"]
+
+if engine == "django.db.backends.sqlite3":
+    # Keep only SQLite-supported options (Django docs mention 'timeout')
+    opts = DATABASES["default"].get("OPTIONS", {}) or {}
+    sqlite_allowed = {"timeout"}
+    DATABASES["default"]["OPTIONS"] = {k: v for k, v in opts.items() if k in sqlite_allowed}
+    
+    # Optional: ensure CONN_MAX_AGE is 0 for SQLite (though it's harmless)
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
+
+else:
+    # For non-SQLite engines (Postgres, etc.), keep connection tuning
+    # CONN_MAX_AGE and driver-specific options in OPTIONS are preserved
+    pass
 
 # Logging-specific settings
 LOGGING_CONFIG = None  # Disable Django's default logging config

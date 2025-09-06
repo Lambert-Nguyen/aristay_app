@@ -6,21 +6,14 @@ This script tests the functionality of the enhanced Excel import service
 to ensure the conflict detection and resolution features work correctly.
 """
 
-import os
-import sys
-import django
+import pytest
 import json
 from datetime import datetime, timedelta
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-
-# Add the project root to Python path
-sys.path.insert(0, '/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend')
-
-# Setup Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
-django.setup()
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from api.models import Property, Booking, BookingImportLog
 from api.services.enhanced_excel_import_service import (
@@ -30,120 +23,114 @@ from api.services.enhanced_excel_import_service import (
     ConflictType
 )
 
-class TestEnhancedExcelImport:
+@pytest.mark.django_db
+class TestEnhancedExcelImport(TestCase):
     """Test suite for enhanced Excel import functionality"""
     
-    def __init__(self):
-        self.user = None
-        self.property = None
-        self.setup_test_data()
-    
-    def setup_test_data(self):
+    def setUp(self):
         """Create test user and property"""
-        print("🔧 Setting up test data...")
-        
-        # Create test user
-        self.user, created = User.objects.get_or_create(
-            username='test_import_user',
-            defaults={
-                'email': 'test@example.com',
-                'first_name': 'Test',
-                'last_name': 'User',
-                'is_staff': True
-            }
+        # Create test user with unique username to avoid conflicts
+        self.username = f'test_import_user_{datetime.now().microsecond}'
+        self.user = User.objects.create_user(
+            username=self.username,
+            email='test@example.com',
+            first_name='Test',
+            last_name='User',
+            is_staff=True
         )
-        if created:
-            print(f"✅ Created test user: {self.user.username}")
-        else:
-            print(f"ℹ️  Using existing test user: {self.user.username}")
         
-        # Create test property
-        self.property, created = Property.objects.get_or_create(
-            name='Test Property for Import',
-            defaults={
-                'address': '123 Test Street',
-                'city': 'Test City',
-                'state': 'CA',
-                'zip_code': '12345'
-            }
+        # Create test property with unique name (Property model only has name and address)
+        property_name = f'Test Property for Import {datetime.now().microsecond}'
+        self.property = Property.objects.create(
+            name=property_name,
+            address='123 Test Street, Test City, CA 12345'
         )
-        if created:
-            print(f"✅ Created test property: {self.property.name}")
-        else:
-            print(f"ℹ️  Using existing test property: {self.property.name}")
+    
+    def tearDown(self):
+        """Clean up test data"""
+        try:
+            # Clean up any bookings created during tests
+            with transaction.atomic():
+                Booking.objects.filter(property=self.property).delete()
+        except Exception:
+            pass  # Ignore cleanup errors
+        
+        try:
+            with transaction.atomic():
+                BookingImportLog.objects.filter(imported_by=self.user).delete()
+        except Exception:
+            pass  # Ignore cleanup errors
+        
+        try:
+            # Clean up test objects
+            with transaction.atomic():
+                self.property.delete()
+                self.user.delete()
+        except Exception:
+            pass  # Ignore cleanup errors
     
     def test_conflict_detection(self):
         """Test conflict detection logic"""
-        print("\n🧪 Testing conflict detection...")
-        
-        # Create existing booking
-        existing_booking = Booking.objects.create(
-            property=self.property,
-            external_code='TEST123',
-            guest_name='John Doe',
-            check_in_date=datetime.now() + timedelta(days=1),
-            check_out_date=datetime.now() + timedelta(days=3),
-            external_status='confirmed',
-            source='Airbnb'
-        )
-        print(f"✅ Created existing booking: {existing_booking.external_code}")
+        # Create existing booking with proper transaction management
+        with transaction.atomic():
+            external_code = f'TEST123_{datetime.now().microsecond}'
+            existing_booking = Booking.objects.create(
+                property=self.property,
+                external_code=external_code,
+                guest_name='John Doe',
+                check_in_date=timezone.now() + timedelta(days=1),
+                check_out_date=timezone.now() + timedelta(days=3),
+                external_status='confirmed',
+                source='Airbnb'
+            )
         
         # Test conflict types
         service = EnhancedExcelImportService(self.user)
         
         # Test date change conflict
         booking_data = {
-            'external_code': 'TEST123',
+            'external_code': external_code,
             'guest_name': 'John Doe',
             'property_name': self.property.name,
-            'start_date': datetime.now() + timedelta(days=2),  # Different date
-            'end_date': datetime.now() + timedelta(days=4),    # Different date
+            'start_date': timezone.now() + timedelta(days=2),  # Different date
+            'end_date': timezone.now() + timedelta(days=4),    # Different date
             'external_status': 'confirmed',
             'source': 'Airbnb'
         }
         
         conflict_result = service._detect_conflicts(booking_data, self.property, 1)
         
-        if conflict_result['has_conflicts']:
-            print(f"✅ Conflict detected correctly")
-            print(f"   Auto-resolve: {conflict_result['auto_resolve']}")
-            print(f"   Conflict types: {conflict_result['conflict'].conflict_types}")
-        else:
-            print("❌ Expected conflict not detected")
+        # Assert conflict detection worked
+        self.assertTrue(conflict_result['has_conflicts'], "Expected conflict not detected")
         
         # Test direct booking (should not auto-resolve)
         booking_data['source'] = 'Direct'
         conflict_result = service._detect_conflicts(booking_data, self.property, 2)
         
-        if conflict_result['has_conflicts'] and not conflict_result['auto_resolve']:
-            print("✅ Direct booking correctly requires manual review")
-        else:
-            print("❌ Direct booking conflict handling failed")
-        
-        # Cleanup
-        existing_booking.delete()
+        self.assertTrue(conflict_result['has_conflicts'], "Direct booking should have conflicts")
+        self.assertFalse(conflict_result['auto_resolve'], "Direct booking should require manual review")
     
     def test_conflict_serialization(self):
         """Test conflict serialization for frontend"""
-        print("\n🧪 Testing conflict serialization...")
-        
-        # Create test booking and conflict
-        existing_booking = Booking.objects.create(
-            property=self.property,
-            external_code='TEST456',
-            guest_name='Jane Smith',
-            check_in_date=datetime.now() + timedelta(days=5),
-            check_out_date=datetime.now() + timedelta(days=7),
-            external_status='confirmed',
-            source='VRBO'
-        )
+        # Create test booking and conflict with proper transaction management
+        with transaction.atomic():
+            external_code = f'TEST456_{datetime.now().microsecond}'
+            existing_booking = Booking.objects.create(
+                property=self.property,
+                external_code=external_code,
+                guest_name='Jane Smith',
+                check_in_date=timezone.now() + timedelta(days=5),
+                check_out_date=timezone.now() + timedelta(days=7),
+                external_status='confirmed',
+                source='VRBO'
+            )
         
         excel_data = {
-            'external_code': 'TEST456',
+            'external_code': external_code,
             'guest_name': 'Jane Smith Updated',
             'property_name': self.property.name,
-            'start_date': datetime.now() + timedelta(days=6),
-            'end_date': datetime.now() + timedelta(days=8),
+            'start_date': timezone.now() + timedelta(days=6),
+            'end_date': timezone.now() + timedelta(days=8),
             'external_status': 'modified',
             'source': 'VRBO'
         }
@@ -158,41 +145,51 @@ class TestEnhancedExcelImport:
         service = EnhancedExcelImportService(self.user)
         serialized = service._serialize_conflict(conflict)
         
-        print(f"✅ Conflict serialized successfully")
-        print(f"   Confidence score: {serialized['confidence_score']}")
-        print(f"   Conflict types: {serialized['conflict_types']}")
-        print(f"   Changes summary keys: {list(serialized['changes_summary'].keys())}")
-        
-        # Cleanup
-        existing_booking.delete()
+        # Assert serialization worked correctly
+        self.assertIn('confidence_score', serialized)
+        self.assertIn('conflict_types', serialized)
+        self.assertIn('changes_summary', serialized)
+        self.assertIsInstance(serialized['conflict_types'], list)
+        self.assertIsInstance(serialized['changes_summary'], dict)
     
     def test_conflict_resolution_service(self):
         """Test conflict resolution service"""
-        print("\n🧪 Testing conflict resolution service...")
-        
-        # Create test booking
-        existing_booking = Booking.objects.create(
-            property=self.property,
-            external_code='TEST789',
-            guest_name='Bob Wilson',
-            check_in_date=datetime.now() + timedelta(days=10),
-            check_out_date=datetime.now() + timedelta(days=12),
-            external_status='confirmed',
-            source='Direct'
-        )
+        # Create test booking with proper transaction management
+        with transaction.atomic():
+            external_code = f'TEST789_{datetime.now().microsecond}'
+            existing_booking = Booking.objects.create(
+                property=self.property,
+                external_code=external_code,
+                guest_name='Bob Wilson',
+                check_in_date=timezone.now() + timedelta(days=10),
+                check_out_date=timezone.now() + timedelta(days=12),
+                external_status='confirmed',
+                source='Direct'
+            )
         
         # Create mock import log with conflicts data
-        import_log = BookingImportLog.objects.create(
-            imported_by=self.user,
-            total_rows=1,
-            successful_imports=0,
-            errors_count=0,
-            errors_log='CONFLICTS_DATA:[{"conflict_index": 0, "existing_booking": {"id": ' + str(existing_booking.pk) + '}, "excel_data": {"guest_name": "Bob Wilson Updated", "start_date": "2024-01-15", "end_date": "2024-01-17"}}]'
-        )
+        conflicts_data = [{
+            "conflict_index": 0, 
+            "existing_booking": {"id": existing_booking.pk}, 
+            "excel_data": {
+                "guest_name": "Bob Wilson Updated", 
+                "start_date": "2024-01-15", 
+                "end_date": "2024-01-17"
+            }
+        }]
+        
+        with transaction.atomic():
+            import_log = BookingImportLog.objects.create(
+                imported_by=self.user,
+                total_rows=1,
+                successful_imports=0,
+                errors_count=0,
+                errors_log=f'CONFLICTS_DATA:{json.dumps(conflicts_data)}'
+            )
         
         resolution_service = ConflictResolutionService(self.user)
         
-        # Test resolution
+        # Test resolution with proper error handling
         resolutions = [{
             'conflict_index': 0,
             'action': 'update_existing',
@@ -200,43 +197,52 @@ class TestEnhancedExcelImport:
         }]
         
         try:
-            results = resolution_service.resolve_conflicts(import_log.pk, resolutions)
-            print(f"✅ Conflict resolution completed")
-            print(f"   Results: {results}")
+            with transaction.atomic():
+                results = resolution_service.resolve_conflicts(import_log.pk, resolutions)
+                self.assertIsInstance(results, dict)
+                # The actual keys returned are 'updated', 'created', 'skipped', 'errors'
+                self.assertIn('updated', results)
+                self.assertIn('created', results) 
+                self.assertIn('skipped', results)
+                self.assertIn('errors', results)
         except Exception as e:
-            print(f"❌ Conflict resolution failed: {e}")
-        
-        # Cleanup
-        existing_booking.delete()
-        import_log.delete()
+            # If the resolution service has issues, we should still be able to continue
+            self.fail(f"Conflict resolution failed unexpectedly: {e}")
     
-    def run_all_tests(self):
-        """Run all tests"""
-        print("🚀 Starting Enhanced Excel Import Tests")
-        print("=" * 50)
+    def test_database_constraint_handling(self):
+        """Test proper handling of database constraint violations"""
+        # Create a booking that might trigger constraint violations
+        with transaction.atomic():
+            external_code = f'CONSTRAINT_TEST_{datetime.now().microsecond}'
+            booking = Booking.objects.create(
+                property=self.property,
+                external_code=external_code,
+                guest_name='Constraint Test User',
+                check_in_date=timezone.now() + timedelta(days=1),
+                check_out_date=timezone.now() + timedelta(days=3),
+                external_status='confirmed',
+                source='Test'
+            )
         
+        # Test that we can handle operations that might cause integrity errors
+        service = EnhancedExcelImportService(self.user)
+        
+        # This should work without constraint violations
+        booking_data = {
+            'external_code': f'DIFFERENT_CODE_{datetime.now().microsecond}',
+            'guest_name': 'Different Guest',
+            'property_name': self.property.name,
+            'start_date': timezone.now() + timedelta(days=5),
+            'end_date': timezone.now() + timedelta(days=7),
+            'external_status': 'confirmed',
+            'source': 'Test'
+        }
+        
+        # Test conflict detection without transaction errors
         try:
-            self.test_conflict_detection()
-            self.test_conflict_serialization()
-            self.test_conflict_resolution_service()
-            
-            print("\n" + "=" * 50)
-            print("✅ All tests completed successfully!")
-            print("🎉 Enhanced Excel Import Service is ready for use!")
-            
-        except Exception as e:
-            print(f"\n❌ Test failed with error: {e}")
-            import traceback
-            traceback.print_exc()
-        
-        finally:
-            # Cleanup any remaining test data
-            print("\n🧹 Cleaning up test data...")
-            User.objects.filter(username='test_import_user').delete()
-            Property.objects.filter(name='Test Property for Import').delete()
-            print("✅ Cleanup completed")
-
-
-if __name__ == '__main__':
-    tester = TestEnhancedExcelImport()
-    tester.run_all_tests()
+            with transaction.atomic():
+                conflict_result = service._detect_conflicts(booking_data, self.property, 1)
+                self.assertIsInstance(conflict_result, dict)
+                self.assertIn('has_conflicts', conflict_result)
+        except IntegrityError:
+            self.fail("Unexpected IntegrityError during conflict detection")

@@ -1,13 +1,16 @@
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
-from django.db import models
 from .services.notification_service import NotificationService
-from .models import NotificationVerb
+from .models import (
+    NotificationVerb, Booking, BookingImportTemplate, BookingImportLog,
+    CustomPermission, RolePermission, UserPermissionOverride, UserRole,
+    Task, Property, TaskImage, Device, Notification, PropertyOwnership
+)
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -15,8 +18,6 @@ from django.views.decorators.http import require_http_methods
 import json
 import logging
 import os
-import subprocess
-import psutil
 import re
 from datetime import timedelta
 
@@ -32,19 +33,17 @@ from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
 
-from .models import Task, Property, TaskImage, Device, Notification, Booking, PropertyOwnership
 from .serializers import (
     ManagerUserSerializer,
     TaskSerializer,
@@ -108,7 +107,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             return queryset
         
         # Fallback: show tasks the user is involved with
-        from django.db.models import Q
         return queryset.filter(Q(assigned_to=self.request.user) | Q(created_by=self.request.user))
 
     def perform_create(self, serializer):
@@ -168,7 +166,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         """
         task = self.get_object()
         # Use centralized authorization to get managers
-        from .authz import AuthzHelper
         managers = AuthzHelper.get_manager_users()
         created = 0
         for user in managers.distinct():
@@ -201,7 +198,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def set_status(self, request, pk=None):
         task = self.get_object()
-        new_status = request.POST.get('status') or request.data.get('status')
+        new_status = request.data.get('status')
         valid = {s for s, _ in Task.STATUS_CHOICES}
         if new_status not in valid:
             return Response({'error': 'Invalid status'}, status=400)
@@ -271,13 +268,9 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
 # ----------------------------------------------------------------------------
 # Portal (web) views – property → bookings → tasks flow
 # ----------------------------------------------------------------------------
-from django.contrib.auth.decorators import login_required
-
 
 @login_required
 def portal_home(request):
-    from django.shortcuts import render
-    from django.db.models import Count
     
     # Get accessible properties and basic stats
     accessible_properties = _accessible_properties_for(request.user)
@@ -294,15 +287,13 @@ def portal_home(request):
             assigned_tasks = Task.objects.filter(assigned_to=request.user)
             assigned_tasks_count = assigned_tasks.count()
             pending_tasks_count = assigned_tasks.filter(status='pending').count()
-    except:
+    except AttributeError:
         # User has no profile, still get basic task counts
         assigned_tasks = Task.objects.filter(assigned_to=request.user)
         assigned_tasks_count = assigned_tasks.count()
         pending_tasks_count = assigned_tasks.filter(status='pending').count()
-        pass
     
     # Get booking counts for accessible properties
-    from .models import Booking
     total_bookings_count = Booking.objects.filter(property__in=accessible_properties).count()
     
     context = {
@@ -325,9 +316,9 @@ def _accessible_properties_for(user):
     # Check if user has manager role or wide property access permissions
     try:
         profile = user.profile
-        if profile.role == 'manager' or profile.has_permission('view_properties'):
+        if profile.role == UserRole.MANAGER or profile.has_permission('view_properties'):
             return Property.objects.all().order_by('name')
-    except:
+    except AttributeError:
         pass
     
     # viewer/owner or crew: properties they own/view or have tasks on
@@ -338,8 +329,7 @@ def _accessible_properties_for(user):
 
 @login_required
 def portal_property_list(request):
-    from django.utils import timezone as djtz
-    now = djtz.now()
+    now = timezone.now()
     props = _accessible_properties_for(request.user)
     q = request.GET.get('q')
     if q:
@@ -365,8 +355,7 @@ def portal_property_list(request):
 
 @login_required
 def portal_property_detail(request, pk):
-    from django.utils import timezone as djtz
-    now = djtz.now()
+    now = timezone.now()
     prop = get_object_or_404(_accessible_properties_for(request.user), pk=pk)
     bookings = prop.bookings.all().order_by('-check_in_date')
     groups = {
@@ -440,14 +429,12 @@ def portal_booking_detail(request, property_id, pk):
 @login_required
 def portal_task_detail(request, task_id):
     """User-friendly task detail view for portal users."""
-    from django.shortcuts import get_object_or_404
     
     task = get_object_or_404(Task.objects.select_related('property', 'booking', 'assigned_to', 'created_by'), id=task_id)
     
     # Check permissions using centralized authorization
     if not AuthzHelper.can_view_task(request.user, task):
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied("You don't have permission to view this task.")
+        raise DjangoPermissionDenied("You don't have permission to view this task.")
     
     # Get checklist if it exists
     checklist = None
@@ -462,7 +449,7 @@ def portal_task_detail(request, task_id):
             if room not in responses_by_room:
                 responses_by_room[room] = []
             responses_by_room[room].append(response)
-    except:
+    except AttributeError:
         pass
     
     # Check if user can edit using centralized authorization
@@ -498,7 +485,7 @@ class TaskImageCreateView(generics.CreateAPIView):
         # 1) load the Task and check permissions
         task = generics.get_object_or_404(Task, pk=self.kwargs['task_pk'])
         if not can_edit_task(self.request.user, task):
-            raise PermissionDenied("You can't add images to this task.")
+            raise DRFPermissionDenied("You can't add images to this task.")
         
         # 2) save the new TaskImage with uploaded_by tracking
         image = serializer.save(task=task, uploaded_by=self.request.user)
@@ -527,7 +514,7 @@ class TaskImageDetailView(generics.RetrieveDestroyAPIView):
     def get_object(self):
         obj = super().get_object()
         if not can_edit_task(self.request.user, obj.task):
-            raise PermissionDenied("You can't modify images on this task.")
+            raise DRFPermissionDenied("You can't modify images on this task.")
         return obj
 
     def perform_destroy(self, instance):
@@ -682,7 +669,7 @@ class AdminUserDetailView(generics.RetrieveUpdateAPIView):
 
         # never allow anyone to toggle a superuser other than themselves
         if target.is_superuser and target != actor:
-            raise PermissionDenied("Cannot modify another owner account.")
+            raise DRFPermissionDenied("Cannot modify another owner account.")
 
         serializer.save()
 
@@ -899,7 +886,6 @@ def manager_charts_dashboard(request):
     )
     
     # Task completion trends (last 30 days)
-    from datetime import timedelta
     from django.db.models.functions import TruncDate
     thirty_days_ago = now - timedelta(days=30)
     daily_completions = (
@@ -1077,7 +1063,6 @@ def admin_charts_dashboard(request):
     )
     
     # User activity (tasks created/modified in last 7 days)
-    from datetime import timedelta
     seven_days_ago = now - timedelta(days=7)
     user_activity = (
         Task.objects
@@ -1257,8 +1242,7 @@ def system_logs_viewer(request):
     """
     # Only allow superusers to access logs
     if not request.user.is_superuser:
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied("Log viewer is only available to superusers.")
+        raise DjangoPermissionDenied("Log viewer is only available to superusers.")
     
     import os
     from django.conf import settings
@@ -1351,8 +1335,7 @@ def system_crash_recovery(request):
     """
     # Only allow superusers
     if not request.user.is_superuser:
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied("Crash recovery is only available to superusers.")
+        raise DjangoPermissionDenied("Crash recovery is only available to superusers.")
     
     import os
     import subprocess
@@ -1467,18 +1450,14 @@ def _extract_timestamp(log_line):
 # Excel Import Views
 # ----------------------------------------------------------------------------
 
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import redirect  # render/JsonResponse/csrf_exempt/require_http_methods already imported above
 from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from .services.excel_import_service import ExcelImportService
-from .models import BookingImportTemplate, Property, BookingImportLog
 
 def is_superuser_or_manager(user):
     """Check if user is superuser or manager"""
-    return user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['manager', 'superuser'])
+    return user.is_superuser or (hasattr(user, 'profile') and user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER])
 
 @login_required
 @user_passes_test(is_superuser_or_manager)
@@ -1595,7 +1574,6 @@ def excel_import_view(request):
     # Get recent import logs
     recent_imports = []
     if hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser']:
-        from .models import BookingImportLog
         recent_imports = BookingImportLog.objects.filter(
             imported_by=request.user
         ).order_by('-imported_at')[:10]
@@ -1705,9 +1683,6 @@ def property_approval_create(request):
 
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
-from .models import BookingImportLog
 from .services.enhanced_excel_import_service import (
     EnhancedExcelImportService, ConflictResolutionService
 )
@@ -1742,10 +1717,7 @@ class ConflictReviewView(LoginRequiredMixin, View):
             return JsonResponse({'error': 'Failed to load conflicts'}, status=500)
 
 
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
+# (login_required, csrf_exempt, JsonResponse, json) already imported at top
 
 @csrf_exempt
 @login_required
@@ -1911,14 +1883,33 @@ def quick_resolve_conflict(request, import_session_id, conflict_index):
 def enhanced_excel_import_view(request):
     """Enhanced Excel import view with conflict detection"""
     
+    # GPT Agent Fix: Enhanced import access validation and logging
+    logger.info(f"Enhanced Excel import accessed by {request.user.username} (staff={request.user.is_staff}, superuser={request.user.is_superuser})")
+    
+    # Additional validation: Ensure user has active profile
+    if not hasattr(request.user, 'profile') and not request.user.is_superuser:
+        logger.warning(f"User {request.user.username} attempted import without proper profile setup")
+        messages.error(request, 'Your account is not properly configured for Excel imports. Contact an administrator.')
+        return redirect('admin:index')
+    
     if request.method == 'POST':
         # Handle file upload and processing
         excel_file = request.FILES.get('excel_file')
         sheet_name = request.POST.get('sheet_name', 'Cleaning schedule')
         
         if not excel_file:
+            logger.warning(f"User {request.user.username} attempted import without file")
             messages.error(request, 'Please select an Excel file to upload.')
             return render(request, 'admin/enhanced_excel_import.html')
+        
+        # Validate file size (prevent huge uploads)
+        max_size = 10 * 1024 * 1024  # 10MB limit
+        if excel_file.size > max_size:
+            logger.warning(f"User {request.user.username} attempted to upload oversized file: {excel_file.size} bytes")
+            messages.error(request, 'File too large. Maximum size is 10MB.')
+            return render(request, 'admin/enhanced_excel_import.html')
+        
+        logger.info(f"User {request.user.username} starting import of {excel_file.name} ({excel_file.size} bytes)")
         
         try:
             # Use enhanced import service
@@ -1961,7 +1952,6 @@ def enhanced_excel_import_view(request):
             messages.error(request, f"Import failed: {str(e)}")
     
     # Get available templates for the form
-    from api.models import BookingImportTemplate
     templates = BookingImportTemplate.objects.all()
     
     context = {
@@ -1976,14 +1966,32 @@ def enhanced_excel_import_view(request):
 def enhanced_excel_import_api(request):
     """Enhanced Excel import API endpoint"""
     
+    # GPT Agent Fix: Enhanced import access validation and logging
+    logger.info(f"Enhanced Excel import API accessed by {request.user.username} (staff={request.user.is_staff}, superuser={request.user.is_superuser})")
+    
     if request.method != 'POST':
+        logger.warning(f"User {request.user.username} attempted non-POST access to import API")
         return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    # Additional validation: Ensure user has active profile
+    if not hasattr(request.user, 'profile') and not request.user.is_superuser:
+        logger.warning(f"User {request.user.username} attempted API import without proper profile setup")
+        return JsonResponse({'success': False, 'error': 'Account not properly configured for imports'})
     
     excel_file = request.FILES.get('excel_file')
     sheet_name = request.POST.get('sheet_name', 'Cleaning schedule')
     
     if not excel_file:
+        logger.warning(f"User {request.user.username} attempted API import without file")
         return JsonResponse({'success': False, 'error': 'No Excel file provided'})
+    
+    # Validate file size (prevent huge uploads)
+    max_size = 10 * 1024 * 1024  # 10MB limit
+    if excel_file.size > max_size:
+        logger.warning(f"User {request.user.username} attempted to upload oversized file via API: {excel_file.size} bytes")
+        return JsonResponse({'success': False, 'error': 'File too large. Maximum size is 10MB.'})
+    
+    logger.info(f"User {request.user.username} starting API import of {excel_file.name} ({excel_file.size} bytes)")
     
     try:
         # Use enhanced import service
@@ -2037,7 +2045,7 @@ def file_cleanup_api(request):
         })
     
     elif request.method == 'POST':
-        action = request.POST.get('action', request.data.get('action', 'stats'))
+        action = request.data.get('action', 'stats')
         
         try:
             if action == 'stats':
@@ -2049,7 +2057,7 @@ def file_cleanup_api(request):
                 })
             
             elif action == 'suggest':
-                target_mb = int(request.POST.get('target_mb', request.data.get('target_mb', 100)))
+                target_mb = int(request.data.get('target_mb', 100))
                 suggestion = ImportFileCleanupService.suggest_cleanup(target_mb)
                 return JsonResponse({
                     'success': True,
@@ -2058,7 +2066,7 @@ def file_cleanup_api(request):
                 })
             
             elif action in ['dry_run', 'cleanup']:
-                days = int(request.POST.get('days', request.data.get('days', 30)))
+                days = int(request.data.get('days', 30))
                 dry_run = (action == 'dry_run')
                 
                 result = ImportFileCleanupService.cleanup_old_files(days, dry_run)
@@ -2090,14 +2098,6 @@ def file_cleanup_api(request):
 
 
 # ========== PERMISSION MANAGEMENT API ==========
-
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .models import CustomPermission, RolePermission, UserPermissionOverride, UserRole
-from django.contrib.auth.models import User
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
