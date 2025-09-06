@@ -107,7 +107,6 @@ class TaskViewSet(viewsets.ModelViewSet):
             return queryset
         
         # Fallback: show tasks the user is involved with
-        from django.db.models import Q
         return queryset.filter(Q(assigned_to=self.request.user) | Q(created_by=self.request.user))
 
     def perform_create(self, serializer):
@@ -167,7 +166,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         """
         task = self.get_object()
         # Use centralized authorization to get managers
-        from .authz import AuthzHelper
         managers = AuthzHelper.get_manager_users()
         created = 0
         for user in managers.distinct():
@@ -200,7 +198,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def set_status(self, request, pk=None):
         task = self.get_object()
-        new_status = request.POST.get('status') or request.data.get('status')
+        new_status = request.data.get('status')
         valid = {s for s, _ in Task.STATUS_CHOICES}
         if new_status not in valid:
             return Response({'error': 'Invalid status'}, status=400)
@@ -273,7 +271,6 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
 
 @login_required
 def portal_home(request):
-    from django.db.models import Count
     
     # Get accessible properties and basic stats
     accessible_properties = _accessible_properties_for(request.user)
@@ -319,7 +316,7 @@ def _accessible_properties_for(user):
     # Check if user has manager role or wide property access permissions
     try:
         profile = user.profile
-        if profile.role == 'manager' or profile.has_permission('view_properties'):
+        if profile.role == UserRole.MANAGER or profile.has_permission('view_properties'):
             return Property.objects.all().order_by('name')
     except AttributeError:
         pass
@@ -432,7 +429,6 @@ def portal_booking_detail(request, property_id, pk):
 @login_required
 def portal_task_detail(request, task_id):
     """User-friendly task detail view for portal users."""
-    from django.shortcuts import get_object_or_404
     
     task = get_object_or_404(Task.objects.select_related('property', 'booking', 'assigned_to', 'created_by'), id=task_id)
     
@@ -1461,7 +1457,7 @@ from .services.excel_import_service import ExcelImportService
 
 def is_superuser_or_manager(user):
     """Check if user is superuser or manager"""
-    return user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['manager', 'superuser'])
+    return user.is_superuser or (hasattr(user, 'profile') and user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER])
 
 @login_required
 @user_passes_test(is_superuser_or_manager)
@@ -2049,7 +2045,7 @@ def file_cleanup_api(request):
         })
     
     elif request.method == 'POST':
-        action = request.POST.get('action', request.data.get('action', 'stats'))
+        action = request.data.get('action', 'stats')
         
         try:
             if action == 'stats':
@@ -2061,7 +2057,7 @@ def file_cleanup_api(request):
                 })
             
             elif action == 'suggest':
-                target_mb = int(request.POST.get('target_mb', request.data.get('target_mb', 100)))
+                target_mb = int(request.data.get('target_mb', 100))
                 suggestion = ImportFileCleanupService.suggest_cleanup(target_mb)
                 return JsonResponse({
                     'success': True,
@@ -2070,7 +2066,7 @@ def file_cleanup_api(request):
                 })
             
             elif action in ['dry_run', 'cleanup']:
-                days = int(request.POST.get('days', request.data.get('days', 30)))
+                days = int(request.data.get('days', 30))
                 dry_run = (action == 'dry_run')
                 
                 result = ImportFileCleanupService.cleanup_old_files(days, dry_run)
@@ -2103,8 +2099,6 @@ def file_cleanup_api(request):
 
 # ========== PERMISSION MANAGEMENT API ==========
 
-# (status, IsAuthenticated, Response) already imported at top
-from .models import CustomPermission, RolePermission, UserPermissionOverride, UserRole
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_permissions(request):

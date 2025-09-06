@@ -8,8 +8,8 @@ import sys
 import subprocess
 from pathlib import Path
 
-# Project root directory
-PROJECT_ROOT = Path(__file__).parent
+# Project root directory  
+PROJECT_ROOT = Path(__file__).parent.parent  # Go up to /Users/.../aristay_app
 BACKEND_DIR = PROJECT_ROOT / "aristay_backend"
 TESTS_DIR = PROJECT_ROOT / "tests"
 
