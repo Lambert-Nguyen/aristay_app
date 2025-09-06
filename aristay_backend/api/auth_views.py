@@ -155,7 +155,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -201,23 +201,26 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 # Throttled refresh view to apply token_refresh rate limiting
 from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
+from api.throttles import RefreshTokenJtiRateThrottle
 
 class TokenRefreshThrottledView(BaseTokenRefreshView):
-    """JWT refresh view with throttling applied"""
-    throttle_classes = [ScopedRateThrottle]
+    """JWT refresh view with per-token throttling applied"""
+    permission_classes = [AllowAny]  # Explicit for future-proofing
+    throttle_classes = [RefreshTokenJtiRateThrottle]  # Per-refresh-token limit
     throttle_scope = 'token_refresh'
 
+
+from rest_framework_simplejwt.exceptions import TokenError
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def revoke_token(request):
     """Revoke a specific refresh token (logout)"""
+    refresh_token = request.data.get('refresh') or request.data.get('refresh_token')
+    if not refresh_token:
+        return Response({'error': 'Refresh token required'}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
-        # Accept both 'refresh' and 'refresh_token' for compatibility
-        refresh_token = request.data.get('refresh') or request.data.get('refresh_token')
-        if not refresh_token:
-            return Response({'error': 'Refresh token required'}, status=status.HTTP_400_BAD_REQUEST)
-            
         # Verify token belongs to the requesting user (security check)
         token = RefreshToken(refresh_token)
         if int(token['user_id']) != request.user.id:
@@ -226,7 +229,7 @@ def revoke_token(request):
         token.blacklist()
         
         logger.info(
-            f"Token revoked for user: {request.user.username}",
+            "Token revoked",
             extra={
                 'security_event': 'token_revoked',
                 'user_id': request.user.id,
@@ -234,9 +237,8 @@ def revoke_token(request):
         )
         
         return Response({'message': 'Token revoked successfully'})
-    except Exception as e:
-        logger.warning(f"Token revocation failed: {str(e)}")
-        return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+    except TokenError:
+        return Response({'error': 'Invalid or expired token'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['POST'])

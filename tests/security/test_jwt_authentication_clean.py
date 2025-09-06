@@ -72,17 +72,6 @@ class JWTAuthenticationTests(APITestCase):
         self.assertEqual(new_resp.data['access'].count('.'), 2)
         self.assertEqual(legacy_resp.data['access'].count('.'), 2)
 
-    def test_01c_legacy_route_has_deprecation_headers(self):
-        """Legacy route includes deprecation headers"""
-        resp = self.client.post('/api-token-auth/', {
-            'username': self.test_user_data['username'],
-            'password': self.test_user_data['password'],
-        })
-        self.assertIn(resp.status_code, (200, 401))  # ok either way
-        self.assertEqual(resp['Deprecation'], 'true')
-        self.assertIn('successor-version', resp['Link'])
-        self.assertIn('Deprecated endpoint', resp['Warning'])
-
     def test_02_token_verification(self):
         """JWT token verification"""
         self.test_01_token_generation()

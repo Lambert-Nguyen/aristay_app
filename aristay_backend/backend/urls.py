@@ -27,6 +27,21 @@ from rest_framework_simplejwt.views import TokenVerifyView
 from api.auth_views import CustomTokenObtainPairView, TokenRefreshThrottledView, revoke_token, revoke_all_tokens
 from api.auth_debug_views import WhoAmIView
 
+# Deprecation wrapper for legacy route
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def deprecated_token_auth(request, *args, **kwargs):
+    """Legacy token auth endpoint with deprecation headers"""
+    response = CustomTokenObtainPairView.as_view()(request, *args, **kwargs)
+    if hasattr(response, '__setitem__'):  # HttpResponse-like object
+        response['Deprecation'] = 'true'
+        response['Link'] = '</api/token/>; rel="successor-version"'
+        response['Warning'] = '299 - "Deprecated endpoint. Use /api/token/ instead. Removal planned for Q2 2026."'
+    return response
+
 # Security Dashboard imports
 from api.security_dashboard import (
     security_dashboard, security_events, active_sessions, 
@@ -64,7 +79,8 @@ urlpatterns = [
     path('api/admin/security/sessions/<int:session_id>/terminate/', terminate_session, name='terminate_session'),
     path('api/admin/security/analytics/', security_analytics, name='security_analytics'),
     
-    # Legacy token auth (renamed for clarity - returns JWT, not legacy DRF token)
+    # Legacy token auth - backward compatibility with deprecation headers
+    path('api-token-auth/', deprecated_token_auth, name='api_token_auth_legacy'),  # DEPRECATED - removal Q2 2026
     path('jwt-token-auth/', CustomTokenObtainPairView.as_view(), name='jwt_token_auth'),
     
     # Unified login system

@@ -153,7 +153,7 @@ WSGI_APPLICATION = "backend.wsgi.application"
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.TokenAuthentication',  # Keep for backward compatibility
+        'rest_framework.authentication.TokenAuthentication',  # Keep for backward compatibility during transition
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -344,7 +344,7 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
-    CSRF_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True  # Safe for JWT-only API; adjust if frontend needs CSRF token access
     
     # Trust proxy (adjust domain for production)
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -453,6 +453,7 @@ AXES_LOCKOUT_TEMPLATE = 'auth/account_locked.html'
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]  # Updated from deprecated AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP
 AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+AXES_NEVER_LOCKOUT_WHITELIST = os.getenv('AXES_WHITELIST', '').split(',') if os.getenv('AXES_WHITELIST') else []
 
 # ============================================================================
 # RATE LIMITING CONFIGURATION (consolidated)  
@@ -475,9 +476,9 @@ if not DEBUG:
         }
     }
 
-# Rate limiting settings
-RATELIMIT_ENABLE = not DEBUG
-RATELIMIT_USE_CACHE = 'default'
+# Rate limiting settings (unused - using DRF throttling instead)
+# RATELIMIT_ENABLE = not DEBUG
+# RATELIMIT_USE_CACHE = 'default'
 
 # ============================================================================
 # UNIFIED LOGIN CONFIGURATION
