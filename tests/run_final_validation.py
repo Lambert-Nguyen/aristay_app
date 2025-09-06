@@ -10,7 +10,22 @@ from pathlib import Path
 # Project root: .../aristay_app
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "aristay_backend"
-VENV_PYTHON = ROOT / ".venv" / "bin" / "python"
+
+def get_python_executable():
+    """Get the appropriate Python executable for the current environment"""
+    # Check if we're in CI environment
+    if os.getenv('GITHUB_ACTIONS') or os.getenv('CI'):
+        return 'python'  # Use system python in CI
+    
+    # Check for local virtual environment
+    venv_python = ROOT / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        return str(venv_python)
+    
+    # Fallback to system python
+    return 'python'
+
+PYTHON_EXE = get_python_executable()
 
 def run_test(test_name, test_path):
     """Run a test and return True if it passes"""
@@ -20,7 +35,7 @@ def run_test(test_name, test_path):
     
     try:
         result = subprocess.run([
-            str(VENV_PYTHON), str(test_path)
+            PYTHON_EXE, str(test_path)
         ], capture_output=False, text=True, cwd=str(BACKEND))
         
         success = result.returncode == 0
