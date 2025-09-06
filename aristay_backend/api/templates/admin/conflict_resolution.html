@@ -14,15 +14,65 @@
         background-color: #f9f9f9;
     }
     
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        z-index: 1000;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin: -20px -20px 20px -20px;
+        border-radius: 0;
+    }
+    
+    .sticky-header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+    }
+    
+    .sticky-header .summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .sticky-header .summary-stats {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .sticky-header .stat {
+        background: rgba(255,255,255,0.1);
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .progress-container {
+        background: rgba(255,255,255,0.9);
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
     .conflict-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 15px;
-        padding: 10px;
-        background-color: #fff3cd;
-        border-radius: 5px;
+        padding: 15px;
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        border-radius: 8px;
         border-left: 4px solid #ffc107;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     
     .confidence-score {
@@ -192,22 +242,24 @@
     <div class="loading-spinner"></div>
 </div>
 
-<h1>Resolve Booking Conflicts</h1>
-
-<div class="import-summary">
-    <h3>Import Summary</h3>
-    <p><strong>Import Session:</strong> {{ import_session_id }}</p>
-    <p><strong>Total Conflicts:</strong> {{ conflicts|length }}</p>
-    <p><strong>Import Date:</strong> {{ import_log.imported_at|date:"M d, Y H:i" }}</p>
-    <p><strong>Imported By:</strong> {{ import_log.imported_by.username }}</p>
+<div class="sticky-header">
+    <h1>🔍 Resolve Booking Conflicts</h1>
+    <div class="summary">
+        <div class="summary-stats">
+            <div class="stat">📊 Session: {{ import_session_id }}</div>
+            <div class="stat">⚠️ {{ conflicts|length }} Conflicts</div>
+            <div class="stat">👤 {{ import_log.imported_by.username }}</div>
+            <div class="stat">📅 {{ import_log.imported_at|date:"M d, Y H:i" }}</div>
+        </div>
+    </div>
 </div>
 
 <div class="progress-container">
-    <p>Resolution Progress:</p>
+    <h4 style="margin: 0 0 10px 0; color: #495057;">📈 Resolution Progress</h4>
     <div class="progress-bar">
         <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
     </div>
-    <p id="progressText">0 of {{ conflicts|length }} resolved</p>
+    <p id="progressText" style="margin: 10px 0 0 0; color: #6c757d; font-weight: 500;">0 of {{ conflicts|length }} resolved</p>
 </div>
 
 {% if conflicts %}

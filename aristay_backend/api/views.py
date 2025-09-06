@@ -2013,8 +2013,8 @@ def enhanced_excel_import_api(request):
         })
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@staff_or_perm('manage_files')
+@require_http_methods(["GET", "POST"])
 def file_cleanup_api(request):
     """
     API endpoint for Excel import file cleanup management.
@@ -2029,12 +2029,7 @@ def file_cleanup_api(request):
     """
     from .services.file_cleanup_service import ImportFileCleanupService
     
-    # Check permissions using centralized authorization
-    if not (request.user.is_superuser or 
-            (hasattr(request.user, 'profile') and 
-             (request.user.profile.role == 'manager' or 
-              request.user.profile.has_permission('manage_files')))):
-        return JsonResponse({'error': 'File management access required'}, status=403)
+    # Remove DRF-specific permission check since @staff_or_perm handles it
     
     if request.method == 'GET':
         # Return current storage statistics
@@ -2045,7 +2040,14 @@ def file_cleanup_api(request):
         })
     
     elif request.method == 'POST':
-        action = request.data.get('action', 'stats')
+        # Handle JSON data from the frontend
+        try:
+            data = json.loads(request.body) if request.body else {}
+        except json.JSONDecodeError:
+            # Fallback to POST data
+            data = request.POST
+            
+        action = data.get('action', 'stats')
         
         try:
             if action == 'stats':
@@ -2057,7 +2059,7 @@ def file_cleanup_api(request):
                 })
             
             elif action == 'suggest':
-                target_mb = int(request.data.get('target_mb', 100))
+                target_mb = int(data.get('target_mb', 100))
                 suggestion = ImportFileCleanupService.suggest_cleanup(target_mb)
                 return JsonResponse({
                     'success': True,
@@ -2066,7 +2068,7 @@ def file_cleanup_api(request):
                 })
             
             elif action in ['dry_run', 'cleanup']:
-                days = int(request.data.get('days', 30))
+                days = int(data.get('days', 30))
                 dry_run = (action == 'dry_run')
                 
                 result = ImportFileCleanupService.cleanup_old_files(days, dry_run)
@@ -2485,5 +2487,16 @@ def permission_management_view(request):
     """
     return render(request, 'admin/permission_management.html', {
         'title': 'Permission Management',
+        'user': request.user
+    })
+
+
+@staff_or_perm('manage_files')
+def file_cleanup_page(request):
+    """
+    File cleanup management interface for administrators and staff with file management permissions
+    """
+    return render(request, 'admin/file_cleanup.html', {
+        'title': 'Excel Import File Cleanup',
         'user': request.user
     })

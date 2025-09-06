@@ -356,12 +356,42 @@ function showResult(result) {
             resultContainer.className = 'result-container result-warning';
             document.getElementById('resultContent').innerHTML = `
                 <h4>⚠️ Import Completed with Conflicts</h4>
-                <p><strong>${result.successful_imports}</strong> bookings imported successfully</p>
-                <p><strong>${result.auto_updated}</strong> platform bookings auto-updated</p>
-                <p><strong>${result.conflicts_detected}</strong> conflicts require manual review</p>
-                <div style="margin-top: 15px;">
-                    <a href="${result.conflict_review_url}" class="btn btn-primary">
+                <div class="alert alert-warning" style="margin: 15px 0; padding: 15px; border-radius: 6px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-left: 4px solid #ffc107;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+                        <div>
+                            <strong style="font-size: 18px;">Manual Review Required</strong>
+                            <p style="margin: 5px 0; color: #856404;">Some bookings need your attention to avoid data conflicts.</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div class="stat-box" style="padding: 15px; background: #d4edda; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #155724;">${result.successful_imports}</div>
+                        <div style="color: #155724; font-size: 14px;">✅ Successfully Imported</div>
+                    </div>
+                    <div class="stat-box" style="padding: 15px; background: #d1ecf1; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #0c5460;">${result.auto_updated}</div>
+                        <div style="color: #0c5460; font-size: 14px;">🔄 Auto-Updated</div>
+                    </div>
+                    <div class="stat-box" style="padding: 15px; background: #fff3cd; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #856404;">${result.conflicts_detected}</div>
+                        <div style="color: #856404; font-size: 14px;">⚠️ Need Review</div>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <h5 style="margin: 0 0 10px 0; color: #495057;">📋 Next Steps:</h5>
+                    <ol style="margin: 0; padding-left: 20px; color: #495057;">
+                        <li>Review the conflicts below to understand what needs attention</li>
+                        <li>Use the conflict resolution interface to make decisions</li>
+                        <li>Choose to keep existing data, update with new data, or create new bookings</li>
+                        <li>Complete the import process once all conflicts are resolved</li>
+                    </ol>
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="${result.conflict_review_url}" class="btn btn-primary" style="background: linear-gradient(135deg, #007bff, #0056b3); padding: 12px 30px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px; color: white; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s;">
                         🔍 Review and Resolve Conflicts
+                        <span style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 12px; font-size: 12px;">${result.conflicts_detected}</span>
                     </a>
                 </div>
                 <div style="margin-top: 10px;">
@@ -378,12 +408,37 @@ ${JSON.stringify(result, null, 2)}
             resultContainer.className = 'result-container result-success';
             document.getElementById('resultContent').innerHTML = `
                 <h4>✅ Import Completed Successfully</h4>
-                <p><strong>${result.successful_imports}</strong> bookings imported</p>
-                <p><strong>${result.auto_updated}</strong> bookings auto-updated</p>
-                <p>No conflicts detected - all data processed automatically</p>
-                <div style="margin-top: 15px;">
-                    <a href="/admin/api/booking/" class="btn btn-primary">
+                <div class="alert alert-success" style="margin: 15px 0; padding: 15px; border-radius: 6px; background: linear-gradient(135deg, #d4edda, #c3e6cb); border-left: 4px solid #28a745;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 24px; margin-right: 10px;">🎉</span>
+                        <div>
+                            <strong style="font-size: 18px;">Perfect Import!</strong>
+                            <p style="margin: 5px 0; color: #155724;">All data processed successfully with no conflicts detected.</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div class="stat-box" style="padding: 15px; background: #d4edda; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #155724;">${result.successful_imports}</div>
+                        <div style="color: #155724; font-size: 14px;">📥 New Bookings</div>
+                    </div>
+                    <div class="stat-box" style="padding: 15px; background: #d1ecf1; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #0c5460;">${result.auto_updated}</div>
+                        <div style="color: #0c5460; font-size: 14px;">🔄 Updated Bookings</div>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                    <p style="margin: 0; color: #495057;">
+                        <strong>📊 Import Summary:</strong> Your Excel file has been processed completely. 
+                        All booking data has been integrated into the system successfully.
+                    </p>
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <a href="/admin/api/booking/" class="btn btn-primary" style="background: linear-gradient(135deg, #28a745, #1e7e34); padding: 12px 30px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px; color: white; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-right: 10px;">
                         📋 View Imported Bookings
+                    </a>
+                    <a href="/api/enhanced-excel-import/" class="btn btn-secondary" style="background: #6c757d; padding: 12px 20px; font-size: 14px; text-decoration: none; border-radius: 6px; color: white; display: inline-flex; align-items: center; gap: 8px;">
+                        🔄 Import More Files
                     </a>
                 </div>
             `;
@@ -393,16 +448,46 @@ ${JSON.stringify(result, null, 2)}
         resultContainer.className = 'result-container result-error';
         document.getElementById('resultContent').innerHTML = `
             <h4>❌ Import Failed</h4>
-            <p><strong>Error:</strong> ${result.error}</p>
+            <div class="alert alert-error" style="margin: 15px 0; padding: 15px; border-radius: 6px; background: linear-gradient(135deg, #f8d7da, #f5c6cb); border-left: 4px solid #dc3545;">
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 24px; margin-right: 10px;">🚫</span>
+                    <div>
+                        <strong style="font-size: 18px;">Import Error</strong>
+                        <p style="margin: 5px 0; color: #721c24;">The import process encountered an error and could not complete.</p>
+                    </div>
+                </div>
+            </div>
+            <div style="background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #dc3545; margin: 15px 0;">
+                <h5 style="margin: 0 0 10px 0; color: #dc3545;">🔍 Error Details:</h5>
+                <p style="margin: 0; color: #721c24; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px;"><strong>${result.error}</strong></p>
+            </div>
             ${result.errors ? `
-                <div style="margin-top: 10px;">
-                    <strong>Detailed Errors:</strong>
-                    <ul style="margin-top: 5px;">
-                        ${result.errors.slice(0, 5).map(error => `<li>${error}</li>`).join('')}
+                <div style="background: #fff; padding: 15px; border-radius: 6px; border: 1px solid #dc3545; margin: 15px 0;">
+                    <h5 style="margin: 0 0 10px 0; color: #dc3545;">📝 Row-Level Errors:</h5>
+                    <ul style="margin: 10px 0; color: #721c24; max-height: 200px; overflow-y: auto;">
+                        ${result.errors.slice(0, 10).map(error => `<li style="margin-bottom: 5px;">${error}</li>`).join('')}
                     </ul>
-                    ${result.errors.length > 5 ? `<p><em>... and ${result.errors.length - 5} more errors</em></p>` : ''}
+                    ${result.errors.length > 10 ? `<p style="font-style: italic; color: #6c757d; margin: 10px 0 0 0;"><em>... and ${result.errors.length - 10} more errors</em></p>` : ''}
                 </div>
             ` : ''}
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                <h5 style="margin: 0 0 10px 0; color: #495057;">💡 Troubleshooting Tips:</h5>
+                <ul style="margin: 0; padding-left: 20px; color: #495057;">
+                    <li>Check that your Excel file format is correct (.xlsx or .xls)</li>
+                    <li>Ensure all required columns are present and properly formatted</li>
+                    <li>Verify that dates are in the correct format (YYYY-MM-DD)</li>
+                    <li>Check for special characters that might cause parsing issues</li>
+                    <li>Try uploading a smaller file to test if it's a size issue</li>
+                </ul>
+            </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <button onclick="location.reload()" class="btn btn-primary" style="background: linear-gradient(135deg, #007bff, #0056b3); padding: 12px 30px; font-size: 16px; font-weight: 600; border: none; border-radius: 6px; color: white; cursor: pointer; margin-right: 10px;">
+                    🔄 Try Again
+                </button>
+                <a href="/api/enhanced-excel-import/" class="btn btn-secondary" style="background: #6c757d; padding: 12px 20px; font-size: 14px; text-decoration: none; border-radius: 6px; color: white; display: inline-flex; align-items: center; gap: 8px;">
+                    📁 Start Over
+                </a>
+            </div>
         `;
     }
 }
