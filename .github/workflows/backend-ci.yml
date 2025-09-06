@@ -39,6 +39,9 @@ jobs:
       - name: Install deps
         run: pip install -r aristay_backend/requirements.txt
 
+      - name: Clean pyc cache
+        run: find . -name "__pycache__" -type d -prune -exec rm -rf {} + || true
+
       - name: Migrate DB
         working-directory: aristay_backend
         run: python manage.py migrate --noinput

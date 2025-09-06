@@ -1,4 +1,10 @@
-# 🔒 Production Hardening & Enterprise Code Quality
+# 🔒 Production Har### **Professional CI/CD**
+- ✅ **GitHub Actions workflow** - Automated testing with security hardening
+- ✅ **Database compatibility** - SQLite/Postgres config guards for CI reliability  
+- ✅ **Pytest integration** - Fixed collection errors, Django setup, path issues
+- ✅ **Quality gates** - All test suites must pass before merge
+- ✅ **Performance** - Optimized caching, concurrency control
+- ✅ **Security** - Locked permissions (contents: read) & Enterprise Code Quality
 
 ## 🎯 Overview
 Comprehensive production hardening and enterprise-grade code quality improvements transforming the Aristay booking system from development-ready to production-ready with bulletproof reliability.
@@ -75,6 +81,21 @@ permissions:
 concurrency:
   group: backend-ci-${{ github.ref }}  
   cancel-in-progress: true  # 🚀 Resource optimization
+```
+
+### **CI Pipeline Architecture**
+```yaml
+# Auto-install dependencies including pytest-django, pandas
+- name: Install deps
+  run: pip install -r aristay_backend/requirements.txt
+
+# Clean cache to avoid import conflicts  
+- name: Clean pyc cache
+  run: find . -name "__pycache__" -type d -prune -exec rm -rf {} +
+
+# Run comprehensive test suite
+- name: Run pytest
+  run: python -m pytest -q
 ```
 
 **Database Compatibility:**

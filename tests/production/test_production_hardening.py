@@ -24,7 +24,9 @@ from django.db import IntegrityError
 from api.models import *
 from api.services.enhanced_excel_import_service import EnhancedExcelImportService
 import pandas as pd
+import pytest
 
+@pytest.mark.django_db
 def test_idempotent_task_creation():
     """Test: call create_automated_tasks([booking]) twice; assert count only increases on first call"""
     
@@ -117,6 +119,7 @@ def test_idempotent_task_creation():
     
     return True
 
+@pytest.mark.django_db  
 def test_constraint_integrity():
     """Test: try to manually create a second task with same (booking, created_by_template); assert IntegrityError"""
     

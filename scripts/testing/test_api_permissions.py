@@ -9,13 +9,21 @@ import sys
 import django
 import requests
 import json
+from pathlib import Path
+import pytest
+
+# Robust path resolution
+REPO_ROOT = Path(__file__).resolve().parents[2]
+backend_dir = REPO_ROOT / "aristay_backend"
+
+if not backend_dir.exists():
+    pytest.skip("Backend dir not found; skipping script-based tests on this environment", allow_module_level=True)
 
 # Add the backend directory to Python path
-backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'aristay_backend')
-sys.path.insert(0, backend_dir)
+sys.path.insert(0, str(backend_dir))
 
 # Change to backend directory
-os.chdir(backend_dir)
+os.chdir(str(backend_dir))
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
