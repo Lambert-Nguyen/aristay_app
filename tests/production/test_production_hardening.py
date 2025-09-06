@@ -6,9 +6,12 @@ Tests for production hardening of task template system
 import os
 import sys
 import django
+from pathlib import Path
 
-# Add the Django backend to the Python path
-sys.path.append('/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend')
+# Repo-relative path resolution for CI friendliness
+ROOT = Path(__file__).resolve().parents[2]  # repo root
+BACKEND = ROOT / 'aristay_backend'
+sys.path.append(str(BACKEND))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 
 # Setup Django

@@ -4,7 +4,11 @@ from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
 from .services.notification_service import NotificationService
-from .models import NotificationVerb, Booking, BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride, UserRole
+from .models import (
+    NotificationVerb, Booking, BookingImportTemplate, BookingImportLog,
+    CustomPermission, RolePermission, UserPermissionOverride, UserRole,
+    Task, Property, TaskImage, Device, Notification, PropertyOwnership
+)
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -40,7 +44,6 @@ from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
 
-from .models import Task, Property, TaskImage, Device, Notification, Booking, PropertyOwnership
 from .serializers import (
     ManagerUserSerializer,
     TaskSerializer,
