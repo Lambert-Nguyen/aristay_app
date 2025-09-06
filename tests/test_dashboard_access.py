@@ -15,12 +15,12 @@ from django.test import RequestFactory
 from api.views import manager_overview
 from api.permissions import CanViewAnalytics
 
-def test_dashboard_access():
+def test_dashboard_access(teststaff_user):
     """Test dashboard access with dynamic permissions"""
     print("=== Testing Manager Dashboard Access ===\n")
     
-    # Get teststaff user
-    user = User.objects.get(username='teststaff')
+    # Use teststaff user from fixture
+    user = teststaff_user
     print(f"👤 User: {user.username}")
     
     # Create mock request

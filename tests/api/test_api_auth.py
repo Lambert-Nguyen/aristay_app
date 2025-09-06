@@ -14,12 +14,12 @@ from django.contrib.auth.models import User
 from django.test import Client
 from rest_framework.authtoken.models import Token
 
-def test_dashboard_api():
+def test_dashboard_api(teststaff_user):
     """Test dashboard API with proper authentication"""
     print("=== Testing Dashboard API with Authentication ===\n")
     
-    # Get teststaff user
-    user = User.objects.get(username='teststaff')
+    # Use teststaff user from fixture
+    user = teststaff_user
     print(f"👤 User: {user.username}")
     
     # Get or create token for authentication

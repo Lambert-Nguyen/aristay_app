@@ -728,17 +728,27 @@ class Profile(models.Model):
         """
         Get list of permissions this user can delegate to others
         """
-        delegatable = RolePermission.objects.filter(
+        # Get explicit delegatable permissions from RolePermissions
+        delegatable = set(RolePermission.objects.filter(
             role=self.role,
             permission__is_active=True,
             granted=True,
             can_delegate=True
-        ).values_list('permission__name', flat=True)
+        ).values_list('permission__name', flat=True))
         
-        # Add baseline delegatable permissions for managers
+        # Get permissions that have explicit RolePermission records (delegatable or not)
+        explicit_permissions = set(RolePermission.objects.filter(
+            role=self.role,
+            permission__is_active=True,
+        ).values_list('permission__name', flat=True))
+        
+        # Only add baseline delegatable permissions for permissions that don't have explicit records
         baseline_delegatable = self._get_baseline_delegatable_permissions()
+        for perm in baseline_delegatable:
+            if perm not in explicit_permissions:
+                delegatable.add(perm)
         
-        return set(delegatable) | baseline_delegatable
+        return delegatable
     
     def _get_baseline_delegatable_permissions(self):
         """Get baseline delegatable permissions for each role"""
@@ -901,7 +911,12 @@ def create_and_sync_user_profile(sender, instance, created, **kwargs):
         Profile.objects.create(user=instance, role=default_role)
     else:
         # For existing users, ensure profile exists and sync superuser role
-        profile, _ = Profile.objects.get_or_create(user=instance)
+        # Use proper defaults to avoid overwriting existing roles
+        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
+        profile, created_profile = Profile.objects.get_or_create(
+            user=instance,
+            defaults={'role': default_role}
+        )
         
         # Only auto-sync superuser role - do NOT sync is_staff to manager
         # This keeps Django admin permissions separate from business roles
