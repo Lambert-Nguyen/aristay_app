@@ -15,6 +15,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+# Import auth mixin for JWT support
+from .auth_mixins import DefaultAuthMixin
+
 import json
 import logging
 import os
@@ -68,10 +71,9 @@ from .permissions import (
 )
 
 
-class TaskViewSet(viewsets.ModelViewSet):
+class TaskViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [DynamicTaskPermissions, IsOwnerOrAssignedOrReadOnly]
    
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
@@ -210,10 +212,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response({'status': new_status})
 
 
-class BookingViewSet(viewsets.ModelViewSet):
+class BookingViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     queryset = Booking.objects.select_related('property').all()
     serializer_class = BookingSerializer
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [DynamicBookingPermissions]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
     search_fields = ['guest_name', 'guest_contact', 'property__name']
@@ -239,10 +240,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         return queryset.none()
 
 
-class PropertyOwnershipViewSet(viewsets.ModelViewSet):
+class PropertyOwnershipViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     queryset = PropertyOwnership.objects.select_related('property', 'user').all()
     serializer_class = PropertyOwnershipSerializer
-    authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [DynamicPropertyPermissions]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend]
     search_fields = ['property__name', 'user__username', 'user__email']

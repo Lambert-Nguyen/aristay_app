@@ -107,13 +107,17 @@ else:
         'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
         "rest_framework",
         "rest_framework.authtoken",
+        "rest_framework_simplejwt",
+        "rest_framework_simplejwt.token_blacklist",  # needed for revoke/blacklist
         "corsheaders",
         "django_filters",
+        "axes",
     ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
+    "axes.middleware.AxesMiddleware",  # before AuthenticationMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -130,7 +134,7 @@ MIDDLEWARE = [
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
     "backend.middleware.ErrorLoggingMiddleware", 
-    "backend.middleware.SecurityHeadersMiddleware",
+    "api.enhanced_security_middleware.SecurityHeadersEnhancedMiddleware",
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -156,7 +160,9 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # Add your REST framework configuration here:
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',  # Keep for backward compatibility
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -168,13 +174,26 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'login': '5/minute',
+        'password_reset': '3/hour',
+        'token_refresh': '10/minute',
+        'admin_api': '500/hour',
         'taskimage': '20/day',
         'api': '1000/hour',
     },
 }
+
+# JWT Configuration
+from datetime import timedelta
+
+# JWT Configuration removed here - see comprehensive config below
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -339,6 +358,15 @@ if not DEBUG:
     SESSION_COOKIE_HTTPONLY = True
     CSRF_COOKIE_HTTPONLY = True
     
+    # Trust proxy (adjust domain for production)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+    CSRF_TRUSTED_ORIGINS = [
+        origin.strip() 
+        for origin in os.getenv('CSRF_TRUSTED_ORIGINS', 'https://localhost:3000').split(',') 
+        if origin.strip()
+    ]
+    
     # Tighten CORS for production
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = [
@@ -393,6 +421,64 @@ if not DEBUG:
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
     DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'aristay@example.com')
     SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# ============================================================================
+# JWT CONFIGURATION
+# ============================================================================
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': 'aristay-app',
+    'JSON_ENCODER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    
+    'JTI_CLAIM': 'jti',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=60),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
+}
+
+# ============================================================================
+# AXES CONFIGURATION (Login Attempt Monitoring)
+# ============================================================================
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # AxesStandaloneBackend should be the first backend
+    'django.contrib.auth.backends.ModelBackend',  # Django's default backend
+]
+
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=30)
+AXES_LOCKOUT_TEMPLATE = 'auth/account_locked.html'
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True  # Will be updated in next version
+AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+
+# ============================================================================
+# RATE LIMITING CONFIGURATION (consolidated)
+# ============================================================================
+# Rate limiting settings moved below with cache configuration
+RATELIMIT_USE_CACHE = 'default'
 
 # Cache configuration for production
 if not DEBUG:

@@ -23,6 +23,17 @@ from django.conf.urls.static import static
 from api.managersite import manager_site
 from api.auth_views import UnifiedLoginView, logout_view
 
+# JWT Authentication imports
+from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
+from api.auth_views import CustomTokenObtainPairView, revoke_token, revoke_all_tokens
+from api.auth_debug_views import WhoAmIView
+
+# Security Dashboard imports (TODO: implement later)
+# from api.security_dashboard import (
+#     security_dashboard, security_events, active_sessions, 
+#     terminate_session, security_analytics
+# )
+
 # Agent's Phase 2: Add audit API router
 from rest_framework.routers import DefaultRouter
 from api.audit_views import AuditEventViewSet
@@ -36,12 +47,33 @@ urlpatterns = [
     path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
     path('api/', include('api.urls')),
     path('api/', include(audit_router.urls)),  # Add audit API endpoints
-    path('api-token-auth/', obtain_auth_token, name='api_token_auth'),  # Add this line
+    
+    # JWT Authentication endpoints
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('api/token/revoke/', revoke_token, name='token_revoke'),
+    path('api/token/revoke-all/', revoke_all_tokens, name='token_revoke_all'),
+    
+    # JWT Debug endpoint
+    path('api/test-auth/', WhoAmIView.as_view(), name='test-auth'),
+    
+    # Security Dashboard endpoints (TODO: implement later)
+    # path('api/admin/security/', security_dashboard, name='security_dashboard'),
+    # path('api/admin/security/events/', security_events, name='security_events'),
+    # path('api/admin/security/sessions/', active_sessions, name='active_sessions'),
+    # path('api/admin/security/sessions/<int:session_id>/terminate/', terminate_session, name='terminate_session'),
+    # path('api/admin/security/analytics/', security_analytics, name='security_analytics'),
+    
+    # Legacy token auth (backward compatibility)
+    path('api-token-auth/', CustomTokenObtainPairView.as_view(), name='api_token_auth'),
+    
     # Unified login system
     path('login/', UnifiedLoginView.as_view(), name='unified_login'),
     path('logout/', logout_view, name='unified_logout'),
     path('', UnifiedLoginView.as_view(), name='home'),  # Root URL redirects to login
-    # support password‐reset confirm, complete, etc.
+    
+    # Password reset endpoints
     path('api/auth/', include('django.contrib.auth.urls')),
 ]
 

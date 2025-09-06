@@ -27,6 +27,12 @@ numpy>=1.26.0,<2.4.0
 pandas>=2.2.0,<2.4.0
 openpyxl==3.0.10
 
+# JWT Authentication and Security
+djangorestframework-simplejwt==5.5.1
+cryptography==41.0.8
+django-axes==8.0.0
+django-ipware==7.0.1
+
 # Production logging and monitoring dependencies
 sentry-sdk[django]==2.35.1
 psutil==7.0.0
