@@ -2041,7 +2041,6 @@ def file_cleanup_api(request):
     
     elif request.method == 'POST':
         # Handle JSON data from the frontend
-        import json
         try:
             data = json.loads(request.body) if request.body else {}
         except json.JSONDecodeError:
