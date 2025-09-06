@@ -40,7 +40,6 @@ from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 
-from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import (
@@ -470,13 +469,12 @@ def portal_task_detail(request, task_id):
         
 
 
-class TaskImageCreateView(generics.CreateAPIView):
+class TaskImageCreateView(DefaultAuthMixin, generics.CreateAPIView):
     """
     POST /api/tasks/{task_pk}/images/
     """
     serializer_class = TaskImageSerializer
     parser_classes = [MultiPartParser, FormParser]
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]  # object-level check in perform_create
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'taskimage'
@@ -499,13 +497,12 @@ class TaskImageCreateView(generics.CreateAPIView):
         NotificationService.notify_task_photo(task, added=True, actor=self.request.user)
 
 
-class TaskImageDetailView(generics.RetrieveDestroyAPIView):
+class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveDestroyAPIView):
     """
     GET, DELETE /api/tasks/{task_pk}/images/{pk}/
     """
     serializer_class = TaskImageSerializer
     parser_classes = [MultiPartParser, FormParser]
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]  # object-level check in get_object
 
     def get_queryset(self):
@@ -538,20 +535,18 @@ class UserRegistrationView(generics.CreateAPIView):
 
 
 # Legacy Task views - keeping for backward compatibility
-class TaskListCreate(generics.ListCreateAPIView):
+class TaskListCreate(DefaultAuthMixin, generics.ListCreateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    authentication_classes = [TokenAuthentication]
     permission_classes = [DynamicTaskPermissions]
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
 
-class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
+class TaskDetail(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    authentication_classes = [TokenAuthentication]
     permission_classes = [DynamicTaskPermissions, IsOwnerOrAssignedOrReadOnly]
 
     def perform_update(self, serializer):
@@ -604,10 +599,9 @@ class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
             return [IsAdminUser()]
         return super().get_permissions()
 
-class UserList(generics.ListAPIView):
+class UserList(DefaultAuthMixin, generics.ListAPIView):
     queryset = User.objects.all().order_by('id')  # ← Add ordering to fix pagination warning
     serializer_class = UserSerializer
-    authentication_classes = [TokenAuthentication]
     permission_classes = [DynamicUserPermissions]
     filter_backends = [filters.SearchFilter]
     search_fields  = ['username', 'email']
@@ -689,12 +683,11 @@ class AdminPasswordResetView(generics.CreateAPIView):
     serializer_class = AdminPasswordResetSerializer
     permission_classes = [IsAdminUser]
 
-class CurrentUserView(generics.RetrieveUpdateAPIView):
+class CurrentUserView(DefaultAuthMixin, generics.RetrieveUpdateAPIView):
     """
     GET /api/users/me/
     """
     serializer_class       = UserSerializer
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get_object(self):
@@ -807,9 +800,8 @@ def manager_overview(request):
     })
 
 # ---------- Manager: list employees/managers (no owners) ----------
-class ManagerUserList(generics.ListAPIView):
+class ManagerUserList(DefaultAuthMixin, generics.ListAPIView):
     serializer_class   = UserSerializer  # includes role (read-only)
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsManagerOrOwner]
     filter_backends    = [filters.SearchFilter]
     search_fields      = ['username', 'email', 'first_name', 'last_name']
@@ -822,10 +814,9 @@ class ManagerUserList(generics.ListAPIView):
         return qs
 
 # ---------- Manager: toggle active on employees only ----------
-class ManagerUserDetail(generics.RetrieveUpdateAPIView):
+class ManagerUserDetail(DefaultAuthMixin, generics.RetrieveUpdateAPIView):
     queryset = User.objects.filter(is_superuser=False)
     serializer_class = ManagerUserSerializer
-    authentication_classes = [TokenAuthentication]
     permission_classes = [IsManagerOrOwner]
 
 # ---------- NEW: Manager Charts Dashboard ----------

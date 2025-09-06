@@ -67,20 +67,27 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
 # Cloudinary Integration (toggleable via environment variable)
 USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'false').lower() == 'true'
 
+# Common base apps that should always be present
+COMMON_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
+    "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # needed for revoke/blacklist
+    "corsheaders",
+    "django_filters",
+    "axes",
+]
+
 if USE_CLOUDINARY:
     # Add Cloudinary to installed apps
-    INSTALLED_APPS = [
-        'django.contrib.admin',
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'django.contrib.messages',
-        'django.contrib.staticfiles',
-        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
-        "rest_framework",
-        "rest_framework.authtoken",
-        "corsheaders",
-        "django_filters",
+    INSTALLED_APPS = COMMON_APPS + [
         'cloudinary',
         'cloudinary_storage',
     ]
@@ -97,22 +104,7 @@ if USE_CLOUDINARY:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 else:
     # Standard installed apps (existing configuration)
-    INSTALLED_APPS = [
-        'django.contrib.admin',
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'django.contrib.messages',
-        'django.contrib.staticfiles',
-        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
-        "rest_framework",
-        "rest_framework.authtoken",
-        "rest_framework_simplejwt",
-        "rest_framework_simplejwt.token_blacklist",  # needed for revoke/blacklist
-        "corsheaders",
-        "django_filters",
-        "axes",
-    ]
+    INSTALLED_APPS = COMMON_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -183,15 +175,12 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'login': '5/minute',
         'password_reset': '3/hour',
-        'token_refresh': '10/minute',
+        'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
         'admin_api': '500/hour',
         'taskimage': '20/day',
         'api': '1000/hour',
     },
 }
-
-# JWT Configuration
-from datetime import timedelta
 
 # JWT Configuration removed here - see comprehensive config below
 
@@ -260,22 +249,21 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB (increased from default 2.5MB)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# email address that will appear in the From: header of all outgoing mail
-DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
-
 # the URL your users will click through to finish activation/reset
 # (point this at your front-end, e.g. localhost:3000)
 FRONTEND_URL = "http://localhost:3000"
 
-# email configuration; Always use SMTP backend; read values from env (works for dev & prod)
+# ============================================================================
+# EMAIL CONFIGURATION (single source of truth)
+# ============================================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost' if DEBUG else 'smtp.example.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '1025' if DEBUG else '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false' if DEBUG else 'true').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@aristay-internal.cloud')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # CORS configuration
 CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'true').lower() == 'true'
@@ -412,15 +400,7 @@ if not DEBUG:
     
     MANAGERS = ADMINS
     
-    # Email backend for error notifications
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'aristay@example.com')
-    SERVER_EMAIL = DEFAULT_FROM_EMAIL
+    # Email backend for error notifications - using global email config above
 
 # ============================================================================
 # JWT CONFIGURATION
@@ -428,14 +408,14 @@ if not DEBUG:
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Shorter for better security
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
+    'SIGNING_KEY': os.getenv('JWT_SIGNING_KEY', SECRET_KEY),  # Separate JWT key for rotation
     'VERIFYING_KEY': None,
     'AUDIENCE': None,
     'ISSUER': 'aristay-app',
@@ -471,14 +451,13 @@ AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
 AXES_LOCKOUT_TEMPLATE = 'auth/account_locked.html'
 AXES_RESET_ON_SUCCESS = True
-AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True  # Will be updated in next version
+AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]  # Updated from deprecated AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP
 AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
 
 # ============================================================================
-# RATE LIMITING CONFIGURATION (consolidated)
+# RATE LIMITING CONFIGURATION (consolidated)  
 # ============================================================================
 # Rate limiting settings moved below with cache configuration
-RATELIMIT_USE_CACHE = 'default'
 
 # Cache configuration for production
 if not DEBUG:

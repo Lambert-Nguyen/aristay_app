@@ -167,11 +167,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         
-        # Add custom claims
+        # Add essential claims only (removed permissions for security and payload size)
         token['role'] = getattr(getattr(user, 'profile', None), 'role', 'viewer')
         token['is_staff'] = user.is_staff
         token['is_superuser'] = user.is_superuser
-        token['permissions'] = list(user.get_all_permissions())
+        # Note: Granular permissions should be fetched via API when needed
         
         return token
     
@@ -199,6 +199,15 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+# Throttled refresh view to apply token_refresh rate limiting
+from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
+
+class TokenRefreshThrottledView(BaseTokenRefreshView):
+    """JWT refresh view with throttling applied"""
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'token_refresh'
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def revoke_token(request):
@@ -209,7 +218,11 @@ def revoke_token(request):
         if not refresh_token:
             return Response({'error': 'Refresh token required'}, status=status.HTTP_400_BAD_REQUEST)
             
+        # Verify token belongs to the requesting user (security check)
         token = RefreshToken(refresh_token)
+        if int(token['user_id']) != request.user.id:
+            return Response({'error': 'Token does not belong to you'}, status=status.HTTP_403_FORBIDDEN)
+            
         token.blacklist()
         
         logger.info(
@@ -231,27 +244,26 @@ def revoke_token(request):
 def revoke_all_tokens(request):
     """Revoke all tokens for current user"""
     try:
-        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
-        tokens = OutstandingToken.objects.filter(user=request.user)
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
         
-        for token_obj in tokens:
-            try:
-                token = RefreshToken(token_obj.token)
-                token.blacklist()
-            except Exception:
-                # Token might already be blacklisted or invalid
-                pass
+        # Get all outstanding tokens for the user
+        outstanding_tokens = OutstandingToken.objects.filter(user=request.user)
+        token_count = outstanding_tokens.count()
+        
+        # Blacklist all tokens directly using BlacklistedToken
+        for token_obj in outstanding_tokens:
+            BlacklistedToken.objects.get_or_create(token=token_obj)
         
         logger.info(
-            f"All tokens revoked for user: {request.user.username}",
+            "All tokens revoked",
             extra={
                 'security_event': 'all_tokens_revoked',
                 'user_id': request.user.id,
-                'tokens_count': len(tokens),
+                'count': token_count,
             }
         )
         
-        return Response({'message': f'All tokens revoked successfully ({len(tokens)} tokens)'})
+        return Response({'message': f'All tokens revoked ({token_count})'})
     except Exception as e:
         logger.warning(f"All tokens revocation failed: {str(e)}")
         return Response({'error': 'Revocation failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
