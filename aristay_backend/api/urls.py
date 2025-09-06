@@ -35,7 +35,7 @@ from .views import (
     preview_conflict_resolution, quick_resolve_conflict,
     file_cleanup_api, user_permissions, available_permissions, 
     manageable_users, grant_permission, revoke_permission, remove_permission_override,
-    permission_management_view
+    permission_management_view, file_cleanup_page
 )
 
 # Agent's Phase 2: Import audit views
@@ -154,6 +154,7 @@ urlpatterns = [
     
     # File Cleanup endpoints
     path('file-cleanup/api/', file_cleanup_api, name='file-cleanup-api'),
+    path('admin/file-cleanup/', file_cleanup_page, name='admin-file-cleanup'),
     
     # Permission Management API endpoints
     path('permissions/user/', user_permissions, name='user-permissions'),

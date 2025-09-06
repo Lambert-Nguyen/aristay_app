@@ -1,0 +1,442 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}File Cleanup Management - {{ block.super }}{% endblock %}
+
+{% block extrahead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    .cleanup-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    
+    .cleanup-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .cleanup-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+    }
+    
+    .cleanup-header p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 16px;
+    }
+    
+    .action-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .action-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    
+    .card-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .card-icon {
+        font-size: 24px;
+        margin-right: 12px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: white;
+    }
+    
+    .card-icon.stats { background: #28a745; }
+    .card-icon.suggest { background: #ffc107; color: #212529; }
+    .card-icon.dry-run { background: #17a2b8; }
+    .card-icon.cleanup { background: #dc3545; }
+    
+    .card-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin: 0;
+        color: #333;
+    }
+    
+    .card-description {
+        color: #666;
+        margin-bottom: 15px;
+        line-height: 1.4;
+    }
+    
+    .card-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .form-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        color: #333;
+        min-width: 80px;
+    }
+    
+    .form-control {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+        text-align: center;
+        font-weight: 500;
+    }
+    
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    
+    .btn-warning { background: #ffc107; color: #212529; }
+    .btn-warning:hover { background: #e0a800; }
+    
+    .btn-info { background: #17a2b8; color: white; }
+    .btn-info:hover { background: #138496; }
+    
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-danger:hover { background: #c82333; }
+    
+    .results-container {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-top: 20px;
+        display: none;
+    }
+    
+    .results-container.show {
+        display: block;
+    }
+    
+    .results-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .results-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .close-results {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: #999;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+    }
+    
+    .close-results:hover {
+        color: #333;
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+    
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    .alert-danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .file-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .file-table th,
+    .file-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .file-table th {
+        background: #f8f9fa;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .file-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    
+    .loading.show {
+        display: block;
+    }
+    
+    .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 10px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .confirmation-dialog {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .confirmation-dialog.show {
+        display: flex;
+    }
+    
+    .dialog-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        max-width: 500px;
+        width: 90%;
+    }
+    
+    .dialog-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    
+    .dialog-message {
+        margin-bottom: 20px;
+        color: #666;
+        line-height: 1.4;
+    }
+    
+    .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cleanup-container">
+    <div class="cleanup-header">
+        <h1>📁 File Cleanup Management</h1>
+        <p>Manage Excel import file storage to optimize disk usage and maintain system performance</p>
+    </div>
+
+    <div class="action-cards">
+        <!-- Storage Stats Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon stats">📊</div>
+                <h3 class="card-title">Storage Statistics</h3>
+            </div>
+            <p class="card-description">
+                View current storage usage, file counts, and storage analytics for import files.
+            </p>
+            <div class="card-form">
+                <button type="button" class="btn btn-primary" onclick="getStorageStats()">
+                    Get Storage Stats
+                </button>
+            </div>
+        </div>
+
+        <!-- Cleanup Suggestions Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon suggest">💡</div>
+                <h3 class="card-title">Smart Suggestions</h3>
+            </div>
+            <p class="card-description">
+                Get intelligent recommendations on how many days of files to keep to meet your storage targets.
+            </p>
+            <div class="card-form">
+                <div class="form-group">
+                    <label for="target-size">Target Size (MB):</label>
+                    <input type="number" id="target-size" class="form-control" value="100" min="1" max="10000">
+                </div>
+                <button type="button" class="btn btn-warning" onclick="getSuggestions()">
+                    Get Suggestions
+                </button>
+            </div>
+        </div>
+
+        <!-- Dry Run Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon dry-run">🔍</div>
+                <h3 class="card-title">Preview Cleanup</h3>
+            </div>
+            <p class="card-description">
+                Preview what files would be deleted without actually removing them. Safe to run anytime.
+            </p>
+            <div class="card-form">
+                <div class="form-group">
+                    <label for="dry-run-days">Keep Files (Days):</label>
+                    <input type="number" id="dry-run-days" class="form-control" value="30" min="1" max="365">
+                </div>
+                <button type="button" class="btn btn-info" onclick="runDryRun()">
+                    Preview Cleanup
+                </button>
+            </div>
+        </div>
+
+        <!-- Actual Cleanup Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon cleanup">🗑️</div>
+                <h3 class="card-title">Perform Cleanup</h3>
+            </div>
+            <p class="card-description">
+                <strong>⚠️ Permanent action:</strong> Delete old import files to free up disk space. This cannot be undone.
+            </p>
+            <div class="card-form">
+                <div class="form-group">
+                    <label for="cleanup-days">Keep Files (Days):</label>
+                    <input type="number" id="cleanup-days" class="form-control" value="30" min="1" max="365">
+                </div>
+                <button type="button" class="btn btn-danger" onclick="confirmCleanup()">
+                    Perform Cleanup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        Processing request...
+    </div>
+
+    <!-- Results Container -->
+    <div id="results-container" class="results-container">
+        <div class="results-header">
+            <h3 id="results-title" class="results-title">Results</h3>
+            <button type="button" class="close-results" onclick="hideResults()">×</button>
+        </div>
+        <div id="results-content">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Dialog -->
+<div id="confirmation-dialog" class="confirmation-dialog">
+    <div class="dialog-content">
+        <h3 class="dialog-title">Confirm File Cleanup</h3>
+        <div id="dialog-message" class="dialog-message">
+            Are you sure you want to perform this cleanup operation? This action cannot be undone.
+        </div>
+        <div class="dialog-actions">
+            <button type="button" class="btn btn-primary" onclick="hideConfirmation()">Cancel</button>
+            <button type="button" class="btn btn-danger" onclick="performCleanup()">Delete Files</button>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+<script src="{% static 'admin/js/file_cleanup.js' %}"></script>
+{% endblock %}
