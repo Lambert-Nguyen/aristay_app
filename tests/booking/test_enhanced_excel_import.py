@@ -33,12 +33,7 @@ from api.services.enhanced_excel_import_service import (
 class TestEnhancedExcelImport:
     """Test suite for enhanced Excel import functionality"""
     
-    def __init__(self):
-        self.user = None
-        self.property = None
-        self.setup_test_data()
-    
-    def setup_test_data(self):
+    def setup_method(self):
         """Create test user and property"""
         print("🔧 Setting up test data...")
         

@@ -12,11 +12,11 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
-from aristay_backend.api.models import (
+from api.models import (
     Profile, CustomPermission, RolePermission, UserPermissionOverride,
     UserRole, Task, Property, Booking
 )
-from aristay_backend.api.permissions import (
+from api.permissions import (
     HasCustomPermission, HasAnyCustomPermission, DynamicTaskPermissions,
     DynamicBookingPermissions, DynamicUserPermissions, DynamicPropertyPermissions,
     CanViewReports, CanViewAnalytics, CanAccessAdminPanel, CanManageFiles
