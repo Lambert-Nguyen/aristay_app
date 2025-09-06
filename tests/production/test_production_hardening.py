@@ -163,40 +163,35 @@ def test_constraint_integrity():
         status='confirmed'
     )
     
-    # Create first task (should succeed)
+    # Create first task (should succeed) - in its own transaction
     print("📝 Creating first task...")
-    task1 = Task.objects.create(
-        title='First Task',
-        task_type='maintenance',
-        booking=booking,
-        property=property_obj,
-        created_by_template=template,
-    )
-    print(f"✓ First task created successfully: {task1.title}")
-    
-    # Try to create second task with same booking+template (should fail)
-    print("📝 Attempting to create duplicate task...")
-    try:
-        task2 = Task.objects.create(
-            title='Duplicate Task',
+    from django.db import transaction
+    with transaction.atomic():
+        task1 = Task.objects.create(
+            title='First Task',
             task_type='maintenance',
             booking=booking,
             property=property_obj,
             created_by_template=template,
         )
-        print(f"❌ CONSTRAINT TEST FAILED: Duplicate task was created: {task2.title}")
-        task2.delete()
-        raise AssertionError("Constraint test failed - duplicate task was allowed")
-        
-    except IntegrityError as e:
-        error_msg = str(e)
-        if ("uniq_template_task_per_booking" in error_msg or 
-            "UNIQUE constraint failed: api_task.booking_id, api_task.created_by_template_id" in error_msg):
-            print("🎉 CONSTRAINT TEST PASSED: DB constraint prevented duplicate task!")
-            constraint_worked = True
-        else:
-            print(f"❌ CONSTRAINT TEST FAILED: Unexpected IntegrityError: {e}")
-            constraint_worked = False
+    print(f"✓ First task created successfully: {task1.title}")
+    
+    # Try to create second task with same booking+template (should fail)
+    print("📝 Attempting to create duplicate task...")
+    constraint_worked = False
+    
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            task2 = Task.objects.create(
+                title='Duplicate Task',
+                task_type='maintenance',
+                booking=booking,
+                property=property_obj,
+                created_by_template=template,
+            )
+    
+    print("🎉 CONSTRAINT TEST PASSED: DB constraint prevented duplicate task!")
+    constraint_worked = True
     
     # Cleanup
     task1.delete()

@@ -639,7 +639,7 @@ class Profile(models.Model):
     def has_permission(self, permission_name):
         """
         Check if user has a specific permission
-        Priority: User Override > Role Permission > Default Deny
+        Priority: User Override > Role Permission > Baseline Role > Default Deny
         """
         from django.utils import timezone
         
@@ -666,10 +666,23 @@ class Profile(models.Model):
             )
             return role_perm.granted
         except RolePermission.DoesNotExist:
-            pass
+            # Only use baseline if no explicit role permission is defined
+            baseline_perms = self._get_baseline_role_permissions()
+            if permission_name in baseline_perms:
+                return baseline_perms[permission_name]
         
         # Default deny
         return False
+    
+    def _get_baseline_role_permissions(self):
+        """Get baseline permissions for each role type"""
+        _TASK_PERMS_BY_ROLE = {
+            'superuser': {'view_tasks': True, 'add_tasks': True, 'change_tasks': True, 'delete_tasks': True},
+            'manager':   {'view_tasks': True, 'add_tasks': True, 'change_tasks': True},
+            'staff':     {'view_tasks': True, 'add_tasks': True},
+            'viewer':    {'view_tasks': True},
+        }
+        return _TASK_PERMS_BY_ROLE.get(self.role, {})
     
     def can_delegate_permission(self, permission_name):
         """
@@ -690,9 +703,10 @@ class Profile(models.Model):
         Get all permissions for this user (both role-based and overrides)
         Returns dict with permission names as keys and granted status as values
         """
-        permissions = {}
+        # Start with baseline role permissions
+        permissions = self._get_baseline_role_permissions().copy()
         
-        # Start with role permissions
+        # Override with role permissions from database
         for role_perm in RolePermission.objects.filter(
             role=self.role,
             permission__is_active=True
@@ -714,12 +728,27 @@ class Profile(models.Model):
         """
         Get list of permissions this user can delegate to others
         """
-        return RolePermission.objects.filter(
+        delegatable = RolePermission.objects.filter(
             role=self.role,
             permission__is_active=True,
             granted=True,
             can_delegate=True
         ).values_list('permission__name', flat=True)
+        
+        # Add baseline delegatable permissions for managers
+        baseline_delegatable = self._get_baseline_delegatable_permissions()
+        
+        return set(delegatable) | baseline_delegatable
+    
+    def _get_baseline_delegatable_permissions(self):
+        """Get baseline delegatable permissions for each role"""
+        _DELEGATABLE_BY_ROLE = {
+            'superuser': {'view_tasks', 'add_tasks', 'change_tasks', 'delete_tasks'},
+            'manager':   {'view_tasks', 'add_tasks'},
+            'staff':     set(),
+            'viewer':    set(),
+        }
+        return _DELEGATABLE_BY_ROLE.get(self.role, set())
 
 
 class CustomPermission(models.Model):

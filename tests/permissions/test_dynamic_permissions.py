@@ -36,41 +36,54 @@ class DynamicPermissionsTestCase(APITestCase):
             is_superuser=True,
             is_staff=True
         )
-        self.superuser_profile, _ = Profile.objects.get_or_create(
+        self.superuser_profile, created = Profile.objects.get_or_create(
             user=self.superuser,
             defaults={'role': UserRole.SUPERUSER}
         )
+        if not created:
+            self.superuser_profile.role = UserRole.SUPERUSER
+            self.superuser_profile.save()
         
         self.manager = User.objects.create_user(
             username='manager',
             email='manager@test.com',
-            password='testpass123',
-            is_staff=True
+            password='testpass123'
         )
-        self.manager_profile, _ = Profile.objects.get_or_create(
+        self.manager_profile, created = Profile.objects.get_or_create(
             user=self.manager,
             defaults={'role': UserRole.MANAGER}
         )
+        if not created:
+            self.manager_profile.role = UserRole.MANAGER
+            self.manager_profile.save()
         
         self.staff = User.objects.create_user(
             username='staff',
             email='staff@test.com',
             password='testpass123'
         )
-        self.staff_profile, _ = Profile.objects.get_or_create(
+        self.staff_profile, created = Profile.objects.get_or_create(
             user=self.staff,
             defaults={'role': UserRole.STAFF}
         )
+        if not created:
+            self.staff_profile.role = UserRole.STAFF
+            self.staff_profile.save()
         
         self.viewer = User.objects.create_user(
             username='viewer',
             email='viewer@test.com',
             password='testpass123'
         )
-        self.viewer_profile, _ = Profile.objects.get_or_create(
+        # Use create to ensure we get the correct role, not get_or_create
+        profile, created = Profile.objects.get_or_create(
             user=self.viewer,
             defaults={'role': UserRole.VIEWER}
         )
+        if not created:
+            profile.role = UserRole.VIEWER
+            profile.save()
+        self.viewer_profile = profile
         
         # Create test permissions
         self.view_tasks_perm = CustomPermission.objects.create(

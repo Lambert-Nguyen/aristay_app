@@ -5,6 +5,7 @@ Ensures Django is properly setup before test collection begins.
 
 import os
 import sys
+import pytest
 from pathlib import Path
 
 # Get the absolute path to the project root
@@ -33,3 +34,8 @@ def setup_django():
 
 # Setup Django immediately when conftest.py is loaded
 setup_django()
+
+@pytest.fixture(autouse=True)
+def _enable_db_access_for_all_tests(db):
+    """Give every test DB access by default."""
+    pass
