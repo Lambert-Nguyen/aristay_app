@@ -70,6 +70,26 @@ class NavigationVisibilityTestCase(TestCase):
                 'is_active': True
             }
         )
+        
+        # Set up role permissions
+        # Managers should have file management and manager portal access
+        RolePermission.objects.get_or_create(
+            role='manager',
+            permission=self.manage_files_perm,
+            defaults={'granted': True, 'can_delegate': False}
+        )
+        RolePermission.objects.get_or_create(
+            role='manager',
+            permission=self.manager_portal_perm,
+            defaults={'granted': True, 'can_delegate': False}
+        )
+        
+        # Staff should have file management access
+        RolePermission.objects.get_or_create(
+            role='staff',
+            permission=self.manage_files_perm,
+            defaults={'granted': True, 'can_delegate': False}
+        )
     
     def test_file_cleanup_nav_visibility_superuser(self):
         """Test that superuser can see file cleanup navigation"""
