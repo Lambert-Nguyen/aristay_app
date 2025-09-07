@@ -45,12 +45,20 @@ class RefreshTokenJtiRateThrottle(SimpleRateThrottle):
     scope = 'token_refresh'  # 2/minute limit
 ```
 
+**JWT Settings**: Configure token rotation and blacklisting in Django settings:
+```python
+SIMPLE_JWT = {
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+```
+
 **Critical Security Pattern**: Always verify token ownership before revocation in `api/jwt_auth_views.py:revoke_token()`. Tokens can only be revoked by their owners.
 
 **Authentication Flow**:
 1. `POST /api/token/` → Get access/refresh tokens
 2. Use `Authorization: Bearer <access_token>` 
-3. `POST /api/token/refresh/` → Refresh when expired (JTI-based rate limiting)
+3. `POST /api/token/refresh/` → Refresh when expired via SecureTokenRefreshView (with RefreshTokenJtiRateThrottle)
 4. `POST /api/token/revoke/` → Blacklist specific token
 
 ## 🤖 Task Automation System
@@ -104,10 +112,11 @@ class ApiService {
   
   Future<List<Task>> fetchTasks({Map<String, String>? filters}) async {
     // JWT token from SharedPreferences with null safety
+    // NOTE: Use the flutter_secure_storage package for tokens in production; SharedPreferences only for non-sensitive flags
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
     if (token == null) throw AuthException('Not authenticated');
-    // Centralized error handling with ValidationException
+    // Centralized error handling with ValidationException (see lib/utils/api_error.dart)
   }
 }
 ```
@@ -122,6 +131,16 @@ flutter run --dart-define=API_BASE_URL=https://staging.aristay.com/api
 
 # Production
 flutter run --dart-define=API_BASE_URL=https://api.aristay.com/api
+```
+
+**Device-Specific Base URLs**:
+- **Android emulator**: `http://10.0.2.2:8000/api`
+- **iOS simulator**: `http://127.0.0.1:8000/api`  
+- **Physical devices**: Use LAN IP (e.g., `http://192.168.x.x:8000/api`) + update `ALLOWED_HOSTS` and CORS settings
+
+**Runtime Environment Access**:
+```dart
+const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8000/api');
 ```
 
 **Screen-Widget Architecture**: Organized by feature with reusable components:
@@ -150,7 +169,9 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
-    if (route != null) routeObserver.subscribe(this, route);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
   }
 
   @override
@@ -163,6 +184,13 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void didPopNext() => _refresh();
 }
+```
+
+**Remember**: Keep `routeObserver` as a single shared instance and include it in `MaterialApp.navigatorObservers`:
+
+```dart
+// lib/services/navigation_service.dart
+final RouteObserver<PageRoute<dynamic>> routeObserver = RouteObserver<PageRoute<dynamic>>();
 
 // In MaterialApp registration:
 MaterialApp(
@@ -170,8 +198,6 @@ MaterialApp(
   // ...
 );
 ```
-
-**Remember**: Keep `routeObserver` as a single shared instance and include it in `MaterialApp.navigatorObservers`.
 
 **Widget Design System**: Consistent styling with theme-aware components:
 ```dart
@@ -198,7 +224,7 @@ class EnhancedExcelImportService(ExcelImportService):
     def _extract_booking_data_enhanced(self, row, row_number: int) -> Optional[Dict]:
         # Handle generic booking sources (not real confirmation codes)
         generic_sources = ['directly', 'direct', 'owner staying', 'owner', 'walk-in']
-        if external_code.lower() in generic_sources:
+        if (external_code or '').lower() in generic_sources:
             # Generate unique codes for direct bookings using secure randomness
             external_code = _generate_direct_booking_code()  # uses secrets
 ```
@@ -242,16 +268,8 @@ def _create_booking(self, booking_data: Dict, property_obj: Property, row) -> Bo
     original_code = booking_data.get('external_code', '')
     source = _normalize_source(booking_data.get('source', ''))
     
-    # Ensure unique external_code within property + source scope
-    code = original_code
-    i = 1
-    while Booking.objects.filter(
-        property=property_obj,
-        source__iexact=source,
-        external_code=code
-    ).exists():
-        i += 1
-        code = f"{original_code} #{i}"
+    # Use transaction-based approach for race-condition safety
+    return create_booking_with_unique_code(booking_data)
 ```
 
 **Database Constraints**: Enforce uniqueness at the database layer with conditional constraints:
@@ -260,13 +278,15 @@ def _create_booking(self, booking_data: Dict, property_obj: Property, row) -> Bo
 from django.db.models import Q, UniqueConstraint
 
 constraints = [
-    models.UniqueConstraint(
+    UniqueConstraint(
         fields=['property', 'source', 'external_code'],
         name='uniq_booking_src_code_per_property',
         condition=Q(is_deleted=False),
     ),
 ]
 ```
+
+**Note**: Conditional UniqueConstraint requires PostgreSQL. For SQLite dev/tests, enforce uniqueness in model validation or run tests against Postgres.
 
 **Secure Code Generation**: Use cryptographically strong random generation:
 ```python
@@ -337,7 +357,7 @@ python -m pytest tests/security/  # specific category
 
 **Critical Test Infrastructure Patterns**:
 
-⚠️ **MANDATORY PYTEST FORMAT**: All tests MUST be written in pytest format for CI workflow compatibility. Use `pytest` decorators, fixtures, and assertion patterns instead of Django TestCase where possible. When Django TestCase is required, ensure proper pytest integration. **CRITICAL**: Test functions must not return values - use assertions instead.
+✅ **Preferred: pytest format for CI** (fixtures, marks, assertions). Django TestCase is allowed when needed (e.g., class-level DB setup), but keep it minimal and pytest-friendly.
 
 1. **Database Constraint Testing**: Use proper transaction management
 ```python
@@ -355,17 +375,23 @@ def test_constraint_integrity():
     assert constraint_worked
 ```
 
-2. **JWT Authentication Testing**: Clear cache between tests to prevent rate limiting interference and use secure JWT views
+2. **JWT Authentication Testing**: Use pytest fixtures for cache management
 ```python
-class JWTAuthenticationTests(APITestCase):
-    def setUp(self):
-        from django.core.cache import cache
-        cache.clear()  # Prevent rate limit accumulation
-        # ... test setup
-        
-    def tearDown(self):
-        from django.core.cache import cache
-        cache.clear()
+import pytest
+from rest_framework.test import APIClient
+from django.core.cache import cache
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    cache.clear()
+    yield
+    cache.clear()
+
+@pytest.mark.django_db  
+def test_jwt_token_generation():
+    client = APIClient()
+    resp = client.post('/api/token/', {'username': 'testuser', 'password': 'testpass'})
+    assert resp.status_code in (200, 401)  # adjust based on fixture user creation
 
 # CRITICAL: JWT endpoints must use secure views for security event logging:
 # /api/token/ → SecureTokenObtainPairView (not CustomTokenObtainPairView)
@@ -374,6 +400,8 @@ class JWTAuthenticationTests(APITestCase):
 
 3. **UI Testing with Authentication**: Override Axes backend for compatibility
 ```python
+from django.test import TestCase, override_settings
+
 @override_settings(
     AUTHENTICATION_BACKENDS=[
         'django.contrib.auth.backends.ModelBackend',
@@ -381,6 +409,24 @@ class JWTAuthenticationTests(APITestCase):
 )
 class UITestCase(TestCase):
     # Tests that need Django test client authentication
+```
+
+4. **pytest.ini Configuration**: Add this to project root for consistent test execution
+```ini
+# pytest.ini
+[pytest]
+DJANGO_SETTINGS_MODULE = backend.settings
+python_files = tests/**/*.py
+addopts = -q --tb=short
+testpaths = tests
+```
+
+**Python Path Setup**: Since `backend.settings` lives under `aristay_backend/`, ensure Python can import it from repo root:
+```python
+# conftest.py (repo root)
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent / "aristay_backend"))
 ```
 
 **Environment Setup**:
@@ -393,6 +439,8 @@ cd aristay_backend && python manage.py runserver
 make setup && make run
 ```
 
+**API Client Generation**: Consider using `drf-spectacular` + `openapi-generator` to keep Flutter models/services in sync with backend API changes automatically.
+
 **Environment Variables**: Key configurations in `.env`:
 ```bash
 # Caching / throttling
@@ -402,6 +450,11 @@ REDIS_URL=redis://127.0.0.1:6379/1
 JWT_SIGNING_KEY=change_me
 SENTRY_DSN=
 DJANGO_ENVIRONMENT=development
+
+# Network configuration
+ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.40
+CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
+CSRF_TRUSTED_ORIGINS=https://staging.aristay.com,https://app.aristay.com
 ```
 
 ## 📁 Proper File Placement Guidelines
@@ -476,6 +529,7 @@ aristay_flutter_frontend/
 **File Naming Conventions**:
 - **Tests**: `test_<functionality>.py` in appropriate category directory
 - **Documentation**: `<FEATURE>_<TYPE>.md` with descriptive names
+- **Reports**: Include ISO date format (YYYY-MM-DD) when writing status reports, completion summaries, and documentation
 - **Scripts**: `<action>_<target>.sh` with executable permissions
 - **Flutter**: `snake_case.dart` for all Dart files
 
@@ -485,8 +539,6 @@ aristay_flutter_frontend/
 - Login: 5/minute per IP  
 - Token refresh: 2/minute per JWT ID (not IP!)
 - API calls: 1000/hour per user
-
-**Cache Backend**: Development uses LocMem cache (resets on restart), production uses Redis via `REDIS_URL` (persistent across deployments).
 
 **Cache Backend**: Development uses LocMem cache (resets on restart), production uses Redis via `REDIS_URL` (persistent across deployments).
 

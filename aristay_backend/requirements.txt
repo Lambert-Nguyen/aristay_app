@@ -32,6 +32,7 @@ djangorestframework-simplejwt==5.5.1
 cryptography==45.0.7
 django-axes==8.0.0
 django-ipware==7.0.1
+django-ratelimit==4.1.0
 
 # Production logging and monitoring dependencies
 sentry-sdk[django]==2.35.1
