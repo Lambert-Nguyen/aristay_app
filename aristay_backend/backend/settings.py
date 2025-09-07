@@ -83,6 +83,7 @@ COMMON_APPS = [
     "corsheaders",
     "django_filters",
     "axes",
+    "drf_spectacular",  # OpenAPI 3 documentation
 ]
 
 if USE_CLOUDINARY:
@@ -112,6 +113,7 @@ else:
     }
 
 MIDDLEWARE = [
+    "api.middleware.ApiExceptionMiddleware",  # Catch all unhandled exceptions for API endpoints
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
     "axes.middleware.AxesMiddleware",  # before AuthenticationMiddleware
@@ -186,6 +188,7 @@ REST_FRAMEWORK = {
         'taskimage': '15/minute',  # Specific rate for task image uploads
         'api': '1000/hour',
     },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # JWT Configuration removed here - see comprehensive config below

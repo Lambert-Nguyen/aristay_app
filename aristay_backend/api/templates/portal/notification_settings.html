@@ -137,9 +137,12 @@ function markAsRead(notificationId) {
             'Content-Type': 'application/json',
         },
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success || response.ok) {
+    .then(response => {
+        const responseOk = response.ok;
+        return response.json().then(data => ({ data, responseOk }));
+    })
+    .then(({ data, responseOk }) => {
+        if (data.success || responseOk) {
             // Update UI to show as read
             const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
             if (notificationElement) {
@@ -182,9 +185,12 @@ document.getElementById('markAllReadBtn')?.addEventListener('click', function() 
             'Content-Type': 'application/json',
         },
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success || response.ok) {
+    .then(response => {
+        const responseOk = response.ok;
+        return response.json().then(data => ({ data, responseOk }));
+    })
+    .then(({ data, responseOk }) => {
+        if (data.success || responseOk) {
             showMessage('All notifications marked as read', 'success');
             // Reload page to update the UI
             setTimeout(() => {

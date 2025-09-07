@@ -139,12 +139,14 @@ def send_test_notification_api(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['DELETE'])
+@api_view(['DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
 def cleanup_notifications_api(request):
     """
     DRF API endpoint to cleanup old notifications
-    DELETE /api/notifications/cleanup/
+    DELETE /api/notifications/cleanup/ or POST /api/notifications/cleanup/
+    
+    Accepts both DELETE and POST methods for flexibility in client implementations
     """
     if not request.user.is_staff:
         return Response(
@@ -152,8 +154,13 @@ def cleanup_notifications_api(request):
             status=status.HTTP_403_FORBIDDEN
         )
     
-    days_old = int(request.data.get('days_old', 30))
-    read_only = request.data.get('read_only', True)
+    # Handle both query params (for DELETE) and request body (for POST)
+    if request.method == 'DELETE':
+        days_old = int(request.query_params.get('days_old', 30))
+        read_only = request.query_params.get('read_only', 'true').lower() == 'true'
+    else:  # POST
+        days_old = int(request.data.get('days_old', 30))
+        read_only = request.data.get('read_only', True)
     
     try:
         cutoff_date = timezone.now() - timedelta(days=days_old)

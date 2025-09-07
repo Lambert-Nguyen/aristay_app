@@ -67,7 +67,13 @@ from .monitoring import (
     DetailedHealthCheckView,
     log_client_error,
 )
-from .views import portal_home, portal_property_list, portal_property_detail, portal_booking_detail
+
+# Mobile-optimized endpoints
+from .mobile_views import (
+    mobile_dashboard_data,
+    mobile_offline_sync,
+    mobile_task_summary,
+)
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
@@ -79,6 +85,12 @@ router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
     path('', include(router.urls)),
+    
+    # Mobile-optimized endpoints
+    path('mobile/dashboard/', mobile_dashboard_data, name='mobile-dashboard'),
+    path('mobile/offline-sync/', mobile_offline_sync, name='mobile-offline-sync'),
+    path('mobile/tasks/summary/', mobile_task_summary, name='mobile-task-summary'),
+    
     path(
         'tasks/<int:task_pk>/images/',
         TaskImageCreateView.as_view(),
