@@ -6,6 +6,7 @@ Tests for production hardening of task template system
 import os
 import sys
 import django
+import pytest
 
 # Add the Django backend to the Python path
 sys.path.append('/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend')
@@ -86,8 +87,10 @@ def test_idempotent_task_creation():
     
     return True
 
+@pytest.mark.django_db
 def test_constraint_integrity():
     """Test: try to manually create a second task with same (booking, created_by_template); assert IntegrityError"""
+    from django.db import transaction
     
     print("\n🧪 CONSTRAINT TEST: DB-Level Uniqueness")
     print("=" * 50)
@@ -142,18 +145,21 @@ def test_constraint_integrity():
     
     # Try to create second task with same booking+template (should fail)
     print("📝 Attempting to create duplicate task...")
+    constraint_worked = False
+    
     try:
-        task2 = Task.objects.create(
-            title='Duplicate Task',
-            task_type='maintenance',
-            booking=booking,
-            property=property_obj,
-            created_by_template=template,
-        )
-        print(f"❌ CONSTRAINT TEST FAILED: Duplicate task was created: {task2.title}")
-        task2.delete()
-        raise AssertionError("Constraint test failed - duplicate task was allowed")
-        
+        with transaction.atomic():
+            task2 = Task.objects.create(
+                title='Duplicate Task',
+                task_type='maintenance',
+                booking=booking,
+                property=property_obj,
+                created_by_template=template,
+            )
+            print(f"❌ CONSTRAINT TEST FAILED: Duplicate task was created: {task2.title}")
+            task2.delete()
+            assert False, "Constraint test failed - duplicate task was allowed"
+            
     except IntegrityError as e:
         if "api_task.booking_id, api_task.created_by_template_id" in str(e):
             print("🎉 CONSTRAINT TEST PASSED: DB constraint prevented duplicate task!")
@@ -163,9 +169,14 @@ def test_constraint_integrity():
             constraint_worked = False
     
     # Cleanup
-    task1.delete()
-    booking.delete()
-    template.delete()
+    try:
+        task1.delete()
+        booking.delete()
+        template.delete()
+    except Exception as cleanup_error:
+        print(f"Warning: Cleanup error (expected): {cleanup_error}")
+    
+    assert constraint_worked, "Database constraint test failed"
     
     if not constraint_worked:
         raise AssertionError("Constraint test failed - wrong type of IntegrityError")

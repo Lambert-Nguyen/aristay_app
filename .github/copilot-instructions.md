@@ -314,6 +314,7 @@ self.history = json.dumps(hist + changes)
 - `tests/integration/` - End-to-end workflows
 - `tests/production/` - Production readiness, constraints
 - `tests/api/` - API endpoint testing with authentication
+- `tests/ui/` - User interface and template testing
 
 **Test Commands**:
 ```bash
@@ -327,6 +328,46 @@ python tests/run_tests.py --production
 # JWT system verification
 chmod +x scripts/testing/jwt_smoke_test_improved.sh
 ./scripts/testing/jwt_smoke_test_improved.sh
+```
+
+**Critical Test Infrastructure Patterns**:
+
+1. **Database Constraint Testing**: Use proper transaction management
+```python
+@pytest.mark.django_db
+def test_constraint_integrity():
+    from django.db import transaction
+    try:
+        with transaction.atomic():
+            # Test constraint violation
+            Model.objects.create(duplicate_data)
+    except IntegrityError as e:
+        # Expected constraint violation
+        assert "constraint_name" in str(e)
+```
+
+2. **JWT Authentication Testing**: Clear cache between tests to prevent rate limiting interference
+```python
+class JWTAuthenticationTests(APITestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # Prevent rate limit accumulation
+        # ... test setup
+        
+    def tearDown(self):
+        from django.core.cache import cache
+        cache.clear()
+```
+
+3. **UI Testing with Authentication**: Override Axes backend for compatibility
+```python
+@override_settings(
+    AUTHENTICATION_BACKENDS=[
+        'django.contrib.auth.backends.ModelBackend',
+    ]
+)
+class UITestCase(TestCase):
+    # Tests that need Django test client authentication
 ```
 
 **Environment Setup**:

@@ -3,7 +3,7 @@ Test Notifications Widget functionality (stub for future implementation)
 """
 import json
 import pytest
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from unittest.mock import patch, MagicMock
@@ -11,6 +11,11 @@ from unittest.mock import patch, MagicMock
 User = get_user_model()
 
 
+@override_settings(
+    AUTHENTICATION_BACKENDS=[
+        'django.contrib.auth.backends.ModelBackend',
+    ]
+)
 class NotificationsWidgetTestCase(TestCase):
     """Test cases for Notifications Widget functionality"""
     

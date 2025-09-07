@@ -32,6 +32,10 @@ class JWTAuthenticationTests(APITestCase):
     """Comprehensive JWT Authentication Test Suite"""
 
     def setUp(self):
+        from django.core.cache import cache
+        # Clear throttle cache to prevent rate limiting between tests
+        cache.clear()
+        
         self.client = APIClient()
         self.test_user_data = {
             'username': 'testjwtuser',
@@ -40,6 +44,11 @@ class JWTAuthenticationTests(APITestCase):
         }
         self.user = User.objects.create_user(**self.test_user_data)
         self.tokens = {}
+
+    def tearDown(self):
+        from django.core.cache import cache
+        # Clear cache after each test
+        cache.clear()
 
     def test_01_token_generation(self):
         """JWT token generation"""
@@ -136,15 +145,29 @@ class JWTAuthenticationTests(APITestCase):
     )
     def test_08_rate_limiting(self):
         """Rate limiting on refresh (deterministic)"""
-        # Expect: 1st refresh rotates success, 2nd hits 401 (old blacklisted), 3rd can hit 429 per JTI throttle.
-        self.test_01_token_generation()
+        from django.core.cache import cache
+        
+        # Don't clear cache for this test - we want rate limiting to work
+        # Generate tokens directly instead of calling other test method
+        response = self.client.post('/api/token/', {
+            'username': self.test_user_data['username'],
+            'password': self.test_user_data['password'],
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        refresh_token = response.data['refresh']
+        
+        # Expect: 1st refresh success, 2nd can hit 429 per rate throttle
         seen_429 = False
-        for _ in range(3):
-            resp = self.client.post('/api/token/refresh/', {'refresh': self.tokens['refresh']})
+        for i in range(3):
+            resp = self.client.post('/api/token/refresh/', {'refresh': refresh_token})
             if resp.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
                 seen_429 = True
                 break
-        self.assertTrue(seen_429, "Rate limiting should have triggered by the 2nd/3rd request")
+            elif resp.status_code == status.HTTP_200_OK:
+                # Update refresh token for next iteration
+                refresh_token = resp.data['refresh']
+                
+        self.assertTrue(seen_429, f"Rate limiting should have triggered by the 2nd/3rd request")
 
 
 class SecurityEventLoggingTests(APITestCase):
