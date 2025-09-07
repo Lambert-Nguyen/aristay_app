@@ -35,6 +35,7 @@ This is the central documentation hub for the Aristay project. All documentation
 **Testing documentation and test reports**
 - [`TEST_ORGANIZATION.md`](./testing/TEST_ORGANIZATION.md) - Testing strategy and organization
 - [`TESTING_ORGANIZATION_2025-09-07.md`](./testing/TESTING_ORGANIZATION_2025-09-07.md) - ⭐ **NEW** - Complete testing structure guide
+- [`PYTEST_WORKFLOW_2025-09-07.md`](./testing/PYTEST_WORKFLOW_2025-09-07.md) - ⭐ **NEW** - PyTest configuration and commands
 - [`END_TO_END_ACCEPTANCE_REPORT.md`](./testing/END_TO_END_ACCEPTANCE_REPORT.md) - Acceptance testing results
 - [`GUEST_NAME_ANALYSIS.md`](./testing/GUEST_NAME_ANALYSIS.md) - Guest name handling analysis
 
