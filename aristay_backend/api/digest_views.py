@@ -16,6 +16,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from drf_spectacular.utils import extend_schema, extend_schema_view, inline_serializer
+from rest_framework import serializers
 
 from .decorators import staff_or_perm
 from .services.email_digest_service import EmailDigestService
@@ -25,6 +27,25 @@ logger = logging.getLogger(__name__)
 
 
 # DRF API Views
+@extend_schema(
+    operation_id="send_digest",
+    summary="Trigger a digest send (admin/ops)",
+    request=inline_serializer(
+        name="SendDigestRequest",
+        fields={
+            "test_mode": serializers.BooleanField(required=False, default=False),
+            "dry_run": serializers.BooleanField(required=False, default=False),
+        },
+    ),
+    responses=inline_serializer(
+        name="SendDigestResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "sent_count": serializers.IntegerField(required=False),
+            "message": serializers.CharField(required=False),
+        },
+    ),
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def send_digest_api(request):
@@ -67,6 +88,20 @@ def send_digest_api(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="digest_settings",
+    summary="Get current digest settings",
+    responses=inline_serializer(
+        name="DigestSettingsResponse",
+        fields={
+            "global_enabled": serializers.BooleanField(),
+            "user_opted_out": serializers.BooleanField(),
+            "user_count": serializers.IntegerField(),
+            "opted_out_count": serializers.IntegerField(),
+            "opt_out_percentage": serializers.FloatField(),
+        },
+    ),
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def digest_settings_api(request):
@@ -89,6 +124,21 @@ def digest_settings_api(request):
     })
 
 
+@extend_schema(
+    operation_id="digest_opt_out",
+    summary="Opt in/out of email digests",
+    request=inline_serializer(
+        name="DigestOptOutRequest",
+        fields={
+            "opted_out": serializers.BooleanField(),
+            "reason": serializers.CharField(required=False),
+        },
+    ),
+    responses=inline_serializer(
+        name="DigestOptOutResponse",
+        fields={"success": serializers.BooleanField(), "message": serializers.CharField()},
+    ),
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def digest_opt_out_api(request):

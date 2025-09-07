@@ -178,6 +178,14 @@ def send_test_notification_api(request):
     post=extend_schema(
         operation_id="cleanup_notifications_post",
         summary="Cleanup old notifications (POST)",
+        request=inline_serializer(
+            name="CleanupNotificationsRequest",
+            fields={
+                "days_old": serializers.IntegerField(required=False, default=30),
+                "read_only": serializers.BooleanField(required=False, default=True),
+                "preview_only": serializers.BooleanField(required=False, default=False),
+            },
+        ),
         responses={200: {"description": "Operation result with count and details"}},
     ),
 )

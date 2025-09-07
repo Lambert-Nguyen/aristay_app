@@ -23,6 +23,7 @@ from .views import (
     unread_notification_count,
     AdminUserDetailView,
     manager_overview,
+    manager_dashboard,
     ManagerUserList,
     ManagerUserDetail,
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
@@ -112,7 +113,7 @@ urlpatterns = [
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     path('admin/users/<int:pk>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
     path('manager/overview/', manager_overview, name='manager-overview'),
-    path('manager/dashboard/', manager_overview, name='manager-dashboard'),  # Alias for compatibility
+    path('manager/dashboard/', manager_dashboard, name='manager-dashboard'),  # Alias for compatibility
     path('manager/users/',    ManagerUserList.as_view(),  name='manager-user-list'),
     path('manager/users/<int:pk>/', ManagerUserDetail.as_view(), name='manager-user-detail'),
     path('admin/charts/', admin_charts_dashboard, name='admin-charts'),
