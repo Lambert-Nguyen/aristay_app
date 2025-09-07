@@ -24,6 +24,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
 from .security_models import SecurityEvent, UserSession, SuspiciousActivity
+from .throttles import RefreshTokenJtiRateThrottle
 
 logger = logging.getLogger('api.security')
 
@@ -175,7 +176,7 @@ class SecureTokenObtainPairView(TokenObtainPairView):
 ], name='dispatch')
 class SecureTokenRefreshView(TokenRefreshView):
     """Secure token refresh with logging"""
-    throttle_scope = 'token_refresh'
+    throttle_classes = [RefreshTokenJtiRateThrottle]
     
     def post(self, request, *args, **kwargs):
         try:

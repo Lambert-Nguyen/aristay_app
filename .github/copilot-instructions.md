@@ -328,9 +328,16 @@ python tests/run_tests.py --production
 # JWT system verification
 chmod +x scripts/testing/jwt_smoke_test_improved.sh
 ./scripts/testing/jwt_smoke_test_improved.sh
+
+# Standard pytest execution for CI workflows
+python -m pytest -v  # verbose output
+python -m pytest -q  # quiet output
+python -m pytest tests/security/  # specific category
 ```
 
 **Critical Test Infrastructure Patterns**:
+
+⚠️ **MANDATORY PYTEST FORMAT**: All tests MUST be written in pytest format for CI workflow compatibility. Use `pytest` decorators, fixtures, and assertion patterns instead of Django TestCase where possible. When Django TestCase is required, ensure proper pytest integration. **CRITICAL**: Test functions must not return values - use assertions instead.
 
 1. **Database Constraint Testing**: Use proper transaction management
 ```python
@@ -344,9 +351,11 @@ def test_constraint_integrity():
     except IntegrityError as e:
         # Expected constraint violation
         assert "constraint_name" in str(e)
+    # End with assertion, never return values
+    assert constraint_worked
 ```
 
-2. **JWT Authentication Testing**: Clear cache between tests to prevent rate limiting interference
+2. **JWT Authentication Testing**: Clear cache between tests to prevent rate limiting interference and use secure JWT views
 ```python
 class JWTAuthenticationTests(APITestCase):
     def setUp(self):
@@ -357,6 +366,10 @@ class JWTAuthenticationTests(APITestCase):
     def tearDown(self):
         from django.core.cache import cache
         cache.clear()
+
+# CRITICAL: JWT endpoints must use secure views for security event logging:
+# /api/token/ → SecureTokenObtainPairView (not CustomTokenObtainPairView)
+# /api/token/refresh/ → SecureTokenRefreshView (with RefreshTokenJtiRateThrottle)
 ```
 
 3. **UI Testing with Authentication**: Override Axes backend for compatibility

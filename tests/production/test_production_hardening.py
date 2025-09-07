@@ -85,7 +85,8 @@ def test_idempotent_task_creation():
     # Cleanup
     booking.delete()
     
-    return True
+    # Test passes if we reach this point without assertions failing
+    assert True
 
 @pytest.mark.django_db
 def test_constraint_integrity():
@@ -178,10 +179,8 @@ def test_constraint_integrity():
     
     assert constraint_worked, "Database constraint test failed"
     
-    if not constraint_worked:
-        raise AssertionError("Constraint test failed - wrong type of IntegrityError")
-    
-    return True
+    # Test passes if we reach this point
+    assert constraint_worked
 
 def test_status_mapping_consistency():
     """Test: verify unified status mapping works consistently in create and update scenarios"""
@@ -214,7 +213,8 @@ def test_status_mapping_consistency():
             raise AssertionError(f"Status mapping inconsistent: {external} → {actual_internal} != {expected_internal}")
     
     print("🎉 STATUS MAPPING TEST PASSED: All mappings are consistent!")
-    return True
+    # Test passes if we reach this point
+    assert True
 
 if __name__ == '__main__':
     try:

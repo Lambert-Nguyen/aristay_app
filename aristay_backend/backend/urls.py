@@ -24,6 +24,7 @@ from api.auth_views import UnifiedLoginView, logout_view
 
 # JWT Authentication imports
 from rest_framework_simplejwt.views import TokenVerifyView
+from api.jwt_auth_views import SecureTokenObtainPairView, SecureTokenRefreshView
 from api.auth_views import CustomTokenObtainPairView, TokenRefreshThrottledView, revoke_token, revoke_all_tokens
 from api.auth_debug_views import WhoAmIView
 
@@ -63,8 +64,8 @@ urlpatterns = [
     path('api/', include(audit_router.urls)),  # Add audit API endpoints
     
     # JWT Authentication endpoints
-    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshThrottledView.as_view(), name='token_refresh'),
+    path('api/token/', SecureTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', SecureTokenRefreshView.as_view(), name='token_refresh'),
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('api/token/revoke/', revoke_token, name='token_revoke'),
     path('api/token/revoke-all/', revoke_all_tokens, name='token_revoke_all'),
