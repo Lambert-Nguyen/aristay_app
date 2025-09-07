@@ -107,26 +107,69 @@ class PropertySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class TaskImageSerializer(serializers.ModelSerializer):
+    # allow direct serializer usage (tests) and view usage (save(task=...))
+    task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all(), write_only=True, required=False)
     uploaded_by_username = serializers.CharField(source='uploaded_by.username', read_only=True)
     
     class Meta:
         model = TaskImage
-        fields = ['id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username']
-        read_only_fields = ['uploaded_by', 'uploaded_by_username']
+        fields = ['id', 'task', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
+                  'size_bytes', 'width', 'height', 'original_size_bytes']
+        read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
+                           'width', 'height', 'original_size_bytes']
     
     def validate_image(self, file):
-        # File size validation (10MB max)
-        max_mb = 10
-        if file.size > max_mb * 1024 * 1024:
-            raise serializers.ValidationError(f"Max file size is {max_mb}MB.")
+        """Agent's enhanced validation: Accept large files, validate before optimization."""
+        from django.conf import settings
+        from rest_framework import serializers
         
-        # File type validation
-        allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/jpg'}
-        content_type = getattr(file, 'content_type', None)
-        if content_type not in allowed_types:
-            raise serializers.ValidationError("Allowed types: JPG, PNG, WEBP, HEIC.")
+        # Inline validation for security test compliance
+        max_mb = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024) // (1024 * 1024)
+        if file.size > max_mb * 1024 * 1024:
+            raise serializers.ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
+        
+        # Validate allowed content types
+        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+        if file.content_type not in allowed_types:
+            raise serializers.ValidationError("Unsupported file type. Please upload JPEG, PNG, or WebP images.")
         
         return file
+    
+    def create(self, validated_data):
+        """Agent's optimization approach: Transform large uploads before storage."""
+        from api.utils.image_ops import optimize_image  # do NOT call get_image_metadata here
+        from django.core.files.base import ContentFile
+        from django.conf import settings
+        
+        file = validated_data['image']
+        original_size = getattr(file, 'size', None)
+        
+        try:
+            optimized_bytes, optimization_metadata = optimize_image(
+                file,
+                max_dimension=getattr(settings, 'STORED_IMAGE_MAX_DIM', 2048),
+                target_size=getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024),
+                use_webp=True
+            )
+            # keep a sane name; extension doesn't strictly matter for storage backends
+            name = getattr(file, 'name', 'upload')
+            optimized_file = ContentFile(optimized_bytes, name=f"opt_{name}")
+        except ValueError:
+            target_mb = getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024) // (1024 * 1024)
+            raise serializers.ValidationError({
+                "image": f"We couldn't optimize this photo under {target_mb}MB. Please crop or choose a smaller one."
+            })
+
+        validated_data['image'] = optimized_file
+        # DO NOT call get_image_metadata() here; use optimization_metadata from optimize_image()
+        validated_data.update({
+            'size_bytes': optimization_metadata.get('size_bytes'),
+            'width': optimization_metadata.get('width'), 
+            'height': optimization_metadata.get('height'),
+            'original_size_bytes': optimization_metadata.get('original_size_bytes', original_size)
+        })
+
+        return super().create(validated_data)
 
 class TaskSerializer(serializers.ModelSerializer):
     property_name           = serializers.CharField(source='property.name',    read_only=True)

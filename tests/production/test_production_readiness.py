@@ -183,9 +183,11 @@ class ProductionReadinessTestSuite(TestCase):
         
         # If Cloudinary is enabled, check configuration
         if use_cloudinary:
-            cloudinary_settings = ['CLOUDINARY_STORAGE']
-            for setting in cloudinary_settings:
-                self.assertTrue(hasattr(settings, setting))
+            # Check for proper STORAGES configuration
+            self.assertTrue(hasattr(settings, 'STORAGES'))
+            # Check that cloudinary apps are in INSTALLED_APPS
+            self.assertIn('cloudinary', settings.INSTALLED_APPS)
+            self.assertIn('cloudinary_storage', settings.INSTALLED_APPS)
         
         print("✅ Cloudinary feature flag configuration verified")
         return True

@@ -21,8 +21,10 @@ class AuthzHelper:
         Rules:
         - Superuser: Always allowed
         - Manager: Can edit any task
-        - Task assignee: Can edit their own tasks
+        - Task creator: Can edit tasks they created
+        - Task assignee: Can edit their assigned tasks
         - Staff with change_tasks permission: Can edit tasks
+        - Staff with manage_files permission: Can manage task files
         """
         if not user or not user.is_authenticated:
             return False
@@ -35,12 +37,16 @@ class AuthzHelper:
         if profile and profile.role == 'manager':
             return True
             
-        # Task assignee can edit their own task
+        # Task creator can edit their own task - Agent's security enhancement
+        if task.created_by == user:
+            return True
+            
+        # Task assignee can edit their assigned task
         if task.assigned_to == user:
             return True
             
-        # Check dynamic permission
-        if profile and profile.has_permission('change_tasks'):
+        # Check dynamic permissions
+        if profile and (profile.has_permission('change_tasks') or profile.has_permission('manage_files')):
             return True
             
         return False
