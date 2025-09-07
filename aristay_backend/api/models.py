@@ -515,6 +515,12 @@ class TaskImage(models.Model):
     image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    
+    # Agent's recommended metadata fields for optimized images
+    size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Optimized file size in bytes")
+    width = models.PositiveIntegerField(null=True, blank=True, help_text="Image width in pixels")  
+    height = models.PositiveIntegerField(null=True, blank=True, help_text="Image height in pixels")
+    original_size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Original upload size before optimization")
 
     def __str__(self):
         return f"Image for {self.task.title}"

@@ -111,22 +111,51 @@ class TaskImageSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TaskImage
-        fields = ['id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username']
-        read_only_fields = ['uploaded_by', 'uploaded_by_username']
+        fields = ['id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username', 
+                 'size_bytes', 'width', 'height', 'original_size_bytes']
+        read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
+                           'width', 'height', 'original_size_bytes']
     
     def validate_image(self, file):
-        # File size validation (10MB max)
-        max_mb = 10
-        if file.size > max_mb * 1024 * 1024:
-            raise serializers.ValidationError(f"Max file size is {max_mb}MB.")
+        """Agent's enhanced validation: Accept large files, validate before optimization."""
+        from api.utils.image_ops import validate_max_upload
         
-        # File type validation
-        allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/jpg'}
-        content_type = getattr(file, 'content_type', None)
-        if content_type not in allowed_types:
-            raise serializers.ValidationError("Allowed types: JPG, PNG, WEBP, HEIC.")
-        
+        # Use agent's ingress validation (25MB limit)
+        validate_max_upload(file)
         return file
+    
+    def create(self, validated_data):
+        """Agent's optimization approach: Transform large uploads before storage."""
+        from api.utils.image_ops import optimize_image, get_image_metadata
+        
+        file = validated_data['image']
+        original_size = file.size
+        
+        # Optimize the image according to agent's specifications
+        optimized_file = optimize_image(file)
+        
+        if optimized_file is None:
+            # Could not optimize to target size - return friendly error
+            from django.conf import settings
+            target_mb = getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024) // (1024 * 1024)
+            raise serializers.ValidationError({
+                "image": f"We couldn't optimize this photo under {target_mb}MB. "
+                        "Please crop or choose a smaller one."
+            })
+        
+        # Replace original with optimized version
+        validated_data['image'] = optimized_file
+        
+        # Extract metadata from optimized image
+        metadata = get_image_metadata(optimized_file)
+        validated_data.update({
+            'size_bytes': metadata['size_bytes'],
+            'width': metadata['width'], 
+            'height': metadata['height'],
+            'original_size_bytes': original_size
+        })
+        
+        return super().create(validated_data)
 
 class TaskSerializer(serializers.ModelSerializer):
     property_name           = serializers.CharField(source='property.name',    read_only=True)

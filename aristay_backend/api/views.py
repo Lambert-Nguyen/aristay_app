@@ -472,12 +472,13 @@ def portal_task_detail(request, task_id):
 class TaskImageCreateView(DefaultAuthMixin, generics.CreateAPIView):
     """
     POST /api/tasks/{task_pk}/images/
+    Agent's enhanced upload: Accept large files, optimize server-side
     """
     serializer_class = TaskImageSerializer
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated]  # object-level check in perform_create
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = 'taskimage'
+    throttle_scope = 'evidence_upload'  # Agent's enhanced throttle scope
 
     def perform_create(self, serializer):
         # 1) load the Task and check permissions

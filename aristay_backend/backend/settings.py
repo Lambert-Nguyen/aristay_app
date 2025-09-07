@@ -250,9 +250,14 @@ STATICFILES_DIRS = [ BASE_DIR / 'static' ]    # so project-level static/ is on t
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Data upload settings - increase limits for bulk operations
+# Data upload settings - Agent's enhanced image processing configuration
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Allow up to 10,000 fields for bulk admin operations
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB (increased from default 2.5MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB - Allow large image uploads before our processing
+
+# Image Upload & Processing Configuration
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))  # 25MB ingress limit
+STORED_IMAGE_TARGET_BYTES = int(os.getenv("STORED_IMAGE_TARGET_BYTES", str(5 * 1024 * 1024)))  # 5MB storage target
+STORED_IMAGE_MAX_DIM = int(os.getenv("STORED_IMAGE_MAX_DIM", "2048"))  # 2048px max dimension
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
