@@ -9,6 +9,24 @@ and automatically creates/updates bookings and associated tasks.
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 import logging
+import io
+from typing import Dict, List, Tuple, Optional, TYPE_CHECKING
+from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+import zoneinfo
+
+from api.models import (
+    Booking, Property, Task, BookingImportLog, BookingImportTemplate
+)
+from .excel_file_utils import validate_excel_file, sha256_bytes
+
+# import openpyxl  # Moved to function level to avoid circular imports
+from datetime import datetime, time, timedelta
+from decimal import Decimal
+import logging
 from typing import Dict, List, Tuple, Optional, TYPE_CHECKING
 from django.db import transaction
 from django.contrib.auth import get_user_model
@@ -65,7 +83,7 @@ class ExcelImportService:
     
     def _import_excel_file_inner(self, excel_file, sheet_name: str = 'Cleaning schedule') -> Dict:
         """
-        Import bookings from Excel file.
+        Import bookings from Excel file with robust file handling.
         
         Args:
             excel_file: Uploaded Excel file
@@ -75,8 +93,18 @@ class ExcelImportService:
             Dict with import results
         """
         try:
-            # Read Excel file
-            df = self._read_excel_file(excel_file, sheet_name)
+            # 1) Validate and buffer the upload once
+            is_valid, error_msg, file_data = validate_excel_file(excel_file)
+            if not is_valid:
+                return {"success": False, "error": error_msg}
+            
+            file_hash = sha256_bytes(file_data)
+            logger.info(f"Base service - File validated: {len(file_data)} bytes, SHA-256: {file_hash[:8]}...")
+            
+            # 2) Parse from bytes (safe, repeatable)
+            import pandas as pd
+            df = pd.read_excel(io.BytesIO(file_data), sheet_name=sheet_name, engine='openpyxl')
+            
             if df is None or df.empty:
                 return {
                     'success': False,
@@ -85,8 +113,8 @@ class ExcelImportService:
             
             self.total_rows = len(df)
             
-            # Create import log
-            self.import_log = self._create_import_log(excel_file)
+            # 3) Create import log WITHOUT file to avoid consuming stream
+            self.import_log = self._create_import_log_safe(excel_file, file_data)
             
             # First pass: identify all unique properties and handle new ones
             new_properties = self._identify_new_properties(df)
@@ -316,6 +344,60 @@ class ExcelImportService:
             errors_log='',
             imported_by=self.user
         )
+    
+    def _create_import_log_safe(self, excel_file, file_data: bytes) -> BookingImportLog:
+        """Create import log entry without consuming file stream, save file data after."""
+        # Create a default template if none exists
+        if not self.template:
+            # Get or create a default template for the first property
+            from ..models import Property
+            try:
+                first_property = Property.objects.first()
+                if first_property:
+                    self.template, created = BookingImportTemplate.objects.get_or_create(
+                        name="Default Import Template",
+                        property_ref=first_property,
+                        defaults={
+                            'import_type': 'csv',
+                            'auto_create_tasks': True,
+                            'created_by': self.user
+                        }
+                    )
+                else:
+                    # Create a dummy template if no properties exist
+                    self.template = BookingImportTemplate.objects.create(
+                        name="Default Import Template",
+                        property_ref=None,
+                        import_type='csv',
+                        auto_create_tasks=True,
+                        created_by=self.user
+                    )
+            except Exception as e:
+                logger.warning(f"Could not create default template: {e}")
+                self.template = None
+        
+        # Create log WITHOUT file first
+        import_log = BookingImportLog.objects.create(
+            template=self.template,
+            import_file=None,  # Will be set after processing
+            total_rows=self.total_rows,
+            successful_imports=0,
+            errors_count=0,
+            errors_log='Base import in progress...',
+            imported_by=self.user
+        )
+        
+        # Try to save file data safely (non-critical)
+        try:
+            filename = getattr(excel_file, 'name', f'import_{import_log.pk}.xlsx')
+            import_log.import_file.save(filename, ContentFile(file_data), save=True)
+            logger.info(f"File saved to base import log: {filename}")
+        except Exception as e:
+            logger.warning(f"Failed to save file to base import log (non-critical): {e}")
+            import_log.errors_log += f"\n\nFILE_SAVE_WARNING: {str(e)}"
+            import_log.save()
+        
+        return import_log
     
     def _process_booking_row(self, row, row_number: int):
         """Process a single booking row from the Excel file."""
