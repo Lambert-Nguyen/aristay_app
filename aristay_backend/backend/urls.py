@@ -40,7 +40,7 @@ def deprecated_token_auth(request, *args, **kwargs):
     if hasattr(response, '__setitem__'):  # HttpResponse-like object
         response['Deprecation'] = 'true'
         response['Link'] = '</api/token/>; rel="successor-version"'
-        response['Warning'] = '299 - "Deprecated endpoint. Use /api/token/ instead. Removal planned for Q2 2026."'
+        response['Warning'] = f'299 - "Deprecated endpoint. Use /api/token/ instead. Removal planned for {getattr(settings, "DEPRECATED_TOKEN_AUTH_REMOVAL_DATE", "Q2 2026")}."'
     return response
 
 # Security Dashboard imports
