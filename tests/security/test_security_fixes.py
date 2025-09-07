@@ -109,8 +109,12 @@ def test_status_key_consistency():
     """Test API responses use consistent status keys"""
     print("🔍 Testing status key consistency...")
     
-    # Check staff_views.py for consistent status keys
-    with open('/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend/api/staff_views.py', 'r') as f:
+    # Check staff_views.py for consistent status keys - use relative path
+    import os
+    backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'aristay_backend')
+    staff_views_path = os.path.join(backend_dir, 'api', 'staff_views.py')
+    
+    with open(staff_views_path, 'r') as f:
         content = f.read()
     
     # Should use 'in-progress' as key (not 'in_progress')
@@ -170,9 +174,14 @@ def test_migration_created():
     print("🔍 Testing uploaded_by migration...")
     
     import glob
-    migration_files = glob.glob('/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend/api/migrations/*uploaded_by*.py')
+    import os
     
-    assert len(migration_files) > 0, "Should have created uploaded_by migration"
+    # Use relative path instead of hardcoded absolute path
+    backend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'aristay_backend')
+    migration_pattern = os.path.join(backend_dir, 'api', 'migrations', '*uploaded_by*.py')
+    migration_files = glob.glob(migration_pattern)
+    
+    assert len(migration_files) > 0, f"Should have created uploaded_by migration in {migration_pattern}"
     
     # Check that TaskImage model has uploaded_by field
     from api.models import TaskImage
