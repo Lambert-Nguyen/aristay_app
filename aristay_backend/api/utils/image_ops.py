@@ -46,76 +46,77 @@ def validate_max_upload(file):
         raise ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
 
 
-def optimize_image(file, target_bytes=None, max_dim=None, min_quality=45):
+def _to_webp_safe_mode(img):
+    """Convert image to WebP-safe mode - Agent's critical fix for CMYK/P crashes."""
+    # Preserve alpha if present, else go RGB
+    if img.mode in ("RGBA", "LA"):
+        return img.convert("RGBA")
+    # CMYK, P, I, L → RGB (prevents WebP crashes)
+    if img.mode not in ("RGB", "RGBA"):
+        return img.convert("RGB")
+    return img
+
+
+def _transpose_exif_orientation(img):
     """
-    Optimize uploaded image for storage - Agent's comprehensive approach.
-    
-    Process:
-    1. Fix EXIF orientation issues
-    2. Downscale to max dimension if needed
-    3. Compress with quality reduction until under target size
-    4. Final dimension reduction if still too large
+    Apply EXIF orientation to image if present.
+    Agent's enhancement: Proper orientation handling for mobile photos.
+    """
+    try:
+        return ImageOps.exif_transpose(img)
+    except Exception:
+        # If no EXIF data or transpose fails, return original
+        return img
+
+
+def _resize_maintain_aspect(img, max_dimension):
+    """
+    Resize image maintaining aspect ratio.
     
     Args:
-        file: Django UploadedFile instance
-        target_bytes: Target file size (default: STORED_IMAGE_TARGET_BYTES)
-        max_dim: Maximum dimension in pixels (default: STORED_IMAGE_MAX_DIM)
-        min_quality: Minimum quality before giving up (default: 45)
+        img: PIL Image instance
+        max_dimension: Maximum width or height
         
     Returns:
-        ContentFile: Optimized image file ready for storage
-        None: If image cannot be optimized to target size
-        
-    Raises:
-        ValidationError: If image is corrupt or unsupported format
+        PIL Image: Resized image
     """
-    target_bytes = target_bytes or getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024)
-    max_dim = max_dim or getattr(settings, 'STORED_IMAGE_MAX_DIM', 2048)
+    original_width, original_height = img.size
     
-    logger.info(f"Optimizing image: {file.name} ({file.size} bytes) -> target: {target_bytes} bytes")
+    if original_width <= max_dimension and original_height <= max_dimension:
+        return img
     
-    # Read file once and parse
-    file.seek(0)  # Ensure we're at start
-    raw_data = file.read()
+    # Calculate new dimensions maintaining aspect ratio
+    if original_width > original_height:
+        new_width = max_dimension
+        new_height = int((original_height * max_dimension) / original_width)
+    else:
+        new_height = max_dimension
+        new_width = int((original_width * max_dimension) / original_height)
     
-    try:
-        img = Image.open(BytesIO(raw_data))
-        # Fix EXIF orientation issues (critical for mobile photos)
-        img = ImageOps.exif_transpose(img)
-    except UnidentifiedImageError:
-        raise ValidationError("Invalid or corrupted image file.")
+    return img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+
+def _optimize_quality(img, target_size, min_quality, use_webp):
+    """
+    Agent's iterative quality optimization to meet target file size.
     
-    # Validate format
-    original_format = (img.format or "JPEG").upper()
-    if original_format not in ALLOWED_FORMATS:
-        supported = ", ".join(sorted(ALLOWED_FORMATS))
-        raise ValidationError(f"Unsupported image format. Supported: {supported}")
-    
-    logger.info(f"Image details: {img.size} ({original_format})")
-    
-    # Step 1: Downscale dimensions if needed
-    original_size = img.size
-    w, h = img.size
-    long_edge = max(w, h)
-    
-    if long_edge > max_dim:
-        scale_factor = max_dim / float(long_edge)
-        new_w = int(w * scale_factor)
-        new_h = int(h * scale_factor) 
-        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-        logger.info(f"Downscaled: {original_size} -> {img.size}")
-    
-    # Step 2: Optimize format and quality
+    Args:
+        img: PIL Image instance
+        target_size: Target file size in bytes
+        min_quality: Minimum quality threshold
+        use_webp: Prefer WebP format
+        
+    Returns:
+        bytes: Optimized image data
+    """
     def encode_image(img_to_encode, quality, use_webp=True):
         """Encode image with specified quality and format."""
         output = BytesIO()
         
-        if use_webp and img_to_encode.mode in ('RGBA', 'LA'):
-            # WebP with transparency
-            img_to_encode.save(output, format="WEBP", quality=quality, method=6, lossless=False)
-        elif use_webp:
-            # WebP without transparency  
-            img_to_encode.save(output, format="WEBP", quality=quality, method=6)
+        if use_webp:
+            # Agent's critical fix: Ensure WebP-safe mode to prevent crashes
+            safe_img = _to_webp_safe_mode(img_to_encode)
+            safe_img.save(output, format="WEBP", quality=quality, method=6)
         else:
             # JPEG fallback (convert RGBA to RGB)
             if img_to_encode.mode in ('RGBA', 'LA', 'P'):
@@ -130,54 +131,104 @@ def optimize_image(file, target_bytes=None, max_dim=None, min_quality=45):
         
         return output.getvalue()
     
-    # Step 3: Iterative quality reduction (prefer WebP)
-    quality = 85
-    try_webp = True
-    encoded_data = encode_image(img, quality, try_webp)
+    # Start with high quality and iteratively reduce
+    qualities = [95, 85, 75, 65, 55, 45, 35] + list(range(min_quality, 25, -5))
     
-    # Reduce quality until under target or minimum reached
-    while len(encoded_data) > target_bytes and quality > min_quality:
-        quality = max(min_quality, quality - 10)
-        encoded_data = encode_image(img, quality, try_webp)
-        logger.info(f"Quality {quality}: {len(encoded_data)} bytes")
-    
-    # Step 4: If still too large, try further dimension reduction
-    dimension_passes = 0
-    max_dimension_passes = 3
-    
-    while (len(encoded_data) > target_bytes and 
-           max(img.size) > 1024 and 
-           dimension_passes < max_dimension_passes):
+    for quality in qualities:
+        # Try WebP first if requested
+        if use_webp:
+            data = encode_image(img, quality, use_webp=True)
+            if len(data) <= target_size:
+                return data
         
-        # Reduce dimensions by 20%
-        w, h = img.size
-        new_w, new_h = int(w * 0.8), int(h * 0.8)
-        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        # Try JPEG fallback
+        data = encode_image(img, quality, use_webp=False)
+        if len(data) <= target_size:
+            return data
+    
+    # If still too large, return best effort at minimum quality
+    logger.warning(f"Could not optimize image to target size {target_size}, using minimum quality {min_quality}")
+    return encode_image(img, min_quality, use_webp=use_webp)
+
+
+def optimize_image(image_file, 
+                  max_dimension: int = 2048, 
+                  target_size: int = 5 * 1024 * 1024,
+                  min_quality: int = 30,
+                  use_webp: bool = True) -> tuple[bytes, dict]:
+    """
+    Agent's enhanced image optimization system.
+    Accepts large files, optimizes to storage targets server-side.
+    
+    Args:
+        image_file: Uploaded file object
+        max_dimension: Maximum width/height (default 2048px)
+        target_size: Target file size in bytes (default 5MB)
+        min_quality: Minimum quality threshold (default 30)
+        use_webp: Prefer WebP format (default True)
         
-        # Reduce quality slightly
-        quality = max(min_quality, quality - 5)
-        encoded_data = encode_image(img, quality, try_webp)
-        dimension_passes += 1
+    Returns:
+        tuple: (optimized_bytes, metadata_dict)
         
-        logger.info(f"Dimension pass {dimension_passes}: {img.size}, quality {quality}, {len(encoded_data)} bytes")
-    
-    # Step 5: Check if optimization succeeded
-    if len(encoded_data) > target_bytes:
-        target_mb = target_bytes / (1024 * 1024)
-        actual_mb = len(encoded_data) / (1024 * 1024)
-        logger.warning(f"Could not optimize to target: {actual_mb:.1f}MB > {target_mb:.1f}MB")
-        return None
-    
-    # Success! Create optimized file
-    file_extension = ".webp" if try_webp else ".jpg"
-    original_name = getattr(file, 'name', 'upload')
-    base_name = original_name.rsplit('.', 1)[0] if '.' in original_name else original_name
-    optimized_name = f"{base_name}_optimized{file_extension}"
-    
-    final_size_mb = len(encoded_data) / (1024 * 1024)
-    logger.info(f"Optimization successful: {file.size} -> {len(encoded_data)} bytes ({final_size_mb:.2f}MB)")
-    
-    return ContentFile(encoded_data, name=optimized_name)
+    Raises:
+        ValueError: If image is invalid, corrupted, or exceeds safety limits
+    """
+    try:
+        # Agent's critical fix: Decompression bomb protection
+        # Prevent massive decompressed images that could consume excessive memory
+        MAX_PIXELS = 178_956_970  # ~178MP (PIL default)
+        MAX_DIMENSION_SINGLE = 16000  # Single dimension limit
+        
+        # Load and validate image with enhanced safety checks
+        with Image.open(image_file) as img:
+            # Check decompression bomb limits before processing
+            width, height = img.size
+            total_pixels = width * height
+            
+            # Agent's safety validation
+            if total_pixels > MAX_PIXELS:
+                raise ValueError(f"Image too large: {total_pixels:,} pixels exceeds {MAX_PIXELS:,} limit")
+            
+            if width > MAX_DIMENSION_SINGLE or height > MAX_DIMENSION_SINGLE:
+                raise ValueError(f"Image dimensions too large: {width}x{height} exceeds {MAX_DIMENSION_SINGLE}px limit")
+            
+            # Capture original metadata
+            original_size_bytes = len(image_file.read())
+            image_file.seek(0)  # Reset for processing
+            
+            metadata = {
+                'width': width,
+                'height': height, 
+                'original_size_bytes': original_size_bytes,
+                'format': img.format,
+                'mode': img.mode
+            }
+            
+            # Agent's EXIF orientation handling
+            img = _transpose_exif_orientation(img)
+            
+            # Resize if dimensions exceed limits
+            current_img = img.copy() if hasattr(img, 'copy') else img
+            if width > max_dimension or height > max_dimension:
+                current_img = _resize_maintain_aspect(current_img, max_dimension)
+                metadata['resized'] = True
+                metadata['new_width'] = current_img.size[0]
+                metadata['new_height'] = current_img.size[1]
+            
+            # Agent's iterative quality optimization
+            optimized_bytes = _optimize_quality(current_img, target_size, min_quality, use_webp)
+            metadata['size_bytes'] = len(optimized_bytes)
+            metadata['compression_ratio'] = original_size_bytes / len(optimized_bytes) if len(optimized_bytes) > 0 else 1.0
+            metadata['format_used'] = 'WebP' if use_webp else 'JPEG'
+            
+            return optimized_bytes, metadata
+            
+    except (OSError, IOError, ValueError) as e:
+        # Handle PIL errors, corrupted images, and validation errors
+        raise ValueError(f"Invalid or corrupted image: {str(e)}")
+    except Exception as e:
+        # Catch any other unexpected errors
+        raise ValueError(f"Image processing failed: {str(e)}")
 
 
 def get_image_metadata(file):

@@ -126,17 +126,29 @@ class TaskImageSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Agent's optimization approach: Transform large uploads before storage."""
-        from api.utils.image_ops import optimize_image, get_image_metadata
+        from api.utils.image_ops import optimize_image
+        from django.core.files.base import ContentFile
+        from django.conf import settings
         
         file = validated_data['image']
         original_size = file.size
         
-        # Optimize the image according to agent's specifications
-        optimized_file = optimize_image(file)
-        
-        if optimized_file is None:
-            # Could not optimize to target size - return friendly error
-            from django.conf import settings
+        # Agent's enhanced optimization - accept large files, optimize server-side
+        try:
+            optimized_bytes, optimization_metadata = optimize_image(
+                file,
+                max_dimension=getattr(settings, 'STORED_IMAGE_MAX_DIM', 2048),
+                target_size=getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024),
+                use_webp=True
+            )
+            
+            # Create optimized file for storage
+            optimized_file = ContentFile(
+                optimized_bytes,
+                name=f"opt_{file.name}"
+            )
+            
+        except ValueError as e:
             target_mb = getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024) // (1024 * 1024)
             raise serializers.ValidationError({
                 "image": f"We couldn't optimize this photo under {target_mb}MB. "
@@ -146,13 +158,12 @@ class TaskImageSerializer(serializers.ModelSerializer):
         # Replace original with optimized version
         validated_data['image'] = optimized_file
         
-        # Extract metadata from optimized image
-        metadata = get_image_metadata(optimized_file)
+        # Use metadata from optimization (no need to re-extract)
         validated_data.update({
-            'size_bytes': metadata['size_bytes'],
-            'width': metadata['width'], 
-            'height': metadata['height'],
-            'original_size_bytes': original_size
+            'size_bytes': optimization_metadata.get('size_bytes'),
+            'width': optimization_metadata.get('width'), 
+            'height': optimization_metadata.get('height'),
+            'original_size_bytes': optimization_metadata.get('original_size_bytes', original_size)
         })
         
         return super().create(validated_data)

@@ -186,8 +186,7 @@ REST_FRAMEWORK = {
         'password_reset': '3/hour',
         'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
         'admin_api': '500/hour',
-        'taskimage': '20/day',  # Legacy scope
-        'evidence_upload': '20/minute',  # Enhanced evidence upload scope
+        'evidence_upload': '15/minute',  # Agent's recommendation: Standardized rate for large file uploads
         'api': '1000/hour',
     },
 }
