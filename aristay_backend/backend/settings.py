@@ -100,11 +100,20 @@ if USE_CLOUDINARY:
         'SECURE': True,
     }
     
-    # Use Cloudinary for media files
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    # Django 5.x STORAGES configuration for Cloudinary
+    STORAGES = {
+        "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 else:
     # Standard installed apps (existing configuration)
     INSTALLED_APPS = COMMON_APPS
+    
+    # Django 5.x STORAGES configuration for local filesystem
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -177,7 +186,8 @@ REST_FRAMEWORK = {
         'password_reset': '3/hour',
         'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
         'admin_api': '500/hour',
-        'taskimage': '20/day',
+        'taskimage': '20/day',  # Legacy scope
+        'evidence_upload': '20/minute',  # Enhanced evidence upload scope
         'api': '1000/hour',
     },
 }
