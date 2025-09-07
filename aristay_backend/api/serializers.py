@@ -107,12 +107,14 @@ class PropertySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class TaskImageSerializer(serializers.ModelSerializer):
+    # allow direct serializer usage (tests) and view usage (save(task=...))
+    task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all(), write_only=True, required=False)
     uploaded_by_username = serializers.CharField(source='uploaded_by.username', read_only=True)
     
     class Meta:
         model = TaskImage
-        fields = ['id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username', 
-                 'size_bytes', 'width', 'height', 'original_size_bytes']
+        fields = ['id', 'task', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
+                  'size_bytes', 'width', 'height', 'original_size_bytes']
         read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
                            'width', 'height', 'original_size_bytes']
     
@@ -126,14 +128,13 @@ class TaskImageSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Agent's optimization approach: Transform large uploads before storage."""
-        from api.utils.image_ops import optimize_image
+        from api.utils.image_ops import optimize_image  # do NOT call get_image_metadata here
         from django.core.files.base import ContentFile
         from django.conf import settings
         
         file = validated_data['image']
-        original_size = file.size
+        original_size = getattr(file, 'size', None)
         
-        # Agent's enhanced optimization - accept large files, optimize server-side
         try:
             optimized_bytes, optimization_metadata = optimize_image(
                 file,
@@ -141,31 +142,24 @@ class TaskImageSerializer(serializers.ModelSerializer):
                 target_size=getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024),
                 use_webp=True
             )
-            
-            # Create optimized file for storage
-            optimized_file = ContentFile(
-                optimized_bytes,
-                name=f"opt_{file.name}"
-            )
-            
-        except ValueError as e:
+            # keep a sane name; extension doesn't strictly matter for storage backends
+            name = getattr(file, 'name', 'upload')
+            optimized_file = ContentFile(optimized_bytes, name=f"opt_{name}")
+        except ValueError:
             target_mb = getattr(settings, 'STORED_IMAGE_TARGET_BYTES', 5 * 1024 * 1024) // (1024 * 1024)
             raise serializers.ValidationError({
-                "image": f"We couldn't optimize this photo under {target_mb}MB. "
-                        "Please crop or choose a smaller one."
+                "image": f"We couldn't optimize this photo under {target_mb}MB. Please crop or choose a smaller one."
             })
-        
-        # Replace original with optimized version
+
         validated_data['image'] = optimized_file
-        
-        # Use metadata from optimization (no need to re-extract)
+        # DO NOT call get_image_metadata() here; use optimization_metadata from optimize_image()
         validated_data.update({
             'size_bytes': optimization_metadata.get('size_bytes'),
             'width': optimization_metadata.get('width'), 
             'height': optimization_metadata.get('height'),
             'original_size_bytes': optimization_metadata.get('original_size_bytes', original_size)
         })
-        
+
         return super().create(validated_data)
 
 class TaskSerializer(serializers.ModelSerializer):

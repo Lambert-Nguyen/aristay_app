@@ -192,7 +192,7 @@ class AgentCriticalFixesTest(TestCase):
         # Test through serializer (simulates API flow)
         data = {
             'image': uploaded_file,
-            'task': task,  # Associate with task
+            'task': task.pk,  # Use pk instead of object for serializer
             'description': 'Test large image optimization'
         }
         
