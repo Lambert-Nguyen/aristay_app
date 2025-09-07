@@ -272,11 +272,70 @@ class EnhancedExcelImportService(ExcelImportService):
         """Enhanced import with conflict detection"""
         try:
             import pandas as pd
-            # Create import log
-            self.import_log = self._create_import_log(excel_file)
             
-            # Read Excel file
-            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+            # CRITICAL FIX: Save file content before any operations that might consume the stream
+            logger.info(f"Starting enhanced import with file: {getattr(excel_file, 'name', 'unknown')}")
+            excel_file.seek(0)
+            file_content = excel_file.read()
+            logger.info(f"File content read: {len(file_content)} bytes")
+            excel_file.seek(0)  # Reset for the import log creation
+            
+            # Create import log (this consumes the file stream)
+            logger.info("Creating import log...")
+            try:
+                # WORKAROUND: Create import log without the file first to avoid file consumption
+                # Store the original file temporarily
+                temp_file = excel_file
+                
+                # Create the log without the file to avoid consuming the stream
+                from api.models import BookingImportLog, BookingImportTemplate, Property
+                
+                # Create template if needed (copied from base class)
+                if not self.template:
+                    try:
+                        first_property = Property.objects.first()
+                        if first_property:
+                            self.template, created = BookingImportTemplate.objects.get_or_create(
+                                name="Default Import Template",
+                                property_ref=first_property,
+                                defaults={
+                                    'import_type': 'csv',
+                                    'auto_create_tasks': True,
+                                    'created_by': self.user
+                                }
+                            )
+                        else:
+                            # Create a dummy template if no properties exist
+                            self.template = BookingImportTemplate.objects.create(
+                                name="Default Import Template",
+                                property_ref=None,
+                                import_type='csv',
+                                auto_create_tasks=True,
+                                created_by=self.user
+                            )
+                    except Exception as e:
+                        logger.warning(f"Could not create default template: {e}")
+                        self.template = None
+                
+                # Create import log without file to avoid consuming the stream
+                self.import_log = BookingImportLog.objects.create(
+                    template=self.template,
+                    import_file=None,  # Skip file upload for now
+                    total_rows=0,  # Will update later
+                    successful_imports=0,
+                    errors_count=0,
+                    errors_log='Enhanced import in progress...',
+                    imported_by=self.user
+                )
+                logger.info("Import log created successfully")
+            except Exception as e:
+                logger.error(f"Import log creation failed: {e}")
+                raise
+            
+            # Use saved content to read Excel file
+            import io
+            logger.info(f"Reading Excel with pandas, sheet: {sheet_name}")
+            df = pd.read_excel(io.BytesIO(file_content), sheet_name=sheet_name, engine='openpyxl')
             self.total_rows = len(df)
             
             logger.info(f"Starting enhanced Excel import: {self.total_rows} rows")
