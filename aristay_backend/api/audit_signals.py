@@ -181,7 +181,10 @@ def create_audit_event(instance, action, changes=None):
     # Prefer after-commit to avoid breaking main transaction
     conn = transaction.get_connection()
     if conn.in_atomic_block:
-        transaction.on_commit(_write)
+        try:
+            transaction.on_commit(_write)
+        except Exception as e:
+            logger.error(f"Failed to schedule audit event on transaction commit for {instance.__class__.__name__}:{getattr(instance,'pk',None)}: {e}")
     else:
         _write()
 
