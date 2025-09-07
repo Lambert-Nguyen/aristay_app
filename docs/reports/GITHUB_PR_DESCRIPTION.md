@@ -112,9 +112,9 @@ if engine == "django.db.backends.sqlite3":
 
 ### **Quick Start**
 ```bash
-./quick_test.sh                 # All tests
-./quick_test.sh production       # Production hardening only
-./quick_test.sh integration      # End-to-end workflows
+./scripts/testing/quick_test.sh                 # All tests
+./scripts/testing/quick_test.sh production       # Production hardening only
+./scripts/testing/quick_test.sh integration      # End-to-end workflows
 ```
 
 ### **Expected Output**

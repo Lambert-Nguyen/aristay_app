@@ -144,3 +144,128 @@ def logout_view(request):
     logout(request)
     messages.success(request, "You have been successfully logged out.")
     return redirect('unified_login')
+
+
+# ============================================================================
+# JWT AUTHENTICATION VIEWS
+# ============================================================================
+
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Custom JWT serializer with additional user claims"""
+    
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add essential claims only (removed permissions for security and payload size)
+        token['role'] = getattr(getattr(user, 'profile', None), 'role', 'viewer')
+        token['is_staff'] = user.is_staff
+        token['is_superuser'] = user.is_superuser
+        # Note: Granular permissions should be fetched via API when needed
+        
+        return token
+    
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        
+        # Log successful authentication
+        logger.info(
+            f"JWT token issued for user: {self.user.username}",
+            extra={
+                'security_event': 'token_issued',
+                'user_id': self.user.id,
+                'username': self.user.username,
+            }
+        )
+        
+        return data
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """Custom JWT token obtain view with throttling and logging"""
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+# Throttled refresh view to apply token_refresh rate limiting
+from rest_framework_simplejwt.views import TokenRefreshView as BaseTokenRefreshView
+from api.throttles import RefreshTokenJtiRateThrottle
+
+class TokenRefreshThrottledView(BaseTokenRefreshView):
+    """JWT refresh view with per-token throttling applied"""
+    permission_classes = [AllowAny]  # Explicit for future-proofing
+    throttle_classes = [RefreshTokenJtiRateThrottle]  # Per-refresh-token limit
+    throttle_scope = 'token_refresh'
+
+
+from rest_framework_simplejwt.exceptions import TokenError
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def revoke_token(request):
+    """Revoke a specific refresh token (logout)"""
+    refresh_token = request.data.get('refresh') or request.data.get('refresh_token')
+    if not refresh_token:
+        return Response({'error': 'Refresh token required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Verify token belongs to the requesting user (security check)
+        token = RefreshToken(refresh_token)
+        if int(token['user_id']) != request.user.id:
+            return Response({'error': 'Token does not belong to you'}, status=status.HTTP_403_FORBIDDEN)
+            
+        token.blacklist()
+        
+        logger.info(
+            "Token revoked",
+            extra={
+                'security_event': 'token_revoked',
+                'user_id': request.user.id,
+            }
+        )
+        
+        return Response({'message': 'Token revoked successfully'})
+    except TokenError:
+        return Response({'error': 'Invalid or expired token'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def revoke_all_tokens(request):
+    """Revoke all tokens for current user"""
+    try:
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+        
+        # Get all outstanding tokens for the user
+        outstanding_tokens = OutstandingToken.objects.filter(user=request.user)
+        token_count = outstanding_tokens.count()
+        
+        # Blacklist all tokens directly using BlacklistedToken
+        for token_obj in outstanding_tokens:
+            BlacklistedToken.objects.get_or_create(token=token_obj)
+        
+        logger.info(
+            "All tokens revoked",
+            extra={
+                'security_event': 'all_tokens_revoked',
+                'user_id': request.user.id,
+                'count': token_count,
+            }
+        )
+        
+        return Response({'message': f'All tokens revoked ({token_count})'})
+    except Exception as e:
+        logger.warning(f"All tokens revocation failed: {str(e)}")
+        return Response({'error': 'Revocation failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -2,8 +2,16 @@
 """
 Test the actual HTTP API responses for teststaff user
 """
+import pytest
 import requests
 import json
+import os
+
+# Skip this test in CI environment as it requires a running server  
+pytestmark = pytest.mark.skipif(
+    bool(os.getenv('CI')) or bool(os.getenv('TESTING')), 
+    reason="Integration test requires running server"
+)
 
 def test_api_endpoints():
     """Test API endpoints with teststaff credentials"""

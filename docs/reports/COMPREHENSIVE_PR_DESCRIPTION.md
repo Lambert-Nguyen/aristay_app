@@ -216,9 +216,9 @@ jobs:
 ### **Test Execution Commands**
 ```bash
 # Quick test runner (recommended)
-./quick_test.sh                 # All tests
-./quick_test.sh production       # Production hardening only
-./quick_test.sh integration      # End-to-end workflows
+./scripts/testing/quick_test.sh                 # All tests
+./scripts/testing/quick_test.sh production       # Production hardening only
+./scripts/testing/quick_test.sh integration      # End-to-end workflows
 ./quick_test.sh env             # Environment validation
 
 # Traditional execution

@@ -67,20 +67,27 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
 # Cloudinary Integration (toggleable via environment variable)
 USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'false').lower() == 'true'
 
+# Common base apps that should always be present
+COMMON_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
+    "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # needed for revoke/blacklist
+    "corsheaders",
+    "django_filters",
+    "axes",
+]
+
 if USE_CLOUDINARY:
     # Add Cloudinary to installed apps
-    INSTALLED_APPS = [
-        'django.contrib.admin',
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'django.contrib.messages',
-        'django.contrib.staticfiles',
-        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
-        "rest_framework",
-        "rest_framework.authtoken",
-        "corsheaders",
-        "django_filters",
+    INSTALLED_APPS = COMMON_APPS + [
         'cloudinary',
         'cloudinary_storage',
     ]
@@ -97,23 +104,12 @@ if USE_CLOUDINARY:
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 else:
     # Standard installed apps (existing configuration)
-    INSTALLED_APPS = [
-        'django.contrib.admin',
-        'django.contrib.auth',
-        'django.contrib.contenttypes',
-        'django.contrib.sessions',
-        'django.contrib.messages',
-        'django.contrib.staticfiles',
-        'api.apps.ApiConfig',  # GPT agent fix: use app config for signal registration
-        "rest_framework",
-        "rest_framework.authtoken",
-        "corsheaders",
-        "django_filters",
-    ]
+    INSTALLED_APPS = COMMON_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
+    "axes.middleware.AxesMiddleware",  # before AuthenticationMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -130,7 +126,7 @@ MIDDLEWARE = [
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
     "backend.middleware.ErrorLoggingMiddleware", 
-    "backend.middleware.SecurityHeadersMiddleware",
+    "api.enhanced_security_middleware.SecurityHeadersEnhancedMiddleware",
 ]
 
 ROOT_URLCONF = "backend.urls"
@@ -156,7 +152,9 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # Add your REST framework configuration here:
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',  # Keep for backward compatibility during transition
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -168,13 +166,23 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'login': '5/minute',
+        'password_reset': '3/hour',
+        'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
+        'admin_api': '500/hour',
         'taskimage': '20/day',
         'api': '1000/hour',
     },
 }
+
+# JWT Configuration removed here - see comprehensive config below
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -241,22 +249,21 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB (increased from default 2.5MB)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# email address that will appear in the From: header of all outgoing mail
-DEFAULT_FROM_EMAIL = "no-reply@aristay-internal.com"
-
 # the URL your users will click through to finish activation/reset
 # (point this at your front-end, e.g. localhost:3000)
 FRONTEND_URL = "http://localhost:3000"
 
-# email configuration; Always use SMTP backend; read values from env (works for dev & prod)
+# ============================================================================
+# EMAIL CONFIGURATION (single source of truth)
+# ============================================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost' if DEBUG else 'smtp.example.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '1025' if DEBUG else '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false' if DEBUG else 'true').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@aristay-internal.cloud')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 # CORS configuration
 CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'true').lower() == 'true'
@@ -337,7 +344,16 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
-    CSRF_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True  # Safe for JWT-only API; adjust if frontend needs CSRF token access
+    
+    # Trust proxy (adjust domain for production)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+    CSRF_TRUSTED_ORIGINS = [
+        origin.strip() 
+        for origin in os.getenv('CSRF_TRUSTED_ORIGINS', 'https://localhost:3000').split(',') 
+        if origin.strip()
+    ]
     
     # Tighten CORS for production
     CORS_ALLOW_ALL_ORIGINS = False
@@ -384,18 +400,77 @@ if not DEBUG:
     
     MANAGERS = ADMINS
     
-    # Email backend for error notifications
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
-    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'aristay@example.com')
-    SERVER_EMAIL = DEFAULT_FROM_EMAIL
+    # Email backend for error notifications - using global email config above
+
+# ============================================================================
+# JWT CONFIGURATION
+# ============================================================================
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Shorter for better security
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': os.getenv('JWT_SIGNING_KEY', SECRET_KEY),  # Separate JWT key for rotation
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': 'aristay-app',
+    'JSON_ENCODER': None,
+    'JWK_URL': None,
+    'LEEWAY': 0,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
+    
+    'JTI_CLAIM': 'jti',
+    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=60),
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7),
+}
+
+# ============================================================================
+# AXES CONFIGURATION (Login Attempt Monitoring)
+# ============================================================================
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # AxesStandaloneBackend should be the first backend
+    'django.contrib.auth.backends.ModelBackend',  # Django's default backend
+]
+
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=30)
+AXES_LOCKOUT_TEMPLATE = 'auth/account_locked.html'
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]  # Updated from deprecated AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP
+AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+AXES_NEVER_LOCKOUT_WHITELIST = os.getenv('AXES_WHITELIST', '').split(',') if os.getenv('AXES_WHITELIST') else []
+
+# ============================================================================
+# RATE LIMITING CONFIGURATION (consolidated)  
+# ============================================================================
+# Rate limiting settings moved below with cache configuration
 
 # Cache configuration for production
-if not DEBUG:
+# Use local memory cache for development, testing, and CI
+if DEBUG or os.getenv('CI') or os.getenv('TESTING'):
+    # Use local memory cache for development and testing
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': os.getenv('LOC_MEM_CACHE_LOCATION', 'aristay-backend-dev-cache'),
+        }
+    }
+else:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
@@ -410,9 +485,9 @@ if not DEBUG:
         }
     }
 
-# Rate limiting settings
-RATELIMIT_ENABLE = not DEBUG
-RATELIMIT_USE_CACHE = 'default'
+# Rate limiting settings (unused - using DRF throttling instead)
+# RATELIMIT_ENABLE = not DEBUG
+# RATELIMIT_USE_CACHE = 'default'
 
 # ============================================================================
 # UNIFIED LOGIN CONFIGURATION

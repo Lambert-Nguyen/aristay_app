@@ -1975,6 +1975,14 @@ class AuditEvent(models.Model):
 
 
 # =============================================================================
+# SECURITY MODELS (JWT & Session Management)
+# =============================================================================
+
+# Import security models
+from .security_models import UserSession, SecurityEvent, SuspiciousActivity
+
+
+# =============================================================================
 # SIGNAL RECEIVERS
 # =============================================================================
 

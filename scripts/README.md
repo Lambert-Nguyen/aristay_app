@@ -1,23 +1,23 @@
-# Scripts Directory
+# 🔧 Scripts Directory
 
-This directory contains utility scripts and tools for the AriStay project.
+This directory contains all development, testing, and administrative scripts for the Aristay project, organized by function and purpose.
 
-## Directory Structure
+## 📁 Current Script Organization
 
-- **`permissions/`** - Permission management scripts
-  - Add manager portal permission
-  - Grant portal access
-  - Reset user passwords
-
-- **`admin/`** - Administrative scripts
-  - Cleanup cron jobs
-  - Database maintenance
-  - System utilities
-
-- **Root Scripts** - General utility scripts
-  - Demo scripts
-  - Debug utilities
-  - Authentication check scripts
+```
+scripts/
+├── README.md                    # This documentation
+├── testing/                     # Testing and validation scripts  
+│   ├── quick_test.sh           # Quick comprehensive test runner
+│   ├── jwt_smoke_test.sh       # JWT authentication validation
+│   └── jwt_smoke_test_improved.sh # Enhanced JWT testing
+├── admin/                      # Administrative and maintenance scripts
+│   ├── audit_user_access.py   # User access audit and validation
+│   ├── seed_new_permissions.py # Permission system seeding
+│   └── [existing admin scripts] # Legacy admin utilities
+└── permissions/                # Permission management scripts
+    └── [existing permission scripts] # Legacy permission tools
+```
   - Permission system testing
   - API endpoint testing
 

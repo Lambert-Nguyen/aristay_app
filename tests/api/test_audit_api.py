@@ -4,9 +4,16 @@ Phase 2 Audit System API Validation
 Test the complete audit system via HTTP API endpoints
 """
 import os
+import pytest
 import requests
 import json
 from datetime import datetime
+
+# Skip this test in CI environment as it requires a running server  
+pytestmark = pytest.mark.skipif(
+    bool(os.getenv('CI')) or bool(os.getenv('TESTING')), 
+    reason="Integration test requires running server"
+)
 
 BASE_URL = os.getenv("ARISTAY_BASE_URL", "http://127.0.0.1:8001")
 

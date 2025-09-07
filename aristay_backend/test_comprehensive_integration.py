@@ -31,7 +31,7 @@ def setup_test_data():
     # Create test property
     property_obj, created = Property.objects.get_or_create(
         name="Test Villa",
-        defaults={'address': "123 Test St", 'city': "Test City"}
+        defaults={'address': "123 Test St"}
     )
     
     # Create test user
@@ -285,7 +285,7 @@ def test_other_conflict_types():
     # Create second property for property conflicts
     property2, _ = Property.objects.get_or_create(
         name="Test Villa 2",
-        defaults={'address': "456 Test Ave", 'city': "Test City"}
+        defaults={'address': "456 Test Ave"}
     )
     
     other_conflict_tests = [
