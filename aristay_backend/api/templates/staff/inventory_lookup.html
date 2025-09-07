@@ -394,7 +394,7 @@ function logTransaction(inventoryId, button) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': getCsrfToken()
         },
         body: JSON.stringify({
             inventory_id: inventoryId,

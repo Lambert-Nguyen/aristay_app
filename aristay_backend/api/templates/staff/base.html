@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}AriStay Staff Portal{% endblock %}</title>
     <style>
         /* Reset and Base Styles */
@@ -627,6 +628,12 @@
     </div>
 
     <script>
+        // Get CSRF token from meta tag (works with HttpOnly cookies in production)
+        function getCsrfToken() {
+            const el = document.querySelector('meta[name="csrf-token"]');
+            return el ? el.getAttribute('content') : null;
+        }
+
         // Enhanced Mobile Navigation with Quick Actions
         function toggleMobileNav() {
             const navLinks = document.getElementById('navLinks');

@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -140,7 +140,7 @@ def send_test_notification_api(request):
 
 
 @api_view(['DELETE', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def cleanup_notifications_api(request):
     """
     DRF API endpoint to cleanup old notifications
@@ -148,11 +148,6 @@ def cleanup_notifications_api(request):
     
     Accepts both DELETE and POST methods for flexibility in client implementations
     """
-    if not request.user.is_staff:
-        return Response(
-            {"error": "Staff permissions required"}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
     
     # Handle both query params (for DELETE) and request body (for POST)
     if request.method == 'DELETE':

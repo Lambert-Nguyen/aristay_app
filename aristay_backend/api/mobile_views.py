@@ -8,8 +8,9 @@ from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
+from rest_framework import status, serializers
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter, inline_serializer
+from drf_spectacular.types import OpenApiTypes
 
 from .models import Task, Property, Booking
 from .authz import AuthzHelper
@@ -110,14 +111,14 @@ def mobile_dashboard_data(request):
     operation_id="mobile_offline_sync",
     summary="Handle offline synchronization",
     description="Process arrays of changes made while offline including task completions and status updates.",
-    request={
-        "type": "object",
-        "properties": {
-            "completed_task_ids": {"type": "array", "items": {"type": "integer"}},
-            "task_status_updates": {"type": "array", "items": {"type": "object"}},
-            "checklist_updates": {"type": "array", "items": {"type": "object"}}
+    request=inline_serializer(
+        name="MobileSyncPayload",
+        fields={
+            "completed_task_ids": serializers.ListField(child=serializers.IntegerField(), required=False),
+            "task_status_updates": serializers.ListField(child=serializers.DictField(), required=False),
+            "checklist_updates": serializers.ListField(child=serializers.DictField(), required=False),
         }
-    },
+    ),
     responses={200: dict},
     examples=[OpenApiExample("Sync response", value={
         "success": True,
@@ -246,9 +247,9 @@ def mobile_offline_sync(request):
     summary="Get compact task summary",
     description="Returns essential task information optimized for mobile display with filtering support.",
     parameters=[
-        OpenApiParameter(name="status", description="Filter by task status", required=False, type=str),
-        OpenApiParameter(name="property_id", description="Filter by property ID", required=False, type=int),
-        OpenApiParameter(name="limit", description="Max results (max 50)", required=False, type=int)
+        OpenApiParameter(name="status", description="Filter by task status", required=False, type=OpenApiTypes.STR),
+        OpenApiParameter(name="property_id", description="Filter by property ID", required=False, type=OpenApiTypes.INT),
+        OpenApiParameter(name="limit", description="Max results (max 50)", required=False, type=OpenApiTypes.INT)
     ],
     responses={200: dict},
     examples=[OpenApiExample("Task summary", value={

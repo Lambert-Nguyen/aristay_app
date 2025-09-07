@@ -85,6 +85,7 @@ COMMON_APPS = [
     "axes",
     "drf_spectacular",  # OpenAPI 3 documentation
     "django_crontab",   # Cron job management
+    "django_extensions",  # Development tools (show_urls, etc.)
 ]
 
 if USE_CLOUDINARY:
@@ -205,6 +206,11 @@ SPECTACULAR_SETTINGS = {
     "SECURITY_SCHEMES": {
         "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
     },
+}
+
+# Swagger UI Settings
+SWAGGER_UI_SETTINGS = {
+    "persistAuthorization": True,  # Keep Bearer token across reloads
 }
 
 # JWT Configuration removed here - see comprehensive config below

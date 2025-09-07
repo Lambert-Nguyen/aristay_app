@@ -1,0 +1,3581 @@
+openapi: 3.0.3
+info:
+  title: AriStay API
+  version: 1.0.0
+  description: Internal APIs for portal, mobile, and admin surfaces.
+paths:
+  /api/admin/create-user/:
+    post:
+      operationId: api_admin_create_user_create
+      description: POST /api/admin/create-user/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserCreate'
+          description: ''
+  /api/admin/invite/:
+    post:
+      operationId: api_admin_invite_create
+      description: |-
+        POST /api/admin/invite/
+        { "username": "newuser", "email": "new@foo.com" }
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminInviteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminInviteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminInviteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminInvite'
+          description: ''
+  /api/admin/reset-password/:
+    post:
+      operationId: api_admin_reset_password_create
+      description: |-
+        POST /api/admin/reset-password/
+        { "email": "existing@foo.com" }
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPasswordResetRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminPasswordResetRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminPasswordResetRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPasswordReset'
+          description: ''
+  /api/admin/users/{id}/:
+    get:
+      operationId: api_admin_users_retrieve
+      description: |-
+        GET/PATCH /api/admin/users/<id>/
+        Owner-only for updates. Safe fields: is_active, is_staff.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserAdmin'
+          description: ''
+    put:
+      operationId: api_admin_users_update
+      description: |-
+        GET/PATCH /api/admin/users/<id>/
+        Owner-only for updates. Safe fields: is_active, is_staff.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserAdminRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminUserAdminRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminUserAdminRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserAdmin'
+          description: ''
+    patch:
+      operationId: api_admin_users_partial_update
+      description: |-
+        GET/PATCH /api/admin/users/<id>/
+        Owner-only for updates. Safe fields: is_active, is_staff.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserAdminRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserAdminRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminUserAdminRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserAdmin'
+          description: ''
+  /api/audit-events/:
+    get:
+      operationId: api_audit_events_list
+      description: |-
+        Agent's Phase 2: Read-only API for audit events with field filters and export.
+
+        Provides:
+        - List view with filtering and search
+        - Detail view for individual audit events
+        - CSV export functionality
+      parameters:
+      - in: query
+        name: action
+        schema:
+          type: string
+          enum:
+          - create
+          - delete
+          - update
+        description: |-
+          Type of action performed
+
+          * `create` - Create
+          * `update` - Update
+          * `delete` - Delete
+      - in: query
+        name: actor
+        schema:
+          type: integer
+      - in: query
+        name: object_type
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
+  /api/audit-events/{id}/:
+    get:
+      operationId: api_audit_events_retrieve
+      description: |-
+        Agent's Phase 2: Read-only API for audit events with field filters and export.
+
+        Provides:
+        - List view with filtering and search
+        - Detail view for individual audit events
+        - CSV export functionality
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Audit Event.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+          description: ''
+  /api/audit-events/{id}/related_events/:
+    get:
+      operationId: api_audit_events_related_events_retrieve
+      description: Find related audit events for the same object.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Audit Event.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+          description: ''
+  /api/audit-events/export/:
+    get:
+      operationId: api_audit_events_export_retrieve
+      description: Export audit events to CSV.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+          description: ''
+  /api/audit-events/summary/:
+    get:
+      operationId: api_audit_events_summary_retrieve
+      description: Summary statistics for audit events.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+          description: ''
+  /api/bookings/:
+    get:
+      operationId: api_bookings_list
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBookingList'
+          description: ''
+    post:
+      operationId: api_bookings_create
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+  /api/bookings/{id}/:
+    get:
+      operationId: api_bookings_retrieve
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this booking.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+    put:
+      operationId: api_bookings_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this booking.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+    patch:
+      operationId: api_bookings_partial_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this booking.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBookingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBookingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBookingRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+          description: ''
+    delete:
+      operationId: api_bookings_destroy
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this booking.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/devices/:
+    post:
+      operationId: api_devices_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+          description: ''
+  /api/digest/opt-out/:
+    post:
+      operationId: api_digest_opt_out_create
+      description: |-
+        DRF API endpoint to opt user in/out of email digest
+        POST /api/digest/opt-out/ with {"opted_out": true/false}
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/digest/send/:
+    post:
+      operationId: api_digest_send_create
+      description: |-
+        DRF API endpoint to trigger email digest sending
+        POST /api/digest/send/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/digest/settings/api/:
+    get:
+      operationId: api_digest_settings_api_retrieve
+      description: |-
+        DRF API endpoint to get digest settings and user opt-out status
+        GET /api/digest/settings/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/manager/dashboard/:
+    get:
+      operationId: api_manager_dashboard_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/manager/overview/:
+    get:
+      operationId: api_manager_overview_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/manager/users/:
+    get:
+      operationId: api_manager_users_list
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+  /api/manager/users/{id}/:
+    get:
+      operationId: api_manager_users_retrieve
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerUser'
+          description: ''
+    put:
+      operationId: api_manager_users_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManagerUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManagerUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManagerUserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerUser'
+          description: ''
+    patch:
+      operationId: api_manager_users_partial_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedManagerUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedManagerUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedManagerUserRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagerUser'
+          description: ''
+  /api/mobile/dashboard/:
+    get:
+      operationId: mobile_dashboard_data
+      description: Returns compact dashboard data optimized for mobile apps including
+        task counts, properties, and activity.
+      summary: Get mobile dashboard data
+      tags:
+      - Mobile
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                DashboardSample:
+                  value:
+                    success: true
+                    assigned_counts:
+                      total: 5
+                      pending: 2
+                      in_progress: 3
+                      overdue: 1
+                    properties:
+                    - id: 1
+                      name: Property A
+                      address: 123 Main St
+                    recent_activity: 3
+                    server_time: '2025-09-07T12:00:00Z'
+                    user_info:
+                      username: staff
+                      role: staff
+                  summary: Dashboard sample
+          description: ''
+  /api/mobile/offline-sync/:
+    post:
+      operationId: mobile_offline_sync
+      description: Process arrays of changes made while offline including task completions
+        and status updates.
+      summary: Handle offline synchronization
+      tags:
+      - Mobile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileSyncPayloadRequest'
+            examples:
+              SyncResponse:
+                value:
+                  success: true
+                  applied:
+                    completed_tasks: 2
+                    status_updates: 1
+                    checklist_updates: 0
+                  errors: []
+                  sync_time: '2025-09-07T12:00:00Z'
+                summary: Sync response
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MobileSyncPayloadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MobileSyncPayloadRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                SyncResponse:
+                  value:
+                    success: true
+                    applied:
+                      completed_tasks: 2
+                      status_updates: 1
+                      checklist_updates: 0
+                    errors: []
+                    sync_time: '2025-09-07T12:00:00Z'
+                  summary: Sync response
+          description: ''
+  /api/mobile/tasks/summary/:
+    get:
+      operationId: mobile_task_summary
+      description: Returns essential task information optimized for mobile display
+        with filtering support.
+      summary: Get compact task summary
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Max results (max 50)
+      - in: query
+        name: property_id
+        schema:
+          type: integer
+        description: Filter by property ID
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by task status
+      tags:
+      - Mobile
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+              examples:
+                TaskSummary:
+                  value:
+                    success: true
+                    tasks:
+                    - id: 1
+                      title: Clean room
+                      status: pending
+                      due_date: '2025-09-08T10:00:00Z'
+                    count: 1
+                    server_time: '2025-09-07T12:00:00Z'
+                  summary: Task summary
+          description: ''
+  /api/notifications/:
+    get:
+      operationId: api_notifications_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/notifications/{id}/read/:
+    patch:
+      operationId: api_notifications_read_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/cleanup/:
+    post:
+      operationId: api_notifications_cleanup_create
+      description: |-
+        DRF API endpoint to cleanup old notifications
+        DELETE /api/notifications/cleanup/ or POST /api/notifications/cleanup/
+
+        Accepts both DELETE and POST methods for flexibility in client implementations
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_notifications_cleanup_destroy
+      description: |-
+        DRF API endpoint to cleanup old notifications
+        DELETE /api/notifications/cleanup/ or POST /api/notifications/cleanup/
+
+        Accepts both DELETE and POST methods for flexibility in client implementations
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/notifications/mark-all-read/:
+    post:
+      operationId: api_notifications_mark_all_read_create
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/send-test/:
+    post:
+      operationId: api_notifications_send_test_create
+      description: |-
+        DRF API endpoint to send a test notification
+        POST /api/notifications/send-test/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/stats/:
+    get:
+      operationId: api_notifications_stats_retrieve
+      description: |-
+        DRF API endpoint to get notification statistics
+        GET /api/notifications/stats/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/unread-count/:
+    get:
+      operationId: api_notifications_unread_count_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/ownerships/:
+    get:
+      operationId: api_ownerships_list
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPropertyOwnershipList'
+          description: ''
+    post:
+      operationId: api_ownerships_create
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyOwnershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PropertyOwnershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PropertyOwnershipRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwnership'
+          description: ''
+  /api/ownerships/{id}/:
+    get:
+      operationId: api_ownerships_retrieve
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this property ownership.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwnership'
+          description: ''
+    put:
+      operationId: api_ownerships_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this property ownership.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyOwnershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PropertyOwnershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PropertyOwnershipRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwnership'
+          description: ''
+    patch:
+      operationId: api_ownerships_partial_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this property ownership.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPropertyOwnershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPropertyOwnershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPropertyOwnershipRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PropertyOwnership'
+          description: ''
+    delete:
+      operationId: api_ownerships_destroy
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this property ownership.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/permissions/available/:
+    get:
+      operationId: api_permissions_available_retrieve
+      description: Get all available permissions that the current user can see/manage
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/permissions/grant/:
+    post:
+      operationId: api_permissions_grant_create
+      description: Grant a permission to a user
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/permissions/manageable-users/:
+    get:
+      operationId: api_permissions_manageable_users_retrieve
+      description: Get users that the current user can manage permissions for
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/permissions/remove-override/:
+    delete:
+      operationId: api_permissions_remove_override_destroy
+      description: Remove a permission override (revert to role-based permission)
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/permissions/revoke/:
+    post:
+      operationId: api_permissions_revoke_create
+      description: Revoke a permission from a user
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/permissions/user/:
+    get:
+      operationId: api_permissions_user_retrieve
+      description: Get current user's permissions
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/properties/:
+    get:
+      operationId: api_properties_list
+      parameters:
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Property'
+          description: ''
+    post:
+      operationId: api_properties_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+          description: ''
+  /api/properties/{id}/:
+    get:
+      operationId: api_properties_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+          description: ''
+    put:
+      operationId: api_properties_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PropertyRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+          description: ''
+    patch:
+      operationId: api_properties_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPropertyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPropertyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPropertyRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Property'
+          description: ''
+    delete:
+      operationId: api_properties_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/register/:
+    post:
+      operationId: api_register_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistration'
+          description: ''
+  /api/tasks/:
+    get:
+      operationId: api_tasks_list
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: query
+        name: assigned_to
+        schema:
+          type: integer
+      - in: query
+        name: created_at
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: created_at__gte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: created_at__lte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: created_by
+        schema:
+          type: integer
+      - in: query
+        name: due_date
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: due_date__gte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: due_date__lte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: modified_at
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: modified_at__gte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: modified_at__lte
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: modified_by
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: overdue
+        schema:
+          type: boolean
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: property
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - canceled
+          - completed
+          - in-progress
+          - pending
+          - waiting_dependency
+        description: |-
+          * `pending` - Pending
+          * `waiting_dependency` - Waiting for Dependency
+          * `in-progress` - In Progress
+          * `completed` - Completed
+          * `canceled` - Canceled
+      - in: query
+        name: task_type
+        schema:
+          type: string
+          enum:
+          - administration
+          - cleaning
+          - inspection
+          - laundry
+          - lawn_pool
+          - maintenance
+          - other
+          - preparation
+        description: |-
+          * `administration` - Administration
+          * `cleaning` - Cleaning
+          * `maintenance` - Maintenance
+          * `laundry` - Laundry
+          * `lawn_pool` - Lawn/Pool
+          * `inspection` - Inspection
+          * `preparation` - Preparation
+          * `other` - Other
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskList'
+          description: ''
+    post:
+      operationId: api_tasks_create
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/:
+    get:
+      operationId: api_tasks_retrieve
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    put:
+      operationId: api_tasks_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    patch:
+      operationId: api_tasks_partial_update
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: api_tasks_destroy
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/{id}/assign_to_me/:
+    post:
+      operationId: api_tasks_assign_to_me_create
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/mute/:
+    post:
+      operationId: api_tasks_mute_create
+      description: POST /api/tasks/<id>/mute/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/notify_manager/:
+    post:
+      operationId: api_tasks_notify_manager_create
+      description: |-
+        POST /api/tasks/<id>/notify_manager/
+        Sends a high-priority notification to managers/owners about this task.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/set_status/:
+    post:
+      operationId: api_tasks_set_status_create
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/unmute/:
+    post:
+      operationId: api_tasks_unmute_create
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{task_pk}/images/:
+    post:
+      operationId: api_tasks_images_create
+      description: |-
+        POST /api/tasks/{task_pk}/images/
+        Agent's enhanced upload: Accept large files, optimize server-side
+      parameters:
+      - in: path
+        name: task_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskImageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskImageRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskImage'
+          description: ''
+  /api/tasks/{task_pk}/images/{id}/:
+    get:
+      operationId: api_tasks_images_retrieve
+      description: GET, DELETE /api/tasks/{task_pk}/images/{pk}/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: task_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskImage'
+          description: ''
+    delete:
+      operationId: api_tasks_images_destroy
+      description: GET, DELETE /api/tasks/{task_pk}/images/{pk}/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: task_pk
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/count-by-status/:
+    get:
+      operationId: api_tasks_count_by_status_retrieve
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/test-auth/:
+    get:
+      operationId: api_test_auth_retrieve
+      description: Return current user information
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/token/:
+    post:
+      operationId: api_token_create
+      description: Secure token obtain with enhanced logging and rate limiting
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/token/refresh/:
+    post:
+      operationId: api_token_refresh_create
+      description: Secure token refresh with logging
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/token/revoke/:
+    post:
+      operationId: api_token_revoke_create
+      description: Revoke a specific refresh token (logout)
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/token/revoke-all/:
+    post:
+      operationId: api_token_revoke_all_create
+      description: Revoke all tokens for current user
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/token/verify/:
+    post:
+      operationId: api_token_verify_create
+      description: |-
+        Takes a token and indicates if it is valid.  This view provides no
+        information about a token's fitness for a particular use.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenVerifyRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/users/:
+    get:
+      operationId: api_users_list
+      description: |-
+        Ensure all API views accept Bearer JWT in addition to legacy Token and session.
+        Apply this mixin to ViewSets to enable JWT authentication.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+  /api/users/me/:
+    get:
+      operationId: api_users_me_retrieve
+      description: GET /api/users/me/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: api_users_me_update
+      description: GET /api/users/me/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: api_users_me_partial_update
+      description: GET /api/users/me/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /jwt-token-auth/:
+    post:
+      operationId: jwt_token_auth_create
+      description: Custom JWT token obtain view with throttling and logging
+      tags:
+      - jwt-token-auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - create
+      - update
+      - delete
+      type: string
+      description: |-
+        * `create` - Create
+        * `update` - Update
+        * `delete` - Delete
+    AdminInvite:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+      required:
+      - email
+      - username
+    AdminInviteRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        username:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - username
+    AdminPasswordReset:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    AdminPasswordResetRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    AdminUserAdmin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+      required:
+      - id
+      - username
+    AdminUserAdminRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+      required:
+      - username
+    AdminUserCreate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        is_staff:
+          type: boolean
+          default: false
+      required:
+      - id
+      - username
+    AdminUserCreateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        is_staff:
+          type: boolean
+          default: false
+      required:
+      - password
+      - username
+    AuditEvent:
+      type: object
+      description: |-
+        Agent's Phase 2: Serializer for audit events.
+        Fixed per GPT agent: actor as PK for test compatibility.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the audit event was recorded
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          description: |-
+            Type of action performed
+
+            * `create` - Create
+            * `update` - Update
+            * `delete` - Delete
+        object_type:
+          type: string
+          description: Model name of the object being audited
+          maxLength: 100
+        object_id:
+          type: string
+          description: Primary key of the object being audited
+          maxLength: 100
+        actor:
+          type: integer
+          readOnly: true
+        request_id:
+          type: string
+          description: Unique request identifier
+          maxLength: 100
+        ip_address:
+          type: string
+          nullable: true
+          description: IP address of the request
+        user_agent:
+          type: string
+          description: User agent string from the request
+        changes:
+          type: object
+          additionalProperties: {}
+          description: JSONB diff of changes made (before/after values)
+      required:
+      - action
+      - actor
+      - created_at
+      - id
+      - object_id
+      - object_type
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        property:
+          type: integer
+        property_name:
+          type: string
+          readOnly: true
+        check_in_date:
+          type: string
+          format: date-time
+        check_out_date:
+          type: string
+          format: date-time
+        guest_name:
+          type: string
+          maxLength: 200
+        guest_contact:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/BookingStatusEnum'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        modified_at:
+          type: string
+          format: date-time
+          readOnly: true
+        tasks_count:
+          type: integer
+          readOnly: true
+      required:
+      - check_in_date
+      - check_out_date
+      - created_at
+      - id
+      - modified_at
+      - property
+      - property_name
+      - tasks_count
+    BookingRequest:
+      type: object
+      properties:
+        property:
+          type: integer
+        check_in_date:
+          type: string
+          format: date-time
+        check_out_date:
+          type: string
+          format: date-time
+        guest_name:
+          type: string
+          maxLength: 200
+        guest_contact:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/BookingStatusEnum'
+      required:
+      - check_in_date
+      - check_out_date
+      - property
+    BookingStatusEnum:
+      enum:
+      - booked
+      - confirmed
+      - currently_hosting
+      - owner_staying
+      - cancelled
+      - completed
+      type: string
+      description: |-
+        * `booked` - Booked
+        * `confirmed` - Confirmed
+        * `currently_hosting` - Currently Hosting
+        * `owner_staying` - Owner Staying
+        * `cancelled` - Cancelled
+        * `completed` - Completed
+    CustomTokenObtainPairRequest:
+      type: object
+      description: Enhanced JWT serializer with custom claims and security logging
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        token:
+          type: string
+          maxLength: 255
+      required:
+      - id
+      - token
+    DeviceRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - token
+    ManagerUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        role:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - role
+      - username
+    ManagerUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+      required:
+      - username
+    MobileSyncPayloadRequest:
+      type: object
+      properties:
+        completed_task_ids:
+          type: array
+          items:
+            type: integer
+        task_status_updates:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        checklist_updates:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        task:
+          type: integer
+        task_title:
+          type: string
+          readOnly: true
+        verb:
+          $ref: '#/components/schemas/VerbEnum'
+        verb_label:
+          type: string
+          readOnly: true
+        read:
+          type: boolean
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - task
+      - task_title
+      - timestamp
+      - verb_label
+    OwnershipTypeEnum:
+      enum:
+      - owner
+      - viewer
+      - manager
+      type: string
+      description: |-
+        * `owner` - Owner
+        * `viewer` - Viewer
+        * `manager` - Manager
+    PaginatedAuditEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    PaginatedBookingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedPropertyOwnershipList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyOwnership'
+    PaginatedTaskList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PatchedAdminUserAdminRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+    PatchedBookingRequest:
+      type: object
+      properties:
+        property:
+          type: integer
+        check_in_date:
+          type: string
+          format: date-time
+        check_out_date:
+          type: string
+          format: date-time
+        guest_name:
+          type: string
+          maxLength: 200
+        guest_contact:
+          type: string
+          maxLength: 200
+        status:
+          $ref: '#/components/schemas/BookingStatusEnum'
+    PatchedManagerUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+    PatchedPropertyOwnershipRequest:
+      type: object
+      properties:
+        property:
+          type: integer
+        user:
+          type: integer
+        ownership_type:
+          allOf:
+          - $ref: '#/components/schemas/OwnershipTypeEnum'
+          default: viewer
+        can_edit:
+          type: boolean
+    PatchedPropertyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+    PatchedTaskRequest:
+      type: object
+      properties:
+        property:
+          type: integer
+        booking:
+          type: integer
+          nullable: true
+          description: Optional link to a booking window for property
+        task_type:
+          $ref: '#/components/schemas/TaskTypeEnum'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        assigned_to:
+          type: integer
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        depends_on:
+          type: array
+          items:
+            type: integer
+    PatchedUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        timezone:
+          type: string
+          minLength: 1
+    Property:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    PropertyOwnership:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        property:
+          type: integer
+        property_name:
+          type: string
+          readOnly: true
+        user:
+          type: integer
+        username:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        ownership_type:
+          allOf:
+          - $ref: '#/components/schemas/OwnershipTypeEnum'
+          default: viewer
+        can_edit:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - id
+      - property
+      - property_name
+      - user
+      - username
+    PropertyOwnershipRequest:
+      type: object
+      properties:
+        property:
+          type: integer
+        user:
+          type: integer
+        ownership_type:
+          allOf:
+          - $ref: '#/components/schemas/OwnershipTypeEnum'
+          default: viewer
+        can_edit:
+          type: boolean
+      required:
+      - property
+      - user
+    PropertyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required:
+      - name
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        property:
+          type: integer
+        property_name:
+          type: string
+          readOnly: true
+        booking:
+          type: integer
+          nullable: true
+          description: Optional link to a booking window for property
+        booking_id:
+          type: integer
+          readOnly: true
+        booking_window:
+          type: string
+          readOnly: true
+        task_type:
+          $ref: '#/components/schemas/TaskTypeEnum'
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        created_by:
+          type: string
+          readOnly: true
+        assigned_to:
+          type: integer
+          nullable: true
+        assigned_to_username:
+          type: string
+          readOnly: true
+        modified_by_username:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        modified_at:
+          type: string
+          format: date-time
+          readOnly: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskImage'
+          readOnly: true
+        history:
+          type: string
+          readOnly: true
+        is_muted:
+          type: string
+          readOnly: true
+        depends_on:
+          type: array
+          items:
+            type: integer
+      required:
+      - assigned_to_username
+      - booking_id
+      - booking_window
+      - created_at
+      - created_by
+      - history
+      - id
+      - images
+      - is_muted
+      - modified_at
+      - modified_by_username
+      - property
+      - property_name
+      - title
+    TaskImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        image:
+          type: string
+          format: uri
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        uploaded_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        uploaded_by_username:
+          type: string
+          readOnly: true
+        size_bytes:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: Optimized file size in bytes
+        width:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: Image width in pixels
+        height:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: Image height in pixels
+        original_size_bytes:
+          type: integer
+          readOnly: true
+          nullable: true
+          description: Original upload size before optimization
+      required:
+      - height
+      - id
+      - image
+      - original_size_bytes
+      - size_bytes
+      - uploaded_at
+      - uploaded_by
+      - uploaded_by_username
+      - width
+    TaskImageRequest:
+      type: object
+      properties:
+        task:
+          type: integer
+          writeOnly: true
+        image:
+          type: string
+          format: binary
+      required:
+      - image
+    TaskRequest:
+      type: object
+      properties:
+        property:
+          type: integer
+        booking:
+          type: integer
+          nullable: true
+          description: Optional link to a booking window for property
+        task_type:
+          $ref: '#/components/schemas/TaskTypeEnum'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        assigned_to:
+          type: integer
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        depends_on:
+          type: array
+          items:
+            type: integer
+      required:
+      - property
+      - title
+    TaskStatusEnum:
+      enum:
+      - pending
+      - waiting_dependency
+      - in-progress
+      - completed
+      - canceled
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `waiting_dependency` - Waiting for Dependency
+        * `in-progress` - In Progress
+        * `completed` - Completed
+        * `canceled` - Canceled
+    TaskTypeEnum:
+      enum:
+      - administration
+      - cleaning
+      - maintenance
+      - laundry
+      - lawn_pool
+      - inspection
+      - preparation
+      - other
+      type: string
+      description: |-
+        * `administration` - Administration
+        * `cleaning` - Cleaning
+        * `maintenance` - Maintenance
+        * `laundry` - Laundry
+        * `lawn_pool` - Lawn/Pool
+        * `inspection` - Inspection
+        * `preparation` - Preparation
+        * `other` - Other
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TokenVerifyRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - token
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        role:
+          type: string
+          readOnly: true
+        timezone:
+          type: string
+        system_timezone:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - is_active
+      - is_superuser
+      - role
+      - system_timezone
+      - timezone
+      - username
+    UserRegistration:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+      required:
+      - username
+    UserRegistrationRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        is_staff:
+          type: boolean
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        timezone:
+          type: string
+          minLength: 1
+      required:
+      - timezone
+      - username
+    VerbEnum:
+      enum:
+      - assigned
+      - unassigned
+      - status_changed
+      - due_date_changed
+      - title_changed
+      - description_changed
+      - photo_added
+      - photo_deleted
+      - created
+      type: string
+      description: |-
+        * `assigned` - Assigned
+        * `unassigned` - Unassigned
+        * `status_changed` - Status changed
+        * `due_date_changed` - Due date changed
+        * `title_changed` - Title changed
+        * `description_changed` - Description changed
+        * `photo_added` - Photo added
+        * `photo_deleted` - Photo deleted
+        * `created` - Task created
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
