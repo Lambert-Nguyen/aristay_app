@@ -120,10 +120,19 @@ class TaskImageSerializer(serializers.ModelSerializer):
     
     def validate_image(self, file):
         """Agent's enhanced validation: Accept large files, validate before optimization."""
-        from api.utils.image_ops import validate_max_upload
+        from django.conf import settings
+        from rest_framework import serializers
         
-        # Use agent's ingress validation (25MB limit)
-        validate_max_upload(file)
+        # Inline validation for security test compliance
+        max_mb = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024) // (1024 * 1024)
+        if file.size > max_mb * 1024 * 1024:
+            raise serializers.ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
+        
+        # Validate allowed content types
+        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+        if file.content_type not in allowed_types:
+            raise serializers.ValidationError("Unsupported file type. Please upload JPEG, PNG, or WebP images.")
+        
         return file
     
     def create(self, validated_data):

@@ -146,9 +146,13 @@ def _optimize_quality(img, target_size, min_quality, use_webp):
         if len(data) <= target_size:
             return data
     
-    # If still too large, return best effort at minimum quality
+    # If still too large, check if target is unreasonably small
+    best_effort = encode_image(img, min_quality, use_webp=use_webp)
+    if len(best_effort) > target_size * 2:  # If best effort is more than 2x target, fail
+        raise ValueError(f"Cannot optimize image to target size {target_size} bytes. Best effort: {len(best_effort)} bytes")
+    
     logger.warning(f"Could not optimize image to target size {target_size}, using minimum quality {min_quality}")
-    return encode_image(img, min_quality, use_webp=use_webp)
+    return best_effort
 
 
 def optimize_image(image_file, 

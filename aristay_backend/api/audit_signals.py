@@ -32,8 +32,15 @@ def _jsonable(value):
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, FieldFile):
-        # Prefer URL if available (already uploaded)
-        return getattr(value, "url", None) or value.name or str(value)
+        # Handle FieldFile with no actual file gracefully
+        if not value:
+            return None
+        try:
+            # Prefer URL if available (already uploaded)
+            return getattr(value, "url", None) or value.name or str(value)
+        except ValueError:
+            # Handle case where file field has no file associated
+            return value.name if value.name else None
     if isinstance(value, UploadedFile):
         return value.name
     if isinstance(value, (bytes, bytearray, memoryview)):

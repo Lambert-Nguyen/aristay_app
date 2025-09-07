@@ -183,6 +183,7 @@ REST_FRAMEWORK = {
         'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
         'admin_api': '500/hour',
         'evidence_upload': '15/minute',  # Agent's recommendation: Standardized rate for large file uploads
+        'taskimage': '15/minute',  # Specific rate for task image uploads
         'api': '1000/hour',
     },
 }
