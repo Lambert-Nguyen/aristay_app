@@ -4,6 +4,7 @@ Mobile-optimized endpoints for Flutter app
 Compact, cacheable responses optimized for mobile bandwidth
 """
 import logging
+from datetime import timedelta
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -78,7 +79,7 @@ def mobile_dashboard_data(request):
         # Get recent activity count
         recent_bookings = Booking.objects.filter(
             property__in=accessible_properties,
-            created_at__gte=now - timezone.timedelta(days=7)
+            created_at__gte=now - timedelta(days=7)
         ).count()
         
         return Response({

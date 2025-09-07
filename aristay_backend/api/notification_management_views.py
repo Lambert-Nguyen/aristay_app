@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
@@ -18,6 +17,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 from .decorators import staff_or_perm
 from .models import Notification, NotificationVerb, Task
@@ -28,17 +29,12 @@ logger = logging.getLogger(__name__)
 
 # DRF API Views
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def notification_stats_api(request):
     """
     DRF API endpoint to get notification statistics
     GET /api/notifications/stats/
     """
-    if not request.user.is_staff:
-        return Response(
-            {"error": "Staff permissions required"}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
     
     # Get date range
     end_date = timezone.now()
@@ -93,17 +89,12 @@ def notification_stats_api(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def send_test_notification_api(request):
     """
     DRF API endpoint to send a test notification
     POST /api/notifications/send-test/
     """
-    if not request.user.is_staff:
-        return Response(
-            {"error": "Staff permissions required"}, 
-            status=status.HTTP_403_FORBIDDEN
-        )
     
     recipient_id = request.data.get('recipient_id')
     message = request.data.get('message', 'Test notification from admin')
@@ -139,6 +130,17 @@ def send_test_notification_api(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="cleanup_notifications",
+    summary="Cleanup old notifications",
+    description="Delete or preview deletion of old notifications based on age and read status.",
+    parameters=[
+        OpenApiParameter(name="days_old", description="Age threshold in days", required=False, type=OpenApiTypes.INT),
+        OpenApiParameter(name="read_only", description="Only delete read notifications", required=False, type=OpenApiTypes.BOOL),
+        OpenApiParameter(name="preview_only", description="Preview mode - don't actually delete", required=False, type=OpenApiTypes.BOOL),
+    ],
+    responses={200: {"description": "Operation result with count and details"}},
+)
 @api_view(['DELETE', 'POST'])
 @permission_classes([IsAdminUser])
 def cleanup_notifications_api(request):

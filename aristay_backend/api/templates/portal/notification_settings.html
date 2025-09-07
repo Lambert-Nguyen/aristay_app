@@ -81,7 +81,7 @@
                                     {% endif %}
                                     
                                     <!-- Link to related object if it's a task -->
-                                    {% if notification.target_content_type.model == 'task' and notification.target_object_id %}
+                                    {% if notification.target_content_type and notification.target_content_type.model == 'task' and notification.target_object_id %}
                                     <a href="/api/staff/tasks/{{ notification.target_object_id }}/" 
                                        style="padding: 4px 8px; font-size: 11px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; text-align: center;">
                                         View Task
@@ -128,19 +128,27 @@
 </div>
 
 <script>
+// Safely parse JSON response, handling empty bodies
+async function parseJsonSafe(response) {
+    const text = await response.text();
+    try { 
+        return text ? JSON.parse(text) : {}; 
+    } catch { 
+        return {}; 
+    }
+}
+
 // Mark individual notification as read
 function markAsRead(notificationId) {
     fetch(`/api/notifications/${notificationId}/read/`, {
-        method: 'POST',
+        method: 'PATCH',
         headers: {
             'X-CSRFToken': getCsrfToken(),
             'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ read: true }) // harmless even if ignored
     })
-    .then(response => {
-        const responseOk = response.ok;
-        return response.json().then(data => ({ data, responseOk }));
-    })
+    .then(async (response) => ({ data: await parseJsonSafe(response), responseOk: response.ok }))
     .then(({ data, responseOk }) => {
         if (data.success || responseOk) {
             // Update UI to show as read
@@ -170,8 +178,7 @@ function markAsRead(notificationId) {
             showMessage('Failed to mark notification as read', 'error');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
+    .catch(() => {
         showMessage('Network error occurred', 'error');
     });
 }
@@ -185,12 +192,9 @@ document.getElementById('markAllReadBtn')?.addEventListener('click', function() 
             'Content-Type': 'application/json',
         },
     })
-    .then(response => {
-        const responseOk = response.ok;
-        return response.json().then(data => ({ data, responseOk }));
-    })
+    .then(async (response) => ({ data: await parseJsonSafe(response), responseOk: response.ok }))
     .then(({ data, responseOk }) => {
-        if (data.success || responseOk) {
+        if (responseOk || data.success) {
             showMessage('All notifications marked as read', 'success');
             // Reload page to update the UI
             setTimeout(() => {
@@ -200,8 +204,7 @@ document.getElementById('markAllReadBtn')?.addEventListener('click', function() 
             showMessage('Failed to mark all notifications as read', 'error');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
+    .catch(() => {
         showMessage('Network error occurred', 'error');
     });
 });

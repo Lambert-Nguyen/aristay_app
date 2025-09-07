@@ -201,10 +201,10 @@ SPECTACULAR_SETTINGS = {
     "VERSION": os.getenv("APP_VERSION", "1.0.0"),
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     "COMPONENT_SPLIT_REQUEST": True,
-    "SECURITY": [{"BearerAuth": []}],
+    "SECURITY": [{"jwtAuth": []}],
     "AUTHENTICATION_WHITELIST": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "SECURITY_SCHEMES": {
-        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+        "jwtAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
     },
 }
 
