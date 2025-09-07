@@ -5,6 +5,13 @@ Fixed per GPT agent recommendations: contextvars + pre_save snapshots + safer si
 """
 import uuid
 from contextvars import ContextVar
+from datetime import date, datetime
+from decimal import Decimal
+from uuid import UUID
+from pathlib import Path
+from django.db.models import Model
+from django.db.models.fields.files import FieldFile
+from django.forms.models import model_to_dict
 from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
@@ -14,6 +21,30 @@ from django.db.migrations.recorder import MigrationRecorder
 import logging
 
 logger = logging.getLogger(__name__)
+
+# JSON serialization helpers (Agent recommendation for Cloudinary ImageFieldFile fix)
+def _jsonable(value):
+    """Coerce values into JSON-safe primitives."""
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, FieldFile):
+        # Prefer URL if available (already uploaded)
+        return getattr(value, "url", None) or value.name or str(value)
+    if isinstance(value, (Decimal, UUID, Path)):
+        return str(value)
+    if isinstance(value, Model):
+        return f"{value._meta.label}:{getattr(value, 'pk', None)}"
+    # Lists / dicts: coerce their contents
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_jsonable(v) for v in value]
+    return value
+
+def _safe_model_snapshot(instance, fields=None):
+    """Return a JSON-safe dict for a model instance."""
+    data = model_to_dict(instance, fields=fields) if fields else model_to_dict(instance)
+    return {k: _jsonable(v) for k, v in data.items()}
 
 # Context variables for Django async compatibility (GPT agent fix)
 _ctx: ContextVar[dict] = ContextVar(
@@ -76,13 +107,16 @@ def create_audit_event(instance, action, changes=None):
     
     context = get_audit_context()
     
+    # Ensure changes are JSON-safe before storing
+    safe_changes = _jsonable(changes) if changes else {}
+    
     try:
         audit_event = AuditEvent.objects.create(
             object_type=instance.__class__.__name__,
             object_id=str(instance.pk) if instance.pk else 'unknown',
             action=action,
             actor=context['user'],
-            changes=changes or {},
+            changes=safe_changes,
             request_id=context['request_id'],
             ip_address=context['ip_address'],
             user_agent=context['user_agent'],
@@ -135,28 +169,8 @@ def get_model_changes(instance, created=False):
 
 
 def _serialize_value(value):
-    """Serialize a value for JSON storage with FieldFile handling."""
-    from django.db.models.fields.files import FieldFile
-    from decimal import Decimal
-    from datetime import datetime, date
-    
-    if value is None:
-        return None
-    if isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, Decimal):
-        return float(value)
-    if isinstance(value, (datetime, date)) and value is not None:
-        return value.isoformat()
-    if isinstance(value, FieldFile):
-        # Save the stored path or empty string
-        return value.name or ""
-    if hasattr(value, 'pk') and value is not None:
-        return {'id': value.pk, 'str': str(value)}
-    try:
-        return str(value)
-    except Exception:
-        return "<unserializable>"
+    """Serialize a value for JSON storage - now uses enhanced _jsonable helper."""
+    return _jsonable(value)
 
 
 @receiver(pre_save)

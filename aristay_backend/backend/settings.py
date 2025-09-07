@@ -92,13 +92,9 @@ if USE_CLOUDINARY:
         'cloudinary_storage',
     ]
     
-    # Cloudinary configuration
-    CLOUDINARY_STORAGE = {
-        'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-        'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-        'SECURE': True,
-    }
+    # Cloudinary configuration using CLOUDINARY_URL (recommended approach)
+    # The CLOUDINARY_URL format automatically configures all settings
+    # No additional CLOUDINARY_STORAGE config needed when using CLOUDINARY_URL
     
     # Django 5.x STORAGES configuration for Cloudinary
     STORAGES = {
