@@ -1,0 +1,469 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Email Digest Management - {{ block.super }}{% endblock %}
+
+{% block extrahead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    .digest-container {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    
+    .digest-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .digest-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+    }
+    
+    .digest-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #e2e8f0;
+    }
+
+    .stats-card .stat-number {
+        font-size: 32px;
+        font-weight: bold;
+        color: #3b82f6;
+        margin-bottom: 5px;
+    }
+
+    .stats-card .stat-label {
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .action-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-right: 12px;
+    }
+
+    .card-icon.send { background: #dcfce7; }
+    .card-icon.test { background: #fef3c7; }
+    .card-icon.settings { background: #e0e7ff; }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+
+    .card-description {
+        color: #64748b;
+        margin-bottom: 16px;
+        line-height: 1.5;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 120px;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .btn-warning {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .btn-warning:hover:not(:disabled) {
+        background: #d97706;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: #4b5563;
+        transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+        background: #cbd5e1;
+        color: #64748b;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+
+    .status-enabled {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-disabled {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Loading States */
+    .loading {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255,255,255,0.9);
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #e2e8f0;
+        border-top: 2px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 10px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .digest-container {
+            padding: 15px;
+        }
+        
+        .stats-cards {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .action-cards {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .digest-header h1 {
+            font-size: 24px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="digest-container">
+    <!-- Header -->
+    <div class="digest-header">
+        <h1>📧 Email Digest Management</h1>
+        <p>Configure and manage automated daily task digest emails for users</p>
+    </div>
+
+    <!-- Status Indicator -->
+    <div style="text-align: center; margin-bottom: 30px;">
+        {% if global_enabled %}
+            <div class="status-indicator status-enabled">
+                ✅ Email Digest Enabled
+            </div>
+        {% else %}
+            <div class="status-indicator status-disabled">
+                ❌ Email Digest Disabled (Check Django Settings)
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-cards">
+        <div class="stats-card">
+            <div class="stat-number">{{ total_users }}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stats-card">
+            <div class="stat-number">{{ eligible_users }}</div>
+            <div class="stat-label">Eligible for Digest</div>
+        </div>
+        <div class="stats-card">
+            <div class="stat-number">{{ opted_out_users }}</div>
+            <div class="stat-label">Opted Out</div>
+        </div>
+    </div>
+
+    <!-- Action Cards -->
+    <div class="action-cards">
+        <!-- Send Digest Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon send">📤</div>
+                <h3 class="card-title">Send Digest Now</h3>
+            </div>
+            <p class="card-description">
+                Trigger an immediate email digest send to all eligible users. This will send the digest regardless of the normal schedule.
+            </p>
+            <form id="sendDigestForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="testMode" name="test_mode">
+                        <label for="testMode">Test Mode (log only, don't send emails)</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" {% if not global_enabled %}disabled{% endif %}>
+                    Send Digest
+                </button>
+            </form>
+        </div>
+
+        <!-- Test Digest Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon test">🧪</div>
+                <h3 class="card-title">Test Digest</h3>
+            </div>
+            <p class="card-description">
+                Preview what the digest would look like without actually sending emails. Useful for testing template changes.
+            </p>
+            <button type="button" class="btn btn-warning" onclick="testDigest()" {% if not global_enabled %}disabled{% endif %}>
+                Run Test
+            </button>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon settings">⚙️</div>
+                <h3 class="card-title">Global Settings</h3>
+            </div>
+            <p class="card-description">
+                Global email digest settings are configured in Django settings. Contact your system administrator to enable/disable the digest globally.
+            </p>
+            <a href="/admin/" class="btn btn-secondary">
+                Django Admin
+            </a>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="results-container" style="display: none; margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h3>Results</h3>
+        <div id="results-content"></div>
+    </div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loading" class="loading">
+    <div class="spinner"></div>
+    Processing request...
+</div>
+
+<script>
+// Send Digest Form Handler
+document.getElementById('sendDigestForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const testMode = document.getElementById('testMode').checked;
+    showLoading();
+    
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: new URLSearchParams({
+            'action': 'send_digest',
+            'test_mode': testMode ? 'on' : ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        showResults(data);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults({
+            success: false,
+            error: 'Network error: ' + error.message
+        });
+    });
+});
+
+// Test Digest Function
+function testDigest() {
+    showLoading();
+    
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: new URLSearchParams({
+            'action': 'send_digest',
+            'test_mode': 'on'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        showResults(data);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults({
+            success: false,
+            error: 'Network error: ' + error.message
+        });
+    });
+}
+
+// Utility Functions
+function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+}
+
+function showResults(data) {
+    const resultsContainer = document.getElementById('results-container');
+    const resultsContent = document.getElementById('results-content');
+    
+    let html = '';
+    if (data.success) {
+        html = `
+            <div style="color: #166534; background: #dcfce7; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                ✅ ${data.message}
+            </div>
+        `;
+        if (data.sent_count !== undefined) {
+            html += `<p><strong>Users processed:</strong> ${data.sent_count}</p>`;
+        }
+    } else {
+        html = `
+            <div style="color: #991b1b; background: #fee2e2; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                ❌ ${data.error || data.message || 'Unknown error occurred'}
+            </div>
+        `;
+    }
+    
+    resultsContent.innerHTML = html;
+    resultsContainer.style.display = 'block';
+    
+    // Auto-hide results after 10 seconds
+    setTimeout(() => {
+        resultsContainer.style.display = 'none';
+    }, 10000);
+}
+</script>
+{% endblock %}
