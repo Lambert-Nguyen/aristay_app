@@ -254,6 +254,10 @@ MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))  # 
 STORED_IMAGE_TARGET_BYTES = int(os.getenv("STORED_IMAGE_TARGET_BYTES", str(5 * 1024 * 1024)))  # 5MB storage target
 STORED_IMAGE_MAX_DIM = int(os.getenv("STORED_IMAGE_MAX_DIM", "2048"))  # 2048px max dimension
 
+# Audit System Configuration
+AUDIT_ENABLED = os.getenv("AUDIT_ENABLED", "true").lower() == "true"
+AUDIT_MAX_CHANGES_BYTES = int(os.getenv("AUDIT_MAX_CHANGES_BYTES", "10000"))
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
