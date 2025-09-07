@@ -467,7 +467,7 @@ if DEBUG or os.getenv('CI') or os.getenv('TESTING'):
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
+            'LOCATION': os.getenv('LOC_MEM_CACHE_LOCATION', 'aristay-backend-dev-cache'),
         }
     }
 else:
