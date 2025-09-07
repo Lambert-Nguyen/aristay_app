@@ -1,10 +1,11 @@
 #!/bin/bash
 # Quick Test Runner - Comprehensive system validation
-# Usage: ./quick_test.sh [category]
+# Usage: ./scripts/testing/quick_test.sh [category]
 
 set -e  # Exit on any error
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root directory (two levels up from scripts/testing/)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd ../.. && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "🧪 ARISTAY QUICK TEST RUNNER"

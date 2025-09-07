@@ -1,53 +1,84 @@
 # Test Suite Organization
 
-This document organizes all test files and documentation for the AriStay MVP1 permission system fixes.
+This document organizes all test files and documentation for the AriStay project's comprehensive test suite.
 
-## 📁 Test File Structure
+**📋 Current Test Structure**: Updated to match the official project organization (see [PROJECT_STRUCTURE.md](../../PROJECT_STRUCTURE.md))
+
+## 📁 Current Test File Structure
 
 ```
-aristay_backend/
-├── test_critical_fixes.py           # Initial 10 critical fixes verification
-├── test_final_critical_fixes.py     # Final 4 high-impact fixes verification
-├── audit_user_access.py             # User access audit and verification tool
-└── seed_new_permissions.py          # Permission seeding for new features
+tests/                               # Organized testing structure  
+├── unit/                           # Unit tests (component-specific)
+│   └── [component tests]
+├── integration/                    # Integration tests (multi-component) 
+│   ├── test_final_phases.py       # Comprehensive phase testing
+│   ├── verify_production_readiness.py  # Production validation
+│   └── test_no_duplicate_tasks.py # Duplicate prevention tests
+├── production/                     # Production readiness tests
+│   ├── test_production_hardening.py  # Idempotence & constraint tests  
+│   └── test_production_readiness.py  # Production validation suite
+├── security/                       # Security-focused tests
+│   ├── test_jwt_system.py         # JWT authentication tests
+│   ├── test_security_fixes.py     # Security validation tests
+│   └── test_jwt_authentication.py # JWT security validation
+├── api/                           # API-specific tests
+│   ├── test_audit_api.py          # Audit API endpoint tests
+│   └── [other API tests]
+├── booking/                       # Booking functionality tests
+├── permissions/                   # Permission system tests  
+└── run_tests.py                   # Central test runner
 
-tests/
-├── permissions/                     # Permission-specific tests
-│   ├── test_decorator_functionality.py
-│   ├── test_permission_consistency.py
-│   └── test_auth_patterns.py
-└── api/                            # API-specific tests
-    ├── test_task_viewset.py
-    ├── test_inventory_endpoints.py
-    └── test_staff_dashboards.py
+scripts/admin/                     # Moved from aristay_backend/
+├── audit_user_access.py          # User access audit tool
+└── seed_new_permissions.py       # Permission seeding script
 
-docs/
-├── PRODUCTION_READINESS.md         # Comprehensive production readiness doc
-└── TEST_RESULTS.md                 # Detailed test results and coverage
+Legacy Location (for reference):
+aristay_backend/                   # Some test files remain here for backend-specific tests
+├── test_critical_fixes.py        # Core permission system tests
+├── test_final_critical_fixes.py  # Final security tests
+└── [other backend-specific tests]
 ```
 
-## 🧪 Test Execution Order
+## 🧪 Test Execution Guide
 
-### 1. Core Permission System Tests
+### Comprehensive Test Running
+```bash
+# Use the central test runner (recommended)
+python tests/run_tests.py
+
+# Run specific categories  
+python tests/run_tests.py --production
+python tests/run_tests.py --integration
+
+# Use the quick test script
+./scripts/testing/quick_test.sh
+```
+
+### Security & Authentication Tests
+```bash
+# JWT authentication validation
+./scripts/testing/jwt_smoke_test_improved.sh
+
+# Security-focused tests
+cd aristay_backend
+python -m pytest ../tests/security/ -v
+```
+
+### Legacy Backend Tests (Still Important)
 ```bash
 cd aristay_backend
-python test_critical_fixes.py
+python test_critical_fixes.py        # Core permission system verification
+python test_final_critical_fixes.py  # Final security & correctness tests
 ```
-**Purpose**: Verifies the initial 10 critical fixes from GPT feedback
-**Coverage**: 
-- Decorator bug fixes
-- Status constant standardization  
-- Permission model updates
-- AuthzHelper corrections
-- Task API improvements
 
-### 2. Final Security & Correctness Tests
+### Administrative Tools
 ```bash
-cd aristay_backend
-python test_final_critical_fixes.py
+# User access audit (moved to scripts/admin/)
+python scripts/admin/audit_user_access.py
+
+# Permission seeding (moved to scripts/admin/)
+python scripts/admin/seed_new_permissions.py
 ```
-**Purpose**: Verifies the final 4 high-impact fixes
-**Coverage**:
 - Conflicting auth pattern removal
 - TaskViewSet permission consistency
 - Legacy SQL modernization

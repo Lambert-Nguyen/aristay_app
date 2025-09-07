@@ -1,8 +1,27 @@
-# Project Organization
+# ⚠️ DEPRECATED: Project Organization (Old Version)
+
+**This document is deprecated. Please refer to the current official structure:**
+- **[PROJECT_STRUCTURE.md](../PROJECT_STRUCTURE.md)** - Official project organization
+- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Complete documentation index
+- **[reports/PROJECT_REORGANIZATION_COMPLETE.md](reports/PROJECT_REORGANIZATION_COMPLETE.md)** - Final reorganization summary
+
+---
+
+## 📁 Legacy Project Structure (For Historical Reference)
+
+> **Note**: This structure represents an earlier organization proposal.
+> The final implemented structure includes additional categories:
+> - `docs/security/` for security documentation
+> - `docs/reports/` for project reports and status
+> - `docs/implementation/` for implementation history
+> - `scripts/testing/` for testing scripts
+> - `scripts/admin/` for administrative scripts
+> - `tests/security/` for security-focused tests
+> - `tests/api/` for API-specific tests
 
 This document describes the organized structure of the Aristay project after comprehensive cleanup and reorganization.
 
-## 📁 Project Structure
+## 📁 Legacy Project Structure
 
 ```
 aristay_app/

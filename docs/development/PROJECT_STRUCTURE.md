@@ -1,10 +1,18 @@
-# AriStay Project - Organized Structure
+# ⚠️ DEPRECATED: Project Structure (Old Version)
 
-## 📁 Project Organization
+**This document is deprecated. Please refer to the official structure:**
+- **[PROJECT_STRUCTURE.md](../../PROJECT_STRUCTURE.md)** - Official project organization
+- **[docs/DOCUMENTATION_INDEX.md](../DOCUMENTATION_INDEX.md)** - Complete documentation index
 
-The AriStay project has been reorganized for better maintainability and clarity.
+---
 
-### Root Directory Structure
+## 📁 Legacy Project Organization (For Historical Reference)
+
+> **Note**: This structure represents an earlier organization of the project.
+> The current official structure includes security categories, reports organization,
+> and enhanced script categorization.
+
+### Legacy Root Directory Structure
 
 ```
 aristay_app/
