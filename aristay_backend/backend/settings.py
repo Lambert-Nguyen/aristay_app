@@ -84,6 +84,7 @@ COMMON_APPS = [
     "django_filters",
     "axes",
     "drf_spectacular",  # OpenAPI 3 documentation
+    "django_crontab",   # Cron job management
 ]
 
 if USE_CLOUDINARY:
@@ -113,7 +114,6 @@ else:
     }
 
 MIDDLEWARE = [
-    "api.middleware.ApiExceptionMiddleware",  # Catch all unhandled exceptions for API endpoints
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
     "axes.middleware.AxesMiddleware",  # before AuthenticationMiddleware
@@ -133,6 +133,8 @@ MIDDLEWARE = [
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
     "backend.middleware.ErrorLoggingMiddleware", 
+    # Exception middleware runs last (process_exception runs in reverse order)
+    "api.middleware.ApiExceptionMiddleware",  # Catch all unhandled exceptions for API endpoints
     "api.enhanced_security_middleware.SecurityHeadersEnhancedMiddleware",
 ]
 
@@ -189,6 +191,20 @@ REST_FRAMEWORK = {
         'api': '1000/hour',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# OpenAPI/Swagger Configuration  
+SPECTACULAR_SETTINGS = {
+    "TITLE": "AriStay API",
+    "DESCRIPTION": "Internal APIs for portal, mobile, and admin surfaces.",
+    "VERSION": os.getenv("APP_VERSION", "1.0.0"),
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [{"BearerAuth": []}],
+    "AUTHENTICATION_WHITELIST": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+    "SECURITY_SCHEMES": {
+        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+    },
 }
 
 # JWT Configuration removed here - see comprehensive config below
@@ -355,7 +371,6 @@ if not DEBUG:
     
     # Security headers
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
     
     # Cookie security

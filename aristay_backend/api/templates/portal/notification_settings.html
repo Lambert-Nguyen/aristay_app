@@ -43,7 +43,7 @@
                         <div class="notification-item" data-id="{{ notification.id }}" 
                              style="padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; {% if not notification.is_read %}background: #f0f9ff; border-color: #0ea5e9;{% else %}background: #f8fafc;{% endif %}">
                             
-                            <div style="display: flex; justify-content: between; align-items: flex-start; gap: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                                 <div style="flex: 1;">
                                     <!-- Notification Icon and Status -->
                                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -133,7 +133,7 @@ function markAsRead(notificationId) {
     fetch(`/api/notifications/${notificationId}/read/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCsrfToken(),
             'Content-Type': 'application/json',
         },
     })
@@ -181,7 +181,7 @@ document.getElementById('markAllReadBtn')?.addEventListener('click', function() 
     fetch('/api/notifications/mark-all-read/', {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCsrfToken(),
             'Content-Type': 'application/json',
         },
     })
@@ -222,20 +222,10 @@ function showMessage(message, type) {
     }, 4000);
 }
 
-// Get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+// Get CSRF token from meta tag (works with HttpOnly cookies in production)
+function getCsrfToken() {
+    const el = document.querySelector('meta[name="csrf-token"]');
+    return el ? el.getAttribute('content') : null;
 }
 </script>
 {% endblock %}

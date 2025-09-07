@@ -158,9 +158,11 @@ def cleanup_notifications_api(request):
     if request.method == 'DELETE':
         days_old = int(request.query_params.get('days_old', 30))
         read_only = request.query_params.get('read_only', 'true').lower() == 'true'
+        preview_only = request.query_params.get('preview_only', 'false').lower() == 'true'
     else:  # POST
         days_old = int(request.data.get('days_old', 30))
         read_only = request.data.get('read_only', True)
+        preview_only = request.data.get('preview_only', False)
     
     try:
         cutoff_date = timezone.now() - timedelta(days=days_old)
@@ -172,12 +174,12 @@ def cleanup_notifications_api(request):
         old_notifications = Notification.objects.filter(query)
         count = old_notifications.count()
         
-        if not request.data.get('preview_only', False):
+        if not preview_only:
             old_notifications.delete()
         
         return Response({
             "success": True,
-            "message": f"{'Would delete' if request.data.get('preview_only') else 'Deleted'} {count} notifications",
+            "message": f"{'Would delete' if preview_only else 'Deleted'} {count} notifications",
             "deleted_count": count,
             "criteria": f"{'Read' if read_only else 'All'} notifications older than {days_old} days"
         })

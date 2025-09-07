@@ -9,6 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 
 from .models import Task, Property, Booking
 from .authz import AuthzHelper
@@ -16,6 +17,21 @@ from .authz import AuthzHelper
 logger = logging.getLogger(__name__)
 
 
+@extend_schema(
+    tags=["Mobile"],
+    operation_id="mobile_dashboard_data",
+    summary="Get mobile dashboard data",
+    description="Returns compact dashboard data optimized for mobile apps including task counts, properties, and activity.",
+    responses={200: dict},
+    examples=[OpenApiExample("Dashboard sample", value={
+        "success": True, 
+        "assigned_counts": {"total": 5, "pending": 2, "in_progress": 3, "overdue": 1},
+        "properties": [{"id": 1, "name": "Property A", "address": "123 Main St"}],
+        "recent_activity": 3,
+        "server_time": "2025-09-07T12:00:00Z",
+        "user_info": {"username": "staff", "role": "staff"}
+    })],
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def mobile_dashboard_data(request):
@@ -89,6 +105,27 @@ def mobile_dashboard_data(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    tags=["Mobile"],
+    operation_id="mobile_offline_sync",
+    summary="Handle offline synchronization",
+    description="Process arrays of changes made while offline including task completions and status updates.",
+    request={
+        "type": "object",
+        "properties": {
+            "completed_task_ids": {"type": "array", "items": {"type": "integer"}},
+            "task_status_updates": {"type": "array", "items": {"type": "object"}},
+            "checklist_updates": {"type": "array", "items": {"type": "object"}}
+        }
+    },
+    responses={200: dict},
+    examples=[OpenApiExample("Sync response", value={
+        "success": True,
+        "applied": {"completed_tasks": 2, "status_updates": 1, "checklist_updates": 0},
+        "errors": [],
+        "sync_time": "2025-09-07T12:00:00Z"
+    })],
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mobile_offline_sync(request):
@@ -183,6 +220,7 @@ def mobile_offline_sync(request):
                         if task.status == 'pending':
                             task.status = 'in-progress'
                             task.modified_by = user
+                            task.modified_at = timezone.now()
                             task.save(update_fields=['status', 'modified_by', 'modified_at'])
                             applied_checklist += 1
                             
@@ -202,6 +240,24 @@ def mobile_offline_sync(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    tags=["Mobile"], 
+    operation_id="mobile_task_summary",
+    summary="Get compact task summary",
+    description="Returns essential task information optimized for mobile display with filtering support.",
+    parameters=[
+        OpenApiParameter(name="status", description="Filter by task status", required=False, type=str),
+        OpenApiParameter(name="property_id", description="Filter by property ID", required=False, type=int),
+        OpenApiParameter(name="limit", description="Max results (max 50)", required=False, type=int)
+    ],
+    responses={200: dict},
+    examples=[OpenApiExample("Task summary", value={
+        "success": True,
+        "tasks": [{"id": 1, "title": "Clean room", "status": "pending", "due_date": "2025-09-08T10:00:00Z"}],
+        "count": 1,
+        "server_time": "2025-09-07T12:00:00Z"
+    })],
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def mobile_task_summary(request):
