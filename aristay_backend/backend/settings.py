@@ -92,19 +92,24 @@ if USE_CLOUDINARY:
         'cloudinary_storage',
     ]
     
-    # Cloudinary configuration
-    CLOUDINARY_STORAGE = {
-        'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-        'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-        'SECURE': True,
-    }
+    # Cloudinary configuration using CLOUDINARY_URL (recommended approach)
+    # The CLOUDINARY_URL format automatically configures all settings
+    # No additional CLOUDINARY_STORAGE config needed when using CLOUDINARY_URL
     
-    # Use Cloudinary for media files
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    # Django 5.x STORAGES configuration for Cloudinary
+    STORAGES = {
+        "default": {"BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 else:
     # Standard installed apps (existing configuration)
     INSTALLED_APPS = COMMON_APPS
+    
+    # Django 5.x STORAGES configuration for local filesystem
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -177,7 +182,8 @@ REST_FRAMEWORK = {
         'password_reset': '3/hour',
         'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
         'admin_api': '500/hour',
-        'taskimage': '20/day',
+        'evidence_upload': '15/minute',  # Agent's recommendation: Standardized rate for large file uploads
+        'taskimage': '15/minute',  # Specific rate for task image uploads
         'api': '1000/hour',
     },
 }
@@ -240,9 +246,18 @@ STATICFILES_DIRS = [ BASE_DIR / 'static' ]    # so project-level static/ is on t
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Data upload settings - increase limits for bulk operations
+# Data upload settings - Agent's enhanced image processing configuration
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000  # Allow up to 10,000 fields for bulk admin operations
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB (increased from default 2.5MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB - Allow large image uploads before our processing
+
+# Image Upload & Processing Configuration
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))  # 25MB ingress limit
+STORED_IMAGE_TARGET_BYTES = int(os.getenv("STORED_IMAGE_TARGET_BYTES", str(5 * 1024 * 1024)))  # 5MB storage target
+STORED_IMAGE_MAX_DIM = int(os.getenv("STORED_IMAGE_MAX_DIM", "2048"))  # 2048px max dimension
+
+# Audit System Configuration
+AUDIT_ENABLED = os.getenv("AUDIT_ENABLED", "true").lower() == "true"
+AUDIT_MAX_CHANGES_BYTES = int(os.getenv("AUDIT_MAX_CHANGES_BYTES", "10000"))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

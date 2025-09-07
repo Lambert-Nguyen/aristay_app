@@ -490,16 +490,11 @@ def task_image_upload_path(instance, filename):
 
 
 def validate_task_image(file):
-    """Validate uploaded task image file - Agent's enhanced version with PIL inspection"""
+    """Validate uploaded task image file - Only check if it's a real image, not size."""
     from django.core.exceptions import ValidationError
     from PIL import Image, UnidentifiedImageError
     
-    # File size validation (5MB max)
-    max_size = 5 * 1024 * 1024  # 5MB
-    if getattr(file, 'size', 0) > max_size:
-        raise ValidationError("Image file too large. Maximum size is 5MB.")
-    
-    # Verify actual image by decoding bytes (Agent's security improvement)
+    # Only verify it's a real image file (no size check - handled by serializer)
     pos = file.tell()
     try:
         img = Image.open(file)
@@ -515,6 +510,12 @@ class TaskImage(models.Model):
     image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    
+    # Agent's recommended metadata fields for optimized images
+    size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Optimized file size in bytes")
+    width = models.PositiveIntegerField(null=True, blank=True, help_text="Image width in pixels")  
+    height = models.PositiveIntegerField(null=True, blank=True, help_text="Image height in pixels")
+    original_size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Original upload size before optimization")
 
     def __str__(self):
         return f"Image for {self.task.title}"
