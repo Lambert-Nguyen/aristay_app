@@ -24,6 +24,7 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/aristay_backend
       SECRET_KEY: dummy
       DEBUG: '0'
+      CI: 'true'
     steps:
       - uses: actions/checkout@v4
 

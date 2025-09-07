@@ -461,7 +461,16 @@ AXES_NEVER_LOCKOUT_WHITELIST = os.getenv('AXES_WHITELIST', '').split(',') if os.
 # Rate limiting settings moved below with cache configuration
 
 # Cache configuration for production
-if not DEBUG:
+# Use local memory cache for development, testing, and CI
+if DEBUG or os.getenv('CI') or os.getenv('TESTING'):
+    # Use local memory cache for development and testing
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        }
+    }
+else:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',

@@ -2,9 +2,17 @@
 """
 Quick test script for JWT authentication system
 """
+import pytest
 import requests
 import json
 import time
+import os
+
+# Skip this test in CI environment as it requires a running server
+pytestmark = pytest.mark.skipif(
+    bool(os.getenv('CI')) or bool(os.getenv('TESTING')), 
+    reason="Integration test requires running server"
+)
 
 print("🔐 Testing JWT Authentication System")
 print("=" * 50)

@@ -40,7 +40,8 @@ psutil==7.0.0
 
 # Production dependencies (optional - uncomment as needed)
 # psycopg2-binary==2.9.10
-# redis==5.2.0
+redis>=5.0.0
+django-redis>=5.0.0
 # gunicorn==23.0.0
 
 # .env loader for local/dev convenience
