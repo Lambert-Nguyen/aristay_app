@@ -22,6 +22,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
+from drf_spectacular.utils import extend_schema_serializer
 
 from .security_models import SecurityEvent, UserSession, SuspiciousActivity
 from .throttles import RefreshTokenJtiRateThrottle
@@ -29,6 +30,7 @@ from .throttles import RefreshTokenJtiRateThrottle
 logger = logging.getLogger('api.security')
 
 
+@extend_schema_serializer(component_name="JwtAuthViewsTokenObtainPairRequest")
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Enhanced JWT serializer with custom claims and security logging"""
     

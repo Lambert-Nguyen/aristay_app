@@ -17,8 +17,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
-from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, inline_serializer
 from drf_spectacular.types import OpenApiTypes
+from rest_framework import serializers
 
 from .decorators import staff_or_perm
 from .models import Notification, NotificationVerb, Task
@@ -28,6 +29,20 @@ logger = logging.getLogger(__name__)
 
 
 # DRF API Views
+@extend_schema(
+    operation_id="notification_stats",
+    summary="Get notification statistics",
+    responses={200: inline_serializer(
+        name="NotificationStatsResponse",
+        fields={
+            "total_notifications": serializers.IntegerField(),
+            "recent_notifications": serializers.IntegerField(),
+            "unread_notifications": serializers.IntegerField(),
+            "verb_stats": serializers.ListField(child=serializers.DictField()),
+            "daily_stats": serializers.ListField(child=serializers.DictField()),
+        }
+    )}
+)
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def notification_stats_api(request):
@@ -88,6 +103,25 @@ def notification_stats_api(request):
     })
 
 
+@extend_schema(
+    operation_id="send_test_notification",
+    summary="Send test notification",
+    request=inline_serializer(
+        name="SendTestNotificationRequest",
+        fields={
+            "recipient_id": serializers.IntegerField(required=False),
+            "message": serializers.CharField(required=False),
+        }
+    ),
+    responses={200: inline_serializer(
+        name="SendTestNotificationResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "message": serializers.CharField(),
+            "notification_id": serializers.IntegerField(required=False),
+        }
+    )}
+)
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def send_test_notification_api(request):
@@ -130,16 +164,22 @@ def send_test_notification_api(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@extend_schema(
-    operation_id="cleanup_notifications",
-    summary="Cleanup old notifications",
-    description="Delete or preview deletion of old notifications based on age and read status.",
-    parameters=[
-        OpenApiParameter(name="days_old", description="Age threshold in days", required=False, type=OpenApiTypes.INT),
-        OpenApiParameter(name="read_only", description="Only delete read notifications", required=False, type=OpenApiTypes.BOOL),
-        OpenApiParameter(name="preview_only", description="Preview mode - don't actually delete", required=False, type=OpenApiTypes.BOOL),
-    ],
-    responses={200: {"description": "Operation result with count and details"}},
+@extend_schema_view(
+    delete=extend_schema(
+        operation_id="cleanup_notifications_delete",
+        summary="Cleanup old notifications (DELETE)",
+        parameters=[
+            OpenApiParameter("days_old", OpenApiTypes.INT, required=False, description="Age threshold in days"),
+            OpenApiParameter("read_only", OpenApiTypes.BOOL, required=False, description="Only delete read notifications"),
+            OpenApiParameter("preview_only", OpenApiTypes.BOOL, required=False, description="Preview mode - don't actually delete"),
+        ],
+        responses={200: {"description": "Operation result with count and details"}},
+    ),
+    post=extend_schema(
+        operation_id="cleanup_notifications_post",
+        summary="Cleanup old notifications (POST)",
+        responses={200: {"description": "Operation result with count and details"}},
+    ),
 )
 @api_view(['DELETE', 'POST'])
 @permission_classes([IsAdminUser])

@@ -39,6 +39,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
@@ -733,12 +735,24 @@ class NotificationListView(generics.ListAPIView):
     filterset_fields = ['read']  # ← enables ?read=true / ?read=false
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
         return (
             Notification.objects
             .filter(recipient=self.request.user)
             .order_by('-timestamp', '-id')  # newest first, stable
         )
         
+@extend_schema(
+    operation_id="unread_notification_count",
+    summary="Get unread notification count",
+    responses={200: inline_serializer(
+        name="UnreadNotificationCountResponse",
+        fields={
+            "unread": serializers.IntegerField(),
+        }
+    )}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def unread_notification_count(request):
