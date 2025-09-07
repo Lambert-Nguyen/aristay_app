@@ -19,17 +19,14 @@ print("=== LOCAL STORAGE TEST ===")
 print(f"USE_CLOUDINARY: {settings.USE_CLOUDINARY}")  
 print(f"Storage backend: {settings.STORAGES['default']['BACKEND']}")
 
-# Clear Django's settings cache
-from django.conf import settings as django_settings
-if django_settings.configured:
-    django_settings._wrapped = None
-
 # Test Cloudinary storage
 os.environ['USE_CLOUDINARY'] = 'true'
 # Need to reimport settings module to pick up env changes
 import importlib
 if 'backend.settings' in sys.modules:
     importlib.reload(sys.modules['backend.settings'])
+importlib.reload(sys.modules['django.conf'])
+from django.conf import settings  # Re-import to get updated settings
 
 django.setup()
 
