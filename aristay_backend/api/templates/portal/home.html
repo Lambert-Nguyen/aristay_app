@@ -119,6 +119,12 @@
             📋 View Tasks
         </a>
         {% endif %}
+        <a href="/api/notifications/settings/" class="button" style="text-align: center; padding: 1rem;">
+            🔔 My Notifications
+        </a>
+        <a href="/api/digest/settings/" class="button" style="text-align: center; padding: 1rem;">
+            📧 Email Settings
+        </a>
         {% if user.is_staff %}
         <a href="{% if user.is_superuser %}/api/admin/enhanced-excel-import/{% else %}/api/manager/enhanced-excel-import/{% endif %}" class="button" style="text-align: center; padding: 1rem; background-color: #059669; border-color: #059669;">
             📊 Excel Import

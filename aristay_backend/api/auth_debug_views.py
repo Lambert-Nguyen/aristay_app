@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 from .auth_mixins import DefaultAuthMixin
 
 
@@ -12,6 +14,21 @@ class WhoAmIView(DefaultAuthMixin, APIView):
     """Simple endpoint to test JWT authentication"""
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        operation_id="whoami",
+        summary="Return basic info about the current user (debug)",
+        responses=inline_serializer(
+            name="WhoAmIResponse",
+            fields={
+                "message": serializers.CharField(),
+                "user": serializers.CharField(),
+                "user_id": serializers.IntegerField(),
+                "is_staff": serializers.BooleanField(),
+                "is_superuser": serializers.BooleanField(),
+                "authentication": serializers.CharField(),
+            },
+        ),
+    )
     def get(self, request):
         """Return current user information"""
         return Response({

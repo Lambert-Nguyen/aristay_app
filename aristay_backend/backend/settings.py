@@ -83,6 +83,9 @@ COMMON_APPS = [
     "corsheaders",
     "django_filters",
     "axes",
+    "drf_spectacular",  # OpenAPI 3 documentation
+    "django_crontab",   # Cron job management
+    "django_extensions",  # Development tools (show_urls, etc.)
 ]
 
 if USE_CLOUDINARY:
@@ -131,6 +134,8 @@ MIDDLEWARE = [
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
     "backend.middleware.ErrorLoggingMiddleware", 
+    # Exception middleware runs last (process_exception runs in reverse order)
+    "api.middleware.ApiExceptionMiddleware",  # Catch all unhandled exceptions for API endpoints
     "api.enhanced_security_middleware.SecurityHeadersEnhancedMiddleware",
 ]
 
@@ -186,6 +191,26 @@ REST_FRAMEWORK = {
         'taskimage': '15/minute',  # Specific rate for task image uploads
         'api': '1000/hour',
     },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# OpenAPI/Swagger Configuration  
+SPECTACULAR_SETTINGS = {
+    "TITLE": "AriStay API",
+    "DESCRIPTION": "Internal APIs for portal, mobile, and admin surfaces.",
+    "VERSION": os.getenv("APP_VERSION", "1.0.0"),
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [{"jwtAuth": []}],
+    "AUTHENTICATION_WHITELIST": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+    "SECURITY_SCHEMES": {
+        "jwtAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
+    },
+}
+
+# Swagger UI Settings
+SWAGGER_UI_SETTINGS = {
+    "persistAuthorization": True,  # Keep Bearer token across reloads
 }
 
 # JWT Configuration removed here - see comprehensive config below
@@ -352,7 +377,6 @@ if not DEBUG:
     
     # Security headers
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
     
     # Cookie security

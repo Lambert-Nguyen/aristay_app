@@ -1,0 +1,544 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Notification Management - {{ block.super }}{% endblock %}
+
+{% block extrahead %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    .notification-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    
+    .notification-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .notification-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+    }
+    
+    .notification-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #e2e8f0;
+    }
+
+    .stats-card .stat-number {
+        font-size: 28px;
+        font-weight: bold;
+        color: #8b5cf6;
+        margin-bottom: 5px;
+    }
+
+    .stats-card .stat-label {
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .action-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-right: 12px;
+    }
+
+    .card-icon.send { background: #e0f2fe; }
+    .card-icon.cleanup { background: #fef3c7; }
+    .card-icon.stats { background: #f3e8ff; }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+
+    .card-description {
+        color: #64748b;
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 120px;
+    }
+
+    .btn-primary {
+        background: #8b5cf6;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #7c3aed;
+        transform: translateY(-1px);
+    }
+
+    .btn-warning {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .btn-warning:hover:not(:disabled) {
+        background: #d97706;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: #4b5563;
+        transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+        background: #cbd5e1;
+        color: #64748b;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .verb-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        background: #f8fafc;
+    }
+
+    .verb-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .verb-item:last-child {
+        border-bottom: none;
+    }
+
+    .verb-name {
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .verb-count {
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* Loading States */
+    .loading {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255,255,255,0.9);
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #e2e8f0;
+        border-top: 2px solid #8b5cf6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 10px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+        .notification-container {
+            padding: 15px;
+        }
+        
+        .stats-cards {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .action-cards {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .notification-header h1 {
+            font-size: 24px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notification-container">
+    <!-- Header -->
+    <div class="notification-header">
+        <h1>🔔 Notification Management</h1>
+        <p>Monitor, manage, and test the notification system</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-cards">
+        <div class="stats-card">
+            <div class="stat-number">{{ total_notifications }}</div>
+            <div class="stat-label">Total Notifications</div>
+        </div>
+        <div class="stats-card">
+            <div class="stat-number">{{ unread_notifications }}</div>
+            <div class="stat-label">Unread</div>
+        </div>
+        <div class="stats-card">
+            <div class="stat-number">{{ recent_notifications }}</div>
+            <div class="stat-label">Last 7 Days</div>
+        </div>
+        <div class="stats-card">
+            <div class="stat-number">{{ notification_verbs.count }}</div>
+            <div class="stat-label">Notification Types</div>
+        </div>
+    </div>
+
+    <!-- Action Cards -->
+    <div class="action-cards">
+        <!-- Send Test Notification Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon send">📤</div>
+                <h3 class="card-title">Send Test Notification</h3>
+            </div>
+            <p class="card-description">
+                Send a test notification to a specific user or yourself to verify the notification system is working properly.
+            </p>
+            <form id="testNotificationForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="testRecipient">Recipient:</label>
+                    <select id="testRecipient" name="recipient_id" class="form-control">
+                        <option value="">Myself</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.username }}{% if user.get_full_name %} ({{ user.get_full_name }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="testMessage">Message:</label>
+                    <input type="text" id="testMessage" name="message" class="form-control" 
+                           value="Test notification from admin" placeholder="Enter test message">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    Send Test
+                </button>
+            </form>
+        </div>
+
+        <!-- Cleanup Notifications Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon cleanup">🧹</div>
+                <h3 class="card-title">Cleanup Old Notifications</h3>
+            </div>
+            <p class="card-description">
+                Remove old notifications to keep the database clean and improve performance. You can preview what will be deleted before confirming.
+            </p>
+            <form id="cleanupForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="daysOld">Delete notifications older than:</label>
+                    <select id="daysOld" name="days_old" class="form-control">
+                        <option value="7">7 days</option>
+                        <option value="30" selected>30 days</option>
+                        <option value="90">90 days</option>
+                        <option value="180">6 months</option>
+                    </select>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="readOnly" name="read_only" checked>
+                    <label for="readOnly">Only delete read notifications</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="previewOnly" name="preview_only" checked>
+                    <label for="previewOnly">Preview only (don't actually delete)</label>
+                </div>
+                <button type="submit" class="btn btn-warning">
+                    Cleanup Notifications
+                </button>
+            </form>
+        </div>
+
+        <!-- Notification Types Card -->
+        <div class="action-card">
+            <div class="card-header">
+                <div class="card-icon stats">📊</div>
+                <h3 class="card-title">Notification Types</h3>
+            </div>
+            <p class="card-description">
+                Overview of notification types (verbs) and their usage frequency.
+            </p>
+            <div class="verb-list">
+                {% for verb in notification_verbs %}
+                    <div class="verb-item">
+                        <span class="verb-name">{{ verb.name }}</span>
+                        <span class="verb-count">{{ verb.notification_count }}</span>
+                    </div>
+                {% empty %}
+                    <div class="verb-item">
+                        <span style="color: #64748b; font-style: italic;">No notification types found</span>
+                    </div>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 16px;">
+                <a href="/admin/api/notificationverb/" class="btn btn-secondary">
+                    Manage Types
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="results-container" style="display: none; margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h3>Results</h3>
+        <div id="results-content"></div>
+    </div>
+</div>
+
+<!-- Loading Indicator -->
+<div id="loading" class="loading">
+    <div class="spinner"></div>
+    Processing request...
+</div>
+
+<script>
+// Send Test Notification Form Handler
+document.getElementById('testNotificationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    formData.append('action', 'send_test');
+    
+    showLoading();
+    
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        showResults(data);
+    })
+    .catch(error => {
+        hideLoading();
+        showResults({
+            success: false,
+            error: 'Network error: ' + error.message
+        });
+    });
+});
+
+// Cleanup Form Handler
+document.getElementById('cleanupForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    formData.append('action', 'cleanup');
+    
+    const previewOnly = document.getElementById('previewOnly').checked;
+    if (!previewOnly) {
+        if (!confirm('Are you sure you want to delete these notifications? This action cannot be undone.')) {
+            return;
+        }
+    }
+    
+    showLoading();
+    
+    fetch('', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoading();
+        showResults(data);
+        
+        // If it was a successful cleanup (not preview), refresh the page stats
+        if (data.success && !previewOnly) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        showResults({
+            success: false,
+            error: 'Network error: ' + error.message
+        });
+    });
+});
+
+// Utility Functions
+function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+}
+
+function showResults(data) {
+    const resultsContainer = document.getElementById('results-container');
+    const resultsContent = document.getElementById('results-content');
+    
+    let html = '';
+    if (data.success) {
+        html = `
+            <div style="color: #166534; background: #dcfce7; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                ✅ ${data.message}
+            </div>
+        `;
+        if (data.deleted_count !== undefined) {
+            html += `<p><strong>Affected notifications:</strong> ${data.deleted_count}</p>`;
+        }
+    } else {
+        html = `
+            <div style="color: #991b1b; background: #fee2e2; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                ❌ ${data.error || data.message || 'Unknown error occurred'}
+            </div>
+        `;
+    }
+    
+    resultsContent.innerHTML = html;
+    resultsContainer.style.display = 'block';
+    
+    // Auto-hide results after 10 seconds
+    setTimeout(() => {
+        resultsContainer.style.display = 'none';
+    }, 10000);
+}
+</script>
+{% endblock %}

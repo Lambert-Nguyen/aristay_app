@@ -28,6 +28,9 @@ from api.jwt_auth_views import SecureTokenObtainPairView, SecureTokenRefreshView
 from api.auth_views import CustomTokenObtainPairView, TokenRefreshThrottledView, revoke_token, revoke_all_tokens
 from api.auth_debug_views import WhoAmIView
 
+# OpenAPI documentation imports
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+
 # Deprecation wrapper for legacy route
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -49,19 +52,15 @@ from api.security_dashboard import (
     terminate_session, security_analytics
 )
 
-# Agent's Phase 2: Add audit API router
-from rest_framework.routers import DefaultRouter
-from api.audit_views import AuditEventViewSet
-
-# Create router for audit API
-audit_router = DefaultRouter()
-audit_router.register(r'audit-events', AuditEventViewSet, basename='auditevent')
-
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
     path('api/', include('api.urls')),
-    path('api/', include(audit_router.urls)),  # Add audit API endpoints
+    
+    # OpenAPI Documentation endpoints
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # JWT Authentication endpoints
     path('api/token/', SecureTokenObtainPairView.as_view(), name='token_obtain_pair'),

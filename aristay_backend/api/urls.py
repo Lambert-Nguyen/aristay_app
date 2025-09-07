@@ -23,6 +23,7 @@ from .views import (
     unread_notification_count,
     AdminUserDetailView,
     manager_overview,
+    manager_dashboard,
     ManagerUserList,
     ManagerUserDetail,
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
@@ -36,6 +37,18 @@ from .views import (
     file_cleanup_api, user_permissions, available_permissions, 
     manageable_users, grant_permission, revoke_permission, remove_permission_override,
     permission_management_view, file_cleanup_page
+)
+
+# Email Digest Service Views
+from .digest_views import (
+    send_digest_api, digest_settings_api, digest_opt_out_api,
+    digest_management_view, digest_settings_view
+)
+
+# Notification Management Views
+from .notification_management_views import (
+    notification_stats_api, send_test_notification_api, cleanup_notifications_api,
+    notification_management_view, user_notification_settings_view
 )
 
 # Agent's Phase 2: Import audit views
@@ -55,7 +68,13 @@ from .monitoring import (
     DetailedHealthCheckView,
     log_client_error,
 )
-from .views import portal_home, portal_property_list, portal_property_detail, portal_booking_detail
+
+# Mobile-optimized endpoints
+from .mobile_views import (
+    mobile_dashboard_data,
+    mobile_offline_sync,
+    mobile_task_summary,
+)
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
@@ -67,6 +86,12 @@ router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
     path('', include(router.urls)),
+    
+    # Mobile-optimized endpoints
+    path('mobile/dashboard/', mobile_dashboard_data, name='mobile-dashboard'),
+    path('mobile/offline-sync/', mobile_offline_sync, name='mobile-offline-sync'),
+    path('mobile/tasks/summary/', mobile_task_summary, name='mobile-task-summary'),
+    
     path(
         'tasks/<int:task_pk>/images/',
         TaskImageCreateView.as_view(),
@@ -88,7 +113,7 @@ urlpatterns = [
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     path('admin/users/<int:pk>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
     path('manager/overview/', manager_overview, name='manager-overview'),
-    path('manager/dashboard/', manager_overview, name='manager-dashboard'),  # Alias for compatibility
+    path('manager/dashboard/', manager_dashboard, name='manager-dashboard'),  # Alias for compatibility
     path('manager/users/',    ManagerUserList.as_view(),  name='manager-user-list'),
     path('manager/users/<int:pk>/', ManagerUserDetail.as_view(), name='manager-user-detail'),
     path('admin/charts/', admin_charts_dashboard, name='admin-charts'),
@@ -166,4 +191,18 @@ urlpatterns = [
     
     # Permission Management UI
     path('admin/permissions/', permission_management_view, name='permission-management'),
+    
+    # Email Digest Service endpoints
+    path('digest/send/', send_digest_api, name='digest-send-api'),
+    path('digest/settings/', digest_settings_view, name='digest-settings'),
+    path('digest/settings/api/', digest_settings_api, name='digest-settings-api'),
+    path('digest/opt-out/', digest_opt_out_api, name='digest-opt-out-api'),
+    path('admin/digest-management/', digest_management_view, name='admin-digest-management'),
+    
+    # Notification Management endpoints
+    path('notifications/stats/', notification_stats_api, name='notification-stats-api'),
+    path('notifications/send-test/', send_test_notification_api, name='send-test-notification-api'),
+    path('notifications/cleanup/', cleanup_notifications_api, name='cleanup-notifications-api'),
+    path('admin/notification-management/', notification_management_view, name='admin-notification-management'),
+    path('notifications/settings/', user_notification_settings_view, name='user-notification-settings'),
 ]

@@ -39,6 +39,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
 
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
@@ -733,18 +735,42 @@ class NotificationListView(generics.ListAPIView):
     filterset_fields = ['read']  # ← enables ?read=true / ?read=false
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
         return (
             Notification.objects
             .filter(recipient=self.request.user)
             .order_by('-timestamp', '-id')  # newest first, stable
         )
         
+@extend_schema(
+    operation_id="unread_notification_count",
+    summary="Get unread notification count",
+    responses={200: inline_serializer(
+        name="UnreadNotificationCountResponse",
+        fields={
+            "unread": serializers.IntegerField(),
+        }
+    )}
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def unread_notification_count(request):
     count = Notification.objects.filter(recipient=request.user, read=False).count()
     return Response({'unread': count})
     
+@extend_schema(
+    operation_id="mark_notification_read",
+    summary="Mark a notification as read",
+    request=None,
+    responses=inline_serializer(
+        name="MarkNotificationReadResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "read_at": serializers.DateTimeField(),
+        },
+    ),
+)
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def mark_notification_read(request, pk):
@@ -759,6 +785,18 @@ def mark_notification_read(request, pk):
 
     return Response({'success': True, 'read_at': notif.read_at})
 
+@extend_schema(
+    operation_id="mark_all_notifications_read",
+    summary="Mark all notifications as read for the current user",
+    request=None,
+    responses=inline_serializer(
+        name="MarkAllNotificationsReadResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "marked_count": serializers.IntegerField(help_text="Number of notifications marked as read"),
+        },
+    ),
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_all_notifications_read(request):
@@ -769,6 +807,32 @@ def mark_all_notifications_read(request):
     return Response({'success': True, 'marked_count': count})
 
 # ---------- Manager dashboard: overview ----------
+@extend_schema(
+    operation_id="manager_overview_metrics",
+    summary="Get overview metrics for manager dashboard",
+    responses=inline_serializer(
+        name="ManagerOverviewResponse",
+        fields={
+            "tasks": inline_serializer(
+                name="TaskOverview",
+                fields={
+                    "total": serializers.IntegerField(),
+                    "overdue": serializers.IntegerField(),
+                    "by_status": serializers.DictField(),
+                },
+            ),
+            "users": inline_serializer(
+                name="UserOverview",
+                fields={
+                    "total": serializers.IntegerField(),
+                    "active": serializers.IntegerField(),
+                    "managers": serializers.IntegerField(),
+                    "employees": serializers.IntegerField(),
+                },
+            ),
+        },
+    ),
+)
 @api_view(['GET'])
 @permission_classes([CanViewAnalytics])
 def manager_overview(request):
@@ -799,6 +863,39 @@ def manager_overview(request):
             'employees': employees,
         }
     })
+
+# ---------- Manager dashboard alias (compatibility) ----------
+@extend_schema(
+    operation_id="manager_dashboard",
+    summary="Get overview metrics for manager dashboard (compatibility alias)",
+    responses=inline_serializer(
+        name="ManagerDashboardResponse",
+        fields={
+            "tasks": inline_serializer(
+                name="DashboardTaskOverview",
+                fields={
+                    "total": serializers.IntegerField(),
+                    "overdue": serializers.IntegerField(),
+                    "by_status": serializers.DictField(),
+                },
+            ),
+            "users": inline_serializer(
+                name="DashboardUserOverview",
+                fields={
+                    "total": serializers.IntegerField(),
+                    "active": serializers.IntegerField(),
+                    "managers": serializers.IntegerField(),
+                    "employees": serializers.IntegerField(),
+                },
+            ),
+        },
+    ),
+)
+@api_view(['GET'])
+@permission_classes([CanViewAnalytics])
+def manager_dashboard(request):
+    """Compatibility alias for manager_overview"""
+    return manager_overview(request)
 
 # ---------- Manager: list employees/managers (no owners) ----------
 class ManagerUserList(DefaultAuthMixin, generics.ListAPIView):
@@ -2093,6 +2190,19 @@ def file_cleanup_api(request):
 
 # ========== PERMISSION MANAGEMENT API ==========
 
+@extend_schema(
+    operation_id="user_permissions",
+    summary="Get current user's permissions",
+    responses=inline_serializer(
+        name="UserPermissionsResponse",
+        fields={
+            "user": serializers.CharField(),
+            "role": serializers.CharField(),
+            "permissions": serializers.DictField(child=serializers.BooleanField()),
+            "delegatable_permissions": serializers.ListField(child=serializers.CharField()),
+        },
+    ),
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_permissions(request):
@@ -2121,6 +2231,26 @@ def user_permissions(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="available_permissions",
+    summary="List permissions visible/manageable to current user",
+    responses=inline_serializer(
+        name="AvailablePermissionsResponse",
+        fields={
+            "permissions": serializers.ListField(
+                child=inline_serializer(
+                    name="PermissionItem",
+                    fields={
+                        "name": serializers.CharField(),
+                        "display_name": serializers.CharField(),
+                        "description": serializers.CharField(allow_blank=True, required=False),
+                        "can_delegate": serializers.BooleanField(),
+                    },
+                )
+            )
+        },
+    ),
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def available_permissions(request):
@@ -2164,6 +2294,29 @@ def available_permissions(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="manageable_users",
+    summary="Users current user can manage",
+    responses=inline_serializer(
+        name="ManageableUsersResponse",
+        fields={
+            "users": serializers.ListField(
+                child=inline_serializer(
+                    name="ManageableUser",
+                    fields={
+                        "id": serializers.IntegerField(),
+                        "username": serializers.CharField(),
+                        "email": serializers.EmailField(),
+                        "first_name": serializers.CharField(allow_blank=True),
+                        "last_name": serializers.CharField(allow_blank=True),
+                        "role": serializers.CharField(),
+                        "permissions": serializers.DictField(child=serializers.BooleanField()),
+                    },
+                )
+            )
+        },
+    ),
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def manageable_users(request):
@@ -2215,6 +2368,28 @@ def manageable_users(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="grant_permission",
+    summary="Grant a permission to a user",
+    request=inline_serializer(
+        name="GrantPermissionRequest",
+        fields={
+            "user_id": serializers.IntegerField(),
+            "permission": serializers.CharField(),
+            "reason": serializers.CharField(required=False, allow_blank=True),
+            "expires_at": serializers.DateTimeField(required=False),
+        },
+    ),
+    responses=inline_serializer(
+        name="GrantPermissionResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "message": serializers.CharField(),
+            "override_id": serializers.IntegerField(),
+            "created": serializers.BooleanField(),
+        },
+    ),
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def grant_permission(request):
@@ -2317,6 +2492,27 @@ def grant_permission(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="revoke_permission",
+    summary="Revoke a permission from a user",
+    request=inline_serializer(
+        name="RevokePermissionRequest",
+        fields={
+            "user_id": serializers.IntegerField(),
+            "permission": serializers.CharField(),
+            "reason": serializers.CharField(required=False, allow_blank=True),
+        },
+    ),
+    responses=inline_serializer(
+        name="RevokePermissionResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "message": serializers.CharField(),
+            "override_id": serializers.IntegerField(),
+            "created": serializers.BooleanField(),
+        },
+    ),
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def revoke_permission(request):
@@ -2406,6 +2602,24 @@ def revoke_permission(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    operation_id="remove_permission_override",
+    summary="Remove a permission override (revert to role-based permission)",
+    request=inline_serializer(
+        name="RemovePermissionOverrideRequest",
+        fields={
+            "user_id": serializers.IntegerField(),
+            "permission_name": serializers.CharField(),
+        },
+    ),
+    responses=inline_serializer(
+        name="RemovePermissionOverrideResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "message": serializers.CharField(),
+        },
+    ),
+)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def remove_permission_override(request):

@@ -1,0 +1,234 @@
+{% extends "portal/base.html" %}
+
+{% block title %}My Notifications{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="max-width: 800px; margin: 0 auto;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border-radius: 12px;">
+            <h1 style="margin: 0 0 8px 0; font-size: 24px;">🔔 My Notifications</h1>
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">Manage your notifications and preferences</p>
+        </div>
+
+        <!-- Unread Count -->
+        {% if unread_count > 0 %}
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="display: inline-flex; align-items: center; padding: 8px 16px; background: #fef3c7; color: #92400e; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                📬 You have {{ unread_count }} unread notification{{ unread_count|pluralize }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center;">
+            {% if unread_count > 0 %}
+            <button id="markAllReadBtn" class="button" style="background: #10b981; border-color: #10b981; color: white; font-size: 14px;">
+                ✓ Mark All Read
+            </button>
+            {% endif %}
+            <a href="/api/portal/" class="button" style="background: #6b7280; border-color: #6b7280; color: white; font-size: 14px;">
+                ← Back to Portal
+            </a>
+        </div>
+
+        <!-- Notifications List -->
+        <div class="card">
+            <div style="padding: 24px;">
+                <h3 style="margin: 0 0 20px 0; color: #1e293b;">Recent Notifications</h3>
+                
+                {% if user_notifications %}
+                    <div id="notificationsList">
+                        {% for notification in user_notifications %}
+                        <div class="notification-item" data-id="{{ notification.id }}" 
+                             style="padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; {% if not notification.is_read %}background: #f0f9ff; border-color: #0ea5e9;{% else %}background: #f8fafc;{% endif %}">
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div style="flex: 1;">
+                                    <!-- Notification Icon and Status -->
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        {% if not notification.is_read %}
+                                            <div style="width: 8px; height: 8px; background: #0ea5e9; border-radius: 50%;"></div>
+                                        {% endif %}
+                                        <span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
+                                            {{ notification.verb.name }}
+                                        </span>
+                                        <span style="color: #64748b; font-size: 12px;">
+                                            {{ notification.created_at|timesince }} ago
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Notification Content -->
+                                    <div style="color: #374151; line-height: 1.5; margin-bottom: 8px;">
+                                        {{ notification.description }}
+                                    </div>
+                                    
+                                    <!-- Target Object Link (if applicable) -->
+                                    {% if notification.target_content_type and notification.target_object_id %}
+                                    <div style="font-size: 12px; color: #64748b;">
+                                        Related to: {{ notification.target_content_type.name }} #{{ notification.target_object_id }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    {% if not notification.is_read %}
+                                    <button onclick="markAsRead({{ notification.id }})" 
+                                            style="padding: 4px 8px; font-size: 11px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                        Mark Read
+                                    </button>
+                                    {% endif %}
+                                    
+                                    <!-- Link to related object if it's a task -->
+                                    {% if notification.target_content_type and notification.target_content_type.model == 'task' and notification.target_object_id %}
+                                    <a href="/api/staff/tasks/{{ notification.target_object_id }}/" 
+                                       style="padding: 4px 8px; font-size: 11px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; text-align: center;">
+                                        View Task
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🔕</div>
+                        <h4 style="margin: 0 0 8px 0; color: #374151;">No notifications yet</h4>
+                        <p style="margin: 0; font-size: 14px;">When you receive notifications, they'll appear here.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Notification Preferences (Future Enhancement) -->
+        <div class="card" style="margin-top: 24px;">
+            <div style="padding: 24px;">
+                <h3 style="margin: 0 0 16px 0; color: #1e293b;">Notification Preferences</h3>
+                <div style="padding: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-size: 16px;">💡</span>
+                        <div style="flex: 1;">
+                            <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px; font-weight: 600;">Coming Soon</h4>
+                            <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.4;">
+                                Advanced notification preferences including email notifications, mobile push notifications, and notification filtering will be available in a future update.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+<div id="messageContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: none;">
+    <div id="messageContent" style="padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; max-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+</div>
+
+<script>
+// Safely parse JSON response, handling empty bodies
+async function parseJsonSafe(response) {
+    const text = await response.text();
+    try { 
+        return text ? JSON.parse(text) : {}; 
+    } catch { 
+        return {}; 
+    }
+}
+
+// Mark individual notification as read
+function markAsRead(notificationId) {
+    fetch(`/api/notifications/${notificationId}/read/`, {
+        method: 'PATCH',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ read: true }) // harmless even if ignored
+    })
+    .then(async (response) => ({ data: await parseJsonSafe(response), responseOk: response.ok }))
+    .then(({ data, responseOk }) => {
+        if (data.success || responseOk) {
+            // Update UI to show as read
+            const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
+            if (notificationElement) {
+                notificationElement.style.background = '#f8fafc';
+                notificationElement.style.borderColor = '#e2e8f0';
+                // Remove the unread indicator
+                const unreadDot = notificationElement.querySelector('div[style*="background: #0ea5e9"]');
+                if (unreadDot) {
+                    unreadDot.remove();
+                }
+                // Remove the mark read button
+                const markReadBtn = notificationElement.querySelector('button');
+                if (markReadBtn && markReadBtn.textContent.includes('Mark Read')) {
+                    markReadBtn.remove();
+                }
+            }
+            
+            showMessage('Notification marked as read', 'success');
+            
+            // Update unread count or reload if needed
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showMessage('Failed to mark notification as read', 'error');
+        }
+    })
+    .catch(() => {
+        showMessage('Network error occurred', 'error');
+    });
+}
+
+// Mark all notifications as read
+document.getElementById('markAllReadBtn')?.addEventListener('click', function() {
+    fetch('/api/notifications/mark-all-read/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCsrfToken(),
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(async (response) => ({ data: await parseJsonSafe(response), responseOk: response.ok }))
+    .then(({ data, responseOk }) => {
+        if (responseOk || data.success) {
+            showMessage('All notifications marked as read', 'success');
+            // Reload page to update the UI
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showMessage('Failed to mark all notifications as read', 'error');
+        }
+    })
+    .catch(() => {
+        showMessage('Network error occurred', 'error');
+    });
+});
+
+// Show message function
+function showMessage(message, type) {
+    const container = document.getElementById('messageContainer');
+    const content = document.getElementById('messageContent');
+    
+    content.textContent = message;
+    content.style.background = type === 'success' ? '#10b981' : '#ef4444';
+    
+    container.style.display = 'block';
+    
+    // Auto-hide after 4 seconds
+    setTimeout(() => {
+        container.style.display = 'none';
+    }, 4000);
+}
+
+// Get CSRF token from meta tag (works with HttpOnly cookies in production)
+function getCsrfToken() {
+    const el = document.querySelector('meta[name="csrf-token"]');
+    return el ? el.getAttribute('content') : null;
+}
+</script>
+{% endblock %}

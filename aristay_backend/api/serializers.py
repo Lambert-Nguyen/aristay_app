@@ -13,6 +13,8 @@ from django.utils import timezone
 
 
 from django.conf import settings
+from drf_spectacular.utils import extend_schema_field, inline_serializer
+from drf_spectacular.types import OpenApiTypes
 
 from rest_framework import serializers
 from .models import Task, Property, TaskImage, Profile, Device, Notification, UserRole
@@ -39,6 +41,7 @@ class UserSerializer(serializers.ModelSerializer):
             'role', 'timezone', 'system_timezone',
         ]
         
+    @extend_schema_field(OpenApiTypes.STR)
     def get_role(self, obj):
         # Superusers override role; show “superuser” regardless of stored profile.role
         if obj.is_superuser:
@@ -48,6 +51,7 @@ class UserSerializer(serializers.ModelSerializer):
         except Profile.DoesNotExist:
             return 'staff'
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_system_timezone(self, obj):
         return settings.TIME_ZONE
 
@@ -223,12 +227,22 @@ class TaskSerializer(serializers.ModelSerializer):
           'depends_on',
         ]
         
+    @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_muted(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.muted_by.filter(pk=request.user.pk).exists()
         return False
     
+    @extend_schema_field(
+        inline_serializer(
+            name="BookingWindow",
+            fields={
+                "start": serializers.DateTimeField(allow_null=True),
+                "end": serializers.DateTimeField(allow_null=True),
+            },
+        )
+    )
     def get_booking_window(self, obj):
         """Return booking window as formatted string."""
         if obj.booking:
@@ -290,6 +304,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return ret
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_history(self, obj):
         """
         obj.history is a JSON‐encoded string; decode it to a Python list.
@@ -426,6 +441,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ['id','task','task_title','verb','verb_label','read','read_at','timestamp']
 
+    @extend_schema_field(OpenApiTypes.STR)
     def get_verb_label(self, obj):
         return obj.get_verb_display()
 

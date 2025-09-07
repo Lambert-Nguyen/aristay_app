@@ -11,6 +11,8 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.conf import settings
+from drf_spectacular.utils import extend_schema_serializer, extend_schema, inline_serializer
+from rest_framework import serializers
 
 logger = logging.getLogger('api.security')
 
@@ -160,6 +162,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 
+@extend_schema_serializer(component_name="AuthViewsTokenObtainPairRequest")
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Custom JWT serializer with additional user claims"""
     
@@ -212,6 +215,24 @@ class TokenRefreshThrottledView(BaseTokenRefreshView):
 
 from rest_framework_simplejwt.exceptions import TokenError
 
+@extend_schema(
+    operation_id="revoke_token",
+    summary="Revoke refresh token",
+    request=inline_serializer(
+        name="RevokeTokenRequest",
+        fields={
+            "refresh": serializers.CharField(required=False),
+            "refresh_token": serializers.CharField(required=False),
+        }
+    ),
+    responses={200: inline_serializer(
+        name="RevokeTokenResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "message": serializers.CharField(),
+        }
+    )}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def revoke_token(request):
@@ -241,6 +262,19 @@ def revoke_token(request):
         return Response({'error': 'Invalid or expired token'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    operation_id="revoke_all_tokens",
+    summary="Revoke all tokens for current user",
+    request=inline_serializer(name="RevokeAllTokensRequest", fields={}),
+    responses={200: inline_serializer(
+        name="RevokeAllTokensResponse",
+        fields={
+            "success": serializers.BooleanField(),
+            "revoked": serializers.IntegerField(required=False),
+            "message": serializers.CharField(required=False),
+        }
+    )}
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def revoke_all_tokens(request):

@@ -27,6 +27,7 @@ pytest-django==4.5.2
 numpy>=1.26.0,<2.4.0
 pandas>=2.2.0,<2.4.0
 openpyxl==3.0.10
+drf-spectacular==0.26.4  # OpenAPI 3 documentation
 
 # JWT Authentication and Security
 djangorestframework-simplejwt==5.5.1
@@ -47,3 +48,6 @@ django-redis>=5.0.0
 
 # .env loader for local/dev convenience
 python-dotenv==1.0.1
+
+# Development tools
+django-extensions>=3.2.0  # For show_urls and other dev commands

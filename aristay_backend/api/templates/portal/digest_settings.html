@@ -1,0 +1,164 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Email Digest Settings{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="max-width: 600px; margin: 0 auto;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); color: white; border-radius: 12px;">
+            <h1 style="margin: 0 0 8px 0; font-size: 24px;">📧 Email Digest Settings</h1>
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">Manage your daily task digest preferences</p>
+        </div>
+
+        <!-- Status Card -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div style="text-align: center; padding: 16px;">
+                {% if global_enabled %}
+                    <div style="display: inline-flex; align-items: center; padding: 8px 16px; background: #dcfce7; color: #166534; border-radius: 20px; font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                        ✅ Email Digest Available
+                    </div>
+                    <p style="color: #64748b; margin: 0;">Daily task digests are enabled system-wide</p>
+                {% else %}
+                    <div style="display: inline-flex; align-items: center; padding: 8px 16px; background: #fee2e2; color: #991b1b; border-radius: 20px; font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                        ❌ Email Digest Disabled
+                    </div>
+                    <p style="color: #64748b; margin: 0;">Email digests are currently disabled system-wide</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Settings Form -->
+        <div class="card">
+            <div style="padding: 24px;">
+                <h3 style="margin: 0 0 16px 0; color: #1e293b;">Your Preferences</h3>
+                
+                <form id="digestSettingsForm">
+                    {% csrf_token %}
+                    
+                    <!-- Opt-out Setting -->
+                    <div style="margin-bottom: 24px;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <input type="checkbox" id="digest_opt_out" name="digest_opt_out" 
+                                   {% if profile.digest_opt_out %}checked{% endif %}
+                                   style="margin-top: 2px; width: 18px; height: 18px;">
+                            <div style="flex: 1;">
+                                <label for="digest_opt_out" style="font-weight: 600; color: #374151; cursor: pointer;">
+                                    Opt out of email digest
+                                </label>
+                                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px; line-height: 1.4;">
+                                    Check this box to stop receiving daily task digest emails. You can re-enable them at any time.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div style="padding: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <span style="font-size: 16px;">💡</span>
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px; font-weight: 600;">About Email Digests</h4>
+                                <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.4;">
+                                    The daily digest email contains a summary of your tasks, including newly assigned tasks, upcoming deadlines, and overdue items. 
+                                    Digests are sent once per day based on your timezone settings.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div style="text-align: right;">
+                        <button type="submit" class="button" style="background: #3b82f6; border-color: #3b82f6; color: white; font-weight: 600; min-width: 120px;"
+                                {% if not global_enabled %}disabled{% endif %}>
+                            Save Settings
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Current Status -->
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 14px;">Current Status:</h4>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        {% if profile.digest_opt_out %}
+                            <span style="color: #dc2626;">❌</span>
+                            <span style="color: #dc2626; font-weight: 500;">You are opted out of digest emails</span>
+                        {% else %}
+                            <span style="color: #16a34a;">✅</span>
+                            <span style="color: #16a34a; font-weight: 500;">You will receive digest emails {% if not global_enabled %}(when enabled){% endif %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div style="text-align: center; margin-top: 24px;">
+            <a href="/api/portal/" class="button" style="background: #6b7280; border-color: #6b7280; color: white;">
+                ← Back to Portal
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Success/Error Messages -->
+<div id="messageContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1000; display: none;">
+    <div id="messageContent" style="padding: 12px 20px; border-radius: 8px; color: white; font-weight: 500; max-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>
+</div>
+
+<script>
+// Form submission handler
+document.getElementById('digestSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/api/digest/settings/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showMessage(data.message, 'success');
+            // Update current status display
+            updateStatusDisplay(data.opted_out);
+        } else {
+            showMessage(data.error || 'Failed to update settings', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('Network error occurred', 'error');
+    });
+});
+
+// Show message function
+function showMessage(message, type) {
+    const container = document.getElementById('messageContainer');
+    const content = document.getElementById('messageContent');
+    
+    content.textContent = message;
+    content.style.background = type === 'success' ? '#10b981' : '#ef4444';
+    
+    container.style.display = 'block';
+    
+    // Auto-hide after 4 seconds
+    setTimeout(() => {
+        container.style.display = 'none';
+    }, 4000);
+}
+
+// Update status display
+function updateStatusDisplay(optedOut) {
+    // This would update the status display, but for simplicity we'll just reload
+    // In a production app, you might want to update the DOM directly
+    setTimeout(() => {
+        window.location.reload();
+    }, 1500);
+}
+</script>
+{% endblock %}
