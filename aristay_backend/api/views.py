@@ -28,6 +28,7 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 from .decorators import staff_or_perm, perm_required, manager_required
+from .utils.json_utils import extract_conflicts_json
 from .authz import AuthzHelper, can_edit_task
 from .filters import TaskFilter
 from .system_metrics import get_system_metrics
@@ -1785,11 +1786,8 @@ class ConflictReviewView(LoginRequiredMixin, View):
         try:
             import_log = BookingImportLog.objects.get(id=import_session_id)
             
-            # Extract conflicts data from import log
-            conflicts_data = []
-            if "CONFLICTS_DATA:" in import_log.errors_log:
-                conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
-                conflicts_data = json.loads(conflicts_json)
+            # Extract conflicts data from import log using utility function
+            conflicts_data = extract_conflicts_json(import_log.errors_log)
             
             context = {
                 'import_log': import_log,
@@ -1848,11 +1846,8 @@ def get_conflict_details(request, import_session_id):
     try:
         import_log = BookingImportLog.objects.get(id=import_session_id)
         
-        # Extract conflicts data
-        conflicts_data = []
-        if "CONFLICTS_DATA:" in import_log.errors_log:
-            conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
-            conflicts_data = json.loads(conflicts_json)
+        # Extract conflicts data with robust JSON parsing using utility function
+        conflicts_data = extract_conflicts_json(import_log.errors_log)
         
         return JsonResponse({
             'success': True,

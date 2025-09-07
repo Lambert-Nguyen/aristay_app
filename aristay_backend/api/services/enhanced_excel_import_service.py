@@ -26,6 +26,7 @@ from api.models import (
 # Import base ExcelImportService from backup for inheritance
 from .excel_import_service_backup import ExcelImportService
 from .excel_file_utils import validate_excel_file, sha256_bytes
+from ..utils.json_utils import extract_conflicts_json
 
 logger = logging.getLogger(__name__)
 
@@ -952,11 +953,8 @@ class ConflictResolutionService:
                 'errors': []
             }
             
-            # Extract conflicts from import log
-            conflicts_data = []
-            if "CONFLICTS_DATA:" in import_log.errors_log:
-                conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
-                conflicts_data = json.loads(conflicts_json)
+            # Extract conflicts from import log using utility function
+            conflicts_data = extract_conflicts_json(import_log.errors_log)
             
             for resolution in resolutions:
                 try:
