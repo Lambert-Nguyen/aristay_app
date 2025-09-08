@@ -60,7 +60,7 @@ def get_local_ip():
             s.close()
     return ip
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [get_local_ip()]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',') + [get_local_ip()]
 
 # Application definition
 
@@ -299,7 +299,12 @@ FRONTEND_URL = "http://localhost:3000"
 # ============================================================================
 # EMAIL CONFIGURATION (single source of truth)
 # ============================================================================
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Use console backend in development to print emails instead of sending
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost' if DEBUG else 'smtp.example.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '1025' if DEBUG else '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false' if DEBUG else 'true').lower() == 'true'
