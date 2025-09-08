@@ -126,15 +126,17 @@ class AutoTaskTemplate(models.Model):
         description = self.description_template.format(**context) if self.description_template else ""
         
         # Create task
-        task = Task.objects.create(
-            name=title,
-            description=description,
-            task_type=self.task_type,
+        task, created = Task.objects.get_or_create(
             booking=booking,
-            property=booking.property,
-            assigned_to=self.default_assignee,
-            due_date=due_date,
             created_by_template=self,
+            defaults={
+                'title': title,
+                'description': description,
+                'task_type': self.task_type,
+                'property_ref': booking.property,
+                'assigned_to': self.default_assignee,
+                'due_date': due_date,
+            }
         )
         
         return task

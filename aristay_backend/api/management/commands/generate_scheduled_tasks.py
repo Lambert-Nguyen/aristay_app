@@ -106,7 +106,7 @@ class Command(BaseCommand):
             task_type=schedule.task_type,
             title=task_title,
             description=task_description,
-            property=schedule.property_ref,
+            property_ref=schedule.property_ref,
             status='pending',
             created_by=schedule.created_by,
             assigned_to=schedule.default_assignee,

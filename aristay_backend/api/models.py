@@ -397,7 +397,7 @@ class Task(SoftDeleteMixin, models.Model):
             self.property_ref = self.booking.property
         # Agent's recommendation: Prevent cross-property task linking
         if self.booking_id and self.property_ref_id and self.booking.property_id != self.property_ref_id:
-            raise ValidationError("Task.property must match Task.booking.property")
+            raise ValidationError("Task.property_ref must match Task.booking.property")
 
 
     def __str__(self):

@@ -420,7 +420,7 @@ def my_tasks(request):
         tasks = tasks.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
-            Q(property__name__icontains=search)
+            Q(property_ref__name__icontains=search)
         )
     
     # Pagination
