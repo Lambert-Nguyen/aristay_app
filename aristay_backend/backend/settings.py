@@ -269,6 +269,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]    # so project-level static/ is on the path
+STATIC_ROOT = BASE_DIR / 'staticfiles'        # for collectstatic in production
 
 # === Add these for media uploads ===
 MEDIA_URL = '/media/'
