@@ -4,7 +4,7 @@ from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.urls import path
 from django.shortcuts import render, redirect
 from .models import (
-    Property, Task, Notification, Booking, PropertyOwnership, Profile,
+    Property, Task, Notification, Booking, PropertyOwnership, Profile, UserRole,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
@@ -156,8 +156,9 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         (None, {'fields': ('username', 'password')}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'groups'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) is set in the Profile section below.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -170,8 +171,9 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'groups'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) will be set via Profile after user creation.'
         }),
     )
 
@@ -194,11 +196,11 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         """Customize form for managers"""
         form = super().get_form(request, obj, **kwargs)
 
-        # Managers should not be able to modify is_staff or is_superuser
+        # Remove is_staff and is_superuser from form entirely (use Profile.role instead)
         if 'is_staff' in form.base_fields:
-            form.base_fields['is_staff'].disabled = True
+            del form.base_fields['is_staff']  
         if 'is_superuser' in form.base_fields:
-            form.base_fields['is_superuser'].disabled = True
+            del form.base_fields['is_superuser']
 
         # Only remove password change fields when EDITING existing users (obj exists)
         # For new users (obj is None), we need the password fields
@@ -217,6 +219,38 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         if hasattr(request, 'user') and request.user and not request.user.is_superuser:
             ro.append('username')
         return ro
+
+    def save_model(self, request, obj, form, change):
+        """Override save to handle Profile creation and role assignment"""
+        # Save the user first
+        super().save_model(request, obj, form, change)
+        
+        # Ensure user has a Profile with appropriate role
+        profile, created = Profile.objects.get_or_create(
+            user=obj,
+            defaults={
+                'role': UserRole.STAFF,  # Default new users to staff role
+                'timezone': 'America/New_York',
+            }
+        )
+        
+        # If this is a new user, log the creation
+        if not change:  # This is a new user
+            print(f"✅ Created new user '{obj.username}' with Profile role: {profile.role}")
+            
+    def save_formset(self, request, form, formset, change):
+        """Override to handle Profile inline saves"""
+        super().save_formset(request, form, formset, change)
+        
+        # After saving Profile inline, ensure is_staff is synced correctly
+        user = form.instance
+        if hasattr(user, 'profile') and user.profile:
+            # Set is_staff based on profile role (for Django admin access)
+            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
+            if user.is_staff != should_have_staff_access:
+                user.is_staff = should_have_staff_access
+                user.save(update_fields=['is_staff'])
+                print(f"✅ Synced is_staff={user.is_staff} for {user.username} (role: {user.profile.role})")
 
     def send_password_reset(self, request, queryset):
         """Trigger Django's password reset flow for selected users"""
