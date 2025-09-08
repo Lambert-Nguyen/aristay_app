@@ -244,6 +244,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Messages framework configuration
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
