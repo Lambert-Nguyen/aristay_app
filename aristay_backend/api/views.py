@@ -567,15 +567,12 @@ class TaskDetail(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
         instance = serializer.save(modified_by=self.request.user)
 
         changes = []
-        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type'):
             old_val = getattr(old, field)
             new_val = getattr(instance, field)
             if field == 'assigned_to':
                 old_val = old.assigned_to.username if old.assigned_to else None
                 new_val = instance.assigned_to.username if instance.assigned_to else None
-            if field == 'property':
-                old_val = old.property_ref.name if old.property_ref else None
-                new_val = instance.property_ref.name if instance.property_ref else None
 
             if old_val != new_val:
                 changes.append(
@@ -583,6 +580,16 @@ class TaskDetail(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
                     f"{self.request.user.username} changed {field} "
                     f"from '{old_val or ''}' to '{new_val or ''}'"
                 )
+
+        # Check property_ref changes separately  
+        old_prop = old.property_ref.name if old.property_ref else None
+        new_prop = instance.property_ref.name if instance.property_ref else None
+        if old_prop != new_prop:
+            changes.append(
+                f"{timezone.now().isoformat()}: "
+                f"{self.request.user.username} changed property "
+                f"from '{old_prop or ''}' to '{new_prop or ''}'"
+            )
 
         history = json.loads(old.history or '[]')
         history.extend(changes)
