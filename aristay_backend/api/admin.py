@@ -491,12 +491,13 @@ class AriStayUserAdmin(DjangoUserAdmin):
         if obj is None:
             return []
         return super().get_inline_instances(request, obj)
-    exclude = ('password',)  # hide hashed password from change form
-    list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined')
+
+    list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'password_status', 'last_login', 'date_joined')
 
     # Override Django's default fieldsets to avoid field conflicts
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
+        ('Password Status', {'fields': ('password_status_display',)}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
@@ -504,7 +505,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
-    
+
     # Add fieldsets for creating new users (includes password fields)
     add_fieldsets = (
         (None, {
@@ -518,6 +519,15 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
     )
 
+    def password_status(self, obj):
+        """Display password status in the admin list view"""
+        if obj.has_usable_password():
+            return mark_safe('<span style="color: green;">✓ Has Password</span>')
+        else:
+            return mark_safe('<span style="color: red;">✗ No Password</span>')
+    password_status.short_description = 'Password Status'
+    password_status.admin_order_field = 'password'
+
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
@@ -530,7 +540,19 @@ class AriStayUserAdmin(DjangoUserAdmin):
         if hasattr(request, 'user') and request.user and not request.user.is_superuser:
             readonly_fields.append('username')
 
+        # Always make password status readonly (it's a computed field)
+        if obj:  # Only for existing users
+            readonly_fields.append('password_status_display')
+
         return readonly_fields
+
+    def password_status_display(self, obj):
+        """Display password status in the change form"""
+        if obj.has_usable_password():
+            return mark_safe('<strong style="color: green;">✓ User has a password set</strong>')
+        else:
+            return mark_safe('<strong style="color: red;">✗ No password set</strong>')
+    password_status_display.short_description = 'Password Status'
 
     def get_form(self, request, obj=None, **kwargs):
         """Customize form fields based on user permissions"""
@@ -542,10 +564,10 @@ class AriStayUserAdmin(DjangoUserAdmin):
             # For new users (obj is None), we need the password fields
             if obj is not None:  # This is an edit form, not an add form
                 # Remove password fields for managers
-                if 'password1' in form.base_fields:
-                    del form.base_fields['password1']
-                if 'password2' in form.base_fields:
-                    del form.base_fields['password2']
+                if 'password1' in form.fields:
+                    del form.fields['password1']
+                if 'password2' in form.fields:
+                    del form.fields['password2']
 
         return form
 
@@ -751,10 +773,10 @@ class ManagerUserAdmin(AriStayUserAdmin):
         form = super().get_form(request, obj, **kwargs)
 
         # Managers should not be able to modify is_staff or is_superuser
-        if 'is_staff' in form.base_fields:
-            form.base_fields['is_staff'].disabled = True
-        if 'is_superuser' in form.base_fields:
-            form.base_fields['is_superuser'].disabled = True
+        if 'is_staff' in form.fields:
+            form.fields['is_staff'].disabled = True
+        if 'is_superuser' in form.fields:
+            form.fields['is_superuser'].disabled = True
 
         return form
 
