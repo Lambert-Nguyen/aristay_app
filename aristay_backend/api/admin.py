@@ -661,8 +661,9 @@ class AriStayUserAdmin(DjangoUserAdmin):
         ('Password Status', {'fields': ('password_status_display',)}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups', 'user_permissions'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -675,8 +676,9 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups', 'user_permissions'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) will be set via Profile after user creation. Django admin access will be automatically synced.'
         }),
     )
 
@@ -733,14 +735,53 @@ class AriStayUserAdmin(DjangoUserAdmin):
         return form
 
     def save_model(self, request, obj, form, change):
-        """Handle password changes and user creation"""
+        """Handle password changes and user creation with automatic Profile management"""
         # Handle password changes for superusers only
         if request.user.is_superuser:
             # Check if password fields were provided
             if form.cleaned_data.get('password1') and form.cleaned_data.get('password2'):
                 obj.set_password(form.cleaned_data['password1'])
 
+        # Save the user first
         super().save_model(request, obj, form, change)
+        
+        # Ensure user has a Profile with appropriate role
+        from .models import UserRole
+        profile, created = Profile.objects.get_or_create(
+            user=obj,
+            defaults={
+                'role': UserRole.STAFF,  # Default new users to staff role
+                'timezone': 'America/New_York',
+            }
+        )
+        
+        # If this is a new user, log the creation
+        if not change:  # This is a new user
+            print(f"✅ Admin created new user '{obj.username}' with Profile role: {profile.role}")
+            
+    def save_formset(self, request, form, formset, change):
+        """Override to handle Profile inline saves and sync is_staff/is_superuser"""
+        super().save_formset(request, form, formset, change)
+        
+        # After saving Profile inline, ensure is_staff/is_superuser are synced correctly
+        user = form.instance
+        if hasattr(user, 'profile') and user.profile:
+            from .models import UserRole
+            # Set is_staff and is_superuser based on profile role
+            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
+            should_have_superuser_access = user.profile.role == UserRole.SUPERUSER
+            
+            changed = False
+            if user.is_staff != should_have_staff_access:
+                user.is_staff = should_have_staff_access
+                changed = True
+            if user.is_superuser != should_have_superuser_access:
+                user.is_superuser = should_have_superuser_access
+                changed = True
+                
+            if changed:
+                user.save(update_fields=['is_staff', 'is_superuser'])
+                print(f"✅ Admin synced is_staff={user.is_staff}, is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
 
     def get_actions(self, request):
         """Customize actions based on user permissions"""
