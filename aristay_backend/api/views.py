@@ -225,7 +225,7 @@ class BookingViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [DynamicBookingPermissions]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
-    search_fields = ['guest_name', 'guest_contact', 'property__name']
+    search_fields = ['guest_name', 'guest_contact', 'property_ref__name']
     ordering_fields = ['check_in_date', 'check_out_date', 'status']
     ordering = ['-check_in_date']
 
@@ -946,8 +946,8 @@ def manager_charts_dashboard(request):
     # Get tasks by property
     tasks_by_property = (
         Task.objects
-        .select_related('property')
-        .values('property__name')
+        .select_related('property_ref')
+        .values('property_ref__name')
         .annotate(count=Count('id'))
         .order_by('-count')[:10]  # Top 10 properties
     )
@@ -1026,7 +1026,7 @@ def manager_charts_dashboard(request):
     property_data = []
     
     for item in tasks_by_property:
-        property_name = item['property__name'] or 'No Property'
+        property_name = item['property_ref__name'] or 'No Property'
         property_labels.append(property_name)
         property_data.append(item['count'])
     
@@ -1191,7 +1191,7 @@ def admin_charts_dashboard(request):
     property_data = []
     
     for item in tasks_by_property:
-        property_name = item['property__name'] or 'No Property'
+        property_name = item['property_ref__name'] or 'No Property'
         property_labels.append(property_name)
         property_data.append(item['count'])
     
