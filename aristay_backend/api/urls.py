@@ -62,7 +62,8 @@ from .staff_views import (
     staff_dashboard, cleaning_dashboard, maintenance_dashboard, laundry_dashboard,
     lawn_pool_dashboard, task_detail, update_checklist_response, my_tasks,
     inventory_lookup, log_inventory_transaction, lost_found_list,
-    upload_checklist_photo, set_task_status, task_counts_api
+    upload_checklist_photo, update_task_status_api, task_counts_api,
+    update_checklist_item, remove_checklist_photo, task_progress_api
 )
 
 from .monitoring import (
@@ -156,10 +157,14 @@ urlpatterns = [
     
     # Staff AJAX endpoints
     path('staff/checklist-response/<int:response_id>/update/', update_checklist_response, name='update-checklist-response'),
+    path('staff/checklist/<int:item_id>/update/', update_checklist_item, name='update-checklist-item'),
+    path('staff/checklist/photo/upload/', upload_checklist_photo, name='upload-checklist-photo'),
+    path('staff/checklist/photo/remove/', remove_checklist_photo, name='remove-checklist-photo'),
+    path('staff/tasks/<int:task_id>/status/', update_task_status_api, name='update-task-status'),
+    path('staff/tasks/<int:task_id>/progress/', task_progress_api, name='task-progress'),
     path('staff/inventory/transaction/', log_inventory_transaction, name='log-inventory-transaction'),
-    path('staff/checklist-photo/upload/', upload_checklist_photo, name='upload-checklist-photo'),
     path('staff/task-counts/', task_counts_api, name='staff-task-counts'),
-    path('tasks/<int:task_id>/set_status/', set_task_status, name='set-task-status'),
+    path('tasks/<int:task_id>/set_status/', update_task_status_api, name='set-task-status'),
     
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),

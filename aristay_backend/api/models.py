@@ -1150,6 +1150,21 @@ class TaskChecklist(models.Model):
         completed_required = self.responses.filter(item__is_required=True, is_completed=True).count()
         return int((completed_required / total_required) * 100)
     
+    @property
+    def total_items(self):
+        """Total number of checklist items."""
+        return self.responses.count()
+    
+    @property
+    def completed_items(self):
+        """Number of completed checklist items."""
+        return self.responses.filter(is_completed=True).count()
+    
+    @property
+    def remaining_items(self):
+        """Number of remaining checklist items."""
+        return self.total_items - self.completed_items
+    
     def __str__(self):
         return f"Checklist for {self.task.title}"
 

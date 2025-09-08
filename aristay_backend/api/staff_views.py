@@ -279,8 +279,15 @@ def task_detail(request, task_id):
     for response in responses:
         room = response.item.room_type or 'General'
         if room not in responses_by_room:
-            responses_by_room[room] = []
-        responses_by_room[room].append(response)
+            responses_by_room[room] = {
+                'responses': [],
+                'completed_count': 0,
+                'total_count': 0
+            }
+        responses_by_room[room]['responses'].append(response)
+        responses_by_room[room]['total_count'] += 1
+        if response.is_completed:
+            responses_by_room[room]['completed_count'] += 1
     
     context = {
         'task': task,
@@ -338,6 +345,54 @@ def update_checklist_response(request, response_id):
         })
         
     except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def update_checklist_item(request, item_id):
+    """Update a checklist item completion status via AJAX."""
+
+    try:
+        response = get_object_or_404(ChecklistResponse, id=item_id)
+
+        # Check permissions using centralized authorization
+        if not can_edit_task(request.user, response.checklist.task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+
+        data = json.loads(request.body)
+        completed = data.get('completed', False)
+
+        # Update response
+        response.is_completed = completed
+        if completed:
+            response.completed_at = timezone.now()
+            response.completed_by = request.user
+        else:
+            response.completed_at = None
+            response.completed_by = None
+
+        response.save()
+
+        # Calculate overall progress
+        checklist = response.checklist
+        total_items = checklist.responses.count()
+        completed_items = checklist.responses.filter(is_completed=True).count()
+        percentage = int((completed_items / total_items) * 100) if total_items > 0 else 0
+
+        return JsonResponse({
+            'success': True,
+            'completed': completed,
+            'completed_at': response.completed_at.isoformat() if response.completed_at else None,
+            'progress': {
+                'completed': completed_items,
+                'total': total_items,
+                'percentage': percentage
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating checklist item {item_id}: {str(e)}")
         return JsonResponse({'error': str(e)}, status=400)
 
 
@@ -548,13 +603,13 @@ def upload_checklist_photo(request):
     """Upload a photo for a checklist response."""
     
     try:
-        response_id = request.POST.get('response_id')
+        item_id = request.POST.get('item_id')
         photo = request.FILES.get('photo')
         
-        if not response_id or not photo:
-            return JsonResponse({'error': 'Missing response_id or photo'}, status=400)
+        if not item_id or not photo:
+            return JsonResponse({'error': 'Missing item_id or photo'}, status=400)
         
-        response = get_object_or_404(ChecklistResponse, id=response_id)
+        response = get_object_or_404(ChecklistResponse, id=item_id)
         
         # Check permissions using centralized authorization
         if not can_edit_task(request.user, response.checklist.task):
@@ -579,43 +634,111 @@ def upload_checklist_photo(request):
 
 @login_required
 @require_POST
-def set_task_status(request, task_id):
-    """Update a task's status."""
-    
-    logger.info(f"Task status update requested by user {request.user.username} for task {task_id}")
-    
+def remove_checklist_photo(request):
+    """Remove a photo from a checklist item."""
+
+    try:
+        data = json.loads(request.body)
+        item_id = data.get('item_id')
+        photo_url = data.get('photo_url')
+
+        if not item_id or not photo_url:
+            return JsonResponse({'error': 'Missing item_id or photo_url'}, status=400)
+
+        response = get_object_or_404(ChecklistResponse, id=item_id)
+
+        # Check permissions
+        if not can_edit_task(request.user, response.checklist.task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+
+        # Find and delete the photo
+        photo = get_object_or_404(
+            ChecklistPhoto,
+            response=response,
+            image__endswith=photo_url.split('/')[-1]
+        )
+        
+        # Delete the file
+        photo.image.delete(save=False)
+        photo.delete()
+
+        return JsonResponse({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error removing checklist photo: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def update_task_status_api(request, task_id):
+    """Update task status via AJAX."""
+
     try:
         task = get_object_or_404(Task, id=task_id)
-        old_status = task.status
-        
-        # Check permissions using centralized authorization
+
+        # Check permissions
         if not can_edit_task(request.user, task):
-            logger.warning(f"Permission denied for user {request.user.username} to update task {task_id}")
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        
+
         data = json.loads(request.body)
         new_status = data.get('status')
-        
-        logger.debug(f"Task {task_id} status change requested: {old_status} -> {new_status}")
-        
+
         if new_status not in [choice[0] for choice in Task.STATUS_CHOICES]:
-            logger.warning(f"Invalid status '{new_status}' requested for task {task_id}")
             return JsonResponse({'error': 'Invalid status'}, status=400)
-        
+
+        old_status = task.status
         task.status = new_status
         task.modified_by = request.user
         task.save()
-        
-        logger.info(f"Task {task_id} status updated successfully: {old_status} -> {new_status} by user {request.user.username}")
-        
+
+        logger.info(f"Task {task_id} status updated: {old_status} -> {new_status} by {request.user.username}")
+
         return JsonResponse({
             'success': True,
             'status': task.status,
             'status_display': task.get_status_display()
         })
-        
+
     except Exception as e:
-        logger.error(f"Error updating task {task_id} status by user {request.user.username}: {str(e)}", exc_info=True)
+        logger.error(f"Error updating task {task_id} status: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def task_progress_api(request, task_id):
+    """Get task progress information."""
+
+    try:
+        task = get_object_or_404(Task, id=task_id)
+
+        # Check permissions
+        if not can_view_task(request.user, task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+
+        # Get checklist progress
+        try:
+            checklist = task.checklist
+            total_items = checklist.responses.count()
+            completed_items = checklist.responses.filter(is_completed=True).count()
+            percentage = int((completed_items / total_items) * 100) if total_items > 0 else 0
+        except:
+            total_items = 0
+            completed_items = 0
+            percentage = 0
+
+        return JsonResponse({
+            'success': True,
+            'progress': {
+                'completed': completed_items,
+                'total': total_items,
+                'percentage': percentage,
+                'remaining': total_items - completed_items
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting task {task_id} progress: {str(e)}")
         return JsonResponse({'error': str(e)}, status=400)
 
 
