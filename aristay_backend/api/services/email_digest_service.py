@@ -47,7 +47,7 @@ class EmailDigestService:
             tasks = Task.objects.filter(
                 assigned_to=user,
                 modified_at__gte=utc_cutoff
-            ).select_related("property")
+            ).select_related("property_ref")
 
             if not tasks.exists():
                 continue
@@ -56,8 +56,8 @@ class EmailDigestService:
             grouped = defaultdict(lambda: defaultdict(list))
             print(f"[{user.email}] Tasks modified since cutoff ({utc_cutoff.isoformat()}):")
             for task in tasks:
-                print(f"- {task.title} | {task.status} | {task.property} | modified at {task.modified_at}")
-                prop = task.property.name if task.property else "Unassigned"
+                print(f"- {task.title} | {task.status} | {task.property_ref} | modified at {task.modified_at}")
+                prop = task.property_ref.name if task.property_ref else "Unassigned"
                 color = status_colors.get(task.status, '#333')
                 task.status_color = color
                 # Format relative due delta like "in 2 days" or "3 hours ago"

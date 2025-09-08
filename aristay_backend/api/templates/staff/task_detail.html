@@ -28,7 +28,7 @@
                 <div class="task-meta-grid">
                     <div class="meta-item">
                         <span class="meta-icon">🏠</span>
-                        <span class="meta-text">{{ task.property.name }}</span>
+                        <span class="meta-text">{{ task.property_ref.name }}</span>
                     </div>
                     {% if task.booking %}
                     <div class="meta-item">
@@ -67,18 +67,18 @@
             <div class="task-actions-section">
                 <!-- Quick Actions -->
                 <div class="quick-actions">
-                    <button class="btn-action start-task" onclick="startTask({{ task.id }})"
+                    <button class="btn-action start-task"
                             {% if task.status != 'pending' %}disabled{% endif %}>
                         ▶️ Start Task
                     </button>
-                    <button class="btn-action complete-task" onclick="completeTask({{ task.id }})"
+                    <button class="btn-action complete-task"
                             {% if task.status == 'completed' %}disabled{% endif %}>
                         ✅ Complete Task
                     </button>
-                    <button class="btn-action add-note" onclick="addNote()">
+                    <button class="btn-action add-note">
                         📝 Add Note
                     </button>
-                    <button class="btn-action share-task" onclick="shareTask()">
+                    <button class="btn-action share-task">
                         📤 Share
                     </button>
                 </div>
@@ -90,13 +90,13 @@
                         <span class="timer-text" id="timerText">00:00:00</span>
                     </div>
                     <div class="timer-controls">
-                        <button class="btn-timer" id="startTimerBtn" onclick="startTimer()">
+                        <button class="btn-timer" id="startTimerBtn">
                             ▶️ Start
                         </button>
-                        <button class="btn-timer" id="pauseTimerBtn" onclick="pauseTimer()" style="display: none;">
+                        <button class="btn-timer" id="pauseTimerBtn" style="display: none;">
                             ⏸️ Pause
                         </button>
-                        <button class="btn-timer" id="stopTimerBtn" onclick="stopTimer()" style="display: none;">
+                        <button class="btn-timer" id="stopTimerBtn" style="display: none;">
                             ⏹️ Stop
                         </button>
                     </div>
@@ -104,13 +104,13 @@
 
                 <!-- Navigation -->
                 <div class="navigation-actions">
-                    <button class="btn-nav" onclick="goToPreviousTask()">
+                    <button class="btn-nav prev-task">
                         ← Previous Task
                     </button>
-                    <button class="btn-nav" onclick="goToNextTask()">
+                    <button class="btn-nav next-task">
                         Next Task →
                     </button>
-                    <button class="btn-nav back-to-list" onclick="window.history.back()">
+                    <button class="btn-nav back-to-list">
                         📋 Back to List
                     </button>
                 </div>
@@ -203,8 +203,7 @@
                             <input type="checkbox"
                                    class="checklist-checkbox"
                                    data-response-id="{{ response.id }}"
-                                   {% if response.is_completed %}checked{% endif %}
-                                   onchange="updateChecklistItem(this)">
+                                   {% if response.is_completed %}checked{% endif %}>
                             {% else %}
                             <span class="checklist-status">
                                 {% if response.is_completed %}✅{% else %}⬜{% endif %}
@@ -240,7 +239,7 @@
                                 📷
                             </button>
                             {% endif %}
-                            <button class="btn-notes" onclick="toggleNotes({{ response.id }})">
+                            <button class="btn-notes">
                                 📝
                             </button>
                         </div>
@@ -289,9 +288,10 @@
                                 <div class="photo-item" data-photo-id="{{ photo.id }}">
                                     <img src="{{ photo.image.url }}"
                                          alt="Checklist photo"
-                                         onclick="openPhotoModal('{{ photo.image.url }}', {{ photo.id }})">
+                                         data-photo-url="{{ photo.image.url }}"
+                                         data-photo-id="{{ photo.id }}">
                                     {% if can_edit %}
-                                    <button class="btn-photo-remove" onclick="removePhoto({{ photo.id }}, {{ response.id }})">
+                                    <button class="btn-photo-remove" data-photo-id="{{ photo.id }}" data-response-id="{{ response.id }}">
                                         ×
                                     </button>
                                     {% endif %}
@@ -305,9 +305,8 @@
                                        id="photo-input-{{ response.id }}"
                                        accept="image/*"
                                        multiple
-                                       style="display: none;"
-                                       onchange="uploadPhotos({{ response.id }}, this)">
-                                <button type="button" class="btn-upload" onclick="document.getElementById('photo-input-{{ response.id }}').click()">
+                                       style="display: none;">
+                                <button type="button" class="btn-upload" data-response-id="{{ response.id }}">
                                     📷 Add Photos
                                     {% if response.item.item_type == 'photo_required' and not response.photos.all %}*{% endif %}
                                 </button>
@@ -358,7 +357,7 @@
             <div class="completion-message success">
                 🎉 All checklist items completed! You can now mark this task as complete.
             </div>
-            <button type="button" class="btn btn-success btn-lg" onclick="completeTask()">
+            <button type="button" class="btn btn-success btn-lg complete-task-btn">
                 ✅ Mark Task Complete
             </button>
             {% else %}
@@ -391,7 +390,7 @@
     <div class="card task-notes">
         <div class="notes-header">
             <h3>💬 Task Notes & Comments</h3>
-            <button class="btn-add-note" onclick="addNote()">➕ Add Note</button>
+            <button class="btn-add-note">➕ Add Note</button>
         </div>
         <div class="notes-list" id="notesList">
             <!-- Notes will be loaded dynamically -->
@@ -410,7 +409,7 @@
         <div class="modal-body">
             <img id="modalPhoto" src="" alt="Task photo">
             <div class="photo-actions">
-                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                <button class="btn btn-secondary modal-close-btn">Close</button>
             </div>
         </div>
     </div>
@@ -431,7 +430,7 @@
                     <textarea class="form-control notes-input" rows="6" placeholder="Add your notes here..."></textarea>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Notes</button>
                 </div>
             </form>
@@ -456,10 +455,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Task Timer Functionality
 function initializeTaskTimer() {
-    const timerDisplay = document.getElementById('timerDisplay');
-    const startBtn = document.getElementById('startTimer');
-    const pauseBtn = document.getElementById('pauseTimer');
-    const resetBtn = document.getElementById('resetTimer');
+    const timerDisplay = document.getElementById('timerText');
+    const startBtn = document.getElementById('startTimerBtn');
+    const pauseBtn = document.getElementById('pauseTimerBtn');
+    const resetBtn = document.getElementById('stopTimerBtn');
     const taskId = {{ task.id }};
 
     let timerInterval;
@@ -549,6 +548,11 @@ function initializeTaskTimer() {
 
     // Auto-save timer on page unload
     window.addEventListener('beforeunload', saveTimerState);
+
+    // Export timer functions globally for HTML onclick handlers
+    window.startTimer = startTimer;
+    window.pauseTimer = pauseTimer;
+    window.stopTimer = resetTimer; // stopTimer maps to resetTimer
 }
 
 // Checklist Management
@@ -579,14 +583,27 @@ function initializeChecklistManagement() {
     });
 }
 
-async function updateChecklistItem(itemId, completed) {
-    const item = document.querySelector(`[data-item-id="${itemId}"]`);
+async function updateChecklistItem(itemOrId, completed) {
+    let item, itemId;
+
+    // Handle both calling patterns: updateChecklistItem(this) and updateChecklistItem(id, completed)
+    if (typeof itemOrId === 'object' && itemOrId.nodeType === 1) {
+        // Called from HTML onchange with 'this'
+        item = itemOrId.closest('.checklist-item');
+        itemId = item.dataset.itemId;
+        completed = itemOrId.checked;
+    } else {
+        // Called from JavaScript with separate parameters
+        itemId = itemOrId;
+        item = document.querySelector(`[data-item-id="${itemId}"]`);
+    }
+
     if (!item) return;
 
     try {
         item.classList.add('loading');
 
-        const response = await fetch(`/api/staff/tasks/checklist/${itemId}/update/`, {
+        const response = await fetch(`/api/staff/checklist/${itemId}/update/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -647,15 +664,47 @@ function updateChecklistItemUI(item, data) {
 
 // Photo Management
 function initializePhotoManagement() {
-    const photoUploadInputs = document.querySelectorAll('.photo-upload-input');
+    const photoUploadInputs = document.querySelectorAll('[id^="photo-input-"]');
+    const photoUploadButtons = document.querySelectorAll('.btn-upload');
     const photoItems = document.querySelectorAll('.photo-item img');
 
     photoUploadInputs.forEach(input => {
         input.addEventListener('change', handlePhotoUpload);
     });
 
+    photoUploadButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const responseId = this.dataset.responseId;
+            const input = document.getElementById(`photo-input-${responseId}`);
+            if (input) {
+                input.click();
+            }
+        });
+    });
+
     photoItems.forEach(img => {
-        img.addEventListener('click', () => openPhotoViewer(img.src));
+        img.addEventListener('click', function() {
+            const photoUrl = this.dataset.photoUrl;
+            const photoId = this.dataset.photoId;
+            openPhotoModal(photoUrl, photoId);
+        });
+    });
+
+    // Photo removal buttons (including dynamically created ones)
+    const photoRemoveButtons = document.querySelectorAll('.btn-photo-remove');
+    photoRemoveButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const photoId = this.dataset.photoId;
+            const responseId = this.dataset.responseId;
+            const itemId = this.dataset.itemId;
+            const photoUrl = this.dataset.photoUrl;
+
+            if (photoId && responseId) {
+                removePhoto(photoId, responseId);
+            } else if (itemId && photoUrl) {
+                removePhoto(itemId, photoUrl);
+            }
+        });
     });
 }
 
@@ -682,7 +731,7 @@ async function handlePhotoUpload(event) {
     formData.append('item_id', itemId);
 
     try {
-        const response = await fetch('/api/staff/tasks/checklist/photo/upload/', {
+        const response = await fetch('/api/staff/checklist/photo/upload/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCsrfToken()
@@ -713,16 +762,23 @@ function addPhotoToItem(itemId, photoUrl) {
     const photoItem = document.createElement('div');
     photoItem.className = 'photo-item';
     photoItem.innerHTML = `
-        <img src="${photoUrl}" alt="Checklist photo" onclick="openPhotoViewer('${photoUrl}')">
-        <button class="btn-photo-remove" onclick="removePhoto('${itemId}', '${photoUrl}')">×</button>
+        <img src="${photoUrl}" alt="Checklist photo" data-photo-url="${photoUrl}">
+        <button class="btn-photo-remove" data-item-id="${itemId}" data-photo-url="${photoUrl}">×</button>
     `;
+
+    // Add event listeners to the dynamically created elements
+    const img = photoItem.querySelector('img');
+    const removeBtn = photoItem.querySelector('.btn-photo-remove');
+
+    img.addEventListener('click', () => openPhotoViewer(photoUrl));
+    removeBtn.addEventListener('click', () => removePhoto(itemId, photoUrl));
 
     photoGrid.appendChild(photoItem);
 }
 
 async function removePhoto(itemId, photoUrl) {
     try {
-        const response = await fetch('/api/staff/tasks/checklist/photo/remove/', {
+        const response = await fetch('/api/staff/checklist/photo/remove/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -749,16 +805,57 @@ async function removePhoto(itemId, photoUrl) {
 
 // Task Actions
 function initializeTaskActions() {
-    const startTaskBtn = document.getElementById('startTaskBtn');
-    const completeTaskBtn = document.getElementById('completeTaskBtn');
     const taskId = {{ task.id }};
 
-    if (startTaskBtn) {
-        startTaskBtn.addEventListener('click', () => updateTaskStatus(taskId, 'in_progress'));
+    // Attach event listeners to task action buttons
+    const startTaskBtn = document.querySelector('.btn-action.start-task');
+    const completeTaskBtn = document.querySelector('.btn-action.complete-task');
+    const addNoteBtn = document.querySelector('.btn-action.add-note');
+    const shareTaskBtn = document.querySelector('.btn-action.share-task');
+
+    if (startTaskBtn && !startTaskBtn.disabled) {
+        startTaskBtn.addEventListener('click', () => startTask(taskId));
     }
 
-    if (completeTaskBtn) {
-        completeTaskBtn.addEventListener('click', () => updateTaskStatus(taskId, 'completed'));
+    if (completeTaskBtn && !completeTaskBtn.disabled) {
+        completeTaskBtn.addEventListener('click', () => completeTask(taskId));
+    }
+
+    if (addNoteBtn) {
+        addNoteBtn.addEventListener('click', addNote);
+    }
+
+    if (shareTaskBtn) {
+        shareTaskBtn.addEventListener('click', shareTask);
+    }
+
+    // Navigation buttons
+    const prevTaskBtn = document.querySelector('.btn-nav.prev-task');
+    const nextTaskBtn = document.querySelector('.btn-nav.next-task');
+    const backToListBtn = document.querySelector('.btn-nav.back-to-list');
+
+    if (prevTaskBtn) {
+        prevTaskBtn.addEventListener('click', goToPreviousTask);
+    }
+
+    if (nextTaskBtn) {
+        nextTaskBtn.addEventListener('click', goToNextTask);
+    }
+
+    if (backToListBtn) {
+        backToListBtn.addEventListener('click', () => window.history.back());
+    }
+
+    // Additional task action buttons
+    const completeTaskBtnLarge = document.querySelector('.complete-task-btn');
+    const addNoteBtnLarge = document.querySelector('.btn-add-note');
+
+    if (completeTaskBtnLarge && !completeTaskBtnLarge.disabled) {
+        completeTaskBtnLarge.addEventListener('click', () => completeTask(taskId));
+    }
+
+    if (addNoteBtnLarge) {
+        addNoteBtnLarge.addEventListener('click', addNote);
     }
 }
 
@@ -820,7 +917,7 @@ function updateTaskStatusUI(data) {
 // Modal Handlers
 function initializeModalHandlers() {
     const modals = document.querySelectorAll('.photo-modal, .note-modal');
-    const closeButtons = document.querySelectorAll('.modal-close');
+    const closeButtons = document.querySelectorAll('.modal-close, .modal-close-btn');
 
     closeButtons.forEach(btn => {
         btn.addEventListener('click', closeModal);
@@ -1065,6 +1162,90 @@ document.head.insertAdjacentHTML('beforeend', notificationStyles);
 // Export functions for global access
 window.openPhotoViewer = openPhotoViewer;
 window.removePhoto = removePhoto;
+
+// Global functions for HTML onclick handlers
+window.startTask = function(taskId) {
+    updateTaskStatus(taskId, 'in_progress');
+};
+
+window.completeTask = function(taskId) {
+    updateTaskStatus(taskId, 'completed');
+};
+
+window.uploadPhotos = function(responseId, inputElement) {
+    handlePhotoUpload.call(inputElement, { target: inputElement });
+};
+
+window.addNote = function() {
+    const modal = document.getElementById('noteModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.shareTask = function() {
+    // Implement share functionality
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ task.title }}',
+            text: 'Check out this task: {{ task.title }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showNotification('Task link copied to clipboard', 'success');
+        });
+    }
+};
+
+window.goToPreviousTask = function() {
+    // Implement navigation to previous task
+    const prevBtn = document.querySelector('.btn-nav[onclick*="previous"]');
+    if (prevBtn && !prevBtn.disabled) {
+        // This would need to be implemented based on your task list logic
+        window.history.back();
+    }
+};
+
+window.goToNextTask = function() {
+    // Implement navigation to next task
+    const nextBtn = document.querySelector('.btn-nav[onclick*="next"]');
+    if (nextBtn && !nextBtn.disabled) {
+        // This would need to be implemented based on your task list logic
+        // For now, just show a message
+        showNotification('Next task navigation not implemented yet', 'info');
+    }
+};
+
+window.openPhotoManager = function(responseId) {
+    // Open photo upload modal for specific checklist item
+    const input = document.getElementById(`photo-input-${responseId}`);
+    if (input) {
+        input.click();
+    }
+};
+
+window.toggleNotes = function(responseId) {
+    // Toggle notes section for checklist item
+    const notesSection = document.querySelector(`[data-item-id="${responseId}"] .notes-section`);
+    if (notesSection) {
+        notesSection.style.display = notesSection.style.display === 'none' ? 'block' : 'none';
+    }
+};
+
+window.closeModal = function() {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.style.display = 'none';
+    });
+    document.body.style.overflow = 'auto';
+};
+
+// Export additional functions for global access
+window.openPhotoModal = openPhotoModal;
+window.updateChecklistItem = updateChecklistItem;
 </script>
 {% endblock %}
 

@@ -187,14 +187,14 @@ class TaskImageInline(admin.TabularInline):
     preview.short_description = 'Image Preview'
 
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
-    list_filter = ('status', 'task_type', 'created_at', 'property', 'booking', 'assigned_to')
+    list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
+    list_filter = ('status', 'task_type', 'created_at', 'property_ref', 'booking', 'assigned_to')
     search_fields = ('title', 'description')
     readonly_fields = ('created_at', 'modified_at', 'history', 'created_at_dual', 'modified_at_dual', 'due_date_dual')
     
     fieldsets = (
         (None, {
-            'fields': ('title', 'description', 'task_type', 'property', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
+            'fields': ('title', 'description', 'task_type', 'property_ref', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
         }),
         ('Tracking', {
             'fields': ('created_by', 'created_at_dual', 'modified_by', 'modified_at_dual', 'due_date_dual'),

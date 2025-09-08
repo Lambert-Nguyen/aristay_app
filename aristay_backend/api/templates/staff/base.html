@@ -577,6 +577,9 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- CSRF Token for AJAX requests -->
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+    
     <header class="header">
         <div class="header-content">
             <div class="logo">AriStay Staff Portal</div>
@@ -748,6 +751,7 @@
                 }
             });
         });
+    {% block extra_js %}{% endblock %}
     </script>
 </body>
 </html>

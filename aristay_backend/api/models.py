@@ -346,7 +346,7 @@ class Task(SoftDeleteMixin, models.Model):
     task_type    = models.CharField(max_length=20, choices=TASK_TYPE_CHOICES, default='cleaning')
     title        = models.CharField(max_length=200)
     description  = models.TextField(blank=True)
-    property     = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
+    property_ref = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
     booking      = models.ForeignKey('Booking', on_delete=models.SET_NULL, related_name='tasks', null=True, blank=True,
                                      help_text="Optional link to a booking window for property")
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -393,15 +393,15 @@ class Task(SoftDeleteMixin, models.Model):
 
     def clean(self):
         # Agent's improvement: Auto-set property from booking to reduce user error
-        if self.booking_id and not self.property_id:
-            self.property = self.booking.property
+        if self.booking_id and not self.property_ref_id:
+            self.property_ref = self.booking.property
         # Agent's recommendation: Prevent cross-property task linking
-        if self.booking_id and self.property_id and self.booking.property_id != self.property_id:
+        if self.booking_id and self.property_ref_id and self.booking.property_id != self.property_ref_id:
             raise ValidationError("Task.property must match Task.booking.property")
 
 
     def __str__(self):
-        prop_name = self.property.name if self.property else "No property"
+        prop_name = self.property_ref.name if self.property_ref else "No property"
         return f"{self.title} ({self.task_type}) - {prop_name}"
 
     def save(self, *args, **kwargs):
@@ -455,7 +455,22 @@ class Task(SoftDeleteMixin, models.Model):
                 self.history = json.dumps(hist)
 
         super().save(*args, **kwargs)
-    
+
+    @property
+    def is_overdue(self):
+        """Check if task is overdue."""
+        if not self.due_date:
+            return False
+        return self.due_date < timezone.now()
+
+    @property
+    def is_due_soon(self):
+        """Check if task is due within 24 hours."""
+        if not self.due_date:
+            return False
+        now = timezone.now()
+        return not self.is_overdue and (self.due_date - now).total_seconds() < 86400  # 24 hours
+
     class Meta:
         constraints = [
             # Prevent multiple tasks from the same template for the same booking (ignores soft-deleted)

@@ -77,7 +77,7 @@ def staff_dashboard(request):
     logger.debug(f"User {request.user.username} has {total_tasks} total tasks: {task_counts}")
     
     # Get recent tasks
-    recent_tasks = my_tasks.select_related('property', 'booking').order_by('-created_at')[:5]
+    recent_tasks = my_tasks.select_related('property_ref', 'booking').order_by('-created_at')[:5]
     
     # Get properties user has access to using centralized authorization
     from .authz import AuthzHelper
@@ -104,7 +104,7 @@ def cleaning_dashboard(request):
         assigned_to=request.user,
         task_type='cleaning',
         status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking').prefetch_related('checklist__responses')
+    ).select_related('property_ref', 'booking').prefetch_related('checklist__responses')
     
     # Get today's tasks
     today = timezone.now().date()
@@ -151,7 +151,7 @@ def maintenance_dashboard(request):
         assigned_to=request.user,
         task_type='maintenance',
         status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking')
+    ).select_related('property_ref', 'booking')
     
     # Get low-stock inventory items across properties
     low_stock_items = PropertyInventory.objects.filter(
@@ -194,7 +194,7 @@ def laundry_dashboard(request):
         assigned_to=request.user,
         task_type='laundry',
         status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking')
+    ).select_related('property_ref', 'booking')
     
     # Organize by workflow stage based on task status/progress
     pickup_tasks = assigned_tasks.filter(status='pending')
@@ -226,7 +226,7 @@ def lawn_pool_dashboard(request):
         assigned_to=request.user,
         task_type='lawn_pool',
         status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking')
+    ).select_related('property_ref', 'booking')
     
     # Get pool/spa inventory items
     pool_items = PropertyInventory.objects.filter(
@@ -236,7 +236,7 @@ def lawn_pool_dashboard(request):
     # Group tasks by property for route planning
     tasks_by_property = {}
     for task in assigned_tasks:
-        prop_name = task.property.name if task.property else 'Unassigned'
+        prop_name = task.property_ref.name if task.property_ref else 'Unassigned'
         if prop_name not in tasks_by_property:
             tasks_by_property[prop_name] = []
         tasks_by_property[prop_name].append(task)
@@ -257,7 +257,7 @@ def task_detail(request, task_id):
     """Detailed task view with checklist interface."""
     
     task = get_object_or_404(
-        Task.objects.select_related('property', 'booking', 'assigned_to'),
+        Task.objects.select_related('property_ref', 'booking', 'assigned_to'),
         id=task_id
     )
     
@@ -402,7 +402,7 @@ def my_tasks(request):
     
     tasks = Task.objects.filter(
         assigned_to=request.user
-    ).select_related('property', 'booking').order_by('-due_date')
+    ).select_related('property_ref', 'booking').order_by('-due_date')
     
     # Filter by status if provided
     status_filter = request.GET.get('status')

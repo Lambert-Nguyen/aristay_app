@@ -100,9 +100,9 @@ class PropertyAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     search_fields = ('name',)
 
 class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'created_at')
+    list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'created_at')
     search_fields = ('title', 'description')
-    list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
+    list_filter = ('status', 'task_type', 'created_at', 'property_ref', 'booking')
     
     # Override to use dynamic permissions for tasks
     def has_view_permission(self, request, obj=None):

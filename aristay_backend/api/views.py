@@ -441,7 +441,7 @@ def portal_booking_detail(request, property_id, pk):
 def portal_task_detail(request, task_id):
     """User-friendly task detail view for portal users."""
     
-    task = get_object_or_404(Task.objects.select_related('property', 'booking', 'assigned_to', 'created_by'), id=task_id)
+    task = get_object_or_404(Task.objects.select_related('property_ref', 'booking', 'assigned_to', 'created_by'), id=task_id)
     
     # Check permissions using centralized authorization
     if not AuthzHelper.can_view_task(request.user, task):
@@ -574,8 +574,8 @@ class TaskDetail(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
                 old_val = old.assigned_to.username if old.assigned_to else None
                 new_val = instance.assigned_to.username if instance.assigned_to else None
             if field == 'property':
-                old_val = old.property.name if old.property else None
-                new_val = instance.property.name if instance.property else None
+                old_val = old.property_ref.name if old.property_ref else None
+                new_val = instance.property_ref.name if instance.property_ref else None
 
             if old_val != new_val:
                 changes.append(
@@ -1123,8 +1123,8 @@ def admin_charts_dashboard(request):
     # Get tasks by property
     tasks_by_property = (
         Task.objects
-        .select_related('property')
-        .values('property__name')
+        .select_related('property_ref')
+        .values('property_ref__name')
         .annotate(count=Count('id'))
         .order_by('-count')[:10]  # Top 10 properties
     )
