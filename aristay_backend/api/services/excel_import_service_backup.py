@@ -23,7 +23,6 @@ from api.models import (
 )
 from .excel_file_utils import validate_excel_file, sha256_bytes
 
-# import openpyxl  # Moved to function level to avoid circular imports
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 import logging
