@@ -139,15 +139,39 @@ def send_test_notification_api(request):
         else:
             recipient = request.user
         
-        # Create test notification
-        verb, _ = NotificationVerb.objects.get_or_create(name="test")
+        # Create test notification - need a task for notifications
+        # Get or create a test task
+        from .models import Task, Property
+        try:
+            # Try to get any existing task for testing
+            test_task = Task.objects.first()
+            if not test_task:
+                # Create a simple test task if none exists
+                test_property = Property.objects.first()
+                if test_property:
+                    test_task = Task.objects.create(
+                        title="Test Notification Task",
+                        description="This is a test task for notifications",
+                        property_ref=test_property,
+                        status='pending'
+                    )
+        except Exception as e:
+            # If we can't create a task, we can't create a notification
+            return JsonResponse({
+                "success": False,
+                "error": f"Could not create test task: {str(e)}"
+            })
+        
+        if not test_task:
+            return JsonResponse({
+                "success": False,
+                "error": "No tasks available and couldn't create test task"
+            })
         
         notification = Notification.objects.create(
             recipient=recipient,
-            verb=verb,
-            description=message,
-            target_content_type=None,
-            target_object_id=None,
+            task=test_task,
+            verb=NotificationVerb.CREATED,  # Use a valid verb choice
         )
         
         return Response({
@@ -258,14 +282,39 @@ def notification_management_view(request):
                 else:
                     recipient = request.user
                 
-                verb, _ = NotificationVerb.objects.get_or_create(name="test")
+                # Create test notification - need a task for notifications
+                # Get or create a test task
+                from .models import Task, Property
+                try:
+                    # Try to get any existing task for testing
+                    test_task = Task.objects.first()
+                    if not test_task:
+                        # Create a simple test task if none exists
+                        test_property = Property.objects.first()
+                        if test_property:
+                            test_task = Task.objects.create(
+                                title="Test Notification Task",
+                                description="This is a test task for notifications",
+                                property_ref=test_property,
+                                status='pending'
+                            )
+                except Exception as e:
+                    # If we can't create a task, we can't create a notification
+                    return JsonResponse({
+                        "success": False,
+                        "error": f"Could not create test task: {str(e)}"
+                    })
+                
+                if not test_task:
+                    return JsonResponse({
+                        "success": False,
+                        "error": "No tasks available and couldn't create test task"
+                    })
                 
                 notification = Notification.objects.create(
                     recipient=recipient,
-                    verb=verb,
-                    description=message,
-                    target_content_type=None,
-                    target_object_id=None,
+                    task=test_task,
+                    verb=NotificationVerb.CREATED,  # Use a valid verb choice
                 )
                 
                 return JsonResponse({
@@ -288,9 +337,9 @@ def notification_management_view(request):
             try:
                 cutoff_date = timezone.now() - timedelta(days=days_old)
                 
-                query = Q(created_at__lt=cutoff_date)
+                query = Q(timestamp__lt=cutoff_date)
                 if read_only:
-                    query &= Q(is_read=True)
+                    query &= Q(read=True)
                 
                 old_notifications = Notification.objects.filter(query)
                 count = old_notifications.count()
@@ -314,14 +363,15 @@ def notification_management_view(request):
     # GET request - show management interface
     # Get stats for display
     total_notifications = Notification.objects.count()
-    unread_notifications = Notification.objects.filter(is_read=False).count()
+    unread_notifications = Notification.objects.filter(read=False).count()
     recent_notifications = Notification.objects.filter(
-        created_at__gte=timezone.now() - timedelta(days=7)
+        timestamp__gte=timezone.now() - timedelta(days=7)
     ).count()
     
-    # Get notification verbs
-    notification_verbs = NotificationVerb.objects.annotate(
-        notification_count=Count('notification')
+    # Get notification verb stats by counting actual notifications
+    from django.db import models
+    notification_verb_stats = Notification.objects.values('verb').annotate(
+        notification_count=models.Count('id')
     ).order_by('-notification_count')
     
     # Get list of users for test notifications
@@ -331,7 +381,7 @@ def notification_management_view(request):
         "total_notifications": total_notifications,
         "unread_notifications": unread_notifications,
         "recent_notifications": recent_notifications,
-        "notification_verbs": notification_verbs,
+        "notification_verb_stats": notification_verb_stats,
         "users": users,
         "page_title": "Notification Management"
     }

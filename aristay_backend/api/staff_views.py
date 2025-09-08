@@ -569,13 +569,13 @@ def lost_found_list(request):
                 # For regular staff, show items from properties where they have tasks
                 property_ids = Task.objects.filter(
                     assigned_to=request.user
-                ).values_list('property', flat=True).distinct()
+                ).values_list('property_ref', flat=True).distinct()
                 properties = Property.objects.filter(id__in=property_ids)
         except:
             # If no profile, only show properties with assigned tasks
             property_ids = Task.objects.filter(
                 assigned_to=request.user
-            ).values_list('property', flat=True).distinct()
+            ).values_list('property_ref', flat=True).distinct()
             properties = Property.objects.filter(id__in=property_ids)
     
     # Get lost & found items
