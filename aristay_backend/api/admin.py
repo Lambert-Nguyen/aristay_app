@@ -485,6 +485,12 @@ class AriStayUserAdmin(DjangoUserAdmin):
     - Staff: Limited access
     """
     inlines = [ProfileInline]
+
+    def get_inline_instances(self, request, obj=None):
+        # Only show ProfileInline for existing users (not when adding)
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
     exclude = ('password',)  # hide hashed password from change form
     list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined')
 
