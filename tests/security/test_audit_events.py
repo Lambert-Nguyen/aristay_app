@@ -12,7 +12,7 @@ def test_taskimage_audit_json_safe():
     User = get_user_model()
     u = User.objects.create_user("t", "t@example.com", "x")
     p = Property.objects.create(name="P", address="123")
-    t = Task.objects.create(title="T", property=p, created_by=u)
+    t = Task.objects.create(title="T", property_ref=p, created_by=u)
 
     # create
     dot = b"\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\x00\x00\x00\x00\x00!" \

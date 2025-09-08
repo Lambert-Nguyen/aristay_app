@@ -45,8 +45,8 @@ def main():
     # 2) TaskImage queryset constraint (scoped by task_pk)
     try:
         prop = Property.objects.create(name="Verify Prop", address="x")
-        task1 = Task.objects.create(title="t1", property=prop, assigned_to=user, status="pending")
-        task2 = Task.objects.create(title="t2", property=prop, assigned_to=user, status="pending")
+        task1 = Task.objects.create(title="t1", property_ref=prop, assigned_to=user, status="pending")
+        task2 = Task.objects.create(title="t2", property_ref=prop, assigned_to=user, status="pending")
         img1 = TaskImage.objects.create(task=task1, image="a.jpg", uploaded_by=user)
         img2 = TaskImage.objects.create(task=task2, image="b.jpg", uploaded_by=user)
 

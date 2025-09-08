@@ -46,7 +46,7 @@ class ProductionReadinessTestSuite(TestCase):
         )
         self.task = Task.objects.create(
             title='Test Task',
-            property=self.property,
+            property_ref=self.property,
             assigned_to=self.user,
             status='pending'
         )
@@ -80,7 +80,7 @@ class ProductionReadinessTestSuite(TestCase):
         # Create task images for different tasks
         task2 = Task.objects.create(
             title='Another Task',
-            property=self.property,
+            property_ref=self.property,
             assigned_to=self.user,
             status='pending'
         )
