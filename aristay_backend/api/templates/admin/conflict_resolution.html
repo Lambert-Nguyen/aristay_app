@@ -392,13 +392,13 @@ function updateProgress() {
 
 function resolveConflict(conflictIndex, action) {
     showLoading();
-    
+
     const resolutions = [{
         conflict_index: conflictIndex,
         action: action,
         apply_changes: ['guest_name', 'dates', 'status'] // Apply all changes for updates
     }];
-    
+
     fetch(`/api/resolve-conflicts/{{ import_session_id }}/`, {
         method: 'POST',
         headers: {
@@ -407,51 +407,76 @@ function resolveConflict(conflictIndex, action) {
         },
         body: JSON.stringify({ resolutions: resolutions })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
-        
+
         if (data.success) {
             // Show success status
             const statusDiv = document.getElementById(`status-${conflictIndex}`);
             statusDiv.style.display = 'block';
             statusDiv.innerHTML = `
-                <div style="padding: 10px; background-color: #d4edda; border-radius: 5px; margin-top: 10px;">
+                <div class="alert alert-success" role="alert">
+                    <i class="fas fa-check-circle"></i>
                     <strong>✓ Resolved:</strong> ${getActionDescription(action)}
-                    <br><small>Results: ${JSON.stringify(data.results)}</small>
+                    ${data.results ? `<br><small class="text-muted">Results: ${JSON.stringify(data.results)}</small>` : ''}
                 </div>
             `;
-            
+
             // Disable buttons for this conflict
             const conflictContainer = document.querySelector(`[data-conflict-index="${conflictIndex}"]`);
-            const buttons = conflictContainer.querySelectorAll('.btn');
-            buttons.forEach(btn => btn.disabled = true);
-            
+            if (conflictContainer) {
+                const buttons = conflictContainer.querySelectorAll('.btn');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.add('disabled');
+                });
+            }
+
             resolvedCount++;
             updateProgress();
-            
+
             // Check if all conflicts are resolved
             if (resolvedCount === totalConflicts) {
                 showCompletionMessage();
             }
         } else {
-            alert('Error resolving conflict: ' + data.error);
+            throw new Error(data.error || 'Unknown error occurred');
         }
     })
     .catch(error => {
         hideLoading();
         console.error('Error:', error);
-        alert('Failed to resolve conflict. Please try again.');
+
+        // Show user-friendly error message
+        const statusDiv = document.getElementById(`status-${conflictIndex}`);
+        if (statusDiv) {
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Error:</strong> Failed to resolve conflict. ${error.message}
+                    <br><small class="text-muted">Please try again or contact support if the problem persists.</small>
+                </div>
+            `;
+        } else {
+            alert(`Failed to resolve conflict: ${error.message}`);
+        }
     });
 }
 
 function resolveAllConflicts(action) {
-    if (!confirm(`Are you sure you want to ${getActionDescription(action)} for all conflicts?`)) {
+    if (!confirm(`Are you sure you want to ${getActionDescription(action)} for all conflicts? This action cannot be undone.`)) {
         return;
     }
-    
+
     showLoading();
-    
+
     const resolutions = [];
     for (let i = 0; i < totalConflicts; i++) {
         resolutions.push({
@@ -460,7 +485,7 @@ function resolveAllConflicts(action) {
             apply_changes: ['guest_name', 'dates', 'status']
         });
     }
-    
+
     fetch(`/api/resolve-conflicts/{{ import_session_id }}/`, {
         method: 'POST',
         headers: {
@@ -469,21 +494,63 @@ function resolveAllConflicts(action) {
         },
         body: JSON.stringify({ resolutions: resolutions })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         hideLoading();
-        
+
         if (data.success) {
-            alert(`All conflicts resolved! Results: ${JSON.stringify(data.results)}`);
-            location.reload(); // Refresh to show updated status
+            // Show success message
+            const summary = document.createElement('div');
+            summary.className = 'alert alert-success mt-4';
+            summary.setAttribute('role', 'alert');
+            summary.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <strong>Success!</strong> All conflicts resolved successfully!
+                ${data.results ? `<br><small class="text-muted">Results: ${JSON.stringify(data.results)}</small>` : ''}
+                <br><a href="/admin/api/bookingimportlog/" class="btn btn-sm btn-outline-success mt-2">Return to Import Logs</a>
+            `;
+
+            // Replace bulk actions with success message
+            const bulkActions = document.querySelector('.bulk-actions');
+            if (bulkActions) {
+                bulkActions.innerHTML = '';
+                bulkActions.appendChild(summary);
+            }
+
+            // Disable all individual conflict buttons
+            document.querySelectorAll('.conflict-container .btn').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('disabled');
+            });
+
         } else {
-            alert('Error resolving conflicts: ' + data.error);
+            throw new Error(data.error || 'Unknown error occurred');
         }
     })
     .catch(error => {
         hideLoading();
         console.error('Error:', error);
-        alert('Failed to resolve conflicts. Please try again.');
+
+        // Show error message
+        const bulkActions = document.querySelector('.bulk-actions');
+        if (bulkActions) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger mt-3';
+            errorDiv.setAttribute('role', 'alert');
+            errorDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Error:</strong> Failed to resolve all conflicts. ${error.message}
+                <br><small class="text-muted">Please try resolving conflicts individually or contact support.</small>
+            `;
+            bulkActions.appendChild(errorDiv);
+        } else {
+            alert(`Failed to resolve conflicts: ${error.message}`);
+        }
     });
 }
 

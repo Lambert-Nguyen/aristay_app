@@ -40,7 +40,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         # Add custom claims
         token['role'] = getattr(user.profile, 'role', 'viewer') if hasattr(user, 'profile') else 'viewer'
-        token['permissions'] = list(user.get_all_permissions())
+        token['permissions'] = list(user.profile.get_all_permissions()) if hasattr(user, 'profile') else []
         token['is_staff'] = user.is_staff
         token['is_superuser'] = user.is_superuser
         token['username'] = user.username
