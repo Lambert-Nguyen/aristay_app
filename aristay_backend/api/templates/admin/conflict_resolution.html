@@ -407,11 +407,21 @@ function resolveConflict(conflictIndex, action) {
         },
         body: JSON.stringify({ resolutions: resolutions })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    .then(async response => {
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = {};
         }
-        return response.json();
+        if (!response.ok) {
+            // Try to extract error message from JSON, fallback to status text
+            const errorMsg = data && data.error
+                ? data.error
+                : `HTTP ${response.status}: ${response.statusText}`;
+            throw new Error(errorMsg);
+        }
+        return data;
     })
     .then(data => {
         hideLoading();
