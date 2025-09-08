@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.urls import path
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from .models import (
     Property, Task, Notification, Booking, PropertyOwnership, Profile,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
@@ -16,12 +16,14 @@ class ManagerAdminSite(admin.AdminSite):
     site_title  = "AriStay Manager"
     index_title = "Management Console"
     index_template = 'manager_admin/index.html'
+    login_template = 'manager_admin/login.html'
     logout_template = None  # Use unified logout
     
     def logout(self, request, extra_context=None):
         """Override logout to redirect to unified logout"""
         from django.shortcuts import redirect
-        return redirect('unified_logout')
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect('/api/logout/')
 
     def has_permission(self, request):
         if not (request.user and request.user.is_authenticated and request.user.is_active):

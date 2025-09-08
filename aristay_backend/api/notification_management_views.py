@@ -348,11 +348,11 @@ def user_notification_settings_view(request):
     # For now, this is a simple view - can be expanded for notification preferences
     user_notifications = Notification.objects.filter(
         recipient=request.user
-    ).order_by('-created_at')[:20]
+    ).order_by('-timestamp')[:20]
     
     unread_count = Notification.objects.filter(
         recipient=request.user,
-        is_read=False
+        read=False
     ).count()
     
     context = {

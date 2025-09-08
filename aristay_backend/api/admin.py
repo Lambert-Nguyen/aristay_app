@@ -4,6 +4,10 @@ from django.shortcuts import render
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.db.models import Q, Count
+from django.contrib.admin import DateFieldListFilter
+from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
 from .models import (
     Property, Task, TaskImage, Notification, Booking, PropertyOwnership, Profile,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
@@ -14,6 +18,105 @@ from .models import (
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+
+
+class ConflictStatusFilter(admin.SimpleListFilter):
+    """Custom filter for booking conflicts"""
+    title = _('Conflict Status')
+    parameter_name = 'conflict_status'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('no_conflicts', _('No Conflicts')),
+            ('has_conflicts', _('Has Conflicts')),
+            ('critical', _('Critical Conflicts')),
+            ('high', _('High Priority')),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'no_conflicts':
+            # Bookings with no conflicts - this is tricky to filter efficiently
+            # For now, we'll show all and let the display method handle it
+            return queryset
+        elif self.value() == 'has_conflicts':
+            # This would require complex filtering, for now return all
+            return queryset
+        elif self.value() == 'critical':
+            # Filter bookings that might have critical conflicts
+            return queryset.filter(
+                Q(status__in=['booked', 'confirmed', 'currently_hosting'])
+            )
+        elif self.value() == 'high':
+            return queryset.filter(
+                Q(status__in=['booked', 'confirmed', 'currently_hosting'])
+            )
+        return queryset
+
+
+class DateRangeFilter(admin.SimpleListFilter):
+    """Custom filter for date ranges"""
+    title = _('Date Range')
+    parameter_name = 'date_range'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('today', _('Today')),
+            ('this_week', _('This Week')),
+            ('this_month', _('This Month')),
+            ('next_week', _('Next Week')),
+            ('next_month', _('Next Month')),
+        ]
+
+    def queryset(self, request, queryset):
+        from datetime import datetime, timedelta
+        from django.utils import timezone
+
+        now = timezone.now()
+        today = now.date()
+
+        if self.value() == 'today':
+            return queryset.filter(
+                Q(check_in_date__date=today) | Q(check_out_date__date=today)
+            )
+        elif self.value() == 'this_week':
+            week_start = today - timedelta(days=today.weekday())
+            week_end = week_start + timedelta(days=6)
+            return queryset.filter(
+                Q(check_in_date__date__range=[week_start, week_end]) |
+                Q(check_out_date__date__range=[week_start, week_end])
+            )
+        elif self.value() == 'this_month':
+            month_start = today.replace(day=1)
+            next_month = month_start.replace(month=month_start.month % 12 + 1, day=1)
+            month_end = next_month - timedelta(days=1)
+            return queryset.filter(
+                Q(check_in_date__date__range=[month_start, month_end]) |
+                Q(check_out_date__date__range=[month_start, month_end])
+            )
+        elif self.value() == 'next_week':
+            next_week_start = today + timedelta(days=7 - today.weekday())
+            next_week_end = next_week_start + timedelta(days=6)
+            return queryset.filter(
+                Q(check_in_date__date__range=[next_week_start, next_week_end]) |
+                Q(check_out_date__date__range=[next_week_start, next_week_end])
+            )
+        elif self.value() == 'next_month':
+            if today.month == 12:
+                next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month_start = today.replace(month=today.month + 1, day=1)
+            # Calculate the first day of the month after next_month_start
+            if next_month_start.month == 12:
+                first_day_after = next_month_start.replace(year=next_month_start.year + 1, month=1, day=1)
+            else:
+                first_day_after = next_month_start.replace(month=next_month_start.month + 1, day=1)
+            next_month_end = first_day_after - timedelta(days=1)
+            return queryset.filter(
+                Q(check_in_date__date__range=[next_month_start, next_month_end]) |
+                Q(check_out_date__date__range=[next_month_start, next_month_end])
+            )
+        return queryset
+
 
 class CustomAdminSite(admin.AdminSite):
     site_header = "AriStay Administration"
@@ -246,13 +349,42 @@ class PropertyAdmin(admin.ModelAdmin):
         
 class BookingAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'property', 'external_code_display', 'booked_on_display', 'source_display', 
-        'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact', 
-        'conflict_flag_display'
+        'id', 'property', 'external_code_display', 'booked_on_display', 'source_display',
+        'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact',
+        'conflict_status_display', 'conflict_count_display'
     )
-    list_filter = ('status', 'check_in_date', 'check_out_date', 'property', 'source', 'same_day_flag')
+    list_filter = (
+        'status', 'source', 'property',
+        ('check_in_date', admin.DateFieldListFilter),
+        ('check_out_date', admin.DateFieldListFilter),
+        'same_day_flag', 'created_at', 'modified_at',
+        ConflictStatusFilter,  # Custom filter for conflicts
+        DateRangeFilter,  # Custom date range filter
+    )
     search_fields = ('property__name', 'guest_name', 'guest_contact', 'external_code', 'source')
     readonly_fields = ('created_at', 'modified_at', 'history', 'check_in_dual', 'check_out_dual', 'created_at_dual', 'modified_at_dual')
+    list_per_page = 25
+    actions = ['resolve_conflicts', 'mark_as_reviewed']
+    
+    def resolve_conflicts(self, request, queryset):
+        """Admin action to mark selected bookings as conflict-resolved"""
+        updated = queryset.update(conflict_resolved=True)
+        self.message_user(
+            request,
+            f'Successfully marked {updated} booking(s) as conflict resolved.',
+            messages.SUCCESS
+        )
+    resolve_conflicts.short_description = "Mark selected bookings as conflict resolved"
+    
+    def mark_as_reviewed(self, request, queryset):
+        """Admin action to mark selected bookings as reviewed"""
+        updated = queryset.update(reviewed=True)
+        self.message_user(
+            request,
+            f'Successfully marked {updated} booking(s) as reviewed.',
+            messages.SUCCESS
+        )
+    mark_as_reviewed.short_description = "Mark selected bookings as reviewed"
     
     fieldsets = (
         (None, {
@@ -313,21 +445,50 @@ class BookingAdmin(admin.ModelAdmin):
     source_display.short_description = 'Booking Source'
     source_display.admin_order_field = 'source'
     
-    def conflict_flag_display(self, obj):
-        """Display conflict flag with details"""
-        flag = obj.get_conflict_flag()
-        details = obj.get_conflict_details()
+    def conflict_status_display(self, obj):
+        """Display conflict status with clear visual indicators"""
+        conflicts = obj.check_conflicts()
+        if not conflicts:
+            return mark_safe('<span style="color: #28a745; font-weight: bold;">✅ No Conflicts</span>')
         
-        # Add tooltip with conflict details
-        if "No conflicts" in flag:
-            return mark_safe(f'<span style="color: green;" title="{details}">{flag}</span>')
-        elif "Critical" in flag:
-            return mark_safe(f'<span style="color: red; font-weight: bold;" title="{details}">{flag}</span>')
-        elif "High" in flag:
-            return mark_safe(f'<span style="color: orange; font-weight: bold;" title="{details}">{flag}</span>')
+        conflict_count = len(conflicts)
+        critical_count = len([c for c in conflicts if c['severity'] == 'critical'])
+        high_count = len([c for c in conflicts if c['severity'] == 'high'])
+        
+        if critical_count > 0:
+            return mark_safe(f'<span style="color: #dc3545; font-weight: bold;" title="Critical conflicts require immediate attention">🚨 {critical_count} Critical</span>')
+        elif high_count > 0:
+            return mark_safe(f'<span style="color: #ffc107; font-weight: bold;" title="High priority conflicts need review">⚠️ {high_count} High Priority</span>')
         else:
-            return mark_safe(f'<span style="color: #ffc107; font-weight: bold;" title="{details}">{flag}</span>')
-    conflict_flag_display.short_description = 'Conflicts'
+            return mark_safe(f'<span style="color: #17a2b8; font-weight: bold;" title="Minor conflicts detected">ℹ️ {conflict_count} Minor</span>')
+    conflict_status_display.short_description = 'Conflict Status'
+    
+    def conflict_count_display(self, obj):
+        """Display conflict count with quick action button"""
+        conflicts = obj.check_conflicts()
+        if not conflicts:
+            return mark_safe('<span style="color: #6c757d;">0</span>')
+        
+        conflict_count = len(conflicts)
+        critical_count = len([c for c in conflicts if c['severity'] == 'critical'])
+        
+        # Create a button to view conflict details
+        button_html = f'''
+        <button type="button" 
+                onclick="window.open('/admin/api/booking/{obj.id}/change/', '_blank')" 
+                style="background: {'#dc3545' if critical_count > 0 else '#ffc107'}; 
+                       color: white; 
+                       border: none; 
+                       padding: 2px 6px; 
+                       border-radius: 3px; 
+                       cursor: pointer; 
+                       font-size: 11px;"
+                title="Click to view booking details and resolve conflicts">
+            {conflict_count}
+        </button>
+        '''
+        return mark_safe(button_html)
+    conflict_count_display.short_description = 'Conflicts'
     
     def check_in_display(self, obj):
         """Display check-in time in Tampa timezone"""
@@ -485,12 +646,19 @@ class AriStayUserAdmin(DjangoUserAdmin):
     - Staff: Limited access
     """
     inlines = [ProfileInline]
-    exclude = ('password',)  # hide hashed password from change form
-    list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined')
+
+    def get_inline_instances(self, request, obj=None):
+        # Only show ProfileInline for existing users (not when adding)
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
+
+    list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'password_status', 'last_login', 'date_joined')
 
     # Override Django's default fieldsets to avoid field conflicts
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
+        ('Password Status', {'fields': ('password_status_display',)}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
@@ -498,7 +666,7 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
-    
+
     # Add fieldsets for creating new users (includes password fields)
     add_fieldsets = (
         (None, {
@@ -512,6 +680,15 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
     )
 
+    def password_status(self, obj):
+        """Display password status in the admin list view"""
+        if obj.has_usable_password():
+            return mark_safe('<span style="color: green;">✓ Has Password</span>')
+        else:
+            return mark_safe('<span style="color: red;">✗ No Password</span>')
+    password_status.short_description = 'Password Status'
+    password_status.admin_order_field = 'password'
+
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
@@ -524,7 +701,19 @@ class AriStayUserAdmin(DjangoUserAdmin):
         if hasattr(request, 'user') and request.user and not request.user.is_superuser:
             readonly_fields.append('username')
 
+        # Always make password status readonly (it's a computed field)
+        if obj:  # Only for existing users
+            readonly_fields.append('password_status_display')
+
         return readonly_fields
+
+    def password_status_display(self, obj):
+        """Display password status in the change form"""
+        if obj.has_usable_password():
+            return mark_safe('<strong style="color: green;">✓ User has a password set</strong>')
+        else:
+            return mark_safe('<strong style="color: red;">✗ No password set</strong>')
+    password_status_display.short_description = 'Password Status'
 
     def get_form(self, request, obj=None, **kwargs):
         """Customize form fields based on user permissions"""
@@ -536,10 +725,10 @@ class AriStayUserAdmin(DjangoUserAdmin):
             # For new users (obj is None), we need the password fields
             if obj is not None:  # This is an edit form, not an add form
                 # Remove password fields for managers
-                if 'password1' in form.base_fields:
-                    del form.base_fields['password1']
-                if 'password2' in form.base_fields:
-                    del form.base_fields['password2']
+                if 'password1' in form.fields:
+                    del form.fields['password1']
+                if 'password2' in form.fields:
+                    del form.fields['password2']
 
         return form
 
@@ -745,10 +934,10 @@ class ManagerUserAdmin(AriStayUserAdmin):
         form = super().get_form(request, obj, **kwargs)
 
         # Managers should not be able to modify is_staff or is_superuser
-        if 'is_staff' in form.base_fields:
-            form.base_fields['is_staff'].disabled = True
-        if 'is_superuser' in form.base_fields:
-            form.base_fields['is_superuser'].disabled = True
+        if 'is_staff' in form.fields:
+            form.fields['is_staff'].disabled = True
+        if 'is_superuser' in form.fields:
+            form.fields['is_superuser'].disabled = True
 
         return form
 

@@ -1,6 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
+from .auth_views import logout_view
+
 from .views import (
     AdminUserCreateView,
     CurrentUserView,
@@ -85,6 +87,7 @@ router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-register'),
+    path('logout/', logout_view, name='api-logout'),
     path('', include(router.urls)),
     
     # Mobile-optimized endpoints
@@ -205,4 +208,7 @@ urlpatterns = [
     path('notifications/cleanup/', cleanup_notifications_api, name='cleanup-notifications-api'),
     path('admin/notification-management/', notification_management_view, name='admin-notification-management'),
     path('notifications/settings/', user_notification_settings_view, name='user-notification-settings'),
+    
+    # Logout endpoint
+    path('logout/', logout_view, name='logout'),
 ]

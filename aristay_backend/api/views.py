@@ -28,17 +28,21 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 from .decorators import staff_or_perm, perm_required, manager_required
+from .utils.json_utils import extract_conflicts_json
 from .authz import AuthzHelper, can_edit_task
 from .filters import TaskFilter
 from .system_metrics import get_system_metrics
 
 from rest_framework import generics, permissions, viewsets, filters
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
+from rest_framework.views import exception_handler
+from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers
 
@@ -76,13 +80,13 @@ class TaskViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [DynamicTaskPermissions, IsOwnerOrAssignedOrReadOnly]
-   
+
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
     # free-text search on title/description
     search_fields   = ['title', 'description']
     # use our custom FilterSet
     filterset_class = TaskFilter
-    
+
     # Allow clients to order by these model fields:
     ordering_fields = [
         'due_date',
@@ -92,6 +96,9 @@ class TaskViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
         'title',
     ]
     ordering        = ['due_date']
+
+    # Add pagination for better performance
+    pagination_class = PageNumberPagination
 
     def get_queryset(self):
         """Filter queryset based on user permissions"""
@@ -221,6 +228,9 @@ class BookingViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     search_fields = ['guest_name', 'guest_contact', 'property__name']
     ordering_fields = ['check_in_date', 'check_out_date', 'status']
     ordering = ['-check_in_date']
+
+    # Add pagination for better performance
+    pagination_class = PageNumberPagination
 
     def get_queryset(self):
         """Filter queryset based on user permissions"""
@@ -1785,11 +1795,8 @@ class ConflictReviewView(LoginRequiredMixin, View):
         try:
             import_log = BookingImportLog.objects.get(id=import_session_id)
             
-            # Extract conflicts data from import log
-            conflicts_data = []
-            if "CONFLICTS_DATA:" in import_log.errors_log:
-                conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
-                conflicts_data = json.loads(conflicts_json)
+            # Extract conflicts data from import log using utility function
+            conflicts_data = extract_conflicts_json(import_log.errors_log)
             
             context = {
                 'import_log': import_log,
@@ -1848,11 +1855,8 @@ def get_conflict_details(request, import_session_id):
     try:
         import_log = BookingImportLog.objects.get(id=import_session_id)
         
-        # Extract conflicts data
-        conflicts_data = []
-        if "CONFLICTS_DATA:" in import_log.errors_log:
-            conflicts_json = import_log.errors_log.split("CONFLICTS_DATA:")[1]
-            conflicts_data = json.loads(conflicts_json)
+        # Extract conflicts data with robust JSON parsing using utility function
+        conflicts_data = extract_conflicts_json(import_log.errors_log)
         
         return JsonResponse({
             'success': True,
@@ -2706,3 +2710,27 @@ def file_cleanup_page(request):
         'title': 'Excel Import File Cleanup',
         'user': request.user
     })
+
+
+# Custom exception handler for better error responses
+def custom_exception_handler(exc, context):
+    """
+    Custom exception handler for better error responses
+    """
+    # Call REST framework's default exception handler first
+    response = exception_handler(exc, context)
+
+    if response is not None:
+        # Add more detailed error information
+        response.data['error_code'] = getattr(exc, 'code', 'unknown_error')
+        response.data['timestamp'] = timezone.now().isoformat()
+
+        # Log the error for debugging
+        logger.error(f"API Error: {exc.__class__.__name__}: {str(exc)}", extra={
+            'user': getattr(context.get('request'), 'user', None),
+            'view': context.get('view', {}).get('__class__', {}).get('__name__'),
+            'method': getattr(context.get('request'), 'method', None),
+            'path': getattr(context.get('request'), 'path', None),
+        })
+
+    return response

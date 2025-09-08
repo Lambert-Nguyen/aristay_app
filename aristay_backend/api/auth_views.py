@@ -59,7 +59,15 @@ class UnifiedLoginView(LoginView):
         if next_url and self._is_safe_url(next_url):
             return next_url
         
-        # Priority 2: Route ALL authenticated users to portal home screen
+        # Priority 2: Check if user has manager portal access and redirect to manager admin
+        try:
+            if (hasattr(user, 'profile') and user.profile and 
+                user.profile.has_permission('manager_portal_access')):
+                return '/manager/'
+        except:
+            pass
+        
+        # Priority 3: Route ALL other authenticated users to portal home screen
         # The portal will handle role-based access control and navigation
         return '/api/portal/'
     
