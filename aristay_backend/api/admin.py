@@ -101,8 +101,16 @@ class DateRangeFilter(admin.SimpleListFilter):
                 Q(check_out_date__date__range=[next_week_start, next_week_end])
             )
         elif self.value() == 'next_month':
-            next_month_start = today.replace(month=today.month % 12 + 1, day=1)
-            next_month_end = next_month_start.replace(month=next_month_start.month % 12 + 1, day=1) - timedelta(days=1)
+            if today.month == 12:
+                next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month_start = today.replace(month=today.month + 1, day=1)
+            # Calculate the first day of the month after next_month_start
+            if next_month_start.month == 12:
+                first_day_after = next_month_start.replace(year=next_month_start.year + 1, month=1, day=1)
+            else:
+                first_day_after = next_month_start.replace(month=next_month_start.month + 1, day=1)
+            next_month_end = first_day_after - timedelta(days=1)
             return queryset.filter(
                 Q(check_in_date__date__range=[next_month_start, next_month_end]) |
                 Q(check_out_date__date__range=[next_month_start, next_month_end])
