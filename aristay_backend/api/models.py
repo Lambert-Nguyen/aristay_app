@@ -1939,7 +1939,7 @@ class AutoTaskTemplate(models.Model):
                     'title': title,
                     'description': description,
                     'task_type': self.task_type,
-                    'property': booking.property,
+                    'property_ref': booking.property,
                     'assigned_to': self.default_assignee,
                     'due_date': due_date,
                 },
