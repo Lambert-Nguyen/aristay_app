@@ -1,0 +1,55 @@
+asgiref==3.8.1
+cachetools==5.5.2
+certifi==2025.7.14
+charset-normalizer==3.4.2
+cloudinary==1.41.0
+Django==5.1.10
+django-cloudinary-storage==0.3.0
+django-crontab==0.7.1
+django-environ==0.12.0
+django-filter==25.1
+djangorestframework==3.16.0
+google-auth==2.40.3
+idna==3.10
+pillow==11.3.0
+pillow-heif>=0.10.1  # Support for HEIC/HEIF images (iPhone photos)
+pyasn1==0.6.1
+pyasn1_modules==0.4.2
+pytz==2025.2
+python-dateutil==2.9.0.post0
+requests==2.32.4
+rsa==4.9.1
+sqlparse==0.5.3
+urllib3==2.5.0
+django-cors-headers==4.3.1
+pytest==7.0.0
+pytest-django==4.5.2
+numpy>=1.26.0,<2.4.0
+pandas>=2.2.0,<2.4.0
+openpyxl==3.0.10
+drf-spectacular==0.26.4  # OpenAPI 3 documentation
+
+# JWT Authentication and Security
+djangorestframework-simplejwt==5.5.1
+cryptography==45.0.7
+django-axes==8.0.0
+django-ipware==7.0.1
+django-ratelimit>=4.1.0,<5.0.0
+
+# Production logging and monitoring dependencies
+sentry-sdk[django]==2.35.1
+psutil==7.0.0
+
+# Production dependencies
+psycopg2-binary==2.9.10
+redis>=5.0.0
+django-redis>=5.0.0
+gunicorn==23.0.0
+whitenoise==6.8.2
+dj-database-url==2.3.0
+
+# .env loader for local/dev convenience
+python-dotenv==1.0.1
+
+# Development tools
+django-extensions>=3.2.0  # For show_urls and other dev commands
