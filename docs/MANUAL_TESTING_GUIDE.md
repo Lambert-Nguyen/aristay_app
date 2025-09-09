@@ -69,6 +69,7 @@ python manage.py runserver
 
 ### **Scenario 2: Manager Workflow**
 1. **Login**: `manager_alice` / `manager123` → http://localhost:8000/manager/
+   - ✅ **Fixed**: Manager dashboard access now works (required `manager_portal_access` permission granted)
 2. **Test Property Management**:
    - View dashboard with 4 properties
    - Check upcoming bookings (John & Sarah, Maria, Johnson Family)

@@ -32,7 +32,13 @@
 - **Fixed**: Portal notification access exceptions
 - **Root Cause**: Incorrect field references in notification models/views
 
-### **4. Database Field Naming Consistency**
+### **4. Test Data Role System Correction**
+- **Fixed**: Test data creation using legacy Django `is_staff`/`is_superuser` instead of Aristay's `Profile.role` system
+- **Root Cause**: Mixed usage of Django built-in permissions vs. Aristay's profile-based role system
+- **Solution**: Updated test data generation to use `UserRole` enum with automatic Django permission sync
+- **Impact**: Test users now properly reflect Aristay's intended role-based access control architecture
+
+### **5. Database Field Naming Consistency**
 **Established Pattern Understanding:**
 - **Booking/PropertyOwnership models**: Use `property` field (legacy, avoiding Python builtin conflicts)
 - **Task/newer models**: Use `property_ref` field (Migration 0058 rename for clarity)
@@ -45,12 +51,14 @@
 ### **Django Management Command Created:**
 - **Location**: `aristay_backend/api/management/commands/create_test_data.py`
 - **Usage**: `python manage.py create_test_data`
+- **Fixed**: Now uses proper Aristay `Profile.role` system instead of legacy `is_staff`
+- **Auto-Sync**: Django permissions automatically synced based on Profile role
 
-### **Comprehensive Test Users:**
-- **Superuser**: `admin_super` / `admin123` (full system access)
-- **Manager**: `manager_alice` / `manager123` (property management)
-- **Staff**: `staff_bob` / `staff123` (cleaning tasks)
-- **Crew**: `crew_charlie`, `crew_diana`, `crew_eve` / `crew123` (specialized tasks)
+### **Comprehensive Test Users (Corrected Role System):**
+- **Superuser**: `admin_super` / `admin123` (Profile: `UserRole.SUPERUSER`, Django: `is_staff=True, is_superuser=True`)
+- **Manager**: `manager_alice` / `manager123` (Profile: `UserRole.MANAGER`, Django: `is_staff=True, is_superuser=False`)
+- **Staff**: `staff_bob` / `staff123` (Profile: `UserRole.STAFF`, Django: `is_staff=False, is_superuser=False`)
+- **Crew**: `crew_charlie`, `crew_diana`, `crew_eve` / `crew123` (Profile: `UserRole.STAFF`, Django: `is_staff=False, is_superuser=False`)
 
 ### **Realistic Test Data:**
 - **4 Properties**: Sunset Villa, Downtown Loft, Mountain Cabin, City Condo

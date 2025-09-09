@@ -2,10 +2,13 @@
 
 ## 🔐 **User Types & Access Patterns**
 
+> **Note**: Aristay uses a Profile-based role system (`UserRole.SUPERUSER`, `UserRole.MANAGER`, `UserRole.STAFF`, `UserRole.VIEWER`) as the source of truth for permissions. Django's `is_staff`/`is_superuser` fields are automatically synced based on the Profile role.
+
 ### **1. SUPERUSER (System Administrator)**
 
 **Role**: Full system administration and oversight  
-**Username**: `admin_super` | **Password**: `admin123`
+**Username**: `admin_super` | **Password**: `admin123`  
+**Profile Role**: `UserRole.SUPERUSER` (auto-syncs Django `is_staff=True`, `is_superuser=True`)
 
 #### **🌐 Interface Access**:
 - **Django Admin Portal**: `http://localhost:8000/admin/`
@@ -38,7 +41,8 @@
 ### **2. MANAGER (Property Manager)**
 
 **Role**: Property oversight and staff management  
-**Username**: `manager_alice` | **Password**: `manager123`
+**Username**: `manager_alice` | **Password**: `manager123`  
+**Profile Role**: `UserRole.MANAGER` (auto-syncs Django `is_staff=True`, `is_superuser=False`)
 
 #### **🌐 Interface Access**:
 - **Manager Interface**: `http://localhost:8000/manager/` (primary interface)
@@ -74,7 +78,8 @@
 
 **Role**: Task execution and property maintenance  
 **Usernames**: `staff_bob`, `crew_charlie`, `crew_diana`, `crew_eve`  
-**Password**: `staff123` or `crew123`
+**Password**: `staff123` or `crew123`  
+**Profile Role**: `UserRole.STAFF` (auto-syncs Django `is_staff=False`, `is_superuser=False`)
 
 #### **🌐 Interface Access**:
 - **Staff Portal**: `http://localhost:8000/api/staff/` (primary interface)
@@ -118,6 +123,8 @@
   - Model-level CRUD operations
   - System settings configuration
   - Advanced filtering and search
+
+> **🔒 Password Security Note**: When viewing/editing users in the admin interface, password fields display encrypted hashes (e.g., `pbkdf2_sha256$870000$...`). Passwords are securely encrypted using Django's built-in PBKDF2 algorithm and cannot be viewed in plain text. To reset a user's password, use the "change password" form in the admin interface or Django management commands.
 
 ### **Manager Interface** (`/manager/`)
 - **Who**: Superuser, Manager

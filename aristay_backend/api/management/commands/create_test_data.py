@@ -14,7 +14,7 @@ from api.models import (
     Property, Booking, Task, Profile, PropertyOwnership, 
     Notification, ChecklistTemplate, ChecklistItem, TaskChecklist,
     CustomPermission, RolePermission, PropertyInventory, InventoryItem,
-    InventoryCategory, AutoTaskTemplate
+    InventoryCategory, AutoTaskTemplate, UserRole
 )
 
 
@@ -33,6 +33,7 @@ class Command(BaseCommand):
         self.stdout.write("🚀 Starting test data generation...")
         self.stdout.write("=" * 60)
         
+        self.setup_permissions()
         self.create_users()
         self.create_properties()
         self.create_bookings()
@@ -65,6 +66,35 @@ class Command(BaseCommand):
         self.stdout.write(f"Tasks: {Task.objects.count()}")
         self.stdout.write(f"Notifications: {Notification.objects.count()}")
         
+    def setup_permissions(self):
+        """Ensure manager role has required permissions for testing"""
+        self.stdout.write("Setting up permissions...")
+        
+        try:
+            # Ensure manager_portal_access permission exists and is granted to manager role
+            perm, created = CustomPermission.objects.get_or_create(
+                name='manager_portal_access',
+                defaults={'description': 'Access to the manager portal interface'}
+            )
+            
+            role_perm, created = RolePermission.objects.get_or_create(
+                role=UserRole.MANAGER,
+                permission=perm,
+                defaults={'granted': True, 'can_delegate': False}
+            )
+            
+            if created:
+                self.stdout.write(f"✅ Granted {perm.name} to manager role")
+            elif not role_perm.granted:
+                role_perm.granted = True
+                role_perm.save()
+                self.stdout.write(f"✅ Updated {perm.name} for manager role")
+            else:
+                self.stdout.write(f"✅ Permission {perm.name} already granted to manager role")
+                
+        except Exception as e:
+            self.stdout.write(f"❌ Error setting up permissions: {e}")
+        
     def create_users(self):
         """Create test users for each role"""
         self.stdout.write("Creating test users...")
@@ -76,26 +106,35 @@ class Command(BaseCommand):
                 'email': 'superuser@aristay.com',
                 'first_name': 'System',
                 'last_name': 'Administrator',
-                'is_staff': True,
-                'is_superuser': True,
+                # Don't set is_staff/is_superuser - let Profile.role sync handle it
             }
         )
         if created:
             superuser.set_password('admin123')
             superuser.save()
             
-        # Create superuser profile
-        Profile.objects.get_or_create(
+        # Create superuser profile - this will trigger the sync
+        profile, created = Profile.objects.get_or_create(
             user=superuser,
             defaults={
-                'role': 'admin',
+                'role': UserRole.SUPERUSER,  # This will auto-sync is_staff=True, is_superuser=True
                 'phone_number': '+1-555-0001',
                 'address': '123 Admin Street, City, ST 12345'
             }
         )
+        # Update role if profile already existed but with wrong role
+        if not created and profile.role != UserRole.SUPERUSER:
+            profile.role = UserRole.SUPERUSER
+            profile.save()
+        
+        # Manually trigger sync for superusers
+        if profile.role == UserRole.SUPERUSER:
+            superuser.is_staff = True
+            superuser.is_superuser = True
+            superuser.save(update_fields=['is_staff', 'is_superuser'])
         
         self.users['superuser'] = superuser
-        self.stdout.write(f"✅ Superuser created: {superuser.username}")
+        self.stdout.write(f"✅ Superuser created: {superuser.username} (role: {profile.role})")
         
         # 2. MANAGER - Property oversight and staff management
         manager, created = User.objects.get_or_create(
@@ -104,25 +143,34 @@ class Command(BaseCommand):
                 'email': 'alice.manager@aristay.com',
                 'first_name': 'Alice',
                 'last_name': 'Manager',
-                'is_staff': True,
-                'is_superuser': False,
+                # Don't set is_staff/is_superuser - let Profile.role sync handle it
             }
         )
         if created:
             manager.set_password('manager123')
             manager.save()
             
-        Profile.objects.get_or_create(
+        profile, created = Profile.objects.get_or_create(
             user=manager,
             defaults={
-                'role': 'manager',
+                'role': UserRole.MANAGER,  # This will auto-sync is_staff=True, is_superuser=False
                 'phone_number': '+1-555-0002',
                 'address': '456 Manager Ave, City, ST 12345'
             }
         )
+        # Update role if profile already existed but with wrong role
+        if not created and profile.role != UserRole.MANAGER:
+            profile.role = UserRole.MANAGER
+            profile.save()
+        
+        # Manually trigger sync for managers
+        if profile.role == UserRole.MANAGER:
+            manager.is_staff = True
+            manager.is_superuser = False
+            manager.save(update_fields=['is_staff', 'is_superuser'])
         
         self.users['manager'] = manager
-        self.stdout.write(f"✅ Manager created: {manager.username}")
+        self.stdout.write(f"✅ Manager created: {manager.username} (role: {profile.role})")
         
         # 3. STAFF/CREW - Task execution
         staff, created = User.objects.get_or_create(
@@ -131,25 +179,34 @@ class Command(BaseCommand):
                 'email': 'bob.staff@aristay.com',
                 'first_name': 'Bob',
                 'last_name': 'Cleaner',
-                'is_staff': False,
-                'is_superuser': False,
+                # Don't set is_staff/is_superuser - let Profile.role sync handle it
             }
         )
         if created:
             staff.set_password('staff123')
             staff.save()
             
-        Profile.objects.get_or_create(
+        profile, created = Profile.objects.get_or_create(
             user=staff,
             defaults={
-                'role': 'staff',
+                'role': UserRole.STAFF,  # This will auto-sync is_staff=False, is_superuser=False
                 'phone_number': '+1-555-0003',
                 'address': '789 Staff Road, City, ST 12345'
             }
         )
+        # Update role if profile already existed but with wrong role
+        if not created and profile.role != UserRole.STAFF:
+            profile.role = UserRole.STAFF
+            profile.save()
+        
+        # Manually trigger sync for staff
+        if profile.role == UserRole.STAFF:
+            staff.is_staff = False
+            staff.is_superuser = False
+            staff.save(update_fields=['is_staff', 'is_superuser'])
         
         self.users['staff'] = staff
-        self.stdout.write(f"✅ Staff created: {staff.username}")
+        self.stdout.write(f"✅ Staff created: {staff.username} (role: {profile.role})")
         
         # Additional Staff Members
         for i, (username, name) in enumerate([
@@ -163,25 +220,34 @@ class Command(BaseCommand):
                     'email': f'{username}@aristay.com',
                     'first_name': name.split()[0],
                     'last_name': name.split()[1],
-                    'is_staff': False,
-                    'is_superuser': False,
+                    # Don't set is_staff/is_superuser - let Profile.role sync handle it
                 }
             )
             if created:
                 user.set_password('crew123')
                 user.save()
                 
-            Profile.objects.get_or_create(
+            profile, created = Profile.objects.get_or_create(
                 user=user,
                 defaults={
-                    'role': 'staff',
+                    'role': UserRole.STAFF,  # This will auto-sync is_staff=False, is_superuser=False
                     'phone_number': f'+1-555-000{i+2}',
                     'address': f'{(i+2)*100} Crew Lane, City, ST 12345'
                 }
             )
+            # Update role if profile already existed but with wrong role
+            if not created and profile.role != UserRole.STAFF:
+                profile.role = UserRole.STAFF
+                profile.save()
+            
+            # Manually trigger sync for crew
+            if profile.role == UserRole.STAFF:
+                user.is_staff = False
+                user.is_superuser = False
+                user.save(update_fields=['is_staff', 'is_superuser'])
             
             self.users[username] = user
-            self.stdout.write(f"✅ Crew member created: {user.username}")
+            self.stdout.write(f"✅ Crew member created: {user.username} (role: {profile.role})")
     
     def create_properties(self):
         """Create test properties"""

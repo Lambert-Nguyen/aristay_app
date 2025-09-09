@@ -147,18 +147,21 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     list_display = ('username', 'email', 'get_profile_role', 'get_departments', 'is_active', 'is_staff', 'date_joined')
     list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
     search_fields = ('username', 'email', 'first_name', 'last_name')
-    exclude = ('password',)  # hide hashed password
+    # Don't exclude password - let Django handle it properly
     filter_horizontal = ('groups',)  # Allow editing groups/departments
-    readonly_fields = ('username', 'date_joined', 'last_login')  # Managers cannot modify usernames
+    readonly_fields = ('username', 'password', 'date_joined', 'last_login')  # Include password as readonly
 
-    # Override Django's default fieldsets to avoid field conflicts
+    # Override Django's default fieldsets to show password properly
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
+        (None, {
+            'fields': ('username', 'password'),
+            'description': 'Password is encrypted and cannot be viewed. Use "Reset password" link below to send a new password to the user via email.'
+        }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
             'fields': ('is_active', 'groups'),
             'classes': ('collapse',),
-            'description': 'Note: User role (staff/manager) is set in the Profile section below.'
+            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -168,6 +171,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('username', 'password1', 'password2'),
+            'description': 'Passwords are encrypted and stored securely. Users can change their password later via the reset password function.'
         }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
