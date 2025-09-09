@@ -877,22 +877,12 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             if form.cleaned_data.get('password1') and form.cleaned_data.get('password2'):
                 obj.set_password(form.cleaned_data['password1'])
 
-        # Save the user first
+        # Save the user first - the post_save signal will handle Profile creation
         super().save_model(request, obj, form, change)
         
-        # Ensure user has a Profile with appropriate role
-        from .models import UserRole
-        profile, created = Profile.objects.get_or_create(
-            user=obj,
-            defaults={
-                'role': UserRole.STAFF,  # Default new users to staff role
-                'timezone': 'America/New_York',
-            }
-        )
-        
-        # If this is a new user, log the creation
+        # Log the creation if this is a new user
         if not change:  # This is a new user
-            print(f"✅ Admin created new user '{obj.username}' with Profile role: {profile.role}")
+            print(f"✅ Admin created new user '{obj.username}' - Profile will be created by signal")
             
     def save_formset(self, request, form, formset, change):
         """Override to handle Profile inline saves and sync is_staff/is_superuser"""

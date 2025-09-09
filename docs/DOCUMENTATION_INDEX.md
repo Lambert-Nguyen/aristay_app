@@ -33,6 +33,7 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`PR_DIFF_SUMMARY.md`](./reports/PR_DIFF_SUMMARY.md) - Pull request changes summary
 - [`AGENT_FIXES_COMPLETE.md`](./reports/AGENT_FIXES_COMPLETE.md) - Agent fixes completion report
 - [`PROJECT_ORGANIZATION_COMPLETE.md`](./reports/PROJECT_ORGANIZATION_COMPLETE.md) - Project organization completion
+- [`HEROKU_ERROR_DEBUGGING_REPORT_2025-01-09.md`](./reports/HEROKU_ERROR_DEBUGGING_REPORT_2025-01-09.md) - ⭐ **NEW** - Comprehensive Heroku error debugging report
 
 ### 🧪 [testing/](./testing/)
 **Testing documentation and test reports**

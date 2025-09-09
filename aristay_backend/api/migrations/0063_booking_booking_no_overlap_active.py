@@ -3,7 +3,27 @@
 import django.contrib.postgres.constraints
 import django.contrib.postgres.fields.ranges
 from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations, models, connection
+
+
+def add_booking_overlap_constraint(apps, schema_editor):
+    """Add booking overlap constraint only for PostgreSQL databases."""
+    if connection.vendor == 'postgresql':
+        # Create the constraint using raw SQL for PostgreSQL
+        schema_editor.execute("""
+            ALTER TABLE api_booking 
+            ADD CONSTRAINT booking_no_overlap_active 
+            EXCLUDE USING gist (
+                property_id WITH =,
+                tstzrange(check_in_date, check_out_date) WITH &&
+            ) WHERE (status NOT IN ('cancelled', 'completed'));
+        """)
+
+
+def remove_booking_overlap_constraint(apps, schema_editor):
+    """Remove booking overlap constraint only for PostgreSQL databases."""
+    if connection.vendor == 'postgresql':
+        schema_editor.execute("ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;")
 
 
 class Migration(migrations.Migration):
@@ -15,25 +35,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddConstraint(
-            model_name="booking",
-            constraint=django.contrib.postgres.constraints.ExclusionConstraint(
-                condition=models.Q(
-                    ("status__in", ["cancelled", "completed"]), _negated=True
-                ),
-                expressions=[
-                    (models.F("property"), "="),
-                    (
-                        models.Func(
-                            models.F("check_in_date"),
-                            models.F("check_out_date"),
-                            function="tstzrange",
-                            output_field=django.contrib.postgres.fields.ranges.DateTimeRangeField(),
-                        ),
-                        "&&",
-                    ),
-                ],
-                name="booking_no_overlap_active",
-            ),
+        migrations.RunPython(
+            add_booking_overlap_constraint,
+            reverse_code=remove_booking_overlap_constraint,
         ),
     ]

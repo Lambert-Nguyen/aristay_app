@@ -666,17 +666,21 @@ def remove_checklist_photo(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
 
         # Find and delete the photo
-        photo = get_object_or_404(
-            ChecklistPhoto,
-            response=response,
-            image__endswith=photo_url.split('/')[-1]
-        )
-        
-        # Delete the file
-        photo.image.delete(save=False)
-        photo.delete()
+        try:
+            photo = ChecklistPhoto.objects.get(
+                response=response,
+                image__endswith=photo_url.split('/')[-1]
+            )
+            
+            # Delete the file
+            photo.image.delete(save=False)
+            photo.delete()
 
-        return JsonResponse({'success': True})
+            return JsonResponse({'success': True})
+            
+        except ChecklistPhoto.DoesNotExist:
+            logger.warning(f"ChecklistPhoto not found for response {item_id} with photo_url {photo_url}")
+            return JsonResponse({'error': 'Photo not found'}, status=404)
 
     except Exception as e:
         logger.error(f"Error removing checklist photo: {str(e)}")

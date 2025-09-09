@@ -931,24 +931,23 @@ class UserPermissionOverride(models.Model):
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_and_sync_user_profile(sender, instance, created, **kwargs):
     """Create profile for new users and sync superuser role."""
-    if created:
-        # Set default role based on Django user flags - decouple is_staff from manager role
-        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
-        Profile.objects.create(user=instance, role=default_role)
-    else:
-        # For existing users, ensure profile exists and sync superuser role
-        # Use proper defaults to avoid overwriting existing roles
-        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
-        profile, created_profile = Profile.objects.get_or_create(
-            user=instance,
-            defaults={'role': default_role}
-        )
-        
-        # Only auto-sync superuser role - do NOT sync is_staff to manager
-        # This keeps Django admin permissions separate from business roles
-        if instance.is_superuser and profile.role != UserRole.SUPERUSER:
-            profile.role = UserRole.SUPERUSER
-            profile.save()
+    # Set default role based on Django user flags - decouple is_staff from manager role
+    default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
+    
+    # Always use get_or_create to prevent duplicate creation
+    profile, profile_created = Profile.objects.get_or_create(
+        user=instance,
+        defaults={
+            'role': default_role,
+            'timezone': 'America/New_York',  # Default timezone
+        }
+    )
+    
+    # Only auto-sync superuser role - do NOT sync is_staff to manager
+    # This keeps Django admin permissions separate from business roles
+    if instance.is_superuser and profile.role != UserRole.SUPERUSER:
+        profile.role = UserRole.SUPERUSER
+        profile.save()
     # REMOVED: is_staff -> manager auto-conversion for clean separation
 
 class Device(models.Model):
