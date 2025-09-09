@@ -1546,9 +1546,148 @@ class LostFoundItem(models.Model):
     
     notes = models.TextField(blank=True)
     
+    # Provenance and history
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='lostfound_modified'
+    )
+    modified_via = models.CharField(max_length=32, default='dashboard', help_text="admin|dashboard|api|system")
+    history = models.TextField(blank=True, help_text="JSON field tracking changes to this item")
+    
     class Meta:
         ordering = ['-found_date']
     
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = LostFoundItem.objects.get(pk=self.pk)
+                changes = []
+                
+                # Determine actor: prefer modified_by (set by admin/save paths), then found_by
+                user = getattr(self.modified_by, 'username', None) or (
+                    getattr(self.found_by, 'username', 'system') if self.found_by else 'system'
+                )
+
+                # Title change
+                if old.title != self.title:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed title "
+                        f"from '{old.title}' to '{self.title}'"
+                    )
+
+                # Description change
+                if old.description != self.description:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed description "
+                        f"from '{old.description}' to '{self.description}'"
+                    )
+
+                # Status change
+                if old.status != self.status:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed status "
+                        f"from '{old.get_status_display()}' to '{self.get_status_display()}'"
+                    )
+
+                # Category change
+                if old.category != self.category:
+                    old_cat = old.category or 'None'
+                    new_cat = self.category or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed category "
+                        f"from '{old_cat}' to '{new_cat}'"
+                    )
+
+                # Estimated value change
+                if old.estimated_value != self.estimated_value:
+                    old_val = f"${old.estimated_value}" if old.estimated_value else 'None'
+                    new_val = f"${self.estimated_value}" if self.estimated_value else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed estimated value "
+                        f"from '{old_val}' to '{new_val}'"
+                    )
+
+                # Found location change
+                if old.found_location != self.found_location:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed found location "
+                        f"from '{old.found_location}' to '{self.found_location}'"
+                    )
+
+                # Storage location change
+                if old.storage_location != self.storage_location:
+                    old_storage = old.storage_location or 'None'
+                    new_storage = self.storage_location or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed storage location "
+                        f"from '{old_storage}' to '{new_storage}'"
+                    )
+
+                # Claimed by change
+                if old.claimed_by != self.claimed_by:
+                    old_claimed = old.claimed_by or 'None'
+                    new_claimed = self.claimed_by or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed claimed by "
+                        f"from '{old_claimed}' to '{new_claimed}'"
+                    )
+
+                # Disposal method change
+                if old.disposal_method != self.disposal_method:
+                    old_disposal = old.disposal_method or 'None'
+                    new_disposal = self.disposal_method or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed disposal method "
+                        f"from '{old_disposal}' to '{new_disposal}'"
+                    )
+
+                # Notes change
+                if old.notes != self.notes:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed notes "
+                        f"from '{old.notes}' to '{self.notes}'"
+                    )
+
+                # Property change
+                if old.property_ref_id != self.property_ref_id:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed property "
+                        f"from '{old.property_ref.name}' to '{self.property_ref.name}'"
+                    )
+
+                # Task change
+                if old.task_id != self.task_id:
+                    old_task = old.task.title if old.task else 'None'
+                    new_task = self.task.title if self.task else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed associated task "
+                        f"from '{old_task}' to '{new_task}'"
+                    )
+
+                # Booking change
+                if old.booking_id != self.booking_id:
+                    old_booking = f"#{old.booking.id}" if old.booking else 'None'
+                    new_booking = f"#{self.booking.id}" if self.booking else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed associated booking "
+                        f"from '{old_booking}' to '{new_booking}'"
+                    )
+
+                # Update history if there are changes
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    self.history = json.dumps(hist + changes)
+
+            except LostFoundItem.DoesNotExist:
+                pass  # This is a new item, no history to build
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.title} - {self.property_ref.name} ({self.get_status_display()})"
 

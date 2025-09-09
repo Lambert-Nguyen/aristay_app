@@ -61,7 +61,7 @@ def get_team_tasks(request, task_type):
 from .models import (
     Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     PropertyInventory, InventoryTransaction, LostFoundItem, Profile,
-    TASK_TYPE_CHOICES
+    Booking, TASK_TYPE_CHOICES
 )
 from .serializers import TaskSerializer
 from .authz import AuthzHelper, can_edit_task, can_view_task
@@ -575,6 +575,7 @@ def lost_found_list(request):
                 properties = Property.objects.all()
             else:
                 # For regular staff, show items from properties where they have tasks
+                # OR items they found themselves
                 property_ids = Task.objects.filter(
                     assigned_to=request.user
                 ).values_list('property_ref', flat=True).distinct()
@@ -586,10 +587,15 @@ def lost_found_list(request):
             ).values_list('property_ref', flat=True).distinct()
             properties = Property.objects.filter(id__in=property_ids)
     
-    # Get lost & found items
+    # Get lost & found items - show items from accessible properties OR items found by this user
     items = LostFoundItem.objects.filter(
-        property_ref__in=properties
+        Q(property_ref__in=properties) | Q(found_by=request.user)
     ).select_related('property_ref', 'found_by').order_by('-found_date')
+    
+    logger.info(f"Lost & found list accessed by user: {request.user.username}")
+    logger.info(f"Found {items.count()} items for user {request.user.username}")
+    logger.info(f"Properties accessible: {[p.name for p in properties]}")
+    logger.info(f"Items found: {[f'{item.title} - {item.property_ref.name}' for item in items[:5]]}")
     
     # Filter by status
     status_filter = request.GET.get('status')
@@ -787,3 +793,87 @@ def task_counts_api(request):
             'success': False,
             'error': str(e)
         })
+
+
+@login_required
+@require_POST
+def lost_found_create(request):
+    """Create a new lost & found item from task context."""
+    try:
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = ['title', 'description', 'found_location', 'property_ref']
+        for field in required_fields:
+            if not data.get(field):
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }, status=400)
+        
+        # Get the property
+        try:
+            property_obj = Property.objects.get(id=data['property_ref'])
+        except Property.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Property not found'
+            }, status=400)
+        
+        # Get the task if provided
+        task_obj = None
+        if data.get('task'):
+            try:
+                task_obj = Task.objects.get(id=data['task'])
+            except Task.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Task not found'
+                }, status=400)
+        
+        # Get the booking if provided
+        booking_obj = None
+        if data.get('booking'):
+            try:
+                booking_obj = Booking.objects.get(id=data['booking'])
+            except Booking.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Booking not found'
+                }, status=400)
+        
+        # Create the lost & found item
+        lost_found_item = LostFoundItem.objects.create(
+            property_ref=property_obj,
+            task=task_obj,
+            booking=booking_obj,
+            title=data['title'],
+            description=data['description'],
+            category=data.get('category', ''),
+            estimated_value=data.get('estimated_value'),
+            found_location=data['found_location'],
+            storage_location=data.get('storage_location', ''),
+            notes=data.get('notes', ''),
+            found_by=request.user,
+            status='found'
+        )
+        
+        logger.info(f"Lost & found item created: {lost_found_item.title} by {request.user.username}")
+        
+        return JsonResponse({
+            'success': True,
+            'item_id': lost_found_item.id,
+            'message': 'Lost & found item reported successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error creating lost & found item: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

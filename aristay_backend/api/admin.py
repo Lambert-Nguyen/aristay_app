@@ -26,6 +26,18 @@ from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 
+class ProvenanceStampMixin:
+    """Mixin to stamp modified_by/modified_via consistently when available."""
+    provenance_via = 'admin'
+
+    def save_model(self, request, obj, form, change):
+        # If the model has these fields, set them
+        if hasattr(obj, 'modified_by'):
+            obj.modified_by = request.user
+        if hasattr(obj, 'modified_via'):
+            obj.modified_via = self.provenance_via
+        super().save_model(request, obj, form, change)
+
 def create_unified_history_view(model_class):
     """
     Create a unified history view function for any model that has a history field.
@@ -82,10 +94,11 @@ def create_unified_history_view(model_class):
         
         # Add model.history entries
         for entry in model_history:
-            if isinstance(entry, str) and ':' in entry:
+            if isinstance(entry, str) and ': ' in entry:
                 try:
-                    # Parse format: "2025-01-08T10:30:00.000000+00:00: username changed status from 'old' to 'new'"
-                    timestamp_str, change_desc = entry.split(':', 1)
+                    # Parse format: "2025-01-08T10:30:00.000000+00:00: username changed ..."
+                    # Important: split on ": " to avoid splitting inside ISO time
+                    timestamp_str, _, change_desc = entry.partition(': ')
                     timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
                     
                     # Ensure timezone-aware datetime
@@ -93,9 +106,15 @@ def create_unified_history_view(model_class):
                         from django.utils import timezone
                         timestamp = timezone.make_aware(timestamp)
                     
+                    # Extract user from "<user> changed ..."
+                    user_name = 'Unknown'
+                    if change_desc:
+                        parts = change_desc.split(' changed ', 1)
+                        if parts and parts[0]:
+                            user_name = parts[0].strip()
                     combined_history.append({
                         'timestamp': timestamp,
-                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'user': user_name,
                         'action': 'Changed',
                         'changes': change_desc.strip(),
                         'type': 'dashboard'
@@ -290,7 +309,7 @@ class TaskImageInline(admin.TabularInline):
     preview.allow_tags = True
     preview.short_description = 'Image Preview'
 
-class TaskAdmin(admin.ModelAdmin):
+class TaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
     list_filter = ('status', 'task_type', 'created_at', 'property_ref', 'booking', 'assigned_to')
     search_fields = ('title', 'description')
@@ -433,7 +452,7 @@ class TaskAdmin(admin.ModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
 
-class PropertyAdmin(admin.ModelAdmin):
+class PropertyAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'address', 'created_at', 'created_by')
     search_fields = ('name', 'address')
     readonly_fields = ('created_at', 'modified_at', 'history')
@@ -457,7 +476,7 @@ class PropertyAdmin(admin.ModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
         
-class BookingAdmin(admin.ModelAdmin):
+class BookingAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = (
         'id', 'property', 'external_code_display', 'booked_on_display', 'source_display',
         'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact',
@@ -694,13 +713,13 @@ class BookingAdmin(admin.ModelAdmin):
     # Use the generic unified history view
     history_view = create_unified_history_view(Booking)
 
-class PropertyOwnershipAdmin(admin.ModelAdmin):
+class PropertyOwnershipAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'property', 'user', 'ownership_type', 'can_edit', 'created_at')
     list_filter = ('ownership_type', 'can_edit', 'property')
     search_fields = ('property__name', 'user__username', 'user__email')
     readonly_fields = ('created_at',)
 
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at', 'push_sent')
     list_filter = ('read', 'verb', 'push_sent', 'timestamp')
     search_fields = ('recipient__username', 'task__title')
@@ -754,7 +773,7 @@ class ProfileInline(admin.StackedInline):
             kwargs['help_text'] = 'Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool'
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
-class AriStayUserAdmin(DjangoUserAdmin):
+class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
     """
     Custom UserAdmin with role-based permissions:
     - Superusers: Full access (can modify passwords, usernames, groups)
@@ -1227,7 +1246,7 @@ class ChecklistItemInline(admin.TabularInline):
     fields = ('title', 'item_type', 'is_required', 'order', 'room_type')
     ordering = ['order', 'room_type']
 
-class ChecklistTemplateAdmin(admin.ModelAdmin):
+class ChecklistTemplateAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'task_type', 'is_active', 'created_at', 'created_by')
     list_filter = ('task_type', 'is_active', 'created_at')
     search_fields = ('name', 'description')
@@ -1257,14 +1276,14 @@ class ChecklistPhotoInline(admin.TabularInline):
     extra = 0
     readonly_fields = ('uploaded_at', 'uploaded_by')
 
-class ChecklistResponseAdmin(admin.ModelAdmin):
+class ChecklistResponseAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('checklist', 'item', 'is_completed', 'completed_at', 'completed_by')
     list_filter = ('is_completed', 'completed_at', 'item__item_type')
     search_fields = ('checklist__task__title', 'item__title')
     readonly_fields = ('completed_at',)
     inlines = [ChecklistPhotoInline]
 
-class TaskChecklistAdmin(admin.ModelAdmin):
+class TaskChecklistAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('task', 'template', 'completion_percentage', 'started_at', 'completed_at', 'completed_by')
     list_filter = ('template', 'started_at', 'completed_at')
     search_fields = ('task__title', 'template__name')
@@ -1276,12 +1295,12 @@ class InventoryItemInline(admin.TabularInline):
     extra = 0
     fields = ('name', 'unit', 'estimated_cost', 'is_active')
 
-class InventoryCategoryAdmin(admin.ModelAdmin):
+class InventoryCategoryAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'description', 'icon')
     search_fields = ('name', 'description')
     inlines = [InventoryItemInline]
 
-class InventoryItemAdmin(admin.ModelAdmin):
+class InventoryItemAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'category', 'unit', 'estimated_cost', 'is_active', 'created_at')
     list_filter = ('category', 'unit', 'is_active', 'created_at')
     search_fields = ('name', 'description', 'brand', 'sku')
@@ -1306,7 +1325,7 @@ class InventoryTransactionInline(admin.TabularInline):
     readonly_fields = ('created_at', 'created_by')
     fields = ('transaction_type', 'quantity', 'task', 'notes', 'reference')
 
-class PropertyInventoryAdmin(admin.ModelAdmin):
+class PropertyInventoryAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'property_ref', 'item', 'current_stock', 'par_level', 'max_level', 'stock_status', 'last_updated')
     list_filter = ('item__category', 'last_updated')
     search_fields = ('property_ref__name', 'item__name')
@@ -1342,7 +1361,7 @@ class PropertyInventoryAdmin(admin.ModelAdmin):
     # Use the generic unified history view
     history_view = create_unified_history_view(PropertyInventory)
 
-class InventoryTransactionAdmin(admin.ModelAdmin):
+class InventoryTransactionAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('property_inventory', 'transaction_type', 'quantity', 'task', 'created_at', 'created_by')
     list_filter = ('transaction_type', 'created_at', 'property_inventory__property_ref')
     search_fields = ('property_inventory__property_ref__name', 'property_inventory__item__name', 'notes')
@@ -1362,12 +1381,28 @@ class LostFoundPhotoInline(admin.TabularInline):
     extra = 0
     readonly_fields = ('uploaded_at', 'uploaded_by')
 
-class LostFoundItemAdmin(admin.ModelAdmin):
+class LostFoundItemAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('title', 'property_ref', 'status', 'found_date', 'found_by', 'estimated_value')
     list_filter = ('status', 'found_date', 'property_ref', 'category')
     search_fields = ('title', 'description', 'property_ref__name', 'found_location')
-    readonly_fields = ('found_date',)
+    readonly_fields = ('found_date', 'history')
     inlines = [LostFoundPhotoInline]
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(LostFoundItem)
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Make history field read-only in the admin form"""
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if 'history' not in readonly_fields:
+            readonly_fields.append('history')
+        return readonly_fields
+
+    def save_model(self, request, obj, form, change):
+        # Stamp provenance so model.save can attribute correctly
+        obj.modified_by = request.user
+        obj.modified_via = 'admin'
+        super().save_model(request, obj, form, change)
     
     fieldsets = (
         (None, {
@@ -1392,6 +1427,10 @@ class LostFoundItemAdmin(admin.ModelAdmin):
             'fields': ('notes',),
             'classes': ('collapse',)
         }),
+        ('History', {
+            'fields': ('history',),
+            'classes': ('collapse',)
+        }),
     )
 
 # Recurring Schedules Admin
@@ -1401,7 +1440,7 @@ class GeneratedTaskInline(admin.TabularInline):
     readonly_fields = ('task', 'generated_at', 'generated_for_date')
     can_delete = False
 
-class ScheduleTemplateAdmin(admin.ModelAdmin):
+class ScheduleTemplateAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'task_type', 'property_ref', 'frequency', 'is_active', 'last_generated', 'created_at')
     list_filter = ('task_type', 'frequency', 'is_active', 'property_ref')
     search_fields = ('name', 'task_title_template', 'property_ref__name')
@@ -1432,7 +1471,7 @@ class ScheduleTemplateAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
-class GeneratedTaskAdmin(admin.ModelAdmin):
+class GeneratedTaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'schedule', 'task', 'generated_for_date', 'generated_at')
     list_filter = ('generated_for_date', 'generated_at', 'schedule__task_type')
     search_fields = ('schedule__name', 'task__title')
@@ -1458,7 +1497,7 @@ class BookingImportLogInline(admin.TabularInline):
     readonly_fields = ('imported_at', 'imported_by', 'total_rows', 'successful_imports', 'errors_count')
     can_delete = False
 
-class BookingImportTemplateAdmin(admin.ModelAdmin):
+class BookingImportTemplateAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'property_ref', 'import_type', 'is_active', 'last_import', 'created_at')
     list_filter = ('import_type', 'is_active', 'property_ref')
     search_fields = ('name', 'property_ref__name')
@@ -1487,7 +1526,7 @@ class BookingImportTemplateAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
-class BookingImportLogAdmin(admin.ModelAdmin):
+class BookingImportLogAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('template', 'imported_at', 'imported_by', 'total_rows', 'successful_imports', 'errors_count')
     list_filter = ('imported_at', 'template')
     search_fields = ('template__name',)
@@ -1504,7 +1543,7 @@ def activate_permissions(modeladmin, request, queryset):
 def deactivate_permissions(modeladmin, request, queryset):
     queryset.update(is_active=False)
 
-class CustomPermissionAdmin(admin.ModelAdmin):
+class CustomPermissionAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'get_display_name', 'is_active', 'created_at')
     list_filter = ('is_active', 'name')
     search_fields = ('name', 'description')
@@ -1527,7 +1566,7 @@ class CustomPermissionAdmin(admin.ModelAdmin):
     get_display_name.short_description = 'Display Name'
     get_display_name.admin_order_field = 'name'
 
-class RolePermissionAdmin(admin.ModelAdmin):
+class RolePermissionAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('role', 'permission', 'granted', 'can_delegate', 'created_by', 'created_at')
     list_filter = ('role', 'granted', 'can_delegate', 'permission__is_active')
     search_fields = ('permission__name', 'permission__description')
@@ -1552,7 +1591,7 @@ class RolePermissionAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('permission', 'created_by')
 
-class UserPermissionOverrideAdmin(admin.ModelAdmin):
+class UserPermissionOverrideAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('user', 'permission', 'granted', 'granted_by', 'expires_at', 'is_expired_display', 'created_at')
     list_filter = ('granted', 'expires_at', 'created_at', 'permission__is_active')
     search_fields = ('user__username', 'user__email', 'permission__name', 'reason')
