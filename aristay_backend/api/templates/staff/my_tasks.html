@@ -1205,7 +1205,7 @@ async function updateTaskStatus(taskId, status) {
     }
 
     try {
-        const response = await fetch(`/api/tasks/${taskId}/set_status/`, {
+        const response = await fetch(`/api/staff/tasks/${taskId}/status/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

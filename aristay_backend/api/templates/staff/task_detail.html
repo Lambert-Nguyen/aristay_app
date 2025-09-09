@@ -445,7 +445,7 @@
 
 // Define global functions FIRST (before DOMContentLoaded)
 window.startTask = function(taskId) {
-    updateTaskStatus(taskId, 'in_progress');
+    updateTaskStatus(taskId, 'in-progress');
 };
 
 window.completeTask = function(taskId) {
@@ -461,6 +461,13 @@ window.addNote = function() {
     if (modal) {
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
+        
+        // Load current task description into the textarea
+        const notesInput = modal.querySelector('.notes-input');
+        const currentDescription = document.querySelector('.task-description')?.textContent || '';
+        if (notesInput) {
+            notesInput.value = currentDescription;
+        }
     }
 };
 
@@ -899,33 +906,40 @@ function initializeTaskActions() {
 }
 
 async function updateTaskStatus(taskId, status) {
+    console.log('🚀 Starting task status update:', { taskId, status });
+    
     try {
+        const csrfToken = getCsrfToken();
+        console.log('🔑 CSRF Token:', csrfToken ? 'Found' : 'Missing');
+        
         const response = await fetch(`/api/staff/tasks/${taskId}/status/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({ status: status })
         });
 
+        console.log('📡 API Response status:', response.status);
+
         if (response.ok) {
             const data = await response.json();
+            console.log('📊 API Response data:', data);
+            
             updateTaskStatusUI(data);
             showNotification(`Task ${status.replace('_', ' ')} successfully`, 'success');
 
-            // Redirect if task is completed
-            if (status === 'completed') {
-                setTimeout(() => {
-                    window.location.href = '/staff/tasks/';
-                }, 2000);
-            }
+            // Stay on task detail page after completion
+            // Task status will be updated in UI
         } else {
-            throw new Error('Failed to update task status');
+            const errorText = await response.text();
+            console.error('❌ API Error Response:', errorText);
+            throw new Error(`API Error ${response.status}: ${errorText}`);
         }
     } catch (error) {
-        console.error('Error updating task status:', error);
-        showNotification('Failed to update task status', 'error');
+        console.error('❌ Error updating task status:', error);
+        showNotification(`Failed to update task status: ${error.message}`, 'error');
     }
 }
 
@@ -956,20 +970,24 @@ function updateTaskStatusUI(data) {
             startBtn.disabled = true;
             startBtn.textContent = '▶️ Started';
             startBtn.style.opacity = '0.6';
+            console.log('✅ Start button disabled and marked as started');
         }
         if (completeBtn) {
             completeBtn.disabled = false;
             completeBtn.style.opacity = '1';
+            console.log('✅ Complete button enabled');
         }
     } else if (data.status === 'completed') {
         if (startBtn) {
             startBtn.disabled = true;
             startBtn.style.opacity = '0.6';
+            console.log('✅ Start button disabled');
         }
         if (completeBtn) {
             completeBtn.disabled = true;
             completeBtn.textContent = '✅ Completed';
             completeBtn.style.opacity = '0.6';
+            console.log('✅ Complete button disabled and marked as completed');
         }
     }
     
@@ -1003,6 +1021,12 @@ function initializeModalHandlers() {
             closeModal();
         }
     });
+    
+    // Initialize notes modal form submission
+    const notesForm = document.querySelector('#noteModal .item-form');
+    if (notesForm) {
+        notesForm.addEventListener('submit', handleNotesSave);
+    }
 }
 
 function openPhotoModal(itemId) {
@@ -1053,6 +1077,52 @@ function closeModal() {
         modal.style.display = 'none';
     });
     document.body.style.overflow = 'auto';
+}
+
+async function handleNotesSave(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const notesInput = form.querySelector('.notes-input');
+    const notes = notesInput.value.trim();
+    
+    if (!notes) {
+        showNotification('Please enter some notes', 'error');
+        return;
+    }
+    
+    try {
+        const taskId = {{ task.id }};
+        const csrfToken = getCsrfToken();
+        
+        const response = await fetch(`/api/staff/tasks/${taskId}/status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ 
+                status: '{{ task.status }}',  // Keep current status
+                description: notes  // Update description with notes
+            })
+        });
+        
+        if (response.ok) {
+            showNotification('Notes saved successfully!', 'success');
+            closeModal();
+            
+            // Update the task description in the UI
+            const taskDescription = document.querySelector('.task-description');
+            if (taskDescription) {
+                taskDescription.textContent = notes;
+            }
+        } else {
+            throw new Error('Failed to save notes');
+        }
+    } catch (error) {
+        console.error('Error saving notes:', error);
+        showNotification('Failed to save notes: ' + error.message, 'error');
+    }
 }
 
 // Keyboard Navigation

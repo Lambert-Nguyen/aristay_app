@@ -683,12 +683,16 @@ def update_task_status_api(request, task_id):
 
         data = json.loads(request.body)
         new_status = data.get('status')
+        new_description = data.get('description')
 
-        if new_status not in [choice[0] for choice in Task.STATUS_CHOICES]:
+        if new_status and new_status not in [choice[0] for choice in Task.STATUS_CHOICES]:
             return JsonResponse({'error': 'Invalid status'}, status=400)
 
         old_status = task.status
-        task.status = new_status
+        if new_status:
+            task.status = new_status
+        if new_description is not None:
+            task.description = new_description
         task.modified_by = request.user
         task.save()
 
