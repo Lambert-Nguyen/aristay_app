@@ -594,6 +594,8 @@
             <a href="/api/staff/tasks/" class="quick-action-btn">📋 Tasks</a>
             <a href="/api/staff/cleaning/" class="quick-action-btn">🧹 Cleaning</a>
             <a href="/api/staff/maintenance/" class="quick-action-btn">🔧 Maintenance</a>
+            <a href="/api/staff/laundry/" class="quick-action-btn">🧺 Laundry</a>
+            <a href="/api/staff/lawn_pool/" class="quick-action-btn">🌿 Lawn/Pool</a>
             <a href="/api/staff/inventory/" class="quick-action-btn">📦 Inventory</a>
             <a href="/api/staff/lost-found/" class="quick-action-btn">🔍 Lost & Found</a>
         </div>
@@ -622,6 +624,8 @@
         <a href="/api/staff/tasks/" class="{% if 'tasks' in request.path %}active{% endif %}">My Tasks</a>
         <a href="/api/staff/maintenance/" class="{% if 'maintenance' in request.path %}active{% endif %}">Maintenance</a>
         <a href="/api/staff/cleaning/" class="{% if 'cleaning' in request.path %}active{% endif %}">Cleaning</a>
+        <a href="/api/staff/laundry/" class="{% if 'laundry' in request.path %}active{% endif %}">Laundry</a>
+        <a href="/api/staff/lawn_pool/" class="{% if 'lawn_pool' in request.path %}active{% endif %}">Lawn/Pool</a>
         <a href="/api/staff/inventory/" class="{% if 'inventory' in request.path %}active{% endif %}">Inventory</a>
         <a href="/api/staff/lost-found/" class="{% if 'lost-found' in request.path %}active{% endif %}">Lost & Found</a>
     </nav>

@@ -1,0 +1,100 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Laundry Dashboard - AriStay Staff Portal{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_assigned }}</div>
+        <div class="stat-label">Total Assigned</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ pickup_tasks.count }}</div>
+        <div class="stat-label">Pickup Tasks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ processing_tasks.count }}</div>
+        <div class="stat-label">Processing</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ linen_items.count }}</div>
+        <div class="stat-label">Linen Items</div>
+    </div>
+</div>
+
+{% if pickup_tasks %}
+<div class="card">
+    <div class="card-header">
+        📥 Pickup Tasks
+    </div>
+    {% for task in pickup_tasks %}
+    <div class="task-item">
+        <div class="task-title">
+            <a href="/api/staff/tasks/{{ task.id }}/" style="text-decoration: none; color: inherit;">
+                {{ task.title }}
+            </a>
+        </div>
+        <div class="task-meta">
+            <span>🏠 {{ task.property_ref.name|default:"No Property" }}</span>
+            <span>⏰ Due: {{ task.due_date|date:"M d, H:i" }}</span>
+            <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if processing_tasks %}
+<div class="card">
+    <div class="card-header">
+        🔄 Processing Tasks
+    </div>
+    {% for task in processing_tasks %}
+    <div class="task-item">
+        <div class="task-title">
+            <a href="/api/staff/tasks/{{ task.id }}/" style="text-decoration: none; color: inherit;">
+                {{ task.title }}
+            </a>
+        </div>
+        <div class="task-meta">
+            <span>🏠 {{ task.property_ref.name|default:"No Property" }}</span>
+            <span>⏰ Due: {{ task.due_date|date:"M d, H:i" }}</span>
+            <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid">
+    <div class="card">
+        <div class="card-header">
+            🧺 Today's Tasks
+        </div>
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+            <h3>No laundry tasks due today!</h3>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            📦 Linen Inventory
+        </div>
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+            <h3>All linen levels are healthy!</h3>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        🧺 All Laundry Tasks
+    </div>
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🧺</div>
+        <h3>No laundry tasks assigned</h3>
+    </div>
+</div>
+{% endblock %}

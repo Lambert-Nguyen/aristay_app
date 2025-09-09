@@ -1,0 +1,78 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Lawn/Pool Dashboard - AriStay Staff Portal{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_assigned }}</div>
+        <div class="stat-label">Total Assigned</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ tasks_by_property|length }}</div>
+        <div class="stat-label">Properties</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ pool_items.count }}</div>
+        <div class="stat-label">Pool Items</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ assigned_tasks|length }}</div>
+        <div class="stat-label">Active Tasks</div>
+    </div>
+</div>
+
+{% if assigned_tasks %}
+<div class="card">
+    <div class="card-header">
+        🌿 Lawn/Pool Tasks
+    </div>
+    {% for task in assigned_tasks %}
+    <div class="task-item">
+        <div class="task-title">
+            <a href="/api/staff/tasks/{{ task.id }}/" style="text-decoration: none; color: inherit;">
+                {{ task.title }}
+            </a>
+        </div>
+        <div class="task-meta">
+            <span>🏠 {{ task.property_ref.name|default:"No Property" }}</span>
+            <span>⏰ Due: {{ task.due_date|date:"M d, H:i" }}</span>
+            <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid">
+    <div class="card">
+        <div class="card-header">
+            🌿 Today's Tasks
+        </div>
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+            <h3>No lawn/pool tasks due today!</h3>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            🏊 Pool & Spa Inventory
+        </div>
+        <div class="empty-state">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+            <h3>All pool supplies are healthy!</h3>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        🌿 All Lawn/Pool Tasks
+    </div>
+    <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">🌿</div>
+        <h3>No lawn/pool tasks assigned</h3>
+    </div>
+</div>
+{% endblock %}
