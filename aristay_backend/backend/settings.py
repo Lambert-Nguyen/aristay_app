@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import socket
 from pathlib import Path
 import os
+import dj_database_url
 
 # Production logging configuration
 from backend.logging_config import setup_logging
@@ -225,6 +226,10 @@ DATABASES = {
     }
 }
 
+# Override via DATABASE_URL when present (Heroku/Prod)
+_db_url = os.getenv("DATABASE_URL")
+if _db_url:
+    DATABASES["default"] = dj_database_url.parse(_db_url, conn_max_age=60, ssl_require=True)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

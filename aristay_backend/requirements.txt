@@ -40,11 +40,13 @@ django-ratelimit>=4.1.0,<5.0.0
 sentry-sdk[django]==2.35.1
 psutil==7.0.0
 
-# Production dependencies (optional - uncomment as needed)
-# psycopg2-binary==2.9.10
+# Production dependencies
+psycopg2-binary==2.9.10
 redis>=5.0.0
 django-redis>=5.0.0
-# gunicorn==23.0.0
+gunicorn==23.0.0
+whitenoise==6.8.2
+dj-database-url==2.3.0
 
 # .env loader for local/dev convenience
 python-dotenv==1.0.1
