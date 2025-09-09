@@ -41,6 +41,11 @@ from .views import (
     permission_management_view, file_cleanup_page
 )
 
+# Checklist Management Views
+from .checklist_views import (
+    checklist_templates, create_checklist_template, assign_checklist_to_task, quick_assign_checklists
+)
+
 # Email Digest Service Views
 from .digest_views import (
     send_digest_api, digest_settings_api, digest_opt_out_api,
@@ -213,6 +218,12 @@ urlpatterns = [
     path('notifications/cleanup/', cleanup_notifications_api, name='cleanup-notifications-api'),
     path('admin/notification-management/', notification_management_view, name='admin-notification-management'),
     path('notifications/settings/', user_notification_settings_view, name='user-notification-settings'),
+    
+    # Checklist Management endpoints
+    path('checklists/', checklist_templates, name='checklist_templates'),
+    path('checklists/create/', create_checklist_template, name='create_checklist_template'),
+    path('checklists/assign/<int:task_id>/', assign_checklist_to_task, name='assign_checklist_to_task'),
+    path('checklists/quick-assign/', quick_assign_checklists, name='quick_assign_checklists'),
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),

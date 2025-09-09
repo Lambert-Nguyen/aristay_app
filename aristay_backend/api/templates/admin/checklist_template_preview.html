@@ -1,0 +1,255 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+    &rsaquo; <a href="{% url 'admin:api_checklisttemplate_changelist' %}">{% translate "Checklist Templates" %}</a>
+    &rsaquo; {% translate "Preview" %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="checklist-preview">
+    <h1>{{ template.name }}</h1>
+    <div class="template-info">
+        <p><strong>Task Type:</strong> {{ template.get_task_type_display }}</p>
+        <p><strong>Description:</strong> {{ template.description|default:"No description" }}</p>
+        <p><strong>Total Items:</strong> {{ template.items.count }}</p>
+        <p><strong>Status:</strong> 
+            <span class="status-badge {% if template.is_active %}active{% else %}inactive{% endif %}">
+                {% if template.is_active %}Active{% else %}Inactive{% endif %}
+            </span>
+        </p>
+    </div>
+
+    <div class="checklist-sections">
+        {% for room, items in items_by_room.items %}
+        <div class="checklist-section">
+            <div class="section-header">
+                <h3 class="section-title">
+                    {% if room == 'General' %}
+                        📋 General Tasks
+                    {% elif room == 'bathroom' %}
+                        🚿 Bathroom
+                    {% elif room == 'bedroom' %}
+                        🛏️ Bedroom
+                    {% elif room == 'kitchen' %}
+                        🍽️ Kitchen
+                    {% elif room == 'living_room' %}
+                        🛋️ Living Room
+                    {% else %}
+                        📍 {{ room|title }}
+                    {% endif %}
+                </h3>
+                <span class="item-count">{{ items|length }} items</span>
+            </div>
+
+            <div class="checklist-items">
+                {% for item in items %}
+                <div class="checklist-item">
+                    <div class="item-header">
+                        <div class="item-order">{{ item.order }}</div>
+                        <div class="item-content">
+                            <div class="item-title">{{ item.title }}</div>
+                            {% if item.description %}
+                            <div class="item-description">{{ item.description }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="item-meta">
+                            <span class="item-type">{{ item.get_item_type_display }}</span>
+                            {% if item.is_required %}
+                            <span class="required-badge">Required</span>
+                            {% else %}
+                            <span class="optional-badge">Optional</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="preview-actions">
+        <a href="{% url 'admin:api_checklisttemplate_change' template.id %}" class="button">Edit Template</a>
+        <a href="{% url 'admin:api_checklisttemplate_changelist' %}" class="button">Back to List</a>
+    </div>
+</div>
+
+<style>
+.checklist-preview {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.template-info {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.template-info p {
+    margin: 5px 0;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-badge.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.checklist-sections {
+    display: grid;
+    gap: 30px;
+}
+
+.checklist-section {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.section-header {
+    background: #e9ecef;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.section-title {
+    margin: 0;
+    font-size: 18px;
+    color: #495057;
+}
+
+.item-count {
+    background: #007bff;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.checklist-items {
+    padding: 0;
+}
+
+.checklist-item {
+    padding: 15px 20px;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.checklist-item:last-child {
+    border-bottom: none;
+}
+
+.item-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.item-order {
+    background: #6c757d;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.item-content {
+    flex: 1;
+}
+
+.item-title {
+    font-weight: 500;
+    color: #212529;
+    margin-bottom: 5px;
+}
+
+.item-description {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.item-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+
+.item-type {
+    background: #e9ecef;
+    color: #495057;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.required-badge {
+    background: #dc3545;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.optional-badge {
+    background: #6c757d;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.preview-actions {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.preview-actions .button {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 0 10px;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.preview-actions .button:hover {
+    background: #0056b3;
+    color: white;
+}
+</style>
+{% endblock %}
