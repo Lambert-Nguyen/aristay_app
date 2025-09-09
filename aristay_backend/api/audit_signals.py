@@ -96,7 +96,7 @@ def _should_skip_audit(sender):
     """Check if model should be skipped from audit based on model class, not string names."""
     # Import AuditEvent lazily to avoid circular imports
     try:
-        from api.models import AuditEvent
+        from api.models import AuditEvent, Task
         from django.contrib.auth.models import Permission
         from django.contrib.contenttypes.models import ContentType
         try:
@@ -104,13 +104,14 @@ def _should_skip_audit(sender):
         except Exception:
             Token = None
         
-        skip_models = (AuditEvent, LogEntry, Session, MigrationRecorder.Migration, Permission, ContentType)
+        # Skip Task model from AuditEvent system - it has its own history logging
+        skip_models = (AuditEvent, Task, LogEntry, Session, MigrationRecorder.Migration, Permission, ContentType)
         if Token:
             skip_models += (Token,)
         return issubclass(sender, skip_models)
     except ImportError:
         # Fallback to string-based check if imports fail
-        return sender.__name__ in ['AuditEvent', 'Session', 'LogEntry', 'Migration', 'Permission', 'ContentType', 'Token']
+        return sender.__name__ in ['AuditEvent', 'Task', 'Session', 'LogEntry', 'Migration', 'Permission', 'ContentType', 'Token']
 
 
 def get_audit_context():
@@ -211,10 +212,16 @@ def _diff_from_snapshot(sender, instance, created):
         name = f.name
         old_val = old_values.get(name)
         new_val = getattr(instance, name, None)
-        if old_val != new_val:
+        
+        # Enhanced comparison logic to handle different data types properly
+        old_serialized = _serialize_value(old_val)
+        new_serialized = _serialize_value(new_val)
+        
+        # Compare serialized values for more accurate detection
+        if old_serialized != new_serialized:
             changes['fields_changed'].append(name)
-            changes['old_values'][name] = _serialize_value(old_val)
-            changes['new_values'][name] = _serialize_value(new_val)
+            changes['old_values'][name] = old_serialized
+            changes['new_values'][name] = new_serialized
     
     # Clean up the snapshot after use
     if key in cache:
