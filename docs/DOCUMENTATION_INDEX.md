@@ -9,6 +9,7 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`DEPLOYMENT_GUIDE.md`](./setup/DEPLOYMENT_GUIDE.md) - Complete deployment instructions
 - [`USING_ENV_VARS.md`](./setup/USING_ENV_VARS.md) - Environment configuration guide
 - [`SECRET_SCANNING.md`](./setup/SECRET_SCANNING.md) - Security scanning setup
+- [`DEPLOYMENT_WORKFLOW.md`](./setup/DEPLOYMENT_WORKFLOW.md) - ⭐ **NEW** - Complete deployment workflow
 
 ### 🛠️ [development/](./development/)
 **Development guides and technical documentation**
@@ -16,6 +17,7 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`PROJECT_STRUCTURE.md`](./development/PROJECT_STRUCTURE.md) - File structure explanation
 - [`PRODUCTION_READINESS.md`](./development/PRODUCTION_READINESS.md) - Production requirements
 - [`permission_refactoring_summary.md`](./development/permission_refactoring_summary.md) - Permission system details
+- [`LOCAL_DEVELOPMENT_SETUP.md`](./development/LOCAL_DEVELOPMENT_SETUP.md) - ⭐ **NEW** - Local development with PostgreSQL
 
 ### 🏗️ [implementation/](./implementation/) ⭐ **NEW - COMPLETE SYSTEM IMPLEMENTATION**
 **Production system implementation and final completion**
