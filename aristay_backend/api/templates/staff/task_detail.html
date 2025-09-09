@@ -56,12 +56,10 @@
                     {% endif %}
                 </div>
 
-                {% if task.description %}
-                <div class="task-description">
+                <div class="task-description" {% if not task.description %}style="display: none;"{% endif %}>
                     <h4>Description</h4>
-                    <p>{{ task.description|linebreaks }}</p>
+                    <p>{{ task.description|default:"" }}</p>
                 </div>
-                {% endif %}
             </div>
 
             <div class="task-actions-section">
@@ -457,6 +455,7 @@ window.uploadPhotos = function(responseId, inputElement) {
 };
 
 window.addNote = function() {
+    console.log('📝 Opening notes modal...');
     const modal = document.getElementById('noteModal');
     if (modal) {
         modal.style.display = 'block';
@@ -464,9 +463,43 @@ window.addNote = function() {
         
         // Load current task description into the textarea
         const notesInput = modal.querySelector('.notes-input');
-        const currentDescription = document.querySelector('.task-description')?.textContent || '';
+        let currentDescription = '';
+        
+        // First try to get description from template context (most reliable)
+        {% if task.description %}
+        currentDescription = '{{ task.description|escapejs }}';
+        console.log('📝 Description from template:', currentDescription);
+        console.log('📝 Raw task.description:', '{{ task.description }}');
+        {% else %}
+        console.log('📝 No description in template context');
+        {% endif %}
+        
+        // Fallback: try to get description from the task description section
+        if (!currentDescription) {
+            const descriptionParagraph = document.querySelector('.task-description p');
+            console.log('📝 Description paragraph found:', !!descriptionParagraph);
+            
+            if (descriptionParagraph) {
+                currentDescription = descriptionParagraph.textContent.trim();
+                console.log('📝 Description from DOM fallback:', currentDescription);
+            }
+        }
+        
         if (notesInput) {
             notesInput.value = currentDescription;
+            console.log('📝 Loaded description:', currentDescription);
+        }
+        
+        // Ensure form is reset and event listeners are fresh
+        const form = modal.querySelector('.item-form');
+        if (form) {
+            // Remove any existing event listeners by cloning the form
+            const newForm = form.cloneNode(true);
+            form.parentNode.replaceChild(newForm, form);
+            
+            // Re-add event listener
+            newForm.addEventListener('submit', handleNotesSave);
+            console.log('📝 Form event listener re-attached');
         }
     }
 };
@@ -965,7 +998,7 @@ function updateTaskStatusUI(data) {
         completeBtn: !!completeBtn
     });
 
-    if (data.status === 'in_progress') {
+    if (data.status === 'in-progress') {
         if (startBtn) {
             startBtn.disabled = true;
             startBtn.textContent = '▶️ Started';
@@ -1072,19 +1105,26 @@ function openNotesModal(itemId) {
 }
 
 function closeModal() {
+    console.log('🚪 Closing modal...');
     const modals = document.querySelectorAll('.photo-modal, .note-modal');
+    console.log('🚪 Found modals:', modals.length);
     modals.forEach(modal => {
         modal.style.display = 'none';
+        console.log('🚪 Closed modal:', modal.id || modal.className);
     });
     document.body.style.overflow = 'auto';
+    console.log('🚪 Modal closed successfully');
 }
 
 async function handleNotesSave(e) {
     e.preventDefault();
+    console.log('💾 Saving notes...');
     
     const form = e.target;
     const notesInput = form.querySelector('.notes-input');
     const notes = notesInput.value.trim();
+    
+    console.log('💾 Notes content:', notes);
     
     if (!notes) {
         showNotification('Please enter some notes', 'error');
@@ -1112,9 +1152,47 @@ async function handleNotesSave(e) {
             closeModal();
             
             // Update the task description in the UI
-            const taskDescription = document.querySelector('.task-description');
-            if (taskDescription) {
-                taskDescription.textContent = notes;
+            let taskDescriptionParagraph = document.querySelector('.task-description p');
+            
+            if (taskDescriptionParagraph) {
+                // Update existing description - replace content completely
+                console.log('📝 Updating existing description paragraph');
+                console.log('📝 Old content:', taskDescriptionParagraph.textContent);
+                console.log('📝 New content:', notes);
+                
+                // Clear the paragraph completely and set new content
+                taskDescriptionParagraph.textContent = notes;
+                
+                console.log('📝 Updated content:', taskDescriptionParagraph.textContent);
+                // Show the description section if it was hidden
+                const taskDescriptionSection = document.querySelector('.task-description');
+                if (taskDescriptionSection) {
+                    taskDescriptionSection.style.display = 'block';
+                }
+            } else {
+                // Create description section if it doesn't exist
+                const taskDetails = document.querySelector('.task-details');
+                if (taskDetails) {
+                    const descriptionSection = document.createElement('div');
+                    descriptionSection.className = 'task-description';
+                    
+                    const heading = document.createElement('h4');
+                    heading.textContent = 'Description';
+                    
+                    const paragraph = document.createElement('p');
+                    paragraph.textContent = notes;
+                    
+                    descriptionSection.appendChild(heading);
+                    descriptionSection.appendChild(paragraph);
+                    
+                    // Insert after task-info section
+                    const taskInfo = taskDetails.querySelector('.task-info');
+                    if (taskInfo) {
+                        taskInfo.insertAdjacentElement('afterend', descriptionSection);
+                    } else {
+                        taskDetails.appendChild(descriptionSection);
+                    }
+                }
             }
         } else {
             throw new Error('Failed to save notes');
@@ -1335,13 +1413,7 @@ window.toggleNotes = function(responseId) {
     }
 };
 
-window.closeModal = function() {
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        modal.style.display = 'none';
-    });
-    document.body.style.overflow = 'auto';
-};
+// Remove duplicate closeModal function - using the one defined above;
 
 // Export additional functions for global access
 window.openPhotoModal = openPhotoModal;

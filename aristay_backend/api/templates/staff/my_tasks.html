@@ -1328,7 +1328,7 @@ function updateStatsDisplay(counts) {
         } else if (label.textContent.includes('Pending')) {
             value = counts.pending || 0;
         } else if (label.textContent.includes('Progress')) {
-            value = counts.in_progress || 0;
+            value = counts['in-progress'] || 0;
         } else if (label.textContent.includes('Completed')) {
             value = counts.completed || 0;
         }

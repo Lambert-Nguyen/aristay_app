@@ -40,7 +40,7 @@
             <div class="stat-label">Pending</div>
             <div class="stat-action">👆 Tap to view</div>
         </div>
-        <div class="stat-card in-progress clickable" onclick="filterTasks('in_progress')">
+        <div class="stat-card in-progress clickable" onclick="filterTasks('in-progress')">
             <div class="stat-number">{{ task_counts.in_progress }}</div>
             <div class="stat-label">In Progress</div>
             <div class="stat-action">👆 Tap to view</div>
@@ -565,7 +565,7 @@
             const startBtn = taskCard.querySelector('.btn-action.start-task');
             const completeBtn = taskCard.querySelector('.btn-action.complete-task');
 
-            if (status === 'in_progress') {
+            if (status === 'in-progress') {
                 if (startBtn) {
                     startBtn.disabled = true;
                     startBtn.textContent = '▶️ Started';
@@ -624,13 +624,13 @@
             // Update stat cards with new counts
             const totalTasks = document.querySelector('.stat-card.clickable[onclick*="all"] .stat-number');
             const pendingTasks = document.querySelector('.stat-card.clickable[onclick*="pending"] .stat-number');
-            const inProgressTasks = document.querySelector('.stat-card.clickable[onclick*="in_progress"] .stat-number');
+            const inProgressTasks = document.querySelector('.stat-card.clickable[onclick*="in-progress"] .stat-number');
             const completedTasks = document.querySelector('.stat-card.clickable[onclick*="completed"] .stat-number');
             const overdueTasks = document.querySelector('.stat-card.clickable[onclick*="overdue"] .stat-number');
             
             if (totalTasks) totalTasks.textContent = counts.total || 0;
             if (pendingTasks) pendingTasks.textContent = counts.pending || 0;
-            if (inProgressTasks) inProgressTasks.textContent = counts.in_progress || 0;
+            if (inProgressTasks) inProgressTasks.textContent = counts['in-progress'] || 0;
             if (completedTasks) completedTasks.textContent = counts.completed || 0;
             if (overdueTasks) overdueTasks.textContent = counts.overdue || 0;
             
