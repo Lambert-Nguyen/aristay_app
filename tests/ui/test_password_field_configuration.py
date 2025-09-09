@@ -11,7 +11,7 @@ import sys
 import django
 
 # Add the backend directory to Python path
-backend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aristay_backend')
+backend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'aristay_backend')
 sys.path.append(backend_path)
 
 # Configure Django settings
