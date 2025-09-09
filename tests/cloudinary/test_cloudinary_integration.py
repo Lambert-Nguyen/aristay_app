@@ -45,7 +45,7 @@ def main():
         print("1. Creating test user, property, and task...")
         u = User.objects.create_user("cloudtest", "t@example.com", "testpass123")
         p = Property.objects.create(name="Cloud Test", address="123 Cloud Street")
-        t = Task.objects.create(title="Cloudinary Check", property=p, created_by=u)
+        t = Task.objects.create(title="Cloudinary Check", property_ref=p, created_by=u)
         print(f"   ✅ Created Task ID: {t.pk}")
         
         print("2. Testing small GIF upload...")

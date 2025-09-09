@@ -40,7 +40,7 @@
             <div class="stat-label">Pending</div>
             <div class="stat-action">👆 Tap to view</div>
         </div>
-        <div class="stat-card in-progress clickable" onclick="filterTasks('in_progress')">
+        <div class="stat-card in-progress clickable" onclick="filterTasks('in-progress')">
             <div class="stat-number">{{ task_counts.in_progress }}</div>
             <div class="stat-label">In Progress</div>
             <div class="stat-action">👆 Tap to view</div>
@@ -469,37 +469,48 @@
         }
 
         function updateTaskStatus(taskId, status) {
+            console.log('🚀 Dashboard: Starting task status update:', { taskId, status });
+            
             // Show loading state
             const button = event.target;
             const originalText = button.innerHTML;
             button.innerHTML = '⏳ Updating...';
             button.disabled = true;
 
+            const csrfToken = getCsrfToken();
+            console.log('🔑 Dashboard CSRF Token:', csrfToken ? 'Found' : 'Missing');
+
             // Make API call to update task status
-            fetch(`/api/tasks/${taskId}/set_status/`, {
+            fetch(`/api/staff/tasks/${taskId}/status/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({ status: status })
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('📡 Dashboard API Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('📊 Dashboard API Response data:', data);
+                
                 if (data.success) {
                     // Show success message
                     showNotification('Task status updated successfully!', 'success');
                     
-                    // Refresh the page to show updated status
-                    setTimeout(() => {
-                        location.reload();
-                    }, 1000);
+                    // Update UI immediately
+                    updateTaskCardUI(taskId, status, data.status_display);
+                    
+                    // Refresh task counts
+                    updateTaskCounts();
                 } else {
                     throw new Error(data.error || 'Failed to update task status');
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('❌ Dashboard Error:', error);
                 showNotification('Failed to update task status: ' + error.message, 'error');
                 
                 // Reset button state
@@ -530,19 +541,53 @@
             }, 5000);
         }
 
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
+        function getCsrfToken() {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]');
+            return token ? token.value : '';
+        }
+
+        function updateTaskCardUI(taskId, status, statusDisplay) {
+            // Find the task card by data-task-id
+            const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (!taskCard) {
+                console.log('Task card not found for ID:', taskId);
+                return;
+            }
+
+            // Update status badge
+            const statusBadge = taskCard.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = statusDisplay;
+                statusBadge.className = `status-badge status-${status.replace('-', '')}`;
+            }
+
+            // Update action buttons
+            const startBtn = taskCard.querySelector('.btn-action.start-task');
+            const completeBtn = taskCard.querySelector('.btn-action.complete-task');
+
+            if (status === 'in-progress') {
+                if (startBtn) {
+                    startBtn.disabled = true;
+                    startBtn.textContent = '▶️ Started';
+                    startBtn.style.opacity = '0.6';
+                }
+                if (completeBtn) {
+                    completeBtn.disabled = false;
+                    completeBtn.style.opacity = '1';
+                }
+            } else if (status === 'completed') {
+                if (startBtn) {
+                    startBtn.disabled = true;
+                    startBtn.style.opacity = '0.6';
+                }
+                if (completeBtn) {
+                    completeBtn.disabled = true;
+                    completeBtn.textContent = '✅ Completed';
+                    completeBtn.style.opacity = '0.6';
                 }
             }
-            return cookieValue;
+
+            console.log('✅ Task card UI updated for task', taskId);
         }
 
         // Real-Time Task Updates
@@ -579,13 +624,13 @@
             // Update stat cards with new counts
             const totalTasks = document.querySelector('.stat-card.clickable[onclick*="all"] .stat-number');
             const pendingTasks = document.querySelector('.stat-card.clickable[onclick*="pending"] .stat-number');
-            const inProgressTasks = document.querySelector('.stat-card.clickable[onclick*="in_progress"] .stat-number');
+            const inProgressTasks = document.querySelector('.stat-card.clickable[onclick*="in-progress"] .stat-number');
             const completedTasks = document.querySelector('.stat-card.clickable[onclick*="completed"] .stat-number');
             const overdueTasks = document.querySelector('.stat-card.clickable[onclick*="overdue"] .stat-number');
             
             if (totalTasks) totalTasks.textContent = counts.total || 0;
             if (pendingTasks) pendingTasks.textContent = counts.pending || 0;
-            if (inProgressTasks) inProgressTasks.textContent = counts.in_progress || 0;
+            if (inProgressTasks) inProgressTasks.textContent = counts['in-progress'] || 0;
             if (completedTasks) completedTasks.textContent = counts.completed || 0;
             if (overdueTasks) overdueTasks.textContent = counts.overdue || 0;
             

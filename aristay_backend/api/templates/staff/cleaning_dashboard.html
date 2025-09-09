@@ -45,6 +45,9 @@
             {% if task.due_date %}
             <span>⏰ {{ task.due_date|date:"H:i" }}</span>
             {% endif %}
+            {% if task.assigned_to %}
+            <span>👤 {{ task.assigned_to.username }}</span>
+            {% endif %}
         </div>
         {% for task_progress in tasks_with_progress %}
             {% if task_progress.task.id == task.id %}

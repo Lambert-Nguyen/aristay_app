@@ -35,10 +35,33 @@ import logging
 # Set up logging
 logger = logging.getLogger(__name__)
 
+
+def get_team_tasks(request, task_type):
+    """Get team tasks based on user permissions and task type."""
+    try:
+        profile = request.user.profile
+        can_view_team_tasks = profile.can_view_team_tasks
+    except Profile.DoesNotExist:
+        can_view_team_tasks = True  # Default for users without profile
+    
+    if can_view_team_tasks:
+        # Show all tasks of this type (team view)
+        return Task.objects.filter(
+            task_type=task_type,
+            status__in=['pending', 'in-progress']
+        ).select_related('property_ref', 'booking', 'assigned_to')
+    else:
+        # Show only assigned tasks (individual view)
+        return Task.objects.filter(
+            assigned_to=request.user,
+            task_type=task_type,
+            status__in=['pending', 'in-progress']
+        ).select_related('property_ref', 'booking')
+
 from .models import (
     Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     PropertyInventory, InventoryTransaction, LostFoundItem, Profile,
-    TASK_TYPE_CHOICES
+    Booking, TASK_TYPE_CHOICES
 )
 from .serializers import TaskSerializer
 from .authz import AuthzHelper, can_edit_task, can_view_task
@@ -77,7 +100,7 @@ def staff_dashboard(request):
     logger.debug(f"User {request.user.username} has {total_tasks} total tasks: {task_counts}")
     
     # Get recent tasks
-    recent_tasks = my_tasks.select_related('property', 'booking').order_by('-created_at')[:5]
+    recent_tasks = my_tasks.select_related('property_ref', 'booking').order_by('-created_at')[:5]
     
     # Get properties user has access to using centralized authorization
     from .authz import AuthzHelper
@@ -99,26 +122,22 @@ def staff_dashboard(request):
 def cleaning_dashboard(request):
     """Specialized dashboard for cleaning staff."""
     
-    # Get user's assigned cleaning tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='cleaning',
-        status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking').prefetch_related('checklist__responses')
+    # Get team cleaning tasks (all team members)
+    team_tasks = get_team_tasks(request, 'cleaning').prefetch_related('checklist__responses')
     
     # Get today's tasks
     today = timezone.now().date()
-    today_tasks = assigned_tasks.filter(due_date__date=today)
+    today_tasks = team_tasks.filter(due_date__date=today)
     
     # Get upcoming tasks (next 7 days)
-    upcoming_tasks = assigned_tasks.filter(
+    upcoming_tasks = team_tasks.filter(
         due_date__date__gt=today,
         due_date__date__lte=today + timedelta(days=7)
     )
     
     # Get checklist progress
     tasks_with_progress = []
-    for task in assigned_tasks:
+    for task in team_tasks:
         try:
             checklist = task.checklist
             progress = checklist.completion_percentage
@@ -133,10 +152,11 @@ def cleaning_dashboard(request):
     
     context = {
         'user_role': 'Cleaning Staff',
+        'assigned_tasks': team_tasks,  # Now shows team tasks
         'today_tasks': today_tasks,
         'upcoming_tasks': upcoming_tasks,
         'tasks_with_progress': tasks_with_progress,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/cleaning_dashboard.html', context)
@@ -146,12 +166,8 @@ def cleaning_dashboard(request):
 def maintenance_dashboard(request):
     """Specialized dashboard for maintenance staff."""
     
-    # Get user's assigned maintenance tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='maintenance',
-        status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking')
+    # Get team maintenance tasks (all team members)
+    team_tasks = get_team_tasks(request, 'maintenance')
     
     # Get low-stock inventory items across properties
     low_stock_items = PropertyInventory.objects.filter(
@@ -169,17 +185,17 @@ def maintenance_dashboard(request):
     # Get maintenance tasks by priority (overdue first)
     now = timezone.now()
     today = now.date()
-    overdue_tasks = assigned_tasks.filter(due_date__lt=now)
-    today_tasks = assigned_tasks.filter(due_date__date=today)
+    overdue_tasks = team_tasks.filter(due_date__lt=now)
+    today_tasks = team_tasks.filter(due_date__date=today)
     
     context = {
         'user_role': 'Maintenance Staff',
-        'assigned_tasks': assigned_tasks,
+        'assigned_tasks': team_tasks,  # Now shows team tasks
         'overdue_tasks': overdue_tasks,
         'today_tasks': today_tasks,
         'low_stock_items': low_stock_items,
         'recent_transactions': recent_transactions,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/maintenance_dashboard.html', context)
@@ -189,16 +205,12 @@ def maintenance_dashboard(request):
 def laundry_dashboard(request):
     """Specialized dashboard for laundry staff."""
     
-    # Get user's assigned laundry tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='laundry',
-        status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking')
+    # Get team laundry tasks (all team members)
+    team_tasks = get_team_tasks(request, 'laundry')
     
     # Organize by workflow stage based on task status/progress
-    pickup_tasks = assigned_tasks.filter(status='pending')
-    processing_tasks = assigned_tasks.filter(status='in-progress')
+    pickup_tasks = team_tasks.filter(status='pending')
+    processing_tasks = team_tasks.filter(status='in-progress')
     
     # Get linen inventory items
     linen_items = PropertyInventory.objects.filter(
@@ -211,7 +223,7 @@ def laundry_dashboard(request):
         'pickup_tasks': pickup_tasks,
         'processing_tasks': processing_tasks,
         'linen_items': linen_items,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/laundry_dashboard.html', context)
@@ -221,12 +233,8 @@ def laundry_dashboard(request):
 def lawn_pool_dashboard(request):
     """Specialized dashboard for lawn/pool staff."""
     
-    # Get user's assigned lawn/pool tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='lawn_pool',
-        status__in=['pending', 'in-progress']
-    ).select_related('property', 'booking')
+    # Get team lawn/pool tasks (all team members)
+    team_tasks = get_team_tasks(request, 'lawn_pool')
     
     # Get pool/spa inventory items
     pool_items = PropertyInventory.objects.filter(
@@ -235,18 +243,18 @@ def lawn_pool_dashboard(request):
     
     # Group tasks by property for route planning
     tasks_by_property = {}
-    for task in assigned_tasks:
-        prop_name = task.property.name if task.property else 'Unassigned'
+    for task in team_tasks:
+        prop_name = task.property_ref.name if task.property_ref else 'Unassigned'
         if prop_name not in tasks_by_property:
             tasks_by_property[prop_name] = []
         tasks_by_property[prop_name].append(task)
     
     context = {
         'user_role': 'Lawn/Pool Staff',
-        'assigned_tasks': assigned_tasks,
+        'assigned_tasks': team_tasks,  # Now shows team tasks
         'tasks_by_property': tasks_by_property,
         'pool_items': pool_items,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/lawn_pool_dashboard.html', context)
@@ -257,7 +265,7 @@ def task_detail(request, task_id):
     """Detailed task view with checklist interface."""
     
     task = get_object_or_404(
-        Task.objects.select_related('property', 'booking', 'assigned_to'),
+        Task.objects.select_related('property_ref', 'booking', 'assigned_to'),
         id=task_id
     )
     
@@ -279,8 +287,15 @@ def task_detail(request, task_id):
     for response in responses:
         room = response.item.room_type or 'General'
         if room not in responses_by_room:
-            responses_by_room[room] = []
-        responses_by_room[room].append(response)
+            responses_by_room[room] = {
+                'responses': [],
+                'completed_count': 0,
+                'total_count': 0
+            }
+        responses_by_room[room]['responses'].append(response)
+        responses_by_room[room]['total_count'] += 1
+        if response.is_completed:
+            responses_by_room[room]['completed_count'] += 1
     
     context = {
         'task': task,
@@ -342,12 +357,60 @@ def update_checklist_response(request, response_id):
 
 
 @login_required
+@require_POST
+def update_checklist_item(request, item_id):
+    """Update a checklist item completion status via AJAX."""
+
+    try:
+        response = get_object_or_404(ChecklistResponse, id=item_id)
+
+        # Check permissions using centralized authorization
+        if not can_edit_task(request.user, response.checklist.task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+
+        data = json.loads(request.body)
+        completed = data.get('completed', False)
+
+        # Update response
+        response.is_completed = completed
+        if completed:
+            response.completed_at = timezone.now()
+            response.completed_by = request.user
+        else:
+            response.completed_at = None
+            response.completed_by = None
+
+        response.save()
+
+        # Calculate overall progress
+        checklist = response.checklist
+        total_items = checklist.responses.count()
+        completed_items = checklist.responses.filter(is_completed=True).count()
+        percentage = int((completed_items / total_items) * 100) if total_items > 0 else 0
+
+        return JsonResponse({
+            'success': True,
+            'completed': completed,
+            'completed_at': response.completed_at.isoformat() if response.completed_at else None,
+            'progress': {
+                'completed': completed_items,
+                'total': total_items,
+                'percentage': percentage
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating checklist item {item_id}: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
 def my_tasks(request):
     """List of all tasks assigned to current user."""
     
     tasks = Task.objects.filter(
         assigned_to=request.user
-    ).select_related('property', 'booking').order_by('-due_date')
+    ).select_related('property_ref', 'booking').order_by('-due_date')
     
     # Filter by status if provided
     status_filter = request.GET.get('status')
@@ -365,7 +428,7 @@ def my_tasks(request):
         tasks = tasks.filter(
             Q(title__icontains=search) |
             Q(description__icontains=search) |
-            Q(property__name__icontains=search)
+            Q(property_ref__name__icontains=search)
         )
     
     # Pagination
@@ -512,21 +575,27 @@ def lost_found_list(request):
                 properties = Property.objects.all()
             else:
                 # For regular staff, show items from properties where they have tasks
+                # OR items they found themselves
                 property_ids = Task.objects.filter(
                     assigned_to=request.user
-                ).values_list('property', flat=True).distinct()
+                ).values_list('property_ref', flat=True).distinct()
                 properties = Property.objects.filter(id__in=property_ids)
         except:
             # If no profile, only show properties with assigned tasks
             property_ids = Task.objects.filter(
                 assigned_to=request.user
-            ).values_list('property', flat=True).distinct()
+            ).values_list('property_ref', flat=True).distinct()
             properties = Property.objects.filter(id__in=property_ids)
     
-    # Get lost & found items
+    # Get lost & found items - show items from accessible properties OR items found by this user
     items = LostFoundItem.objects.filter(
-        property_ref__in=properties
+        Q(property_ref__in=properties) | Q(found_by=request.user)
     ).select_related('property_ref', 'found_by').order_by('-found_date')
+    
+    logger.info(f"Lost & found list accessed by user: {request.user.username}")
+    logger.info(f"Found {items.count()} items for user {request.user.username}")
+    logger.info(f"Properties accessible: {[p.name for p in properties]}")
+    logger.info(f"Items found: {[f'{item.title} - {item.property_ref.name}' for item in items[:5]]}")
     
     # Filter by status
     status_filter = request.GET.get('status')
@@ -548,13 +617,13 @@ def upload_checklist_photo(request):
     """Upload a photo for a checklist response."""
     
     try:
-        response_id = request.POST.get('response_id')
+        item_id = request.POST.get('item_id')
         photo = request.FILES.get('photo')
         
-        if not response_id or not photo:
-            return JsonResponse({'error': 'Missing response_id or photo'}, status=400)
+        if not item_id or not photo:
+            return JsonResponse({'error': 'Missing item_id or photo'}, status=400)
         
-        response = get_object_or_404(ChecklistResponse, id=response_id)
+        response = get_object_or_404(ChecklistResponse, id=item_id)
         
         # Check permissions using centralized authorization
         if not can_edit_task(request.user, response.checklist.task):
@@ -579,43 +648,115 @@ def upload_checklist_photo(request):
 
 @login_required
 @require_POST
-def set_task_status(request, task_id):
-    """Update a task's status."""
-    
-    logger.info(f"Task status update requested by user {request.user.username} for task {task_id}")
-    
+def remove_checklist_photo(request):
+    """Remove a photo from a checklist item."""
+
+    try:
+        data = json.loads(request.body)
+        item_id = data.get('item_id')
+        photo_url = data.get('photo_url')
+
+        if not item_id or not photo_url:
+            return JsonResponse({'error': 'Missing item_id or photo_url'}, status=400)
+
+        response = get_object_or_404(ChecklistResponse, id=item_id)
+
+        # Check permissions
+        if not can_edit_task(request.user, response.checklist.task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+
+        # Find and delete the photo
+        photo = get_object_or_404(
+            ChecklistPhoto,
+            response=response,
+            image__endswith=photo_url.split('/')[-1]
+        )
+        
+        # Delete the file
+        photo.image.delete(save=False)
+        photo.delete()
+
+        return JsonResponse({'success': True})
+
+    except Exception as e:
+        logger.error(f"Error removing checklist photo: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def update_task_status_api(request, task_id):
+    """Update task status via AJAX."""
+
     try:
         task = get_object_or_404(Task, id=task_id)
-        old_status = task.status
-        
-        # Check permissions using centralized authorization
+
+        # Check permissions
         if not can_edit_task(request.user, task):
-            logger.warning(f"Permission denied for user {request.user.username} to update task {task_id}")
             return JsonResponse({'error': 'Permission denied'}, status=403)
-        
+
         data = json.loads(request.body)
         new_status = data.get('status')
-        
-        logger.debug(f"Task {task_id} status change requested: {old_status} -> {new_status}")
-        
-        if new_status not in [choice[0] for choice in Task.STATUS_CHOICES]:
-            logger.warning(f"Invalid status '{new_status}' requested for task {task_id}")
+        new_description = data.get('description')
+
+        if new_status and new_status not in [choice[0] for choice in Task.STATUS_CHOICES]:
             return JsonResponse({'error': 'Invalid status'}, status=400)
-        
-        task.status = new_status
+
+        old_status = task.status
+        if new_status:
+            task.status = new_status
+        if new_description is not None:
+            task.description = new_description
         task.modified_by = request.user
         task.save()
-        
-        logger.info(f"Task {task_id} status updated successfully: {old_status} -> {new_status} by user {request.user.username}")
-        
+
+        logger.info(f"Task {task_id} status updated: {old_status} -> {new_status} by {request.user.username}")
+
         return JsonResponse({
             'success': True,
             'status': task.status,
             'status_display': task.get_status_display()
         })
-        
+
     except Exception as e:
-        logger.error(f"Error updating task {task_id} status by user {request.user.username}: {str(e)}", exc_info=True)
+        logger.error(f"Error updating task {task_id} status: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def task_progress_api(request, task_id):
+    """Get task progress information."""
+
+    try:
+        task = get_object_or_404(Task, id=task_id)
+
+        # Check permissions
+        if not can_view_task(request.user, task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+
+        # Get checklist progress
+        try:
+            checklist = task.checklist
+            total_items = checklist.responses.count()
+            completed_items = checklist.responses.filter(is_completed=True).count()
+            percentage = int((completed_items / total_items) * 100) if total_items > 0 else 0
+        except:
+            total_items = 0
+            completed_items = 0
+            percentage = 0
+
+        return JsonResponse({
+            'success': True,
+            'progress': {
+                'completed': completed_items,
+                'total': total_items,
+                'percentage': percentage,
+                'remaining': total_items - completed_items
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting task {task_id} progress: {str(e)}")
         return JsonResponse({'error': str(e)}, status=400)
 
 
@@ -652,3 +793,87 @@ def task_counts_api(request):
             'success': False,
             'error': str(e)
         })
+
+
+@login_required
+@require_POST
+def lost_found_create(request):
+    """Create a new lost & found item from task context."""
+    try:
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = ['title', 'description', 'found_location', 'property_ref']
+        for field in required_fields:
+            if not data.get(field):
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }, status=400)
+        
+        # Get the property
+        try:
+            property_obj = Property.objects.get(id=data['property_ref'])
+        except Property.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Property not found'
+            }, status=400)
+        
+        # Get the task if provided
+        task_obj = None
+        if data.get('task'):
+            try:
+                task_obj = Task.objects.get(id=data['task'])
+            except Task.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Task not found'
+                }, status=400)
+        
+        # Get the booking if provided
+        booking_obj = None
+        if data.get('booking'):
+            try:
+                booking_obj = Booking.objects.get(id=data['booking'])
+            except Booking.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Booking not found'
+                }, status=400)
+        
+        # Create the lost & found item
+        lost_found_item = LostFoundItem.objects.create(
+            property_ref=property_obj,
+            task=task_obj,
+            booking=booking_obj,
+            title=data['title'],
+            description=data['description'],
+            category=data.get('category', ''),
+            estimated_value=data.get('estimated_value'),
+            found_location=data['found_location'],
+            storage_location=data.get('storage_location', ''),
+            notes=data.get('notes', ''),
+            found_by=request.user,
+            status='found'
+        )
+        
+        logger.info(f"Lost & found item created: {lost_found_item.title} by {request.user.username}")
+        
+        return JsonResponse({
+            'success': True,
+            'item_id': lost_found_item.id,
+            'message': 'Lost & found item reported successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error creating lost & found item: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

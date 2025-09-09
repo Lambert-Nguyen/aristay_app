@@ -274,7 +274,7 @@ def mobile_task_summary(request):
     try:
         # Get user's tasks with minimal data
         user_tasks = Task.objects.filter(assigned_to=user).select_related(
-            'property', 'booking'
+            'property_ref', 'booking'
         )
         
         # Apply filters
@@ -284,7 +284,7 @@ def mobile_task_summary(request):
         
         property_filter = request.GET.get('property_id')
         if property_filter:
-            user_tasks = user_tasks.filter(property_id=property_filter)
+            user_tasks = user_tasks.filter(property_ref_id=property_filter)
         
         # Limit results for mobile
         limit = min(int(request.GET.get('limit', 20)), 50)
@@ -293,7 +293,7 @@ def mobile_task_summary(request):
         tasks_data = []
         for task in user_tasks:
             due_date = getattr(task, 'due_date', None)
-            property_obj = getattr(task, 'property', None)
+            property_obj = getattr(task, 'property_ref', None)
             
             tasks_data.append({
                 "id": getattr(task, 'id', task.pk),

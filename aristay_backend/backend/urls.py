@@ -52,6 +52,12 @@ from api.security_dashboard import (
     terminate_session, security_analytics
 )
 
+# Custom Password Reset imports
+from api.password_reset_views import (
+    PasswordResetView, PasswordResetDoneView, 
+    PasswordResetConfirmView, PasswordResetCompleteView
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
@@ -88,8 +94,19 @@ urlpatterns = [
     path('logout/', logout_view, name='unified_logout'),
     path('', UnifiedLoginView.as_view(), name='home'),  # Root URL redirects to login
     
-    # Password reset endpoints
-    path('api/auth/', include('django.contrib.auth.urls')),
+    # Password reset endpoints - using custom views with audit logging
+    path('api/auth/password_reset/', 
+         PasswordResetView.as_view(), 
+         name='password_reset'),
+    path('api/auth/password_reset/done/', 
+         PasswordResetDoneView.as_view(), 
+         name='password_reset_done'),
+    path('api/auth/reset/<uidb64>/<token>/', 
+         PasswordResetConfirmView.as_view(), 
+         name='password_reset_confirm'),
+    path('api/auth/reset/done/', 
+         PasswordResetCompleteView.as_view(), 
+         name='password_reset_complete'),
 ]
 
 if settings.DEBUG:

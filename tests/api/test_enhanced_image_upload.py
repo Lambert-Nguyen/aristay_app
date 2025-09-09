@@ -39,7 +39,7 @@ class ImageOptimizationTests(TestCase):
         )
         self.task = Task.objects.create(
             title='Test Task',
-            property=self.property,
+            property_ref=self.property,
             created_by=self.user
         )
     
@@ -181,7 +181,7 @@ class TaskImageAPITests(APITestCase):
         )
         self.task = Task.objects.create(
             title='Test Task',
-            property=self.property,
+            property_ref=self.property,
             created_by=self.user
         )
         self.client.force_authenticate(user=self.user)
@@ -346,7 +346,7 @@ class TaskImageSerializerTests(TestCase):
         )
         self.task = Task.objects.create(
             title='Test Task',
-            property=self.property,
+            property_ref=self.property,
             created_by=self.user
         )
     

@@ -52,8 +52,8 @@ def main():
         if not user:  # Create user if first test failed
             user = User.objects.create_user(username=f"verify_user_backup_{unique}", password="x")
         prop = Property.objects.create(name=f"Verify Prop {unique}", address="x")
-        task1 = Task.objects.create(title=f"t1_{unique}", property=prop, assigned_to=user, status="pending")
-        task2 = Task.objects.create(title=f"t2_{unique}", property=prop, assigned_to=user, status="pending")
+        task1 = Task.objects.create(title=f"t1_{unique}", property_ref=prop, assigned_to=user, status="pending")
+        task2 = Task.objects.create(title=f"t2_{unique}", property_ref=prop, assigned_to=user, status="pending")
         img1 = TaskImage.objects.create(task=task1, image="a.jpg", uploaded_by=user)
         img2 = TaskImage.objects.create(task=task2, image="b.jpg", uploaded_by=user)
 

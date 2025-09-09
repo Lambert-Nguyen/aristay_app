@@ -3,13 +3,116 @@ from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.urls import path
 from django.shortcuts import render, redirect
+from django.http import Http404
+from datetime import datetime
+from django.contrib.admin.models import LogEntry
+from django.contrib.contenttypes.models import ContentType
+import json
+import logging
 from .models import (
-    Property, Task, Notification, Booking, PropertyOwnership, Profile,
+    Property, Task, Notification, Booking, PropertyOwnership, Profile, UserRole,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
     BookingImportTemplate, BookingImportLog
 )
+
+def create_unified_history_view(model_class):
+    """
+    Create a unified history view function for any model that has a history field.
+    This combines Django admin history with the model's custom history field.
+    """
+    def history_view(self, request, object_id, extra_context=None):
+        """Custom history view that combines Django admin history with model.history field"""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 CUSTOM HISTORY VIEW CALLED for {model_class.__name__} {object_id}")
+        
+        # Get the object
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            raise Http404(f"{model_class.__name__} not found")
+        
+        logger.info(f"📋 {model_class.__name__} found: {getattr(obj, 'name', getattr(obj, 'title', str(obj)))}")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(obj)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get model.history field
+        model_history = []
+        try:
+            history_field = getattr(obj, 'history', None)
+            if history_field:
+                model_history = json.loads(history_field or '[]')
+        except json.JSONDecodeError:
+            model_history = []
+        
+        logger.info(f"📝 {model_class.__name__}.history field: {len(model_history)} entries")
+        
+        # Combine and sort histories by timestamp
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add model.history entries
+        for entry in model_history:
+            if isinstance(entry, str) and ':' in entry:
+                try:
+                    # Parse format: "2025-01-08T10:30:00.000000+00:00: username changed status from 'old' to 'new'"
+                    timestamp_str, change_desc = entry.split(':', 1)
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    # Ensure timezone-aware datetime
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    # Skip malformed entries
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {getattr(obj, "name", getattr(obj, "title", str(obj)))}',
+            'object': obj,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, obj),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
+    
+    return history_view
 
 class ManagerAdminSite(admin.AdminSite):
     site_header = "AriStay Manager"
@@ -98,11 +201,15 @@ class ManagerPermissionMixin:
 class PropertyAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'created_at', 'modified_at')
     search_fields = ('name',)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Property)
 
 class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'created_at')
+    list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'created_at')
     search_fields = ('title', 'description')
-    list_filter = ('status', 'task_type', 'created_at', 'property', 'booking')
+    list_filter = ('status', 'task_type', 'created_at', 'property_ref', 'booking')
+    readonly_fields = ('history', 'created_at', 'modified_at')
     
     # Override to use dynamic permissions for tasks
     def has_view_permission(self, request, obj=None):
@@ -116,6 +223,101 @@ class TaskAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return self._has_permission(request, 'delete_tasks')
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Task)
+    
+    def old_history_view(self, request, object_id, extra_context=None):
+        """Custom history view that combines Django admin history with Task.history field"""
+        from django.contrib.admin.models import LogEntry
+        from django.contrib.contenttypes.models import ContentType
+        from django.utils.html import format_html
+        from django.utils.safestring import mark_safe
+        import json
+        
+        print(f"🔍 CUSTOM HISTORY VIEW CALLED for task {object_id}")
+        
+        # Get the task object
+        task = self.get_object(request, object_id)
+        if task is None:
+            raise Http404("Task not found")
+        
+        print(f"📋 Task found: {task.title}")
+        print(f"📝 Task.history field: {task.history[:100]}...")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(task)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get Task.history field
+        task_history = []
+        try:
+            task_history = json.loads(task.history or '[]')
+        except json.JSONDecodeError:
+            task_history = []
+        
+        # Combine and sort histories by timestamp
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add Task.history entries
+        for entry in task_history:
+            if isinstance(entry, str) and ':' in entry:
+                try:
+                    # Parse format: "2025-01-08T10:30:00.000000+00:00: username changed status from 'old' to 'new'"
+                    timestamp_str, change_desc = entry.split(':', 1)
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    # Ensure timezone-aware datetime
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    # Skip malformed entries
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {task.title}',
+            'object': task,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, task),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
 
 # Create a specialized BookingAdmin for dynamic permissions
 class BookingAdmin(ManagerPermissionMixin, admin.ModelAdmin):
@@ -135,6 +337,9 @@ class BookingAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return self._has_permission(request, 'delete_bookings')
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Booking)
 
 class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     """
@@ -147,17 +352,21 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     list_display = ('username', 'email', 'get_profile_role', 'get_departments', 'is_active', 'is_staff', 'date_joined')
     list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
     search_fields = ('username', 'email', 'first_name', 'last_name')
-    exclude = ('password',)  # hide hashed password
+    # Don't exclude password - let Django handle it properly
     filter_horizontal = ('groups',)  # Allow editing groups/departments
-    readonly_fields = ('username', 'date_joined', 'last_login')  # Managers cannot modify usernames
+    readonly_fields = ('username', 'password', 'date_joined', 'last_login')  # Include password as readonly
 
-    # Override Django's default fieldsets to avoid field conflicts
+    # Override Django's default fieldsets to show password properly
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
+        (None, {
+            'fields': ('username', 'password'),
+            'description': 'Password is encrypted and cannot be viewed. Use "Reset password" link below to send a new password to the user via email.'
+        }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'groups'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -167,11 +376,13 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': ('username', 'password1', 'password2'),
+            'description': 'Passwords are encrypted and stored securely. Users can change their password later via the reset password function.'
         }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'groups'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) will be set via Profile after user creation.'
         }),
     )
 
@@ -194,11 +405,11 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         """Customize form for managers"""
         form = super().get_form(request, obj, **kwargs)
 
-        # Managers should not be able to modify is_staff or is_superuser
+        # Remove is_staff and is_superuser from form entirely (use Profile.role instead)
         if 'is_staff' in form.base_fields:
-            form.base_fields['is_staff'].disabled = True
+            del form.base_fields['is_staff']  
         if 'is_superuser' in form.base_fields:
-            form.base_fields['is_superuser'].disabled = True
+            del form.base_fields['is_superuser']
 
         # Only remove password change fields when EDITING existing users (obj exists)
         # For new users (obj is None), we need the password fields
@@ -217,6 +428,38 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         if hasattr(request, 'user') and request.user and not request.user.is_superuser:
             ro.append('username')
         return ro
+
+    def save_model(self, request, obj, form, change):
+        """Override save to handle Profile creation and role assignment"""
+        # Save the user first
+        super().save_model(request, obj, form, change)
+        
+        # Ensure user has a Profile with appropriate role
+        profile, created = Profile.objects.get_or_create(
+            user=obj,
+            defaults={
+                'role': UserRole.STAFF,  # Default new users to staff role
+                'timezone': 'America/New_York',
+            }
+        )
+        
+        # If this is a new user, log the creation
+        if not change:  # This is a new user
+            print(f"✅ Created new user '{obj.username}' with Profile role: {profile.role}")
+            
+    def save_formset(self, request, form, formset, change):
+        """Override to handle Profile inline saves"""
+        super().save_formset(request, form, formset, change)
+        
+        # After saving Profile inline, ensure is_staff is synced correctly
+        user = form.instance
+        if hasattr(user, 'profile') and user.profile:
+            # Set is_staff based on profile role (for Django admin access)
+            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
+            if user.is_staff != should_have_staff_access:
+                user.is_staff = should_have_staff_access
+                user.save(update_fields=['is_staff'])
+                print(f"✅ Synced is_staff={user.is_staff} for {user.username} (role: {user.profile.role})")
 
     def send_password_reset(self, request, queryset):
         """Trigger Django's password reset flow for selected users"""
@@ -353,6 +596,105 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         if not request.user.is_superuser:
             obj.is_superuser = False  # Prevent privilege escalation
         super().save_model(request, obj, form, change)
+    
+    def history_view(self, request, object_id, extra_context=None):
+        """Custom history view for User model (Django admin history + custom history)"""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 CUSTOM HISTORY VIEW CALLED for User {object_id}")
+        
+        # Get the user object
+        user = self.get_object(request, object_id)
+        if user is None:
+            raise Http404("User not found")
+        
+        logger.info(f"📋 User found: {user.username}")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(user)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get custom user history (if it exists)
+        custom_history = []
+        try:
+            history_field = getattr(user, 'history', None)
+            if history_field:
+                custom_history = json.loads(history_field or '[]')
+        except json.JSONDecodeError:
+            custom_history = []
+        
+        # Get password reset history
+        password_reset_history = []
+        try:
+            from api.password_reset_logs import get_user_password_reset_history
+            password_reset_history = get_user_password_reset_history(user)
+        except Exception as e:
+            logger.error(f"Failed to get password reset history: {e}")
+        
+        # Combine custom history and password reset history
+        all_custom_history = custom_history + password_reset_history
+        
+        logger.info(f"📝 User.history field: {len(custom_history)} entries")
+        logger.info(f"📝 Password reset history: {len(password_reset_history)} entries")
+        
+        # Convert to combined history format
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add custom history (password resets, etc.)
+        for entry in all_custom_history:
+            if isinstance(entry, str) and ':' in entry:
+                try:
+                    timestamp_str, change_desc = entry.split(':', 1)
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {user.username}',
+            'object': user,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, user),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
 
 class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at')
@@ -360,6 +702,9 @@ class NotificationManagerAdmin(ManagerPermissionMixin, admin.ModelAdmin):
     search_fields = ('recipient__username', 'task__title')
     readonly_fields = ('timestamp', 'push_sent')
     list_per_page = 50
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Notification)
     
     fieldsets = (
         (None, {
@@ -392,7 +737,8 @@ from .admin import (
 
 # Create manager-permission wrapped versions
 class ChecklistTemplateManagerAdmin(ManagerPermissionMixin, ChecklistTemplateAdmin):
-    pass
+    # Use the generic unified history view
+    history_view = create_unified_history_view(ChecklistTemplate)
 
 class ChecklistResponseManagerAdmin(ManagerPermissionMixin, ChecklistResponseAdmin):
     pass
@@ -404,13 +750,16 @@ class InventoryCategoryManagerAdmin(ManagerPermissionMixin, InventoryCategoryAdm
     pass
 
 class InventoryItemManagerAdmin(ManagerPermissionMixin, InventoryItemAdmin):
-    pass
+    # Use the generic unified history view
+    history_view = create_unified_history_view(InventoryItem)
 
 class PropertyInventoryManagerAdmin(ManagerPermissionMixin, PropertyInventoryAdmin):
-    pass
+    # Use the generic unified history view
+    history_view = create_unified_history_view(PropertyInventory)
 
 class InventoryTransactionManagerAdmin(ManagerPermissionMixin, InventoryTransactionAdmin):
-    pass
+    # Use the generic unified history view
+    history_view = create_unified_history_view(InventoryTransaction)
 
 class LostFoundItemManagerAdmin(ManagerPermissionMixin, LostFoundItemAdmin):
     pass
@@ -419,7 +768,8 @@ class ScheduleTemplateManagerAdmin(ManagerPermissionMixin, ScheduleTemplateAdmin
     pass
 
 class GeneratedTaskManagerAdmin(ManagerPermissionMixin, GeneratedTaskAdmin):
-    pass
+    # Use the generic unified history view
+    history_view = create_unified_history_view(GeneratedTask)
 
 class BookingImportTemplateManagerAdmin(ManagerPermissionMixin, BookingImportTemplateAdmin):
     pass

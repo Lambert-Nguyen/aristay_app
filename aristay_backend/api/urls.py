@@ -41,6 +41,11 @@ from .views import (
     permission_management_view, file_cleanup_page
 )
 
+# Checklist Management Views
+from .checklist_views import (
+    checklist_templates, create_checklist_template, assign_checklist_to_task, quick_assign_checklists
+)
+
 # Email Digest Service Views
 from .digest_views import (
     send_digest_api, digest_settings_api, digest_opt_out_api,
@@ -61,8 +66,9 @@ from .audit_views import AuditEventViewSet
 from .staff_views import (
     staff_dashboard, cleaning_dashboard, maintenance_dashboard, laundry_dashboard,
     lawn_pool_dashboard, task_detail, update_checklist_response, my_tasks,
-    inventory_lookup, log_inventory_transaction, lost_found_list,
-    upload_checklist_photo, set_task_status, task_counts_api
+    inventory_lookup, log_inventory_transaction, lost_found_list, lost_found_create,
+    upload_checklist_photo, update_task_status_api, task_counts_api,
+    update_checklist_item, remove_checklist_photo, task_progress_api
 )
 
 from .monitoring import (
@@ -153,13 +159,18 @@ urlpatterns = [
     path('staff/tasks/<int:task_id>/', task_detail, name='staff-task-detail'),
     path('staff/inventory/', inventory_lookup, name='staff-inventory'),
     path('staff/lost-found/', lost_found_list, name='staff-lost-found'),
+    path('staff/lost-found/create/', lost_found_create, name='staff-lost-found-create'),
     
     # Staff AJAX endpoints
     path('staff/checklist-response/<int:response_id>/update/', update_checklist_response, name='update-checklist-response'),
+    path('staff/checklist/<int:item_id>/update/', update_checklist_item, name='update-checklist-item'),
+    path('staff/checklist/photo/upload/', upload_checklist_photo, name='upload-checklist-photo'),
+    path('staff/checklist/photo/remove/', remove_checklist_photo, name='remove-checklist-photo'),
+    path('staff/tasks/<int:task_id>/status/', update_task_status_api, name='update-task-status'),
+    path('staff/tasks/<int:task_id>/progress/', task_progress_api, name='task-progress'),
     path('staff/inventory/transaction/', log_inventory_transaction, name='log-inventory-transaction'),
-    path('staff/checklist-photo/upload/', upload_checklist_photo, name='upload-checklist-photo'),
     path('staff/task-counts/', task_counts_api, name='staff-task-counts'),
-    path('tasks/<int:task_id>/set_status/', set_task_status, name='set-task-status'),
+    path('tasks/<int:task_id>/set_status/', update_task_status_api, name='set-task-status'),
     
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),
@@ -208,6 +219,12 @@ urlpatterns = [
     path('notifications/cleanup/', cleanup_notifications_api, name='cleanup-notifications-api'),
     path('admin/notification-management/', notification_management_view, name='admin-notification-management'),
     path('notifications/settings/', user_notification_settings_view, name='user-notification-settings'),
+    
+    # Checklist Management endpoints
+    path('checklists/', checklist_templates, name='checklist_templates'),
+    path('checklists/create/', create_checklist_template, name='create_checklist_template'),
+    path('checklists/assign/<int:task_id>/', assign_checklist_to_task, name='assign_checklist_to_task'),
+    path('checklists/quick-assign/', quick_assign_checklists, name='quick_assign_checklists'),
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),

@@ -225,7 +225,7 @@ class BookingViewSet(DefaultAuthMixin, viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [DynamicBookingPermissions]
     filter_backends = [filters.SearchFilter, DjangoFilterBackend, OrderingFilter]
-    search_fields = ['guest_name', 'guest_contact', 'property__name']
+    search_fields = ['guest_name', 'guest_contact', 'property_ref__name']
     ordering_fields = ['check_in_date', 'check_out_date', 'status']
     ordering = ['-check_in_date']
 
@@ -441,7 +441,7 @@ def portal_booking_detail(request, property_id, pk):
 def portal_task_detail(request, task_id):
     """User-friendly task detail view for portal users."""
     
-    task = get_object_or_404(Task.objects.select_related('property', 'booking', 'assigned_to', 'created_by'), id=task_id)
+    task = get_object_or_404(Task.objects.select_related('property_ref', 'booking', 'assigned_to', 'created_by'), id=task_id)
     
     # Check permissions using centralized authorization
     if not AuthzHelper.can_view_task(request.user, task):
@@ -567,15 +567,12 @@ class TaskDetail(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
         instance = serializer.save(modified_by=self.request.user)
 
         changes = []
-        for field in ('status', 'title', 'description', 'assigned_to', 'task_type', 'property'):
+        for field in ('status', 'title', 'description', 'assigned_to', 'task_type'):
             old_val = getattr(old, field)
             new_val = getattr(instance, field)
             if field == 'assigned_to':
                 old_val = old.assigned_to.username if old.assigned_to else None
                 new_val = instance.assigned_to.username if instance.assigned_to else None
-            if field == 'property':
-                old_val = old.property.name if old.property else None
-                new_val = instance.property.name if instance.property else None
 
             if old_val != new_val:
                 changes.append(
@@ -583,6 +580,16 @@ class TaskDetail(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
                     f"{self.request.user.username} changed {field} "
                     f"from '{old_val or ''}' to '{new_val or ''}'"
                 )
+
+        # Check property_ref changes separately  
+        old_prop = old.property_ref.name if old.property_ref else None
+        new_prop = instance.property_ref.name if instance.property_ref else None
+        if old_prop != new_prop:
+            changes.append(
+                f"{timezone.now().isoformat()}: "
+                f"{self.request.user.username} changed property "
+                f"from '{old_prop or ''}' to '{new_prop or ''}'"
+            )
 
         history = json.loads(old.history or '[]')
         history.extend(changes)
@@ -946,8 +953,8 @@ def manager_charts_dashboard(request):
     # Get tasks by property
     tasks_by_property = (
         Task.objects
-        .select_related('property')
-        .values('property__name')
+        .select_related('property_ref')
+        .values('property_ref__name')
         .annotate(count=Count('id'))
         .order_by('-count')[:10]  # Top 10 properties
     )
@@ -1026,7 +1033,7 @@ def manager_charts_dashboard(request):
     property_data = []
     
     for item in tasks_by_property:
-        property_name = item['property__name'] or 'No Property'
+        property_name = item['property_ref__name'] or 'No Property'
         property_labels.append(property_name)
         property_data.append(item['count'])
     
@@ -1123,8 +1130,8 @@ def admin_charts_dashboard(request):
     # Get tasks by property
     tasks_by_property = (
         Task.objects
-        .select_related('property')
-        .values('property__name')
+        .select_related('property_ref')
+        .values('property_ref__name')
         .annotate(count=Count('id'))
         .order_by('-count')[:10]  # Top 10 properties
     )
@@ -1191,7 +1198,7 @@ def admin_charts_dashboard(request):
     property_data = []
     
     for item in tasks_by_property:
-        property_name = item['property__name'] or 'No Property'
+        property_name = item['property_ref__name'] or 'No Property'
         property_labels.append(property_name)
         property_data.append(item['count'])
     

@@ -8,6 +8,12 @@ from django.db.models import Q, Count
 from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from django.contrib.admin.models import LogEntry
+from django.contrib.contenttypes.models import ContentType
+from django.http import Http404
+from datetime import datetime
+import json
+import logging
 from .models import (
     Property, Task, TaskImage, Notification, Booking, PropertyOwnership, Profile,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
@@ -18,6 +24,123 @@ from .models import (
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+
+
+class ProvenanceStampMixin:
+    """Mixin to stamp modified_by/modified_via consistently when available."""
+    provenance_via = 'admin'
+
+    def save_model(self, request, obj, form, change):
+        # If the model has these fields, set them
+        if hasattr(obj, 'modified_by'):
+            obj.modified_by = request.user
+        if hasattr(obj, 'modified_via'):
+            obj.modified_via = self.provenance_via
+        super().save_model(request, obj, form, change)
+
+def create_unified_history_view(model_class):
+    """
+    Create a unified history view function for any model that has a history field.
+    This combines Django admin history with the model's custom history field.
+    """
+    def history_view(self, request, object_id, extra_context=None):
+        """Custom history view that combines Django admin history with model.history field"""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 CUSTOM HISTORY VIEW CALLED for {model_class.__name__} {object_id}")
+        
+        # Get the object
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            raise Http404(f"{model_class.__name__} not found")
+        
+        logger.info(f"📋 {model_class.__name__} found: {getattr(obj, 'name', getattr(obj, 'title', str(obj)))}")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(obj)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get model.history field
+        model_history = []
+        try:
+            history_field = getattr(obj, 'history', None)
+            if history_field:
+                model_history = json.loads(history_field or '[]')
+        except json.JSONDecodeError:
+            model_history = []
+        
+        logger.info(f"📝 {model_class.__name__}.history field: {len(model_history)} entries")
+        
+        # Combine and sort histories by timestamp
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add model.history entries
+        for entry in model_history:
+            if isinstance(entry, str) and ': ' in entry:
+                try:
+                    # Parse format: "2025-01-08T10:30:00.000000+00:00: username changed ..."
+                    # Important: split on ": " to avoid splitting inside ISO time
+                    timestamp_str, _, change_desc = entry.partition(': ')
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    # Ensure timezone-aware datetime
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    # Extract user from "<user> changed ..."
+                    user_name = 'Unknown'
+                    if change_desc:
+                        parts = change_desc.split(' changed ', 1)
+                        if parts and parts[0]:
+                            user_name = parts[0].strip()
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': user_name,
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    # Skip malformed entries
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {getattr(obj, "name", getattr(obj, "title", str(obj)))}',
+            'object': obj,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, obj),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
+    
+    return history_view
 
 
 class ConflictStatusFilter(admin.SimpleListFilter):
@@ -186,15 +309,15 @@ class TaskImageInline(admin.TabularInline):
     preview.allow_tags = True
     preview.short_description = 'Image Preview'
 
-class TaskAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
-    list_filter = ('status', 'task_type', 'created_at', 'property', 'booking', 'assigned_to')
+class TaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
+    list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
+    list_filter = ('status', 'task_type', 'created_at', 'property_ref', 'booking', 'assigned_to')
     search_fields = ('title', 'description')
     readonly_fields = ('created_at', 'modified_at', 'history', 'created_at_dual', 'modified_at_dual', 'due_date_dual')
     
     fieldsets = (
         (None, {
-            'fields': ('title', 'description', 'task_type', 'property', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
+            'fields': ('title', 'description', 'task_type', 'property_ref', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
         }),
         ('Tracking', {
             'fields': ('created_by', 'created_at_dual', 'modified_by', 'modified_at_dual', 'due_date_dual'),
@@ -207,6 +330,9 @@ class TaskAdmin(admin.ModelAdmin):
     )
     
     inlines = [TaskImageInline]
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Task)
 
     def created_at_display(self, obj):
         """Display created time in Tampa timezone"""
@@ -326,7 +452,7 @@ class TaskAdmin(admin.ModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
 
-class PropertyAdmin(admin.ModelAdmin):
+class PropertyAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'address', 'created_at', 'created_by')
     search_fields = ('name', 'address')
     readonly_fields = ('created_at', 'modified_at', 'history')
@@ -340,6 +466,9 @@ class PropertyAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Property)
 
     def save_model(self, request, obj, form, change):
         if not change:  # If creating a new object
@@ -347,7 +476,7 @@ class PropertyAdmin(admin.ModelAdmin):
         obj.modified_by = request.user
         super().save_model(request, obj, form, change)
         
-class BookingAdmin(admin.ModelAdmin):
+class BookingAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = (
         'id', 'property', 'external_code_display', 'booked_on_display', 'source_display',
         'check_in_display', 'check_out_display', 'status', 'guest_name', 'guest_contact',
@@ -580,14 +709,17 @@ class BookingAdmin(admin.ModelAdmin):
         """Store request for timezone access"""
         self.request = request
         return super().get_form(request, obj, **kwargs)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Booking)
 
-class PropertyOwnershipAdmin(admin.ModelAdmin):
+class PropertyOwnershipAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'property', 'user', 'ownership_type', 'can_edit', 'created_at')
     list_filter = ('ownership_type', 'can_edit', 'property')
     search_fields = ('property__name', 'user__username', 'user__email')
     readonly_fields = ('created_at',)
 
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'recipient', 'task_title', 'verb', 'read', 'timestamp', 'read_at', 'push_sent')
     list_filter = ('read', 'verb', 'push_sent', 'timestamp')
     search_fields = ('recipient__username', 'task__title')
@@ -610,6 +742,9 @@ class NotificationAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('recipient', 'task')
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Notification)
 
 # Register models with the custom admin site
 admin_site.register(Task, TaskAdmin)
@@ -638,7 +773,7 @@ class ProfileInline(admin.StackedInline):
             kwargs['help_text'] = 'Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool'
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
-class AriStayUserAdmin(DjangoUserAdmin):
+class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
     """
     Custom UserAdmin with role-based permissions:
     - Superusers: Full access (can modify passwords, usernames, groups)
@@ -661,8 +796,9 @@ class AriStayUserAdmin(DjangoUserAdmin):
         ('Password Status', {'fields': ('password_status_display',)}),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups', 'user_permissions'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -675,8 +811,9 @@ class AriStayUserAdmin(DjangoUserAdmin):
         }),
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-            'classes': ('collapse',)
+            'fields': ('is_active', 'groups', 'user_permissions'),
+            'classes': ('collapse',),
+            'description': 'Note: User role (staff/manager) will be set via Profile after user creation. Django admin access will be automatically synced.'
         }),
     )
 
@@ -733,14 +870,53 @@ class AriStayUserAdmin(DjangoUserAdmin):
         return form
 
     def save_model(self, request, obj, form, change):
-        """Handle password changes and user creation"""
+        """Handle password changes and user creation with automatic Profile management"""
         # Handle password changes for superusers only
         if request.user.is_superuser:
             # Check if password fields were provided
             if form.cleaned_data.get('password1') and form.cleaned_data.get('password2'):
                 obj.set_password(form.cleaned_data['password1'])
 
+        # Save the user first
         super().save_model(request, obj, form, change)
+        
+        # Ensure user has a Profile with appropriate role
+        from .models import UserRole
+        profile, created = Profile.objects.get_or_create(
+            user=obj,
+            defaults={
+                'role': UserRole.STAFF,  # Default new users to staff role
+                'timezone': 'America/New_York',
+            }
+        )
+        
+        # If this is a new user, log the creation
+        if not change:  # This is a new user
+            print(f"✅ Admin created new user '{obj.username}' with Profile role: {profile.role}")
+            
+    def save_formset(self, request, form, formset, change):
+        """Override to handle Profile inline saves and sync is_staff/is_superuser"""
+        super().save_formset(request, form, formset, change)
+        
+        # After saving Profile inline, ensure is_staff/is_superuser are synced correctly
+        user = form.instance
+        if hasattr(user, 'profile') and user.profile:
+            from .models import UserRole
+            # Set is_staff and is_superuser based on profile role
+            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
+            should_have_superuser_access = user.profile.role == UserRole.SUPERUSER
+            
+            changed = False
+            if user.is_staff != should_have_staff_access:
+                user.is_staff = should_have_staff_access
+                changed = True
+            if user.is_superuser != should_have_superuser_access:
+                user.is_superuser = should_have_superuser_access
+                changed = True
+                
+            if changed:
+                user.save(update_fields=['is_staff', 'is_superuser'])
+                print(f"✅ Admin synced is_staff={user.is_staff}, is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
 
     def get_actions(self, request):
         """Customize actions based on user permissions"""
@@ -907,6 +1083,105 @@ class AriStayUserAdmin(DjangoUserAdmin):
             qs = qs.exclude(is_superuser=True)
 
         return qs
+    
+    def history_view(self, request, object_id, extra_context=None):
+        """Custom history view for User model (Django admin history + custom history)"""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 CUSTOM HISTORY VIEW CALLED for User {object_id}")
+        
+        # Get the user object
+        user = self.get_object(request, object_id)
+        if user is None:
+            raise Http404("User not found")
+        
+        logger.info(f"📋 User found: {user.username}")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(user)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get custom user history (if it exists)
+        custom_history = []
+        try:
+            history_field = getattr(user, 'history', None)
+            if history_field:
+                custom_history = json.loads(history_field or '[]')
+        except json.JSONDecodeError:
+            custom_history = []
+        
+        # Get password reset history
+        password_reset_history = []
+        try:
+            from api.password_reset_logs import get_user_password_reset_history
+            password_reset_history = get_user_password_reset_history(user)
+        except Exception as e:
+            logger.error(f"Failed to get password reset history: {e}")
+        
+        # Combine custom history and password reset history
+        all_custom_history = custom_history + password_reset_history
+        
+        logger.info(f"📝 User.history field: {len(custom_history)} entries")
+        logger.info(f"📝 Password reset history: {len(password_reset_history)} entries")
+        
+        # Convert to combined history format
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add custom history (password resets, etc.)
+        for entry in all_custom_history:
+            if isinstance(entry, str) and ':' in entry:
+                try:
+                    timestamp_str, change_desc = entry.split(':', 1)
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {user.username}',
+            'object': user,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, user),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
 
 
 # Manager version of UserAdmin (more restricted)
@@ -971,7 +1246,7 @@ class ChecklistItemInline(admin.TabularInline):
     fields = ('title', 'item_type', 'is_required', 'order', 'room_type')
     ordering = ['order', 'room_type']
 
-class ChecklistTemplateAdmin(admin.ModelAdmin):
+class ChecklistTemplateAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'task_type', 'is_active', 'created_at', 'created_by')
     list_filter = ('task_type', 'is_active', 'created_at')
     search_fields = ('name', 'description')
@@ -992,20 +1267,23 @@ class ChecklistTemplateAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(ChecklistTemplate)
 
 class ChecklistPhotoInline(admin.TabularInline):
     model = ChecklistPhoto
     extra = 0
     readonly_fields = ('uploaded_at', 'uploaded_by')
 
-class ChecklistResponseAdmin(admin.ModelAdmin):
+class ChecklistResponseAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('checklist', 'item', 'is_completed', 'completed_at', 'completed_by')
     list_filter = ('is_completed', 'completed_at', 'item__item_type')
     search_fields = ('checklist__task__title', 'item__title')
     readonly_fields = ('completed_at',)
     inlines = [ChecklistPhotoInline]
 
-class TaskChecklistAdmin(admin.ModelAdmin):
+class TaskChecklistAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('task', 'template', 'completion_percentage', 'started_at', 'completed_at', 'completed_by')
     list_filter = ('template', 'started_at', 'completed_at')
     search_fields = ('task__title', 'template__name')
@@ -1017,12 +1295,12 @@ class InventoryItemInline(admin.TabularInline):
     extra = 0
     fields = ('name', 'unit', 'estimated_cost', 'is_active')
 
-class InventoryCategoryAdmin(admin.ModelAdmin):
+class InventoryCategoryAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'description', 'icon')
     search_fields = ('name', 'description')
     inlines = [InventoryItemInline]
 
-class InventoryItemAdmin(admin.ModelAdmin):
+class InventoryItemAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'name', 'category', 'unit', 'estimated_cost', 'is_active', 'created_at')
     list_filter = ('category', 'unit', 'is_active', 'created_at')
     search_fields = ('name', 'description', 'brand', 'sku')
@@ -1037,6 +1315,9 @@ class InventoryItemAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(InventoryItem)
 
 class InventoryTransactionInline(admin.TabularInline):
     model = InventoryTransaction
@@ -1044,7 +1325,7 @@ class InventoryTransactionInline(admin.TabularInline):
     readonly_fields = ('created_at', 'created_by')
     fields = ('transaction_type', 'quantity', 'task', 'notes', 'reference')
 
-class PropertyInventoryAdmin(admin.ModelAdmin):
+class PropertyInventoryAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'property_ref', 'item', 'current_stock', 'par_level', 'max_level', 'stock_status', 'last_updated')
     list_filter = ('item__category', 'last_updated')
     search_fields = ('property_ref__name', 'item__name')
@@ -1076,8 +1357,11 @@ class PropertyInventoryAdmin(admin.ModelAdmin):
             status.replace("_", " ").title()
         )
     stock_status.short_description = 'Stock Status'
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(PropertyInventory)
 
-class InventoryTransactionAdmin(admin.ModelAdmin):
+class InventoryTransactionAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('property_inventory', 'transaction_type', 'quantity', 'task', 'created_at', 'created_by')
     list_filter = ('transaction_type', 'created_at', 'property_inventory__property_ref')
     search_fields = ('property_inventory__property_ref__name', 'property_inventory__item__name', 'notes')
@@ -1087,6 +1371,9 @@ class InventoryTransactionAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(InventoryTransaction)
 
 # Lost & Found Admin
 class LostFoundPhotoInline(admin.TabularInline):
@@ -1094,12 +1381,28 @@ class LostFoundPhotoInline(admin.TabularInline):
     extra = 0
     readonly_fields = ('uploaded_at', 'uploaded_by')
 
-class LostFoundItemAdmin(admin.ModelAdmin):
+class LostFoundItemAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('title', 'property_ref', 'status', 'found_date', 'found_by', 'estimated_value')
     list_filter = ('status', 'found_date', 'property_ref', 'category')
     search_fields = ('title', 'description', 'property_ref__name', 'found_location')
-    readonly_fields = ('found_date',)
+    readonly_fields = ('found_date', 'history')
     inlines = [LostFoundPhotoInline]
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(LostFoundItem)
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Make history field read-only in the admin form"""
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if 'history' not in readonly_fields:
+            readonly_fields.append('history')
+        return readonly_fields
+
+    def save_model(self, request, obj, form, change):
+        # Stamp provenance so model.save can attribute correctly
+        obj.modified_by = request.user
+        obj.modified_via = 'admin'
+        super().save_model(request, obj, form, change)
     
     fieldsets = (
         (None, {
@@ -1124,6 +1427,10 @@ class LostFoundItemAdmin(admin.ModelAdmin):
             'fields': ('notes',),
             'classes': ('collapse',)
         }),
+        ('History', {
+            'fields': ('history',),
+            'classes': ('collapse',)
+        }),
     )
 
 # Recurring Schedules Admin
@@ -1133,7 +1440,7 @@ class GeneratedTaskInline(admin.TabularInline):
     readonly_fields = ('task', 'generated_at', 'generated_for_date')
     can_delete = False
 
-class ScheduleTemplateAdmin(admin.ModelAdmin):
+class ScheduleTemplateAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'task_type', 'property_ref', 'frequency', 'is_active', 'last_generated', 'created_at')
     list_filter = ('task_type', 'frequency', 'is_active', 'property_ref')
     search_fields = ('name', 'task_title_template', 'property_ref__name')
@@ -1164,7 +1471,7 @@ class ScheduleTemplateAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
-class GeneratedTaskAdmin(admin.ModelAdmin):
+class GeneratedTaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'schedule', 'task', 'generated_for_date', 'generated_at')
     list_filter = ('generated_for_date', 'generated_at', 'schedule__task_type')
     search_fields = ('schedule__name', 'task__title')
@@ -1179,6 +1486,9 @@ class GeneratedTaskAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(GeneratedTask)
 
 # Booking Import Admin
 class BookingImportLogInline(admin.TabularInline):
@@ -1187,7 +1497,7 @@ class BookingImportLogInline(admin.TabularInline):
     readonly_fields = ('imported_at', 'imported_by', 'total_rows', 'successful_imports', 'errors_count')
     can_delete = False
 
-class BookingImportTemplateAdmin(admin.ModelAdmin):
+class BookingImportTemplateAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'property_ref', 'import_type', 'is_active', 'last_import', 'created_at')
     list_filter = ('import_type', 'is_active', 'property_ref')
     search_fields = ('name', 'property_ref__name')
@@ -1216,7 +1526,7 @@ class BookingImportTemplateAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
-class BookingImportLogAdmin(admin.ModelAdmin):
+class BookingImportLogAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('template', 'imported_at', 'imported_by', 'total_rows', 'successful_imports', 'errors_count')
     list_filter = ('imported_at', 'template')
     search_fields = ('template__name',)
@@ -1233,7 +1543,7 @@ def activate_permissions(modeladmin, request, queryset):
 def deactivate_permissions(modeladmin, request, queryset):
     queryset.update(is_active=False)
 
-class CustomPermissionAdmin(admin.ModelAdmin):
+class CustomPermissionAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('name', 'get_display_name', 'is_active', 'created_at')
     list_filter = ('is_active', 'name')
     search_fields = ('name', 'description')
@@ -1256,7 +1566,7 @@ class CustomPermissionAdmin(admin.ModelAdmin):
     get_display_name.short_description = 'Display Name'
     get_display_name.admin_order_field = 'name'
 
-class RolePermissionAdmin(admin.ModelAdmin):
+class RolePermissionAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('role', 'permission', 'granted', 'can_delegate', 'created_by', 'created_at')
     list_filter = ('role', 'granted', 'can_delegate', 'permission__is_active')
     search_fields = ('permission__name', 'permission__description')
@@ -1281,7 +1591,7 @@ class RolePermissionAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('permission', 'created_by')
 
-class UserPermissionOverrideAdmin(admin.ModelAdmin):
+class UserPermissionOverrideAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('user', 'permission', 'granted', 'granted_by', 'expires_at', 'is_expired_display', 'created_at')
     list_filter = ('granted', 'expires_at', 'created_at', 'permission__is_active')
     search_fields = ('user__username', 'user__email', 'permission__name', 'reason')

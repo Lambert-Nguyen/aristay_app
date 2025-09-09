@@ -22,6 +22,7 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`CLOUDINARY_INTEGRATION_2025-09-07.md`](./implementation/CLOUDINARY_INTEGRATION_2025-09-07.md) - Complete Cloudinary CDN integration
 - [`AUDIT_SYSTEM_HARDENING_2025-09-07.md`](./implementation/AUDIT_SYSTEM_HARDENING_2025-09-07.md) - Bulletproof audit system
 - [`PROJECT_COMPLETION_SUMMARY_2025-09-07.md`](./implementation/PROJECT_COMPLETION_SUMMARY_2025-09-07.md) - 🎉 Final production system summary
+- [`MANAGER_PASSWORD_DESCRIPTIONS_2025-09-08.md`](./implementation/MANAGER_PASSWORD_DESCRIPTIONS_2025-09-08.md) - Manager admin password field descriptions
 
 ### 📊 [reports/](./reports/)
 **Final reports and summaries**

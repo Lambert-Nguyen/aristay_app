@@ -346,7 +346,7 @@ class Task(SoftDeleteMixin, models.Model):
     task_type    = models.CharField(max_length=20, choices=TASK_TYPE_CHOICES, default='cleaning')
     title        = models.CharField(max_length=200)
     description  = models.TextField(blank=True)
-    property     = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
+    property_ref = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
     booking      = models.ForeignKey('Booking', on_delete=models.SET_NULL, related_name='tasks', null=True, blank=True,
                                      help_text="Optional link to a booking window for property")
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -393,15 +393,15 @@ class Task(SoftDeleteMixin, models.Model):
 
     def clean(self):
         # Agent's improvement: Auto-set property from booking to reduce user error
-        if self.booking_id and not self.property_id:
-            self.property = self.booking.property
+        if self.booking_id and not self.property_ref_id:
+            self.property_ref = self.booking.property
         # Agent's recommendation: Prevent cross-property task linking
-        if self.booking_id and self.property_id and self.booking.property_id != self.property_id:
-            raise ValidationError("Task.property must match Task.booking.property")
+        if self.booking_id and self.property_ref_id and self.booking.property_id != self.property_ref_id:
+            raise ValidationError("Task.property_ref must match Task.booking.property")
 
 
     def __str__(self):
-        prop_name = self.property.name if self.property else "No property"
+        prop_name = self.property_ref.name if self.property_ref else "No property"
         return f"{self.title} ({self.task_type}) - {prop_name}"
 
     def save(self, *args, **kwargs):
@@ -455,7 +455,22 @@ class Task(SoftDeleteMixin, models.Model):
                 self.history = json.dumps(hist)
 
         super().save(*args, **kwargs)
-    
+
+    @property
+    def is_overdue(self):
+        """Check if task is overdue."""
+        if not self.due_date:
+            return False
+        return self.due_date < timezone.now()
+
+    @property
+    def is_due_soon(self):
+        """Check if task is due within 24 hours."""
+        if not self.due_date:
+            return False
+        now = timezone.now()
+        return not self.is_overdue and (self.due_date - now).total_seconds() < 86400  # 24 hours
+
     class Meta:
         constraints = [
             # Prevent multiple tasks from the same template for the same booking (ignores soft-deleted)
@@ -600,6 +615,16 @@ class Profile(models.Model):
         choices=UserRole.choices,
         default=UserRole.STAFF,
         help_text="App role separate from Django is_staff/is_superuser."
+    )
+    
+    # Team visibility controls
+    can_view_team_tasks = models.BooleanField(
+        default=True,
+        help_text="Can view all team tasks in department dashboards"
+    )
+    can_view_other_teams = models.BooleanField(
+        default=False,
+        help_text="Can view other department dashboards (maintenance, cleaning, etc.)"
     )
 
     def __str__(self):
@@ -1150,6 +1175,21 @@ class TaskChecklist(models.Model):
         completed_required = self.responses.filter(item__is_required=True, is_completed=True).count()
         return int((completed_required / total_required) * 100)
     
+    @property
+    def total_items(self):
+        """Total number of checklist items."""
+        return self.responses.count()
+    
+    @property
+    def completed_items(self):
+        """Number of completed checklist items."""
+        return self.responses.filter(is_completed=True).count()
+    
+    @property
+    def remaining_items(self):
+        """Number of remaining checklist items."""
+        return self.total_items - self.completed_items
+    
     def __str__(self):
         return f"Checklist for {self.task.title}"
 
@@ -1506,9 +1546,148 @@ class LostFoundItem(models.Model):
     
     notes = models.TextField(blank=True)
     
+    # Provenance and history
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='lostfound_modified'
+    )
+    modified_via = models.CharField(max_length=32, default='dashboard', help_text="admin|dashboard|api|system")
+    history = models.TextField(blank=True, help_text="JSON field tracking changes to this item")
+    
     class Meta:
         ordering = ['-found_date']
     
+    def save(self, *args, **kwargs):
+        # Only build history on updates, not on initial creation
+        if self.pk:
+            try:
+                old = LostFoundItem.objects.get(pk=self.pk)
+                changes = []
+                
+                # Determine actor: prefer modified_by (set by admin/save paths), then found_by
+                user = getattr(self.modified_by, 'username', None) or (
+                    getattr(self.found_by, 'username', 'system') if self.found_by else 'system'
+                )
+
+                # Title change
+                if old.title != self.title:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed title "
+                        f"from '{old.title}' to '{self.title}'"
+                    )
+
+                # Description change
+                if old.description != self.description:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed description "
+                        f"from '{old.description}' to '{self.description}'"
+                    )
+
+                # Status change
+                if old.status != self.status:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed status "
+                        f"from '{old.get_status_display()}' to '{self.get_status_display()}'"
+                    )
+
+                # Category change
+                if old.category != self.category:
+                    old_cat = old.category or 'None'
+                    new_cat = self.category or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed category "
+                        f"from '{old_cat}' to '{new_cat}'"
+                    )
+
+                # Estimated value change
+                if old.estimated_value != self.estimated_value:
+                    old_val = f"${old.estimated_value}" if old.estimated_value else 'None'
+                    new_val = f"${self.estimated_value}" if self.estimated_value else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed estimated value "
+                        f"from '{old_val}' to '{new_val}'"
+                    )
+
+                # Found location change
+                if old.found_location != self.found_location:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed found location "
+                        f"from '{old.found_location}' to '{self.found_location}'"
+                    )
+
+                # Storage location change
+                if old.storage_location != self.storage_location:
+                    old_storage = old.storage_location or 'None'
+                    new_storage = self.storage_location or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed storage location "
+                        f"from '{old_storage}' to '{new_storage}'"
+                    )
+
+                # Claimed by change
+                if old.claimed_by != self.claimed_by:
+                    old_claimed = old.claimed_by or 'None'
+                    new_claimed = self.claimed_by or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed claimed by "
+                        f"from '{old_claimed}' to '{new_claimed}'"
+                    )
+
+                # Disposal method change
+                if old.disposal_method != self.disposal_method:
+                    old_disposal = old.disposal_method or 'None'
+                    new_disposal = self.disposal_method or 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed disposal method "
+                        f"from '{old_disposal}' to '{new_disposal}'"
+                    )
+
+                # Notes change
+                if old.notes != self.notes:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed notes "
+                        f"from '{old.notes}' to '{self.notes}'"
+                    )
+
+                # Property change
+                if old.property_ref_id != self.property_ref_id:
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed property "
+                        f"from '{old.property_ref.name}' to '{self.property_ref.name}'"
+                    )
+
+                # Task change
+                if old.task_id != self.task_id:
+                    old_task = old.task.title if old.task else 'None'
+                    new_task = self.task.title if self.task else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed associated task "
+                        f"from '{old_task}' to '{new_task}'"
+                    )
+
+                # Booking change
+                if old.booking_id != self.booking_id:
+                    old_booking = f"#{old.booking.id}" if old.booking else 'None'
+                    new_booking = f"#{self.booking.id}" if self.booking else 'None'
+                    changes.append(
+                        f"{timezone.now().isoformat()}: {user} changed associated booking "
+                        f"from '{old_booking}' to '{new_booking}'"
+                    )
+
+                # Update history if there are changes
+                if changes:
+                    import json
+                    hist = json.loads(old.history or "[]")
+                    self.history = json.dumps(hist + changes)
+
+            except LostFoundItem.DoesNotExist:
+                pass  # This is a new item, no history to build
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.title} - {self.property_ref.name} ({self.get_status_display()})"
 
@@ -1909,7 +2088,7 @@ class AutoTaskTemplate(models.Model):
                     'title': title,
                     'description': description,
                     'task_type': self.task_type,
-                    'property': booking.property,
+                    'property_ref': booking.property,
                     'assigned_to': self.default_assignee,
                     'due_date': due_date,
                 },
@@ -1973,6 +2152,38 @@ class AuditEvent(models.Model):
     def __str__(self):
         actor_name = self.actor.username if self.actor else "System"
         return f"{actor_name} {self.action}d {self.object_type}:{self.object_id}"
+
+
+# =============================================================================
+# PASSWORD RESET LOGGING
+# =============================================================================
+
+class PasswordResetLog(models.Model):
+    """
+    Model to track password reset events for audit purposes
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_logs')
+    event_type = models.CharField(max_length=50, choices=[
+        ('requested', 'Password Reset Requested'),
+        ('completed', 'Password Reset Completed'),
+        ('failed', 'Password Reset Failed'),
+    ])
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Password Reset Log'
+        verbose_name_plural = 'Password Reset Logs'
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['event_type', 'timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_event_type_display()} - {self.timestamp}"
 
 
 # =============================================================================

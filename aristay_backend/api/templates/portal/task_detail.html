@@ -9,7 +9,7 @@
         <div>
             <div class="section-title">{{ task.title }}</div>
             <div class="muted">
-                🏠 {{ task.property.name }}
+                🏠 {{ task.property_ref.name }}
                 {% if task.booking %}
                 · 📅 {{ task.booking.check_in_date|date:"M d" }} → {{ task.booking.check_out_date|date:"M d" }}
                 {% endif %}
@@ -52,14 +52,14 @@
         </a>
         {% endif %}
         
-        {% if task.property %}
-        <a href="/api/portal/properties/{{ task.property.id }}/" class="button">
+        {% if task.property_ref %}
+        <a href="/api/portal/properties/{{ task.property_ref.id }}/" class="button">
             🏠 Back to Property
         </a>
         {% endif %}
         
         {% if task.booking %}
-        <a href="/api/portal/properties/{{ task.property.id }}/bookings/{{ task.booking.id }}/" class="button">
+        <a href="/api/portal/properties/{{ task.property_ref.id }}/bookings/{{ task.booking.id }}/" class="button">
             📅 Back to Booking
         </a>
         {% endif %}

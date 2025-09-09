@@ -972,7 +972,7 @@ class ExcelImportService:
                 title=f"Pre-arrival Cleaning - {booking.property.name}",
                 description=f"Cleaning for {booking.guest_name} arrival on {booking.check_in_date.strftime('%Y-%m-%d')} (Status: {booking.external_status})",
                 task_type='cleaning',
-                property=booking.property,
+                property_ref=booking.property,
                 booking=booking,
                 status=task_status,
                 due_date=task_due_date,

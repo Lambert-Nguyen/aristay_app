@@ -12,18 +12,18 @@ class TaskFilter(filters.FilterSet):
         model = Task
         fields = {
             # from your old filterset_fields
-            'property':    ['exact'],
-            'status':      ['exact'],
-            'assigned_to': ['exact'],
+            'property_ref': ['exact'],
+            'status':       ['exact'],
+            'assigned_to':  ['exact'],
             # add filters for created_at, modified_at, due_date
-            'created_at':  ['exact', 'gte', 'lte'],
-            'modified_at': ['exact', 'gte', 'lte'],
-            'due_date':    ['exact', 'gte', 'lte'],
+            'created_at':   ['exact', 'gte', 'lte'],
+            'modified_at':  ['exact', 'gte', 'lte'],
+            'due_date':     ['exact', 'gte', 'lte'],
             # also allow filtering by task_type
-            'task_type':   ['exact'],
+            'task_type':    ['exact'],
             # you could even filter by who created/modified
-            'created_by':  ['exact'],
-            'modified_by': ['exact'],
+            'created_by':   ['exact'],
+            'modified_by':  ['exact'],
         }
 
     def filter_overdue(self, queryset, name, value):

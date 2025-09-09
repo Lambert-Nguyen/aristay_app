@@ -1,0 +1,263 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Checklist Templates{% endblock %}
+
+{% block extra_css %}
+<style>
+.checklist-templates {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.templates-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.templates-title {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.create-btn {
+    background: #28a745;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.create-btn:hover {
+    background: #218838;
+    color: white;
+}
+
+.templates-by-type {
+    display: grid;
+    gap: 30px;
+}
+
+.type-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.type-header {
+    background: #f8f9fa;
+    padding: 20px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.type-title {
+    margin: 0;
+    color: #495057;
+    font-size: 20px;
+}
+
+.type-count {
+    color: #6c757d;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.templates-grid {
+    display: grid;
+    gap: 0;
+}
+
+.template-card {
+    padding: 20px;
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.3s;
+}
+
+.template-card:last-child {
+    border-bottom: none;
+}
+
+.template-card:hover {
+    background: #f8f9fa;
+}
+
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.template-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.template-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border: 1px solid #dee2e6;
+    background: white;
+    color: #495057;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: all 0.3s;
+}
+
+.action-btn:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.action-btn.primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.action-btn.primary:hover {
+    background: #0056b3;
+    color: white;
+}
+
+.template-description {
+    color: #6c757d;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.template-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.meta-icon {
+    font-size: 16px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.empty-state-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.empty-state-text {
+    margin-bottom: 30px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="checklist-templates">
+    <div class="templates-header">
+        <h1 class="templates-title">📋 Checklist Templates</h1>
+        <a href="{% url 'create_checklist_template' %}" class="create-btn">
+            ➕ Create New Template
+        </a>
+    </div>
+
+    {% if templates_by_type %}
+        <div class="templates-by-type">
+            {% for task_type, templates in templates_by_type.items %}
+            <div class="type-section">
+                <div class="type-header">
+                    <h2 class="type-title">
+                        {% if task_type == 'cleaning' %}
+                            🧹 Cleaning Templates
+                        {% elif task_type == 'maintenance' %}
+                            🔧 Maintenance Templates
+                        {% elif task_type == 'inspection' %}
+                            🔍 Inspection Templates
+                        {% else %}
+                            📋 {{ task_type|title }} Templates
+                        {% endif %}
+                    </h2>
+                    <div class="type-count">{{ templates|length }} template{{ templates|length|pluralize }}</div>
+                </div>
+
+                <div class="templates-grid">
+                    {% for template in templates %}
+                    <div class="template-card">
+                        <div class="template-header">
+                            <h3 class="template-name">{{ template.name }}</h3>
+                            <div class="template-actions">
+                                <a href="{% url 'admin:api_checklisttemplate_preview' template.id %}" 
+                                   class="action-btn">👁️ Preview</a>
+                                <a href="{% url 'admin:api_checklisttemplate_change' template.id %}" 
+                                   class="action-btn primary">✏️ Edit</a>
+                            </div>
+                        </div>
+                        
+                        {% if template.description %}
+                        <div class="template-description">{{ template.description }}</div>
+                        {% endif %}
+                        
+                        <div class="template-meta">
+                            <div class="meta-item">
+                                <span class="meta-icon">📝</span>
+                                <span>{{ template.items.count }} items</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon">👤</span>
+                                <span>{{ template.created_by.username }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-icon">📅</span>
+                                <span>{{ template.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h2 class="empty-state-title">No Checklist Templates</h2>
+            <p class="empty-state-text">
+                Create your first checklist template to help your staff complete tasks systematically.
+            </p>
+            <a href="{% url 'create_checklist_template' %}" class="create-btn">
+                ➕ Create Your First Template
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

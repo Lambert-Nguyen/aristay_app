@@ -140,7 +140,7 @@ def test_constraint_integrity():
         title='First Task',
         task_type='maintenance',
         booking=booking,
-        property=property_obj,
+        property_ref=property_obj,
         created_by_template=template,
     )
     print(f"✓ First task created successfully: {task1.title}")
@@ -155,7 +155,7 @@ def test_constraint_integrity():
                 title='Duplicate Task',
                 task_type='maintenance',
                 booking=booking,
-                property=property_obj,
+                property_ref=property_obj,
                 created_by_template=template,
             )
             print(f"❌ CONSTRAINT TEST FAILED: Duplicate task was created: {task2.title}")
