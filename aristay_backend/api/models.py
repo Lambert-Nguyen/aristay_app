@@ -616,6 +616,16 @@ class Profile(models.Model):
         default=UserRole.STAFF,
         help_text="App role separate from Django is_staff/is_superuser."
     )
+    
+    # Team visibility controls
+    can_view_team_tasks = models.BooleanField(
+        default=True,
+        help_text="Can view all team tasks in department dashboards"
+    )
+    can_view_other_teams = models.BooleanField(
+        default=False,
+        help_text="Can view other department dashboards (maintenance, cleaning, etc.)"
+    )
 
     def __str__(self):
         return f"{self.user.username} profile"

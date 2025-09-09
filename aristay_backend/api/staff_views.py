@@ -35,6 +35,29 @@ import logging
 # Set up logging
 logger = logging.getLogger(__name__)
 
+
+def get_team_tasks(request, task_type):
+    """Get team tasks based on user permissions and task type."""
+    try:
+        profile = request.user.profile
+        can_view_team_tasks = profile.can_view_team_tasks
+    except Profile.DoesNotExist:
+        can_view_team_tasks = True  # Default for users without profile
+    
+    if can_view_team_tasks:
+        # Show all tasks of this type (team view)
+        return Task.objects.filter(
+            task_type=task_type,
+            status__in=['pending', 'in-progress']
+        ).select_related('property_ref', 'booking', 'assigned_to')
+    else:
+        # Show only assigned tasks (individual view)
+        return Task.objects.filter(
+            assigned_to=request.user,
+            task_type=task_type,
+            status__in=['pending', 'in-progress']
+        ).select_related('property_ref', 'booking')
+
 from .models import (
     Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto,
     PropertyInventory, InventoryTransaction, LostFoundItem, Profile,
@@ -99,26 +122,22 @@ def staff_dashboard(request):
 def cleaning_dashboard(request):
     """Specialized dashboard for cleaning staff."""
     
-    # Get user's assigned cleaning tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='cleaning',
-        status__in=['pending', 'in-progress']
-    ).select_related('property_ref', 'booking').prefetch_related('checklist__responses')
+    # Get team cleaning tasks (all team members)
+    team_tasks = get_team_tasks(request, 'cleaning').prefetch_related('checklist__responses')
     
     # Get today's tasks
     today = timezone.now().date()
-    today_tasks = assigned_tasks.filter(due_date__date=today)
+    today_tasks = team_tasks.filter(due_date__date=today)
     
     # Get upcoming tasks (next 7 days)
-    upcoming_tasks = assigned_tasks.filter(
+    upcoming_tasks = team_tasks.filter(
         due_date__date__gt=today,
         due_date__date__lte=today + timedelta(days=7)
     )
     
     # Get checklist progress
     tasks_with_progress = []
-    for task in assigned_tasks:
+    for task in team_tasks:
         try:
             checklist = task.checklist
             progress = checklist.completion_percentage
@@ -133,10 +152,11 @@ def cleaning_dashboard(request):
     
     context = {
         'user_role': 'Cleaning Staff',
+        'assigned_tasks': team_tasks,  # Now shows team tasks
         'today_tasks': today_tasks,
         'upcoming_tasks': upcoming_tasks,
         'tasks_with_progress': tasks_with_progress,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/cleaning_dashboard.html', context)
@@ -146,12 +166,8 @@ def cleaning_dashboard(request):
 def maintenance_dashboard(request):
     """Specialized dashboard for maintenance staff."""
     
-    # Get user's assigned maintenance tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='maintenance',
-        status__in=['pending', 'in-progress']
-    ).select_related('property_ref', 'booking')
+    # Get team maintenance tasks (all team members)
+    team_tasks = get_team_tasks(request, 'maintenance')
     
     # Get low-stock inventory items across properties
     low_stock_items = PropertyInventory.objects.filter(
@@ -169,17 +185,17 @@ def maintenance_dashboard(request):
     # Get maintenance tasks by priority (overdue first)
     now = timezone.now()
     today = now.date()
-    overdue_tasks = assigned_tasks.filter(due_date__lt=now)
-    today_tasks = assigned_tasks.filter(due_date__date=today)
+    overdue_tasks = team_tasks.filter(due_date__lt=now)
+    today_tasks = team_tasks.filter(due_date__date=today)
     
     context = {
         'user_role': 'Maintenance Staff',
-        'assigned_tasks': assigned_tasks,
+        'assigned_tasks': team_tasks,  # Now shows team tasks
         'overdue_tasks': overdue_tasks,
         'today_tasks': today_tasks,
         'low_stock_items': low_stock_items,
         'recent_transactions': recent_transactions,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/maintenance_dashboard.html', context)
@@ -189,16 +205,12 @@ def maintenance_dashboard(request):
 def laundry_dashboard(request):
     """Specialized dashboard for laundry staff."""
     
-    # Get user's assigned laundry tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='laundry',
-        status__in=['pending', 'in-progress']
-    ).select_related('property_ref', 'booking')
+    # Get team laundry tasks (all team members)
+    team_tasks = get_team_tasks(request, 'laundry')
     
     # Organize by workflow stage based on task status/progress
-    pickup_tasks = assigned_tasks.filter(status='pending')
-    processing_tasks = assigned_tasks.filter(status='in-progress')
+    pickup_tasks = team_tasks.filter(status='pending')
+    processing_tasks = team_tasks.filter(status='in-progress')
     
     # Get linen inventory items
     linen_items = PropertyInventory.objects.filter(
@@ -211,7 +223,7 @@ def laundry_dashboard(request):
         'pickup_tasks': pickup_tasks,
         'processing_tasks': processing_tasks,
         'linen_items': linen_items,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/laundry_dashboard.html', context)
@@ -221,12 +233,8 @@ def laundry_dashboard(request):
 def lawn_pool_dashboard(request):
     """Specialized dashboard for lawn/pool staff."""
     
-    # Get user's assigned lawn/pool tasks
-    assigned_tasks = Task.objects.filter(
-        assigned_to=request.user,
-        task_type='lawn_pool',
-        status__in=['pending', 'in-progress']
-    ).select_related('property_ref', 'booking')
+    # Get team lawn/pool tasks (all team members)
+    team_tasks = get_team_tasks(request, 'lawn_pool')
     
     # Get pool/spa inventory items
     pool_items = PropertyInventory.objects.filter(
@@ -235,7 +243,7 @@ def lawn_pool_dashboard(request):
     
     # Group tasks by property for route planning
     tasks_by_property = {}
-    for task in assigned_tasks:
+    for task in team_tasks:
         prop_name = task.property_ref.name if task.property_ref else 'Unassigned'
         if prop_name not in tasks_by_property:
             tasks_by_property[prop_name] = []
@@ -243,10 +251,10 @@ def lawn_pool_dashboard(request):
     
     context = {
         'user_role': 'Lawn/Pool Staff',
-        'assigned_tasks': assigned_tasks,
+        'assigned_tasks': team_tasks,  # Now shows team tasks
         'tasks_by_property': tasks_by_property,
         'pool_items': pool_items,
-        'total_assigned': assigned_tasks.count(),
+        'total_assigned': team_tasks.count(),
     }
     
     return render(request, 'staff/lawn_pool_dashboard.html', context)
