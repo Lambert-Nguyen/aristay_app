@@ -442,6 +442,45 @@
 {% block extra_js %}
 <script>
 // Enhanced Task Detail JavaScript
+
+// Define global functions FIRST (before DOMContentLoaded)
+window.startTask = function(taskId) {
+    updateTaskStatus(taskId, 'in_progress');
+};
+
+window.completeTask = function(taskId) {
+    updateTaskStatus(taskId, 'completed');
+};
+
+window.uploadPhotos = function(responseId, inputElement) {
+    handlePhotoUpload.call(inputElement, { target: inputElement });
+};
+
+window.addNote = function() {
+    const modal = document.getElementById('noteModal');
+    if (modal) {
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.shareTask = function() {
+    // Implement share functionality
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ task.title }}',
+            text: 'Check out this task: {{ task.title }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showNotification('Task URL copied to clipboard', 'success');
+        });
+    }
+};
+
+// NOW initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize all components
     initializeTaskTimer();
@@ -814,19 +853,19 @@ function initializeTaskActions() {
     const shareTaskBtn = document.querySelector('.btn-action.share-task');
 
     if (startTaskBtn && !startTaskBtn.disabled) {
-        startTaskBtn.addEventListener('click', () => startTask(taskId));
+        startTaskBtn.addEventListener('click', () => window.startTask(taskId));
     }
 
     if (completeTaskBtn && !completeTaskBtn.disabled) {
-        completeTaskBtn.addEventListener('click', () => completeTask(taskId));
+        completeTaskBtn.addEventListener('click', () => window.completeTask(taskId));
     }
 
     if (addNoteBtn) {
-        addNoteBtn.addEventListener('click', addNote);
+        addNoteBtn.addEventListener('click', window.addNote);
     }
 
     if (shareTaskBtn) {
-        shareTaskBtn.addEventListener('click', shareTask);
+        shareTaskBtn.addEventListener('click', window.shareTask);
     }
 
     // Navigation buttons
@@ -891,24 +930,50 @@ async function updateTaskStatus(taskId, status) {
 }
 
 function updateTaskStatusUI(data) {
+    console.log('🔄 Updating UI with data:', data);
+    
     // Update status badge
     const statusBadge = document.querySelector('.status-badge');
     if (statusBadge) {
         statusBadge.textContent = data.status_display;
-        statusBadge.className = `status-badge status-${data.status}`;
+        statusBadge.className = `status-badge status-${data.status.replace('-', '')}`;
+        console.log('✅ Status badge updated');
+    } else {
+        console.log('❌ Status badge not found');
     }
 
-    // Update action buttons
-    const startBtn = document.getElementById('startTaskBtn');
-    const completeBtn = document.getElementById('completeTaskBtn');
+    // Update action buttons - FIXED SELECTORS
+    const startBtn = document.querySelector('.btn-action.start-task');
+    const completeBtn = document.querySelector('.btn-action.complete-task');
+    
+    console.log('🔍 Buttons found:', {
+        startBtn: !!startBtn,
+        completeBtn: !!completeBtn
+    });
 
     if (data.status === 'in_progress') {
-        if (startBtn) startBtn.disabled = true;
-        if (completeBtn) completeBtn.disabled = false;
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.textContent = '▶️ Started';
+            startBtn.style.opacity = '0.6';
+        }
+        if (completeBtn) {
+            completeBtn.disabled = false;
+            completeBtn.style.opacity = '1';
+        }
     } else if (data.status === 'completed') {
-        if (startBtn) startBtn.disabled = true;
-        if (completeBtn) completeBtn.disabled = true;
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.style.opacity = '0.6';
+        }
+        if (completeBtn) {
+            completeBtn.disabled = true;
+            completeBtn.textContent = '✅ Completed';
+            completeBtn.style.opacity = '0.6';
+        }
     }
+    
+    console.log('✅ UI update complete');
 
     // Update progress overview
     updateProgressOverview();
@@ -1163,42 +1228,7 @@ document.head.insertAdjacentHTML('beforeend', notificationStyles);
 window.openPhotoViewer = openPhotoViewer;
 window.removePhoto = removePhoto;
 
-// Global functions for HTML onclick handlers
-window.startTask = function(taskId) {
-    updateTaskStatus(taskId, 'in_progress');
-};
-
-window.completeTask = function(taskId) {
-    updateTaskStatus(taskId, 'completed');
-};
-
-window.uploadPhotos = function(responseId, inputElement) {
-    handlePhotoUpload.call(inputElement, { target: inputElement });
-};
-
-window.addNote = function() {
-    const modal = document.getElementById('noteModal');
-    if (modal) {
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-    }
-};
-
-window.shareTask = function() {
-    // Implement share functionality
-    if (navigator.share) {
-        navigator.share({
-            title: '{{ task.title }}',
-            text: 'Check out this task: {{ task.title }}',
-            url: window.location.href
-        });
-    } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(window.location.href).then(() => {
-            showNotification('Task link copied to clipboard', 'success');
-        });
-    }
-};
+// Note: Global button functions are now defined at the top of the script before DOMContentLoaded
 
 window.goToPreviousTask = function() {
     // Implement navigation to previous task
