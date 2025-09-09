@@ -2006,6 +2006,38 @@ class AuditEvent(models.Model):
 
 
 # =============================================================================
+# PASSWORD RESET LOGGING
+# =============================================================================
+
+class PasswordResetLog(models.Model):
+    """
+    Model to track password reset events for audit purposes
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_logs')
+    event_type = models.CharField(max_length=50, choices=[
+        ('requested', 'Password Reset Requested'),
+        ('completed', 'Password Reset Completed'),
+        ('failed', 'Password Reset Failed'),
+    ])
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Password Reset Log'
+        verbose_name_plural = 'Password Reset Logs'
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['event_type', 'timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.get_event_type_display()} - {self.timestamp}"
+
+
+# =============================================================================
 # SECURITY MODELS (JWT & Session Management)
 # =============================================================================
 

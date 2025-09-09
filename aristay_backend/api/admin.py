@@ -8,6 +8,12 @@ from django.db.models import Q, Count
 from django.contrib.admin import DateFieldListFilter
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from django.contrib.admin.models import LogEntry
+from django.contrib.contenttypes.models import ContentType
+from django.http import Http404
+from datetime import datetime
+import json
+import logging
 from .models import (
     Property, Task, TaskImage, Notification, Booking, PropertyOwnership, Profile,
     ChecklistTemplate, ChecklistItem, TaskChecklist, ChecklistResponse, ChecklistPhoto,
@@ -18,6 +24,104 @@ from .models import (
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+
+
+def create_unified_history_view(model_class):
+    """
+    Create a unified history view function for any model that has a history field.
+    This combines Django admin history with the model's custom history field.
+    """
+    def history_view(self, request, object_id, extra_context=None):
+        """Custom history view that combines Django admin history with model.history field"""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 CUSTOM HISTORY VIEW CALLED for {model_class.__name__} {object_id}")
+        
+        # Get the object
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            raise Http404(f"{model_class.__name__} not found")
+        
+        logger.info(f"📋 {model_class.__name__} found: {getattr(obj, 'name', getattr(obj, 'title', str(obj)))}")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(obj)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get model.history field
+        model_history = []
+        try:
+            history_field = getattr(obj, 'history', None)
+            if history_field:
+                model_history = json.loads(history_field or '[]')
+        except json.JSONDecodeError:
+            model_history = []
+        
+        logger.info(f"📝 {model_class.__name__}.history field: {len(model_history)} entries")
+        
+        # Combine and sort histories by timestamp
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add model.history entries
+        for entry in model_history:
+            if isinstance(entry, str) and ':' in entry:
+                try:
+                    # Parse format: "2025-01-08T10:30:00.000000+00:00: username changed status from 'old' to 'new'"
+                    timestamp_str, change_desc = entry.split(':', 1)
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    # Ensure timezone-aware datetime
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    # Skip malformed entries
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {getattr(obj, "name", getattr(obj, "title", str(obj)))}',
+            'object': obj,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, obj),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
+    
+    return history_view
 
 
 class ConflictStatusFilter(admin.SimpleListFilter):
@@ -207,6 +311,9 @@ class TaskAdmin(admin.ModelAdmin):
     )
     
     inlines = [TaskImageInline]
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Task)
 
     def created_at_display(self, obj):
         """Display created time in Tampa timezone"""
@@ -340,6 +447,9 @@ class PropertyAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Property)
 
     def save_model(self, request, obj, form, change):
         if not change:  # If creating a new object
@@ -580,6 +690,9 @@ class BookingAdmin(admin.ModelAdmin):
         """Store request for timezone access"""
         self.request = request
         return super().get_form(request, obj, **kwargs)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Booking)
 
 class PropertyOwnershipAdmin(admin.ModelAdmin):
     list_display = ('id', 'property', 'user', 'ownership_type', 'can_edit', 'created_at')
@@ -610,6 +723,9 @@ class NotificationAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('recipient', 'task')
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(Notification)
 
 # Register models with the custom admin site
 admin_site.register(Task, TaskAdmin)
@@ -948,6 +1064,105 @@ class AriStayUserAdmin(DjangoUserAdmin):
             qs = qs.exclude(is_superuser=True)
 
         return qs
+    
+    def history_view(self, request, object_id, extra_context=None):
+        """Custom history view for User model (Django admin history + custom history)"""
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔍 CUSTOM HISTORY VIEW CALLED for User {object_id}")
+        
+        # Get the user object
+        user = self.get_object(request, object_id)
+        if user is None:
+            raise Http404("User not found")
+        
+        logger.info(f"📋 User found: {user.username}")
+        
+        # Get Django admin history
+        content_type = ContentType.objects.get_for_model(user)
+        django_history = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-action_time')
+        
+        # Get custom user history (if it exists)
+        custom_history = []
+        try:
+            history_field = getattr(user, 'history', None)
+            if history_field:
+                custom_history = json.loads(history_field or '[]')
+        except json.JSONDecodeError:
+            custom_history = []
+        
+        # Get password reset history
+        password_reset_history = []
+        try:
+            from api.password_reset_logs import get_user_password_reset_history
+            password_reset_history = get_user_password_reset_history(user)
+        except Exception as e:
+            logger.error(f"Failed to get password reset history: {e}")
+        
+        # Combine custom history and password reset history
+        all_custom_history = custom_history + password_reset_history
+        
+        logger.info(f"📝 User.history field: {len(custom_history)} entries")
+        logger.info(f"📝 Password reset history: {len(password_reset_history)} entries")
+        
+        # Convert to combined history format
+        combined_history = []
+        
+        # Add Django admin history
+        for entry in django_history:
+            # Ensure timezone-aware datetime
+            timestamp = entry.action_time
+            if timestamp.tzinfo is None:
+                from django.utils import timezone
+                timestamp = timezone.make_aware(timestamp)
+            
+            combined_history.append({
+                'timestamp': timestamp,
+                'user': entry.user.username if entry.user else 'System',
+                'action': entry.get_action_flag_display(),
+                'changes': entry.change_message,
+                'type': 'admin'
+            })
+        
+        # Add custom history (password resets, etc.)
+        for entry in all_custom_history:
+            if isinstance(entry, str) and ':' in entry:
+                try:
+                    timestamp_str, change_desc = entry.split(':', 1)
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    
+                    if timestamp.tzinfo is None:
+                        from django.utils import timezone
+                        timestamp = timezone.make_aware(timestamp)
+                    
+                    combined_history.append({
+                        'timestamp': timestamp,
+                        'user': change_desc.split(' ')[0] if change_desc else 'Unknown',
+                        'action': 'Changed',
+                        'changes': change_desc.strip(),
+                        'type': 'dashboard'
+                    })
+                except (ValueError, IndexError):
+                    continue
+        
+        # Sort by timestamp (newest first)
+        combined_history.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Create context
+        context = {
+            'title': f'History for {user.username}',
+            'object': user,
+            'history': combined_history,
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, user),
+        }
+        
+        if extra_context:
+            context.update(extra_context)
+        
+        return render(request, 'admin/task_history.html', context)
 
 
 # Manager version of UserAdmin (more restricted)
@@ -1033,6 +1248,9 @@ class ChecklistTemplateAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(ChecklistTemplate)
 
 class ChecklistPhotoInline(admin.TabularInline):
     model = ChecklistPhoto
@@ -1078,6 +1296,9 @@ class InventoryItemAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(InventoryItem)
 
 class InventoryTransactionInline(admin.TabularInline):
     model = InventoryTransaction
@@ -1117,6 +1338,9 @@ class PropertyInventoryAdmin(admin.ModelAdmin):
             status.replace("_", " ").title()
         )
     stock_status.short_description = 'Stock Status'
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(PropertyInventory)
 
 class InventoryTransactionAdmin(admin.ModelAdmin):
     list_display = ('property_inventory', 'transaction_type', 'quantity', 'task', 'created_at', 'created_by')
@@ -1128,6 +1352,9 @@ class InventoryTransactionAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(InventoryTransaction)
 
 # Lost & Found Admin
 class LostFoundPhotoInline(admin.TabularInline):
@@ -1220,6 +1447,9 @@ class GeneratedTaskAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    # Use the generic unified history view
+    history_view = create_unified_history_view(GeneratedTask)
 
 # Booking Import Admin
 class BookingImportLogInline(admin.TabularInline):
