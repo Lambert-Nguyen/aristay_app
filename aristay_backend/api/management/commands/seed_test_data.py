@@ -10,7 +10,6 @@ from api.models import (
     Task,
     Notification,
     InventoryItem,
-    InventoryCategory,
     PropertyInventory,
     Profile,
 )
@@ -62,12 +61,11 @@ class TestDataGenerator:
 
     def create_properties(self):
         self.stdout("\nCreating properties...")
-        # Only include fields that exist on Property model in this project
         props = [
-            {"name": "Sunset Villa", "address": "123 Beach Ave"},
-            {"name": "Downtown Loft", "address": "456 City St"},
-            {"name": "Mountain Cabin", "address": "789 Pine Rd"},
-            {"name": "City Condo", "address": "321 Skyline Blvd"},
+            {"name": "Sunset Villa", "address": "123 Beach Ave", "property_type": "House"},
+            {"name": "Downtown Loft", "address": "456 City St", "property_type": "Condo"},
+            {"name": "Mountain Cabin", "address": "789 Pine Rd", "property_type": "Cabin"},
+            {"name": "City Condo", "address": "321 Skyline Blvd", "property_type": "Condo"},
         ]
         for pd in props:
             prop, _ = Property.objects.get_or_create(name=pd["name"], defaults=pd)
@@ -191,13 +189,6 @@ class TestDataGenerator:
 
     def create_inventory_items(self):
         self.stdout("\nCreating inventory items...")
-        # Ensure categories exist
-        category_names = ["Cleaning", "Linens", "Maintenance", "Amenities"]
-        name_to_category = {}
-        for cname in category_names:
-            cat, _ = InventoryCategory.objects.get_or_create(name=cname)
-            name_to_category[cname] = cat
-
         items = [
             {"name": "All-Purpose Cleaner", "category": "Cleaning", "unit": "bottles"},
             {"name": "Toilet Paper", "category": "Cleaning", "unit": "rolls"},
@@ -209,18 +200,16 @@ class TestDataGenerator:
             {"name": "Coffee Pods", "category": "Amenities", "unit": "boxes"},
         ]
         for idf in items:
-            defaults = {
-                "unit": idf["unit"],
-                "category": name_to_category[idf["category"]],
-            }
-            item, _ = InventoryItem.objects.get_or_create(name=idf["name"], defaults=defaults)
+            item, _ = InventoryItem.objects.get_or_create(name=idf["name"], defaults=idf)
             for prop in self.properties:
                 PropertyInventory.objects.get_or_create(
                     property_ref=prop,
                     item=item,
                     defaults={
                         "current_stock": random.randint(5, 50),
-                        "par_level": random.randint(10, 60),
+                        "minimum_threshold": random.randint(2, 10),
+                        "maximum_capacity": random.randint(20, 100),
+                        "storage_location": f"{prop.name} Storage Room",
                     },
                 )
             self.stdout(f"✅ Inventory ready: {item.name}")

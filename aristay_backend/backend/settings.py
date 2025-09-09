@@ -117,7 +117,6 @@ else:
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
     "axes.middleware.AxesMiddleware",  # before AuthenticationMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -417,12 +416,11 @@ if not DEBUG:
         if origin.strip()
     ]
     
-    # Static files via WhiteNoise (hashed manifest)
-    STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
     # Database connection pooling for production
     DATABASES['default']['CONN_MAX_AGE'] = 60
-    # Do not set unsupported driver-specific DSN options like MAX_CONNS for psycopg2
+    DATABASES['default']['OPTIONS'] = {
+        'MAX_CONNS': int(os.getenv('DB_MAX_CONNECTIONS', '20')),
+    }
 
 # --- Guard against SQLite-unsupported database options ---
 engine = DATABASES["default"]["ENGINE"]
