@@ -22,7 +22,7 @@ def verify_fix():
     print("=" * 50)
     
     # Read the fixed template file
-    template_path = '/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend/api/templates/staff/task_detail.html'
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aristay_backend', 'api', 'templates', 'staff', 'task_detail.html')
     
     try:
         with open(template_path, 'r') as f:
