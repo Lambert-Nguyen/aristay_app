@@ -7,8 +7,20 @@ import os
 import sys
 import django
 
-# Add the backend directory to Python path
-backend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aristay_backend')
+# Robustly locate the Django project root by searching for manage.py upwards
+def find_project_root(start_path, marker='manage.py'):
+    current = os.path.abspath(start_path)
+    while True:
+        if os.path.isfile(os.path.join(current, marker)):
+            return current
+        parent = os.path.dirname(current)
+        if parent == current:
+            raise RuntimeError(f"Could not find {marker} in any parent directory of {start_path}")
+        current = parent
+
+# Find the project root and add the backend directory to sys.path
+project_root = find_project_root(__file__)
+backend_path = os.path.join(project_root, 'aristay_backend')
 sys.path.append(backend_path)
 
 # Configure Django settings
