@@ -152,6 +152,30 @@ python scripts/permissions/sync_permissions.py
 python scripts/permissions/validate_permissions.py
 ```
 
+### Management: assign_task_groups (Django command)
+**Purpose**: Assign Task Groups to users (bulk or specific user)
+
+**Defined In**: `aristay_backend/api/management/commands/assign_task_groups.py`
+
+**Usage** (from repo root):
+```bash
+# List available groups
+python aristay_backend/manage.py assign_task_groups --list-groups
+
+# Show users and current task groups
+python aristay_backend/manage.py assign_task_groups --show-users
+
+# Auto-assign based on Django groups/roles (staff default to general)
+python aristay_backend/manage.py assign_task_groups --auto-assign
+
+# Manually assign a user to a group
+python aristay_backend/manage.py assign_task_groups --username alice --task-group cleaning
+```
+
+**Notes**:
+- Accepts groups: cleaning, maintenance, laundry, lawn_pool, general, none
+- Safe to run repeatedly; updates profiles idempotently
+
 ## Testing Scripts
 
 ### `testing/quick_test.sh`

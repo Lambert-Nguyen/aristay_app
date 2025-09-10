@@ -766,11 +766,15 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     fk_name = 'user'
-    fields = ('role', 'timezone', 'digest_opt_out')
+    fields = ('role', 'task_group', 'timezone', 'phone_number', 'address', 'can_view_team_tasks', 'can_view_other_teams', 'digest_opt_out')
     
     def formfield_for_choice_field(self, db_field, request, **kwargs):
         if db_field.name == 'role':
             kwargs['help_text'] = 'Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool'
+        elif db_field.name == 'task_group':
+            from api.models import TaskGroup
+            kwargs['choices'] = TaskGroup.choices
+            kwargs['help_text'] = 'Assign staff to specific task groups for dashboard permissions'
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
 class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
@@ -788,7 +792,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             return []
         return super().get_inline_instances(request, obj)
 
-    list_display = ('username', 'email', 'is_active', 'is_staff', 'is_superuser', 'password_status', 'last_login', 'date_joined')
+    list_display = ('username', 'email', 'get_task_group', 'is_active', 'is_staff', 'is_superuser', 'password_status', 'last_login', 'date_joined')
 
     # Override Django's default fieldsets to avoid field conflicts
     fieldsets = (
@@ -825,6 +829,15 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             return mark_safe('<span style="color: red;">✗ No Password</span>')
     password_status.short_description = 'Password Status'
     password_status.admin_order_field = 'password'
+    
+    def get_task_group(self, obj):
+        """Display task group in the admin list view"""
+        try:
+            return obj.profile.get_task_group_display()
+        except Profile.DoesNotExist:
+            return "Not Assigned"
+    get_task_group.short_description = "Task Group"
+    get_task_group.admin_order_field = 'profile__task_group'
 
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""

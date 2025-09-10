@@ -14,7 +14,7 @@ from rest_framework.authtoken.models import Token
 
 from api.models import (
     Profile, CustomPermission, RolePermission, UserPermissionOverride,
-    UserRole, Task, Property, Booking
+    UserRole, TaskGroup, Task, Property, Booking
 )
 from api.permissions import (
     HasCustomPermission, HasAnyCustomPermission, DynamicTaskPermissions,
@@ -38,10 +38,11 @@ class DynamicPermissionsTestCase(APITestCase):
         )
         self.superuser_profile, created = Profile.objects.get_or_create(
             user=self.superuser,
-            defaults={'role': UserRole.SUPERUSER}
+            defaults={'role': UserRole.SUPERUSER, 'task_group': TaskGroup.NONE}
         )
         if not created:
             self.superuser_profile.role = UserRole.SUPERUSER
+            self.superuser_profile.task_group = TaskGroup.NONE
             self.superuser_profile.save()
         
         self.manager = User.objects.create_user(
@@ -51,10 +52,11 @@ class DynamicPermissionsTestCase(APITestCase):
         )
         self.manager_profile, created = Profile.objects.get_or_create(
             user=self.manager,
-            defaults={'role': UserRole.MANAGER}
+            defaults={'role': UserRole.MANAGER, 'task_group': TaskGroup.NONE}
         )
         if not created:
             self.manager_profile.role = UserRole.MANAGER
+            self.manager_profile.task_group = TaskGroup.NONE
             self.manager_profile.save()
         
         self.staff = User.objects.create_user(
@@ -64,10 +66,11 @@ class DynamicPermissionsTestCase(APITestCase):
         )
         self.staff_profile, created = Profile.objects.get_or_create(
             user=self.staff,
-            defaults={'role': UserRole.STAFF}
+            defaults={'role': UserRole.STAFF, 'task_group': TaskGroup.GENERAL}
         )
         if not created:
             self.staff_profile.role = UserRole.STAFF
+            self.staff_profile.task_group = TaskGroup.GENERAL
             self.staff_profile.save()
         
         self.viewer = User.objects.create_user(
@@ -78,10 +81,11 @@ class DynamicPermissionsTestCase(APITestCase):
         # Use create to ensure we get the correct role, not get_or_create
         profile, created = Profile.objects.get_or_create(
             user=self.viewer,
-            defaults={'role': UserRole.VIEWER}
+            defaults={'role': UserRole.VIEWER, 'task_group': TaskGroup.NONE}
         )
         if not created:
             profile.role = UserRole.VIEWER
+            profile.task_group = TaskGroup.NONE
             profile.save()
         self.viewer_profile = profile
         
@@ -478,6 +482,43 @@ class DynamicPermissionsTestCase(APITestCase):
         # Manager should have the permission again
         self.assertTrue(self.manager_profile.has_permission('view_tasks'))
 
+    def test_task_group_permissions(self):
+        """Test TaskGroup permission functionality"""
+        # Test staff user can view their own task group
+        self.assertTrue(self.staff_profile.can_view_task_group(TaskGroup.GENERAL))
+        self.assertFalse(self.staff_profile.can_view_task_group(TaskGroup.CLEANING))
+        
+        # Test manager can view all task groups
+        self.assertTrue(self.manager_profile.can_view_task_group(TaskGroup.CLEANING))
+        self.assertTrue(self.manager_profile.can_view_task_group(TaskGroup.MAINTENANCE))
+        self.assertTrue(self.manager_profile.can_view_task_group(TaskGroup.LAUNDRY))
+        self.assertTrue(self.manager_profile.can_view_task_group(TaskGroup.LAWN_POOL))
+        self.assertTrue(self.manager_profile.can_view_task_group(TaskGroup.GENERAL))
+        
+        # Test superuser can view all task groups
+        self.assertTrue(self.superuser_profile.can_view_task_group(TaskGroup.CLEANING))
+        self.assertTrue(self.superuser_profile.can_view_task_group(TaskGroup.MAINTENANCE))
+        
+        # Test accessible task groups
+        staff_groups = self.staff_profile.get_accessible_task_groups()
+        self.assertIn(TaskGroup.GENERAL, staff_groups)
+        self.assertNotIn(TaskGroup.CLEANING, staff_groups)
+        
+        manager_groups = self.manager_profile.get_accessible_task_groups()
+        self.assertIn(TaskGroup.CLEANING, manager_groups)
+        self.assertIn(TaskGroup.MAINTENANCE, manager_groups)
+        self.assertIn(TaskGroup.LAUNDRY, manager_groups)
+        self.assertIn(TaskGroup.LAWN_POOL, manager_groups)
+        self.assertIn(TaskGroup.GENERAL, manager_groups)
+        
+        # Test task group display
+        self.assertEqual(self.staff_profile.get_task_group_display(), 'General')
+        self.assertEqual(self.manager_profile.get_task_group_display(), 'Not Assigned')
+        
+        # Test is_in_task_group
+        self.assertTrue(self.staff_profile.is_in_task_group(TaskGroup.GENERAL))
+        self.assertFalse(self.staff_profile.is_in_task_group(TaskGroup.CLEANING))
+
 
 class PermissionIntegrationTestCase(APITestCase):
     """Test permissions integration with API endpoints"""
@@ -492,7 +533,7 @@ class PermissionIntegrationTestCase(APITestCase):
             is_superuser=True,
             is_staff=True
         )
-        Profile.objects.get_or_create(user=self.superuser, defaults={'role': UserRole.SUPERUSER})
+        Profile.objects.get_or_create(user=self.superuser, defaults={'role': UserRole.SUPERUSER, 'task_group': TaskGroup.NONE})
         
         self.manager = User.objects.create_user(
             username='manager',
@@ -500,9 +541,10 @@ class PermissionIntegrationTestCase(APITestCase):
             password='testpass123',
             is_staff=True
         )
-        manager_profile, created = Profile.objects.get_or_create(user=self.manager, defaults={'role': UserRole.MANAGER})
+        manager_profile, created = Profile.objects.get_or_create(user=self.manager, defaults={'role': UserRole.MANAGER, 'task_group': TaskGroup.NONE})
         if not created:
             manager_profile.role = UserRole.MANAGER
+            manager_profile.task_group = TaskGroup.NONE
             manager_profile.save()
         
         self.staff = User.objects.create_user(
@@ -510,9 +552,10 @@ class PermissionIntegrationTestCase(APITestCase):
             email='staff@test.com',
             password='testpass123'
         )
-        staff_profile, created = Profile.objects.get_or_create(user=self.staff, defaults={'role': UserRole.STAFF})
+        staff_profile, created = Profile.objects.get_or_create(user=self.staff, defaults={'role': UserRole.STAFF, 'task_group': TaskGroup.GENERAL})
         if not created:
             staff_profile.role = UserRole.STAFF
+            staff_profile.task_group = TaskGroup.GENERAL
             staff_profile.save()
             
         # Force refresh to clear Django's cache

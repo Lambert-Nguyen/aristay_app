@@ -31,25 +31,33 @@ class UserSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(read_only=True)  # show disabled state
     is_superuser = serializers.BooleanField(read_only=True)
     role         = serializers.SerializerMethodField(read_only=True)
+    task_group   = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
-        # include email so we can show it, and is_staff for “Admin” flag
+        # include email so we can show it, and is_staff for "Admin" flag
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'is_staff', 'is_superuser', 'is_active',   # ← include is_superuser
-            'role', 'timezone', 'system_timezone',
+            'role', 'task_group', 'timezone', 'system_timezone',
         ]
         
     @extend_schema_field(OpenApiTypes.STR)
     def get_role(self, obj):
-        # Superusers override role; show “superuser” regardless of stored profile.role
+        # Superusers override role; show "superuser" regardless of stored profile.role
         if obj.is_superuser:
             return 'superuser'
         try:
             return obj.profile.role
         except Profile.DoesNotExist:
             return 'staff'
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_task_group(self, obj):
+        try:
+            return obj.profile.task_group
+        except Profile.DoesNotExist:
+            return 'none'
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_system_timezone(self, obj):

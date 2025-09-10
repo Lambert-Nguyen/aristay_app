@@ -545,6 +545,18 @@ class UserRole(models.TextChoices):
     VIEWER      = 'viewer',      'Viewer'        # Read-only access
 
 
+class TaskGroup(models.TextChoices):
+    """
+    Task groups for staff assignment and dashboard permissions
+    """
+    CLEANING    = 'cleaning',    'Cleaning'      # Housekeeping, room cleaning, turnover
+    MAINTENANCE = 'maintenance', 'Maintenance'   # Repairs, HVAC, plumbing, electrical
+    LAUNDRY     = 'laundry',     'Laundry'       # Linens, towels, bedding
+    LAWN_POOL   = 'lawn_pool',   'Lawn/Pool'     # Landscaping, pool maintenance, outdoor
+    GENERAL     = 'general',     'General'       # Multi-purpose, flexible assignments
+    NONE        = 'none',        'Not Assigned'  # No specific task group
+
+
 class DepartmentGroups:
     """
     Department group names - used with Django's Group model
@@ -617,6 +629,14 @@ class Profile(models.Model):
         help_text="App role separate from Django is_staff/is_superuser."
     )
     
+    # Task group assignment for staff/crew
+    task_group = models.CharField(
+        max_length=16,
+        choices=TaskGroup.choices,
+        default=TaskGroup.NONE,
+        help_text="Primary task group for staff assignment and dashboard permissions"
+    )
+    
     # Team visibility controls
     can_view_team_tasks = models.BooleanField(
         default=True,
@@ -629,6 +649,65 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} profile"
+    
+    def get_task_group_display(self):
+        """Get human-readable task group name"""
+        return dict(TaskGroup.choices).get(self.task_group, 'Not Assigned')
+    
+    def is_in_task_group(self, task_group):
+        """Check if user is assigned to a specific task group"""
+        # Handle both string and TaskGroup enum inputs
+        if hasattr(task_group, 'value'):
+            task_group_value = task_group.value
+        else:
+            task_group_value = task_group
+        return self.task_group == task_group_value
+    
+    def can_view_task_group(self, task_group):
+        """Check if user can view tasks for a specific task group"""
+        # Handle both string and TaskGroup enum inputs
+        if hasattr(task_group, 'value'):
+            task_group_value = task_group.value
+        else:
+            task_group_value = task_group
+            
+        # Superusers and managers can view all task groups
+        if self.role in [UserRole.SUPERUSER, UserRole.MANAGER]:
+            return True
+        
+        # Staff can view their own task group and general tasks
+        if self.role == UserRole.STAFF:
+            return self.task_group == task_group_value or task_group_value == TaskGroup.GENERAL.value
+        
+        # Viewers have limited access - can only view if they have permission
+        if self.role == UserRole.VIEWER:
+            return self.can_view_other_teams
+        
+        return False
+    
+    def get_accessible_task_groups(self):
+        """Get list of task groups this user can access"""
+        if self.role in [UserRole.SUPERUSER, UserRole.MANAGER]:
+            # Managers and superusers can access all task groups except NONE
+            return [TaskGroup(choice[0]) for choice in TaskGroup.choices if choice[0] != TaskGroup.NONE.value]
+        
+        if self.role == UserRole.STAFF:
+            # Staff can access their own task group plus GENERAL (if not already GENERAL)
+            # Exception: if task group is NONE, only allow GENERAL
+            if self.task_group == TaskGroup.NONE.value:
+                return [TaskGroup.GENERAL]
+            
+            groups = [TaskGroup(self.task_group)]
+            if self.task_group != TaskGroup.GENERAL.value:
+                groups.append(TaskGroup.GENERAL)
+            return groups
+        
+        if self.role == UserRole.VIEWER and self.can_view_other_teams:
+            # Viewers with cross-team permission can access all task groups except NONE
+            return [TaskGroup(choice[0]) for choice in TaskGroup.choices if choice[0] != TaskGroup.NONE.value]
+        
+        # Viewers without cross-team permission get empty list
+        return []
     
     def get_departments(self):
         """Get list of departments (groups) this user belongs to"""

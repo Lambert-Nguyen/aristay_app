@@ -5,7 +5,7 @@ import pytest
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from api.models import Profile, CustomPermission, RolePermission
+from api.models import Profile, CustomPermission, RolePermission, TaskGroup
 
 User = get_user_model()
 
@@ -33,6 +33,7 @@ class NavigationVisibilityTestCase(TestCase):
         # Get or update the automatically created profile
         self.manager_profile = Profile.objects.get(user=self.manager_user)
         self.manager_profile.role = 'manager'
+        self.manager_profile.task_group = TaskGroup.NONE
         self.manager_profile.save()
         
         self.staff_user = User.objects.create_user(
@@ -41,6 +42,7 @@ class NavigationVisibilityTestCase(TestCase):
         # Get or update the automatically created profile  
         self.staff_profile = Profile.objects.get(user=self.staff_user)
         self.staff_profile.role = 'staff'
+        self.staff_profile.task_group = TaskGroup.GENERAL
         self.staff_profile.save()
         
         self.regular_user = User.objects.create_user(
@@ -49,6 +51,7 @@ class NavigationVisibilityTestCase(TestCase):
         # Get or update the automatically created profile
         self.regular_profile = Profile.objects.get(user=self.regular_user)
         self.regular_profile.role = 'viewer'
+        self.regular_profile.task_group = TaskGroup.NONE
         self.regular_profile.save()
         
         # Create test permissions if they don't exist

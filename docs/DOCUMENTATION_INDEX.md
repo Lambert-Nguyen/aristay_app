@@ -19,6 +19,10 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`permission_refactoring_summary.md`](./development/permission_refactoring_summary.md) - Permission system details
 - [`LOCAL_DEVELOPMENT_SETUP.md`](./development/LOCAL_DEVELOPMENT_SETUP.md) - ⭐ **NEW** - Local development with PostgreSQL
 
+### 🧩 [features/](./features/)
+**Feature-specific documentation**
+- [`TASK_GROUPS.md`](./features/TASK_GROUPS.md) - ⭐ **NEW** - Task Groups for staff assignment and permissions
+
 ### 🏗️ [implementation/](./implementation/) ⭐ **NEW - COMPLETE SYSTEM IMPLEMENTATION**
 **Production system implementation and final completion**
 - [`CLOUDINARY_INTEGRATION_2025-09-07.md`](./implementation/CLOUDINARY_INTEGRATION_2025-09-07.md) - Complete Cloudinary CDN integration
