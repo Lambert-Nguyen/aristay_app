@@ -291,6 +291,17 @@ If critical issues arise:
 2. Redeploy previous version: `./scripts/deployment/deploy.sh`
 3. Investigate specific issue and reapply targeted fix
 
+## 🔧 Additional Fix: Excel Import Dependency Issue
+
+### **Issue**: Excel Import Failing
+- **Error**: `Pandas requires version '3.1.0' or newer of 'openpyxl' (version '3.0.10' currently installed)`
+- **Root Cause**: Version conflict between pandas and openpyxl
+- **Fix Applied**: Updated `openpyxl>=3.1.0` in requirements.txt
+- **Status**: ✅ **FIXED** - Tested locally with openpyxl 3.1.5
+- **Files Modified**: 
+  - `aristay_backend/requirements.txt`
+  - `requirements.txt` (root for Heroku)
+
 ---
 
 **Report Status**: ✅ COMPLETED  
