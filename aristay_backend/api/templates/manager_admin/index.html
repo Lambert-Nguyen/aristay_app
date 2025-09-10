@@ -4,7 +4,43 @@
 {% block title %}{% trans 'Site administration' %} | {{ site_title|default:_('AriStay Manager') }}{% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'manager_admin:index' %}">{{ site_header|default:_('AriStay Manager') }}</a></h1>
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 20px;">
+    <h1 id="site-name"><a href="{% url 'manager_admin:index' %}">{{ site_header|default:_('AriStay Manager') }}</a></h1>
+    
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <!-- Portal Home Link -->
+        <a href="/api/portal/" 
+           style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease;">
+            🏠 Portal Home
+        </a>
+        
+        <!-- Admin Console (if superuser) -->
+        {% if user.is_superuser %}
+        <a href="/admin/" 
+           style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease;">
+            ⚙️ Admin
+        </a>
+        {% endif %}
+        
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+            <svg class="theme-toggle-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <svg class="theme-toggle-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+        </button>
+        
+        <!-- User info -->
+        {% if user %}
+        <span style="color: rgba(255,255,255,0.8); font-size: 14px;">
+            {{ user.get_full_name|default:user.username }}
+        </span>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
 
 {% block nav-sidebar %}{% endblock %}
@@ -15,6 +51,9 @@
 <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicons/favicon-32x32.png' %}">
 <link rel="apple-touch-icon" href="{% static 'images/favicons/apple-touch-icon.png' %}">
 <meta name="theme-color" content="#8b5cf6">
+
+<!-- Theme Toggle Styles -->
+<link rel="stylesheet" href="{% static 'css/theme-toggle.css' %}">
 
 <style>
 /* Modern Manager Dashboard Styles */
@@ -451,6 +490,144 @@ body {
     }
 }
 
+/* Dark Mode Styles for Manager Dashboard */
+[data-theme="dark"] body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .welcome-section {
+    background: var(--primary-gradient) !important;
+    color: white !important;
+}
+
+[data-theme="dark"] .dashboard-section {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .dashboard-title {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .action-card {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 2px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .action-card:hover {
+    background: var(--card-bg-hover) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .action-label {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .action-description {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .module {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .module h2, 
+[data-theme="dark"] .module caption, 
+[data-theme="dark"] .inline-group h2 {
+    background: var(--primary-gradient) !important;
+    color: white !important;
+}
+
+[data-theme="dark"] .module th, 
+[data-theme="dark"] .module td {
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .module tbody tr:hover {
+    background-color: var(--card-bg-hover) !important;
+}
+
+[data-theme="dark"] .module a {
+    color: var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .module a:hover {
+    color: var(--accent-secondary) !important;
+}
+
+[data-theme="dark"] .addlink {
+    background: rgba(99, 102, 241, 0.1) !important;
+    color: var(--accent-primary) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .addlink:hover {
+    background: rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .changelink {
+    background: rgba(99, 102, 241, 0.1) !important;
+    color: var(--accent-primary) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .changelink:hover {
+    background: rgba(99, 102, 241, 0.2) !important;
+}
+
+[data-theme="dark"] .viewlink {
+    background: rgba(148, 163, 184, 0.1) !important;
+    color: var(--text-muted) !important;
+    border: 1px solid rgba(148, 163, 184, 0.3) !important;
+}
+
+[data-theme="dark"] .viewlink:hover {
+    background: rgba(148, 163, 184, 0.2) !important;
+}
+
+[data-theme="dark"] .admin-info {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border-left: 6px solid var(--accent-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .admin-info h3 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .admin-info p {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .admin-info strong {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .action-card-mini {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .close {
+    color: var(--text-muted) !important;
+}
+
 /* Animation */
 @keyframes fadeInUp {
     from {
@@ -827,4 +1004,7 @@ setInterval(function() {
 
 console.log('🚀 AriStay Manager Console loaded successfully!');
 </script>
+
+<!-- Theme Toggle Script -->
+<script src="{% static 'js/theme-toggle.js' %}"></script>
 {% endblock %}
