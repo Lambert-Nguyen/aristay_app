@@ -9,15 +9,19 @@ from django.db import migrations, models, connection
 def add_booking_overlap_constraint(apps, schema_editor):
     """Add booking overlap constraint only for PostgreSQL databases."""
     if connection.vendor == 'postgresql':
+        # Drop if exists to ensure idempotency
+        schema_editor.execute("ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;")
         # Create the constraint using raw SQL for PostgreSQL
-        schema_editor.execute("""
+        schema_editor.execute(
+            """
             ALTER TABLE api_booking 
             ADD CONSTRAINT booking_no_overlap_active 
             EXCLUDE USING gist (
                 property_id WITH =,
                 tstzrange(check_in_date, check_out_date) WITH &&
             ) WHERE (status NOT IN ('cancelled', 'completed'));
-        """)
+            """
+        )
 
 
 def remove_booking_overlap_constraint(apps, schema_editor):

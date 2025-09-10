@@ -45,7 +45,7 @@ This guide explains how to set up local development environment that mirrors the
 - **Database**: PostgreSQL (`aristay_local`)
 - **Host**: 127.0.0.1:5432
 - **User**: postgres
-- **Settings**: `backend.settings_local`
+- **Settings**: Default `backend.settings` (no custom settings module needed)
 
 **Production (Heroku)**:
 - **Database**: PostgreSQL (Heroku Postgres)
@@ -84,8 +84,9 @@ This guide explains how to set up local development environment that mirrors the
 
 **What it does**:
 1. Activates virtual environment
-2. Starts Django development server
-3. Uses local PostgreSQL settings
+2. Exports PostgreSQL env vars (`POSTGRES_*`) if not set
+3. Runs migrations
+4. Starts Django development server using default settings
 
 **Usage**:
 ```bash
@@ -125,25 +126,25 @@ This guide explains how to set up local development environment that mirrors the
 ```bash
 # Run migrations
 cd aristay_backend
-python manage.py migrate --settings=backend.settings_local
+python manage.py migrate
 
 # Create superuser
-python manage.py createsuperuser --settings=backend.settings_local
+python manage.py createsuperuser
 
 # Load test data
-python manage.py seed_test_data --settings=backend.settings_local
+python manage.py seed_test_data
 ```
 
 ### 3. Testing
 
 ```bash
-# Run tests with local settings
+# Run tests
 cd aristay_backend
-python manage.py test --settings=backend.settings_local
+python manage.py test
 
 # Run specific test categories
-python tests/run_tests.py --security
-python tests/run_tests.py --api
+python ../tests/run_tests.py --security
+python ../tests/run_tests.py --api
 ```
 
 ## Troubleshooting
@@ -192,7 +193,14 @@ lsof -ti:8000 | xargs kill -9
 The local development setup uses these environment variables:
 
 ```bash
+# Either DATABASE_URL or POSTGRES_* can be used
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/aristay_local
+POSTGRES_DB=aristay_local
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5432
+
 DEBUG=true
 DJANGO_ENVIRONMENT=development
 SECRET_KEY=local-dev-secret-key-change-me
@@ -215,8 +223,7 @@ aristay_app/
 │       └── deploy.sh               # Deploy to Heroku
 ├── aristay_backend/
 │   ├── backend/
-│   │   ├── settings.py             # Production settings
-│   │   └── settings_local.py       # Local development settings
+│   │   └── settings.py             # Unified settings (local/prod via env)
 │   └── manage.py
 └── docs/
     └── development/
@@ -225,10 +232,7 @@ aristay_app/
 
 ## Best Practices
 
-1. **Always use local settings for development**:
-   ```bash
-   python manage.py <command> --settings=backend.settings_local
-   ```
+1. **Use default settings with env vars** (no custom module needed).
 
 2. **Test locally before deploying**:
    - Run the development server

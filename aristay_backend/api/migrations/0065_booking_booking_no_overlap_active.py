@@ -9,6 +9,8 @@ from django.db import migrations, models, connection
 def add_booking_no_overlap_constraint(apps, schema_editor):
     if connection.vendor == 'postgresql':
         Booking = apps.get_model('api', 'Booking')
+        # Drop existing constraint if present to avoid duplicate errors
+        schema_editor.execute("ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;")
         constraint = django.contrib.postgres.constraints.ExclusionConstraint(
             condition=models.Q(
                 ("status__in", ["cancelled", "completed"]), _negated=True
@@ -33,9 +35,8 @@ def add_booking_no_overlap_constraint(apps, schema_editor):
 
 def remove_booking_no_overlap_constraint(apps, schema_editor):
     if connection.vendor == 'postgresql':
-        Booking = apps.get_model('api', 'Booking')
-        # Remove the constraint directly
-        schema_editor.remove_constraint(Booking, "booking_no_overlap_active")
+        # Remove the constraint directly (safe if already absent)
+        schema_editor.execute("ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;")
 
 
 class Migration(migrations.Migration):
