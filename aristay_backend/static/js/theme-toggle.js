@@ -105,6 +105,9 @@
     }
     
     // Attach event listeners to existing toggle buttons
+    let retryCount = 0;
+    const maxRetries = 50; // 5 seconds max
+    
     function attachEventListeners() {
         const toggle = document.getElementById('theme-toggle');
         if (toggle) {
@@ -112,6 +115,13 @@
             toggle.removeEventListener('click', toggleTheme);
             // Add the event listener
             toggle.addEventListener('click', toggleTheme);
+            retryCount = 0; // Reset counter on success
+        } else if (retryCount < maxRetries) {
+            // If no toggle found, try again after a short delay
+            retryCount++;
+            setTimeout(attachEventListeners, 100);
+        } else {
+            console.warn('Theme toggle button not found after maximum retries');
         }
     }
     

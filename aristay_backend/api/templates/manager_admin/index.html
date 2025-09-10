@@ -4,48 +4,123 @@
 {% block title %}{% trans 'Site administration' %} | {{ site_title|default:_('AriStay Manager') }}{% endblock %}
 
 {% block branding %}
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0 20px;">
-    <h1 id="site-name"><a href="{% url 'manager_admin:index' %}">{{ site_header|default:_('AriStay Manager') }}</a></h1>
-    
-    <div style="display: flex; gap: 12px; align-items: center;">
-        <!-- Portal Home Link -->
-        <a href="/api/portal/" 
-           style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease;">
-            🏠 Portal Home
-        </a>
-        
-        <!-- Admin Console (if superuser) -->
-        {% if user.is_superuser %}
-        <a href="/admin/" 
-           style="background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease;">
-            ⚙️ Admin
-        </a>
-        {% endif %}
-        
-        <!-- Theme Toggle -->
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
-            <svg class="theme-toggle-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5"/>
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-            <svg class="theme-toggle-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-        </button>
-        
-        <!-- User info -->
-        {% if user %}
-        <span style="color: rgba(255,255,255,0.8); font-size: 14px;">
-            {{ user.get_full_name|default:user.username }}
-        </span>
-        {% endif %}
-    </div>
-</div>
+<h1 id="site-name">
+    <a href="{% url 'manager_admin:index' %}">{{ site_header|default:_('AriStay Manager') }}</a>
+</h1>
 {% endblock %}
 
 {% block nav-sidebar %}{% endblock %}
 
+{% block header %}
+<div id="header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-bottom: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 0; margin: 0;">
+    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 12px 20px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <img src="{% static 'images/aristay_logo.jpg' %}" 
+                 alt="AriStay" 
+                 style="width: 50px; height: 50px; border-radius: 12px; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
+            <div>
+                <h1 id="site-name" style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);">
+                    <a href="{% url 'manager_admin:index' %}" style="color: inherit; text-decoration: none;">
+                        {{ site_header|default:_('AriStay Manager') }}
+                    </a>
+                </h1>
+                <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; font-weight: 400;">Property Management Console</p>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <!-- Portal Home Link -->
+            <a href="/api/portal/" 
+               style="background: rgba(255,255,255,0.15); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 1.1rem;">🏠</span>
+                <span>Portal</span>
+            </a>
+            
+            <!-- Admin Console (if superuser) -->
+            {% if user.is_superuser %}
+            <a href="/admin/" 
+               style="background: rgba(255,255,255,0.15); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 1.1rem;">⚙️</span>
+                <span>Admin</span>
+            </a>
+            {% endif %}
+            
+            <!-- Menu Button -->
+            <button id="menu-toggle" style="background: rgba(255,255,255,0.15); color: white; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); cursor: pointer; display: flex; align-items: center; justify-content: center;" aria-label="Toggle menu" title="Open quick menu">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block extrastyle %}
+<!-- Override Django Admin Default Header Colors -->
+<style>
+#header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+#header #branding {
+    background: transparent !important;
+}
+
+#header #branding h1 {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+#header #branding h1 a {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+#header #branding h1 a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+/* Override any Django default header elements */
+#header * {
+    color: #ffffff !important;
+}
+
+#header a {
+    color: #ffffff !important;
+}
+
+#header a:hover {
+    color: #ffffff !important;
+}
+
+/* Ensure our custom branding div takes full width */
+#header #branding > div {
+    width: 100% !important;
+    background: transparent !important;
+}
+
+/* Override breadcrumb bar colors */
+#breadcrumbs {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+#breadcrumbs a {
+    color: #ffffff !important;
+}
+
+#breadcrumbs a:hover {
+    color: #ffffff !important;
+    text-decoration: underline !important;
+}
+</style>
+
 <!-- AriStay Favicons -->
 <link rel="icon" type="image/x-icon" href="{% static 'images/favicons/favicon.ico' %}">
 <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicons/favicon-32x32.png' %}">
@@ -490,6 +565,68 @@ body {
     }
 }
 
+/* Enhanced Header Styles */
+.branding a[href="/api/portal/"]:hover,
+.branding a[href="/admin/"]:hover {
+    background: rgba(255,255,255,0.3) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border-color: rgba(255,255,255,0.4) !important;
+}
+
+/* Mobile Responsive Header */
+@media (max-width: 768px) {
+    .branding > div:first-child {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+    
+    .branding > div:first-child img {
+        width: 40px !important;
+        height: 40px !important;
+    }
+    
+    .branding > div:first-child h1 {
+        font-size: 1.4rem !important;
+    }
+    
+    .branding > div:first-child p {
+        font-size: 0.8rem !important;
+    }
+    
+    .branding > div:last-child {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    
+    .branding > div:last-child a {
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .branding > div:last-child span:last-child {
+        display: none !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .branding {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+    
+    .branding > div:first-child {
+        justify-content: center !important;
+        text-align: center !important;
+    }
+    
+    .branding > div:last-child {
+        justify-content: center !important;
+    }
+}
+
 /* Dark Mode Styles for Manager Dashboard */
 [data-theme="dark"] body {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
@@ -669,6 +806,85 @@ body {
 {% endblock %}
 
 {% block content %}
+<!-- Side Menu Panel -->
+<div id="side-menu" style="position: fixed; top: 0; right: -350px; width: 350px; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: -5px 0 20px rgba(0, 0, 0, 0.3); z-index: 9999; transition: right 0.3s ease; overflow-y: auto;">
+    <div style="padding: 20px;">
+        <!-- Menu Header -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="{% static 'images/aristay_logo.jpg' %}" 
+                     alt="AriStay" 
+                     style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3);">
+                <div>
+                    <h3 style="margin: 0; color: white; font-size: 1.2rem; font-weight: 700;">Quick Menu</h3>
+                    <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem;">{{ user.get_full_name|default:user.username }}</p>
+                </div>
+            </div>
+            <button id="close-menu" style="background: rgba(255,255,255,0.15); color: white; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; transition: all 0.2s ease;" aria-label="Close menu">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Quick Links -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- View Site -->
+            <a href="/" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(255,255,255,0.1); color: white; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.2);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9,22 9,12 15,12 15,22"/>
+                </svg>
+                <span style="font-weight: 500;">View Site</span>
+            </a>
+            
+            <!-- Change Password -->
+            <a href="/admin/password_change/" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(255,255,255,0.1); color: white; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.2);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <circle cx="12" cy="16" r="1"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span style="font-weight: 500;">Change Password</span>
+            </a>
+            
+            <!-- Dark Mode Toggle -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: rgba(255,255,255,0.1); border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    <span style="font-weight: 500; color: white;">Dark Mode</span>
+                </div>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);">
+                    <svg class="theme-toggle-icon sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    <svg class="theme-toggle-icon moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Log Out -->
+            <a href="/logout/" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(255,107,107,0.2); color: #ff6b6b; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; border: 1px solid rgba(255,107,107,0.3);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16,17 21,12 16,7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                <span style="font-weight: 500;">Log Out</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay -->
+<div id="menu-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9998; opacity: 0; visibility: hidden; transition: all 0.3s ease;"></div>
+
 <div id="content-main">
     <div class="welcome-section">
         <div class="logo-container">
@@ -1007,4 +1223,60 @@ console.log('🚀 AriStay Manager Console loaded successfully!');
 
 <!-- Theme Toggle Script -->
 <script src="{% static 'js/theme-toggle.js' %}"></script>
+
+<!-- Side Menu Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const sideMenu = document.getElementById('side-menu');
+    const closeMenu = document.getElementById('close-menu');
+    const overlay = document.getElementById('menu-overlay');
+    
+    // Check if all required elements exist
+    if (!menuToggle || !sideMenu || !closeMenu || !overlay) {
+        console.warn('Side menu elements not found, skipping menu initialization');
+        return;
+    }
+    
+    // Open menu
+    menuToggle.addEventListener('click', function() {
+        sideMenu.style.right = '0';
+        overlay.style.opacity = '1';
+        overlay.style.visibility = 'visible';
+        document.body.style.overflow = 'hidden';
+    });
+    
+    // Close menu
+    function closeSideMenu() {
+        sideMenu.style.right = '-350px';
+        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
+        document.body.style.overflow = 'auto';
+    }
+    
+    closeMenu.addEventListener('click', closeSideMenu);
+    overlay.addEventListener('click', closeSideMenu);
+    
+    // Close menu on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeSideMenu();
+        }
+    });
+    
+    // Add hover effects to menu items
+    const menuItems = sideMenu.querySelectorAll('a, button');
+    menuItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(5px)';
+            this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+            this.style.boxShadow = 'none';
+        });
+    });
+});
+</script>
 {% endblock %}
