@@ -173,9 +173,17 @@ class StaffUIFunctionalityTest(TestCase):
         self.client.login(username='teststaff', password='testpass123')
         
         # Create a test image file
+        from PIL import Image
+        import io
+        
+        img = Image.new('RGB', (100, 100), color='red')
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='JPEG')
+        img_bytes.seek(0)
+        
         test_image = SimpleUploadedFile(
             "test_image.jpg",
-            b"fake image content",
+            img_bytes.getvalue(),
             content_type="image/jpeg"
         )
         

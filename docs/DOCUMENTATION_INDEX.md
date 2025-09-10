@@ -34,6 +34,8 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`AGENT_FIXES_COMPLETE.md`](./reports/AGENT_FIXES_COMPLETE.md) - Agent fixes completion report
 - [`PROJECT_ORGANIZATION_COMPLETE.md`](./reports/PROJECT_ORGANIZATION_COMPLETE.md) - Project organization completion
 - [`HEROKU_ERROR_DEBUGGING_REPORT_2025-01-09.md`](./reports/HEROKU_ERROR_DEBUGGING_REPORT_2025-01-09.md) - ⭐ **NEW** - Comprehensive Heroku error debugging report
+- [`PROJECT_ISSUES_ANALYSIS_REPORT_2025-01-09.md`](./reports/PROJECT_ISSUES_ANALYSIS_REPORT_2025-01-09.md) - ⭐ **NEW** - Complete project issues analysis and resolution report
+- [`MEMORY_OPTIMIZATION_GUIDE.md`](./heroku/MEMORY_OPTIMIZATION_GUIDE.md) - ⭐ **NEW** - Heroku memory leak fixes and dyno optimization guide
 
 ### 🧪 [testing/](./testing/)
 **Testing documentation and test reports**

@@ -133,6 +133,7 @@ MIDDLEWARE = [
     "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "backend.memory_middleware.MemoryManagementMiddleware",  # Memory management
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
     "backend.middleware.ErrorLoggingMiddleware", 
@@ -302,6 +303,33 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # the URL your users will click through to finish activation/reset
 # (point this at your front-end, e.g. localhost:3000)
 FRONTEND_URL = "http://localhost:3000"
+
+# ============================================================================
+# MEMORY MANAGEMENT CONFIGURATION
+# ============================================================================
+# Optimize memory usage for Heroku dynos
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+
+# Database connection management
+DATABASES['default'].update({
+    'CONN_MAX_AGE': 60,  # Close connections after 60 seconds
+    'OPTIONS': {
+        'MAX_CONNS': 1,  # Limit concurrent connections
+    }
+})
+
+# Cache configuration for better memory management
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,  # Limit cache entries
+            'CULL_FREQUENCY': 3,  # Remove 1/3 of entries when max reached
+        }
+    }
+}
 
 # ============================================================================
 # EMAIL CONFIGURATION (single source of truth)

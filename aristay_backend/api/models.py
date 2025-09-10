@@ -173,7 +173,7 @@ class Booking(SoftDeleteMixin, models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=Q(check_in_date__lt=F('check_out_date')),
+                condition=Q(check_in_date__lt=F('check_out_date')),
                 name='booking_checkin_before_checkout'
             ),
             models.UniqueConstraint(
