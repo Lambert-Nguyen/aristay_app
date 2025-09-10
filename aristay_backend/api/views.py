@@ -1417,6 +1417,75 @@ def system_logs_viewer(request):
     return render(request, 'admin/system_logs.html', context)
 
 
+@login_required
+def system_logs_download(request):
+    """
+    Download log files for superusers
+    Supports downloading filtered logs with search and level filters
+    """
+    # Only allow superusers to download logs
+    if not request.user.is_superuser:
+        return HttpResponse("Log download is only available to superusers.", status=403)
+    
+    import os
+    from django.conf import settings
+    from django.http import HttpResponse
+    from django.utils import timezone
+    
+    log_dir = os.path.join(settings.BASE_DIR, 'logs')
+    log_file = request.GET.get('file', 'debug.log')
+    search = request.GET.get('search', '')
+    level = request.GET.get('level', '')
+    
+    try:
+        # Get available log files
+        available_files = []
+        if os.path.exists(log_dir):
+            available_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+        
+        # Validate log file
+        if log_file not in available_files:
+            return HttpResponse(f"Log file '{log_file}' not found or not accessible.", status=404)
+        
+        # Read and filter log file
+        log_path = os.path.join(log_dir, log_file)
+        with open(log_path, 'r') as f:
+            all_lines = f.readlines()
+            
+            # Apply filters
+            filtered_lines = all_lines
+            
+            if search:
+                filtered_lines = [line for line in filtered_lines if search.lower() in line.lower()]
+            
+            if level:
+                filtered_lines = [line for line in filtered_lines if level.upper() in line]
+            
+            # Join filtered lines
+            log_content = ''.join(filtered_lines)
+        
+        # Create filename with timestamp and filters
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename_parts = [log_file.replace('.log', ''), timestamp]
+        
+        if search:
+            filename_parts.append(f'search_{search[:20]}')
+        if level:
+            filename_parts.append(f'level_{level.lower()}')
+        
+        filename = f"{'_'.join(filename_parts)}.log"
+        
+        # Create response
+        response = HttpResponse(log_content, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Length'] = len(log_content.encode('utf-8'))
+        
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f"Error downloading log file: {str(e)}", status=500)
+
+
 def _extract_log_level(log_line):
     """Extract log level from a log line for color coding"""
     log_line_upper = log_line.upper()
