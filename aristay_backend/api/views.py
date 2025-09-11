@@ -2852,8 +2852,8 @@ def photo_upload_view(request):
     else:
         # Get tasks for properties the user has access to
         accessible_properties = Property.objects.filter(
-            Q(propertyownership__user=request.user) | 
-            Q(assigned_to=request.user)
+            Q(ownerships__user=request.user) |
+            Q(tasks__assigned_to=request.user)
         ).distinct()
         tasks = Task.objects.filter(
             property_ref__in=accessible_properties,
@@ -2869,8 +2869,8 @@ def photo_upload_view(request):
             # Verify user has access to this task
             if not request.user.is_superuser:
                 accessible_properties = Property.objects.filter(
-                    Q(propertyownership__user=request.user) | 
-                    Q(assigned_to=request.user)
+                    Q(ownerships__user=request.user) |
+                    Q(tasks__assigned_to=request.user)
                 ).distinct()
                 if selected_task.property_ref not in accessible_properties:
                     selected_task = None
