@@ -17,11 +17,7 @@
     
     // Apply theme to document
     function applyTheme(theme) {
-        // Apply to <html> and <body> for better CSS specificity in Django admin
         document.documentElement.setAttribute('data-theme', theme);
-        if (document.body) {
-            document.body.setAttribute('data-theme', theme);
-        }
         localStorage.setItem(THEME_KEY, theme);
     }
     
