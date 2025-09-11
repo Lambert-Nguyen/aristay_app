@@ -329,10 +329,40 @@ class TaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
         }),
     )
     
-    inlines = [TaskImageInline]
+    class TaskChecklistInline(admin.StackedInline):
+        model = TaskChecklist
+        extra = 0
+        max_num = 1
+        can_delete = True
+        fields = ('template', 'started_at', 'completed_at', 'completed_by')
+
+    inlines = [TaskChecklistInline, TaskImageInline]
     
     # Use the generic unified history view
     history_view = create_unified_history_view(Task)
+
+    def save_formset(self, request, form, formset, change):
+        """When a TaskChecklist is added with a template, backfill ChecklistResponses."""
+        instances = formset.save(commit=False)
+        from django.db import transaction
+        with transaction.atomic():
+            for obj in instances:
+                obj.save()
+                # Backfill responses if this is the TaskChecklist inline
+                if isinstance(obj, TaskChecklist) and obj.template_id:
+                    existing = set(obj.responses.values_list('item_id', flat=True))
+                    items = ChecklistItem.objects.filter(template=obj.template)
+                    to_create = [
+                        ChecklistResponse(checklist=obj, item=item)
+                        for item in items if item.id not in existing
+                    ]
+                    if to_create:
+                        ChecklistResponse.objects.bulk_create(to_create)
+
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+        formset.save_m2m()
 
 class TaskImageAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     list_display = ('id', 'task', 'photo_type', 'photo_status', 'sequence_number', 'is_primary', 'uploaded_at', 'uploaded_by')
