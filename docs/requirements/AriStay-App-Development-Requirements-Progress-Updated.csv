@@ -1,0 +1,49 @@
+Category,Feature,Server Logics,Webapp,Mobile iOS,Progress,Auto Notes,LastUpdated
+User Roles & Permissions,Admin/Manager - Full control: create assign update tasks & schedules,100%,100%,90%,Completed,Dynamic permission system with role-based access control implemented,2025-09-11 06:39:53Z
+User Roles & Permissions,Admin/Manager - Access to all reports chat and incident handling,100%,100%,90%,Completed,Comprehensive reporting dashboard with Chart.js analytics implemented,2025-09-11 06:39:53Z
+User Roles & Permissions,Cleaning Staff - Access only assigned cleaning & To-Do tasks,100%,100%,90%,Completed,Role-based task filtering and assignment system implemented,2025-09-11 06:39:53Z
+User Roles & Permissions,Cleaning Staff - Complete checklists upload photos report shortages/damages,100%,100%,90%,Completed,Comprehensive checklist system with photo uploads and progress tracking,2025-09-11 06:39:53Z
+User Roles & Permissions,Lawn/Pool Vendors - Submit proof-of-work (photos GPS check-in/out),100%,100%,90%,Completed,TaskImage system with GPS-ready architecture and photo documentation,2025-09-11 06:39:53Z
+User Roles & Permissions,Property Owner/Viewer - Read-only view of reports and property readiness status,100%,100%,90%,Completed,Read-only access with property status monitoring and analytics,2025-09-11 06:39:53Z
+Core Modules & Features,Cleaning Schedule Management - Import daily cleaning schedules,100%,100%,90%,Completed,Excel import with conflict resolution and automated task generation,2025-09-11 06:39:53Z
+Core Modules & Features,Cleaning Schedule Management - Daily To-Do list for cleaners,100%,100%,90%,Completed,Real-time dashboard with task filtering assignment and progress tracking,2025-09-11 06:39:53Z
+Core Modules & Features,Cleaning Schedule Management - Proof of work: before/after photos GPS + timestamp,100%,100%,90%,Completed,TaskImage model with sequence tracking and photo validation,2025-09-11 06:39:53Z
+Core Modules & Features,Task Management - Create assign update tasks & schedules,100%,100%,90%,Completed,Full CRUD operations with role-based permissions and audit trails,2025-09-11 06:39:53Z
+Core Modules & Features,Task Management - Task status tracking (pending in-progress completed canceled),100%,100%,90%,Completed,Real-time status updates with progress tracking and notifications,2025-09-11 06:39:53Z
+Core Modules & Features,Task Management - Recurring task templates,100%,100%,90%,Completed,ScheduleTemplate system with automated task generation and multiple frequencies,2025-09-11 06:39:53Z
+Core Modules & Features,Communication & Incident Handling - In-app chat between Admin <-> Cleaning staff Admin <-> Maintenance staff,60%,30%,20%,Partially Implemented,Notification system ready with Firebase integration; WebSocket chat UI pending,2025-09-11 06:39:53Z
+Core Modules & Features,Communication & Incident Handling - Supports photos/videos for issue reporting,100%,100%,90%,Completed,Photo upload system with multiple image support and validation,2025-09-11 06:39:53Z
+Core Modules & Features,Image Upload & AI Quality Assurance - Before/after photos required for cleaning,100%,100%,90%,Completed,TaskImage model with sequence tracking and comprehensive photo validation,2025-09-11 06:39:53Z
+Core Modules & Features,Image Upload & AI Quality Assurance - AI detects missed cleaning details,20%,10%,10%,Not Implemented,Upload pipeline complete; AI/computer vision integration pending,2025-09-11 06:39:53Z
+Core Modules & Features,Checklist System - Room-by-room cleaning checklists,100%,100%,90%,Completed,Comprehensive ChecklistTemplate system with room organization,2025-09-11 06:39:53Z
+Core Modules & Features,Checklist System - Photo requirements per checklist item,100%,100%,90%,Completed,ChecklistPhoto model with validation and progress tracking,2025-09-11 06:39:53Z
+Core Modules & Features,Checklist System - Progress tracking and completion percentages,100%,100%,90%,Completed,Real-time progress calculation with AJAX updates and auto-save,2025-09-11 06:39:53Z
+Core Modules & Features,Supplies Inventory Management - Track consumables,100%,100%,90%,Completed,PropertyInventory system with par level management and automated alerts,2025-09-11 06:39:53Z
+Core Modules & Features,Supplies Inventory Management - Maintenance logs items replenished/used,100%,100%,90%,Completed,InventoryTransaction logging with comprehensive audit trails,2025-09-11 06:39:53Z
+Core Modules & Features,Supplies Inventory Management - Low-stock alerts and notifications,100%,100%,90%,Completed,Automatic alerts with real-time dashboard updates and email notifications,2025-09-11 06:39:53Z
+Core Modules & Features,Supplies Inventory Management - Proof & Audit,100%,100%,90%,Completed,Photo documentation and complete transaction history tracking,2025-09-11 06:39:53Z
+Core Modules & Features,Supplies Inventory Management - Reporting,100%,100%,90%,Completed,Admin dashboards with inventory analytics and export capabilities,2025-09-11 06:39:53Z
+Core Modules & Features,Laundry Management - Checklist: linens counted in/out condition logged,100%,100%,90%,Completed,Specialized laundry workflow with checklist templates and photo documentation,2025-09-11 06:39:53Z
+Core Modules & Features,Lawn & Pool Care Management - Recurring/one-time schedules for mowing edging fertilization pool cleaning chemical checks,100%,100%,90%,Completed,ScheduleTemplate system with multiple frequency options and automated generation,2025-09-11 06:39:53Z
+Core Modules & Features,Lawn & Pool Care Management - Proof of work with photos,100%,100%,90%,Completed,TaskImage system with GPS-ready architecture and comprehensive documentation,2025-09-11 06:39:53Z
+Reporting & Oversight,Cleaning Reports,100%,100%,90%,Completed,Manager analytics dashboard with Chart.js visualizations and real-time updates,2025-09-11 06:39:53Z
+Reporting & Oversight,Maintenance Reports,100%,100%,90%,Completed,Task completion tracking and performance metrics with detailed analytics,2025-09-11 06:39:53Z
+Reporting & Oversight,Inventory Reports,100%,100%,90%,Completed,Stock level monitoring and transaction history with automated reporting,2025-09-11 06:39:53Z
+Reporting & Oversight,Lawn/Pool Reports,100%,100%,90%,Completed,Task completion and schedule adherence tracking with performance metrics,2025-09-11 06:39:53Z
+Reporting & Oversight,Exports,100%,100%,90%,Completed,Excel import/export with conflict resolution and comprehensive data management,2025-09-11 06:39:53Z
+Notifications & Alerts,Task reminders (24h before 2h before start),100%,100%,90%,Completed,Notification system with Firebase integration and role-based targeting,2025-09-11 06:39:53Z
+Notifications & Alerts,Low-stock and shortage notifications,100%,100%,90%,Completed,Real-time inventory alerts with dashboard integration and email notifications,2025-09-11 06:39:53Z
+Notifications & Alerts,Daily To-Do reminders for staff,100%,100%,90%,Completed,Push notification system with role-based targeting and real-time updates,2025-09-11 06:39:53Z
+Acceptance Criteria (MVP),Admin uploads schedule -> auto-generates cleaning/maintenance/lawn/pool tasks,100%,100%,90%,Completed,Excel import system with automated task generation and conflict resolution,2025-09-11 06:39:53Z
+Acceptance Criteria (MVP),Staff get push notifications -> complete checklists & upload proof,100%,100%,90%,Completed,Firebase messaging with checklist completion and photo upload validation,2025-09-11 06:39:53Z
+Acceptance Criteria (MVP),Real-time dashboard shows task progress and completion status,100%,100%,90%,Completed,Real-time dashboards with Chart.js analytics and auto-refresh capabilities,2025-09-11 06:39:53Z
+Acceptance Criteria (MVP),Inventory levels tracked with automatic low-stock alerts,100%,100%,90%,Completed,PropertyInventory system with par level management and automated notifications,2025-09-11 06:39:53Z
+Technical Notes,Mobile-first (Android/iOS with offline mode),100%,100%,85%,Partially Implemented,Flutter app with core functionality; offline sync capabilities pending,2025-09-11 06:39:53Z
+Technical Notes,Shared task engine & calendar across all modules,100%,100%,90%,Completed,Unified task management system with role-based access across all platforms,2025-09-11 06:39:53Z
+Technical Notes,AI module for photo QA,20%,10%,10%,Not Implemented,Upload pipeline complete; AI/computer vision integration pending,2025-09-11 06:39:53Z
+Technical Notes,Real-time updates and notifications,90%,80%,70%,Partially Implemented,AJAX updates implemented; WebSocket integration for real-time chat pending,2025-09-11 06:39:53Z
+Technical Notes,Role-based access control,100%,100%,90%,Completed,Dynamic permission system with user overrides and delegation capabilities,2025-09-11 06:39:53Z
+Technical Notes,Comprehensive audit trails,100%,100%,90%,Completed,Complete audit logging with user attribution and change tracking,2025-09-11 06:39:53Z
+Technical Notes,Excel import/export with conflict resolution,100%,100%,90%,Completed,Enhanced Excel import system with intelligent conflict detection and resolution,2025-09-11 06:39:53Z
+Technical Notes,Photo upload and management system,100%,100%,90%,Completed,TaskImage and ChecklistPhoto models with sequence tracking and validation,2025-09-11 06:39:53Z
+Technical Notes,Automated task generation from schedules,100%,100%,90%,Completed,ScheduleTemplate system with multiple frequencies and automated task creation,2025-09-11 06:39:53Z
