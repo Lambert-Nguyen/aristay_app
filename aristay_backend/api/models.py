@@ -521,10 +521,62 @@ def validate_task_image(file):
 
 
 class TaskImage(models.Model):
+    # Photo type choices for before/after functionality
+    PHOTO_TYPE_CHOICES = [
+        ('before', 'Before'),
+        ('after', 'After'),
+        ('during', 'During'),
+        ('reference', 'Reference'),
+        ('damage', 'Damage'),
+        ('general', 'General'),
+    ]
+    
+    # Photo status choices for approval workflow
+    PHOTO_STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('archived', 'Archived'),
+    ]
+    
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    
+    # NEW: Before/After photo categorization
+    photo_type = models.CharField(
+        max_length=20,
+        choices=PHOTO_TYPE_CHOICES,
+        default='general',
+        help_text="Type of photo for before/after comparison"
+    )
+    
+    # NEW: Photo status for approval workflow
+    photo_status = models.CharField(
+        max_length=20,
+        choices=PHOTO_STATUS_CHOICES,
+        default='pending',
+        help_text="Approval status of the photo"
+    )
+    
+    # NEW: Photo grouping and ordering
+    sequence_number = models.PositiveIntegerField(
+        default=1,
+        help_text="Order within the same photo_type group"
+    )
+    
+    # NEW: Primary photo designation
+    is_primary = models.BooleanField(
+        default=False,
+        help_text="Primary photo for this type (e.g., main 'before' photo)"
+    )
+    
+    # NEW: Detailed description
+    description = models.TextField(
+        blank=True,
+        help_text="Detailed description of what the photo shows"
+    )
     
     # Agent's recommended metadata fields for optimized images
     size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Optimized file size in bytes")
@@ -532,8 +584,45 @@ class TaskImage(models.Model):
     height = models.PositiveIntegerField(null=True, blank=True, help_text="Image height in pixels")
     original_size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Original upload size before optimization")
 
+    class Meta:
+        ordering = ['task', 'photo_type', 'sequence_number', 'uploaded_at']
+        unique_together = ['task', 'photo_type', 'sequence_number']
+        indexes = [
+            models.Index(fields=['task', 'photo_type']),
+            models.Index(fields=['photo_status']),
+            models.Index(fields=['uploaded_at']),
+        ]
+
     def __str__(self):
-        return f"Image for {self.task.title}"
+        return f"{self.get_photo_type_display()} image for {self.task.title} (#{self.sequence_number})"
+    
+    def clean(self):
+        """Validate photo constraints"""
+        from django.core.exceptions import ValidationError
+        
+        # Ensure only one primary photo per type per task
+        if self.is_primary and self.pk:
+            existing_primary = TaskImage.objects.filter(
+                task=self.task,
+                photo_type=self.photo_type,
+                is_primary=True
+            ).exclude(pk=self.pk)
+            if existing_primary.exists():
+                raise ValidationError(f"Only one primary photo allowed per type per task. Found existing primary {self.photo_type} photo.")
+    
+    def save(self, *args, **kwargs):
+        """Auto-set primary photo if none exists for this type"""
+        if not self.pk:  # New instance
+            # If this is the first photo of this type for this task, make it primary
+            existing_photos = TaskImage.objects.filter(
+                task=self.task,
+                photo_type=self.photo_type
+            )
+            if not existing_photos.exists():
+                self.is_primary = True
+        
+        self.clean()
+        super().save(*args, **kwargs)
     
 class UserRole(models.TextChoices):
     """

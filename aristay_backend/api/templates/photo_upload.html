@@ -1,0 +1,579 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Photo Upload · AriStay{% endblock %}
+
+{% block extra_css %}
+<style>
+    .photo-upload-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .upload-section {
+        background: var(--card-bg, #ffffff);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: 2px dashed var(--border-color, #e0e0e0);
+        transition: all 0.3s ease;
+    }
+
+    .upload-section.dragover {
+        border-color: var(--primary-color, #6366f1);
+        background: var(--primary-bg, #f0f4ff);
+    }
+
+    .upload-area {
+        text-align: center;
+        padding: 40px 20px;
+        cursor: pointer;
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        color: var(--primary-color, #6366f1);
+        margin-bottom: 16px;
+    }
+
+    .upload-text {
+        font-size: 18px;
+        color: var(--text-primary, #374151);
+        margin-bottom: 8px;
+    }
+
+    .upload-subtext {
+        color: var(--text-secondary, #6b7280);
+        font-size: 14px;
+    }
+
+    .file-input {
+        display: none;
+    }
+
+    .photo-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .photo-preview-card {
+        background: var(--card-bg, #ffffff);
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+
+    .photo-preview {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    .photo-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .photo-type-select {
+        padding: 6px 8px;
+        border: 1px solid var(--border-color, #d1d5db);
+        border-radius: 4px;
+        font-size: 12px;
+        background: var(--input-bg, #ffffff);
+        color: var(--text-primary, #374151);
+    }
+
+    .photo-description {
+        padding: 6px 8px;
+        border: 1px solid var(--border-color, #d1d5db);
+        border-radius: 4px;
+        font-size: 12px;
+        resize: vertical;
+        min-height: 60px;
+        background: var(--input-bg, #ffffff);
+        color: var(--text-primary, #374151);
+    }
+
+    .remove-photo {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: var(--danger-color, #ef4444);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .upload-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: var(--primary-color, #6366f1);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover, #5856eb);
+    }
+
+    .btn-secondary {
+        background: var(--secondary-color, #6b7280);
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: var(--secondary-hover, #4b5563);
+    }
+
+    .btn-danger {
+        background: var(--danger-color, #ef4444);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: var(--danger-hover, #dc2626);
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: var(--border-color, #e5e7eb);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--primary-color, #6366f1);
+        transition: width 0.3s ease;
+    }
+
+    .status-message {
+        padding: 12px;
+        border-radius: 6px;
+        margin-top: 15px;
+        font-weight: 500;
+    }
+
+    .status-success {
+        background: var(--success-bg, #d1fae5);
+        color: var(--success-color, #065f46);
+        border: 1px solid var(--success-border, #a7f3d0);
+    }
+
+    .status-error {
+        background: var(--error-bg, #fee2e2);
+        color: var(--error-color, #991b1b);
+        border: 1px solid var(--error-border, #fca5a5);
+    }
+
+    .status-info {
+        background: var(--info-bg, #dbeafe);
+        color: var(--info-color, #1e40af);
+        border: 1px solid var(--info-border, #93c5fd);
+    }
+
+    /* Dark mode styles */
+    [data-theme="dark"] .upload-section {
+        background: var(--dark-card-bg, #1f2937);
+        border-color: var(--dark-border-color, #374151);
+    }
+
+    [data-theme="dark"] .upload-section.dragover {
+        background: var(--dark-primary-bg, #312e81);
+        border-color: var(--dark-primary-color, #818cf8);
+    }
+
+    [data-theme="dark"] .photo-preview-card {
+        background: var(--dark-card-bg, #1f2937);
+    }
+
+    [data-theme="dark"] .photo-type-select,
+    [data-theme="dark"] .photo-description {
+        background: var(--dark-input-bg, #374151);
+        border-color: var(--dark-border-color, #4b5563);
+        color: var(--dark-text-primary, #f9fafb);
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .photo-upload-container {
+            padding: 10px;
+        }
+
+        .upload-section {
+            padding: 20px;
+        }
+
+        .photo-preview-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .upload-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="photo-upload-container">
+    <div class="page-header">
+        <h1>📸 Photo Upload</h1>
+        <p>Upload before and after photos for tasks</p>
+    </div>
+
+    <!-- Task Information -->
+    {% if selected_task %}
+    <div class="upload-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h3 style="margin: 0; color: #1f2937;">📋 Task: {{ selected_task.title }}</h3>
+                <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">
+                    Property: {{ selected_task.property_ref.name }} | 
+                    Status: <span style="color: #059669; font-weight: 500;">{{ selected_task.get_status_display }}</span>
+                </p>
+            </div>
+            <a href="/api/staff/tasks/{{ selected_task.id }}/" 
+               style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: #f3f4f6; color: #374151; text-decoration: none; border-radius: 8px; font-weight: 500; transition: all 0.2s; border: 1px solid #d1d5db;">
+                ← Back to Task Detail
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="upload-section">
+        <div style="padding: 20px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; text-align: center;">
+            <h3 style="margin: 0 0 10px 0; color: #92400e;">⚠️ No Task Selected</h3>
+            <p style="margin: 0; color: #92400e;">Please access this page from a task detail view to upload photos.</p>
+            <a href="/api/staff/" style="display: inline-block; margin-top: 15px; padding: 10px 20px; background: #f59e0b; color: white; text-decoration: none; border-radius: 6px;">
+                Go to Staff Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload Area -->
+    <div class="upload-section" id="upload-area">
+        <div class="upload-area" id="upload-zone">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Drag & drop photos here</div>
+            <div class="upload-subtext">or click to browse files</div>
+            <input type="file" id="file-input" class="file-input" multiple accept="image/*">
+        </div>
+        <div class="progress-bar" id="progress-bar" style="display: none;">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div id="status-message"></div>
+    </div>
+
+    <!-- Photo Previews -->
+    <div class="photo-preview-grid" id="photo-preview-grid">
+        <!-- Photos will be added here dynamically -->
+    </div>
+
+    <!-- Upload Actions -->
+    <div class="upload-actions" id="upload-actions" style="display: none;">
+        <button class="btn btn-primary" id="upload-btn">
+            <span>📤</span>
+            Upload Photos
+        </button>
+        <button class="btn btn-secondary" id="clear-btn">
+            <span>🗑️</span>
+            Clear All
+        </button>
+    </div>
+</div>
+
+<script>
+class PhotoUploader {
+    constructor() {
+        this.selectedFiles = [];
+        this.selectedTask = null;
+        this.initializeElements();
+        this.attachEventListeners();
+        this.initializeSelectedTask();
+    }
+
+    initializeElements() {
+        this.uploadArea = document.getElementById('upload-area');
+        this.uploadZone = document.getElementById('upload-zone');
+        this.fileInput = document.getElementById('file-input');
+        this.previewGrid = document.getElementById('photo-preview-grid');
+        this.uploadActions = document.getElementById('upload-actions');
+        this.uploadBtn = document.getElementById('upload-btn');
+        this.clearBtn = document.getElementById('clear-btn');
+        this.progressBar = document.getElementById('progress-bar');
+        this.progressFill = document.getElementById('progress-fill');
+        this.statusMessage = document.getElementById('status-message');
+    }
+
+    initializeSelectedTask() {
+        // Get task ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        this.selectedTask = urlParams.get('task');
+        if (this.selectedTask) {
+            this.updateUploadState();
+        }
+    }
+
+    attachEventListeners() {
+
+        // File input
+        this.fileInput.addEventListener('change', (e) => {
+            this.handleFiles(e.target.files);
+        });
+
+        // Drag and drop
+        this.uploadZone.addEventListener('click', () => {
+            this.fileInput.click();
+        });
+
+        this.uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.uploadArea.classList.add('dragover');
+        });
+
+        this.uploadZone.addEventListener('dragleave', () => {
+            this.uploadArea.classList.remove('dragover');
+        });
+
+        this.uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.uploadArea.classList.remove('dragover');
+            this.handleFiles(e.dataTransfer.files);
+        });
+
+        // Upload actions
+        this.uploadBtn.addEventListener('click', () => {
+            this.uploadPhotos();
+        });
+
+        this.clearBtn.addEventListener('click', () => {
+            this.clearAll();
+        });
+    }
+
+    handleFiles(files) {
+        if (!this.selectedTask) {
+            this.showStatus('Please select a task first', 'error');
+            return;
+        }
+
+        const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        
+        if (imageFiles.length === 0) {
+            this.showStatus('Please select valid image files', 'error');
+            return;
+        }
+
+        imageFiles.forEach(file => {
+            if (file.size > 25 * 1024 * 1024) { // 25MB limit
+                this.showStatus(`File ${file.name} is too large (max 25MB)`, 'error');
+                return;
+            }
+
+            this.selectedFiles.push({
+                file: file,
+                photoType: 'general',
+                description: '',
+                sequenceNumber: this.getNextSequenceNumber('general')
+            });
+        });
+
+        this.renderPreviews();
+        this.updateUploadState();
+    }
+
+    getNextSequenceNumber(photoType) {
+        return this.selectedFiles.filter(f => f.photoType === photoType).length + 1;
+    }
+
+    renderPreviews() {
+        this.previewGrid.innerHTML = '';
+        
+        this.selectedFiles.forEach((fileData, index) => {
+            const preview = this.createPhotoPreview(fileData, index);
+            this.previewGrid.appendChild(preview);
+        });
+    }
+
+    createPhotoPreview(fileData, index) {
+        const card = document.createElement('div');
+        card.className = 'photo-preview-card';
+        card.innerHTML = `
+            <img src="${URL.createObjectURL(fileData.file)}" class="photo-preview" alt="Preview">
+            <button class="remove-photo" onclick="photoUploader.removePhoto(${index})">×</button>
+            <div class="photo-controls">
+                <select class="photo-type-select" onchange="photoUploader.updatePhotoType(${index}, this.value)">
+                    <option value="before" ${fileData.photoType === 'before' ? 'selected' : ''}>Before</option>
+                    <option value="after" ${fileData.photoType === 'after' ? 'selected' : ''}>After</option>
+                    <option value="during" ${fileData.photoType === 'during' ? 'selected' : ''}>During</option>
+                    <option value="reference" ${fileData.photoType === 'reference' ? 'selected' : ''}>Reference</option>
+                    <option value="damage" ${fileData.photoType === 'damage' ? 'selected' : ''}>Damage</option>
+                    <option value="general" ${fileData.photoType === 'general' ? 'selected' : ''}>General</option>
+                </select>
+                <textarea class="photo-description" placeholder="Description..." onchange="photoUploader.updateDescription(${index}, this.value)">${fileData.description}</textarea>
+            </div>
+        `;
+        return card;
+    }
+
+    updatePhotoType(index, photoType) {
+        this.selectedFiles[index].photoType = photoType;
+        this.selectedFiles[index].sequenceNumber = this.getNextSequenceNumber(photoType);
+    }
+
+    updateDescription(index, description) {
+        this.selectedFiles[index].description = description;
+    }
+
+    removePhoto(index) {
+        this.selectedFiles.splice(index, 1);
+        this.renderPreviews();
+        this.updateUploadState();
+    }
+
+    updateUploadState() {
+        if (this.selectedTask && this.selectedFiles.length > 0) {
+            this.uploadActions.style.display = 'flex';
+        } else {
+            this.uploadActions.style.display = 'none';
+        }
+    }
+
+    async uploadPhotos() {
+        if (!this.selectedTask || this.selectedFiles.length === 0) {
+            this.showStatus('Please select a task and photos', 'error');
+            return;
+        }
+
+        this.uploadBtn.disabled = true;
+        this.progressBar.style.display = 'block';
+        this.showStatus('Uploading photos...', 'info');
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+            const fileData = this.selectedFiles[i];
+            const progress = ((i + 1) / this.selectedFiles.length) * 100;
+            this.progressFill.style.width = `${progress}%`;
+
+            try {
+                await this.uploadSinglePhoto(fileData);
+                successCount++;
+            } catch (error) {
+                console.error('Upload error:', error);
+                errorCount++;
+            }
+        }
+
+        this.progressBar.style.display = 'none';
+        this.uploadBtn.disabled = false;
+
+        if (errorCount === 0) {
+            this.showStatus(`Successfully uploaded ${successCount} photos!`, 'success');
+            this.clearAll();
+        } else {
+            this.showStatus(`Uploaded ${successCount} photos, ${errorCount} failed`, 'error');
+        }
+    }
+
+    async uploadSinglePhoto(fileData) {
+        const formData = new FormData();
+        formData.append('image', fileData.file);
+        formData.append('photo_type', fileData.photoType);
+        formData.append('description', fileData.description);
+        formData.append('sequence_number', fileData.sequenceNumber);
+
+        // Debug: Log what we're sending
+        console.log('Uploading photo:', {
+            taskId: this.selectedTask,
+            photoType: fileData.photoType,
+            description: fileData.description,
+            sequenceNumber: fileData.sequenceNumber,
+            fileName: fileData.file.name,
+            fileSize: fileData.file.size
+        });
+
+        const response = await fetch(`/api/tasks/${this.selectedTask}/images/create/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Upload error details:', errorText);
+            throw new Error(`Upload failed: ${response.statusText} - ${errorText}`);
+        }
+
+        return response.json();
+    }
+
+    clearAll() {
+        this.selectedFiles = [];
+        this.renderPreviews();
+        this.updateUploadState();
+        this.fileInput.value = '';
+        this.showStatus('', '');
+    }
+
+    showStatus(message, type) {
+        this.statusMessage.textContent = message;
+        this.statusMessage.className = `status-message status-${type}`;
+        
+        if (type === 'success') {
+            setTimeout(() => {
+                this.statusMessage.textContent = '';
+                this.statusMessage.className = '';
+            }, 5000);
+        }
+    }
+}
+
+// Initialize the photo uploader
+const photoUploader = new PhotoUploader();
+</script>
+{% endblock %}

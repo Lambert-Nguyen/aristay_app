@@ -17,6 +17,7 @@ from .views import (
     PropertyDetail,
     UserList,
     TaskImageCreateView,
+    TaskImageListView,
     TaskImageDetailView,
     AdminInviteUserView,
     AdminPasswordResetView,
@@ -38,7 +39,8 @@ from .views import (
     preview_conflict_resolution, quick_resolve_conflict,
     file_cleanup_api, user_permissions, available_permissions, 
     manageable_users, grant_permission, revoke_permission, remove_permission_override,
-    permission_management_view, file_cleanup_page
+    permission_management_view, file_cleanup_page,
+    photo_upload_view, photo_management_view, photo_comparison_view
 )
 
 # Checklist Management Views
@@ -103,6 +105,11 @@ urlpatterns = [
     
     path(
         'tasks/<int:task_pk>/images/',
+        TaskImageListView.as_view(),
+        name='taskimage-list'
+    ),
+    path(
+        'tasks/<int:task_pk>/images/create/',
         TaskImageCreateView.as_view(),
         name='taskimage-create'
     ),
@@ -172,6 +179,11 @@ urlpatterns = [
     path('staff/inventory/transaction/', log_inventory_transaction, name='log-inventory-transaction'),
     path('staff/task-counts/', task_counts_api, name='staff-task-counts'),
     path('tasks/<int:task_id>/set_status/', update_task_status_api, name='set-task-status'),
+    
+    # Photo Management UI
+    path('staff/photos/upload/', photo_upload_view, name='photo-upload'),
+    path('staff/photos/management/', photo_management_view, name='photo-management'),
+    path('staff/photos/comparison/<int:task_id>/', photo_comparison_view, name='photo-comparison'),
     
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),

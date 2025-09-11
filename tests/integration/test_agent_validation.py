@@ -173,7 +173,7 @@ class AgentCriticalFixesTest(TestCase):
         
         task = Task.objects.create(
             title="Test Task",
-            property=property_obj,
+            property_ref=property_obj,
             created_by=self.user,
             description="Task for testing optimization"
         )
@@ -263,7 +263,7 @@ class AgentCriticalFixesTest(TestCase):
         
         task = Task.objects.create(
             title="Test Task",
-            property=property_obj,
+            property_ref=property_obj,
             created_by=self.user,
             assigned_to=self.user,  # Assign to same user for permissions
             description="Task for image upload testing"
@@ -280,7 +280,7 @@ class AgentCriticalFixesTest(TestCase):
         
         # Test API endpoint directly with correct URL pattern
         task_id = task.pk  # Use pk instead of id to avoid type checker issues
-        response = self.client.post(f'/api/tasks/{task_id}/images/', {
+        response = self.client.post(f'/api/tasks/{task_id}/images/create/', {
             'image': uploaded_file,
             'description': 'End-to-end large file test'
         })

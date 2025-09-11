@@ -229,7 +229,7 @@ class DynamicPermissionsTestCase(APITestCase):
         self.task = Task.objects.create(
             title='Test Task',
             description='Test Description',
-            property=self.property,
+            property_ref=self.property,
             booking=self.booking,
             created_by=self.manager,
             assigned_to=self.staff
@@ -621,7 +621,7 @@ class PermissionIntegrationTestCase(APITestCase):
         self.task = Task.objects.create(
             title='Test Task',
             description='Test Description',
-            property=self.property,
+            property_ref=self.property,
             booking=self.booking,
             created_by=self.manager,
             assigned_to=self.staff
@@ -648,7 +648,7 @@ class PermissionIntegrationTestCase(APITestCase):
         task_data = {
             'title': 'New Task',
             'description': 'New Description',
-            'property': self.property.id,
+            'property_ref': self.property.id,
             'booking': self.booking.id
         }
         

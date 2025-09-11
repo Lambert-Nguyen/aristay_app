@@ -361,6 +361,7 @@ def portal_property_list(request):
         })
     return render(request, 'portal/property_list.html', {
         'properties': property_cards,
+        'user': request.user,  # Add user to context
     })
 
 
@@ -384,6 +385,7 @@ def portal_property_detail(request, pk):
     return render(request, 'portal/property_detail.html', {
         'property': prop,
         'groups': groups,
+        'user': request.user,  # Add user to context
     })
 
 
@@ -430,6 +432,7 @@ def portal_booking_detail(request, property_id, pk):
         'all_statuses': [s for s, _ in Task.STATUS_CHOICES],
         'active_status': status or '',
         'active_type': ttype or '',
+        'user': request.user,  # Add user to context
         'search_q': q or '',
         'page': page,
         'has_next': end < total,
@@ -471,6 +474,7 @@ def portal_task_detail(request, task_id):
         'checklist': checklist,
         'responses_by_room': responses_by_room,
         'can_edit': can_edit,
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'portal/task_detail.html', context)
@@ -509,6 +513,24 @@ class TaskImageCreateView(DefaultAuthMixin, generics.CreateAPIView):
         # 4) notify stakeholders
         NotificationService.notify_task_photo(task, added=True, actor=self.request.user)
 
+
+class TaskImageListView(DefaultAuthMixin, generics.ListAPIView):
+    """
+    GET /api/tasks/{task_pk}/images/
+    List all images for a specific task
+    """
+    serializer_class = TaskImageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        task_pk = self.kwargs['task_pk']
+        task = generics.get_object_or_404(Task, pk=task_pk)
+        
+        # Check if user has permission to view this task
+        if not can_edit_task(self.request.user, task):
+            raise DRFPermissionDenied("You can't view images for this task.")
+        
+        return TaskImage.objects.filter(task_id=task_pk).select_related('task', 'uploaded_by')
 
 class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveDestroyAPIView):
     """
@@ -2810,3 +2832,82 @@ def custom_exception_handler(exc, context):
         })
 
     return response
+
+
+# ============================================================================
+# PHOTO MANAGEMENT UI VIEWS
+# ============================================================================
+
+@login_required
+@staff_or_perm('view_task')
+def photo_upload_view(request):
+    """Photo upload interface for staff"""
+    # Get tasks that the user can access
+    if request.user.is_superuser:
+        tasks = Task.objects.filter(is_deleted=False).select_related('property_ref')
+    else:
+        # Get tasks for properties the user has access to
+        accessible_properties = Property.objects.filter(
+            Q(propertyownership__user=request.user) | 
+            Q(assigned_to=request.user)
+        ).distinct()
+        tasks = Task.objects.filter(
+            property_ref__in=accessible_properties,
+            is_deleted=False
+        ).select_related('property_ref')
+    
+    # Get pre-selected task from URL parameter
+    selected_task_id = request.GET.get('task')
+    selected_task = None
+    if selected_task_id:
+        try:
+            selected_task = Task.objects.get(id=selected_task_id, is_deleted=False)
+            # Verify user has access to this task
+            if not request.user.is_superuser:
+                accessible_properties = Property.objects.filter(
+                    Q(propertyownership__user=request.user) | 
+                    Q(assigned_to=request.user)
+                ).distinct()
+                if selected_task.property_ref not in accessible_properties:
+                    selected_task = None
+        except Task.DoesNotExist:
+            selected_task = None
+    
+    context = {
+        'tasks': tasks,
+        'selected_task': selected_task,
+        'user': request.user,
+    }
+    return render(request, 'photo_upload.html', context)
+
+
+@login_required
+@staff_or_perm('view_task')
+def photo_management_view(request):
+    """Photo management dashboard for staff"""
+    context = {
+        'user': request.user,
+    }
+    return render(request, 'photo_management.html', context)
+
+
+@login_required
+@staff_or_perm('view_task')
+def photo_comparison_view(request, task_id):
+    """Before/after photo comparison view for a specific task"""
+    task = get_object_or_404(Task, id=task_id, is_deleted=False)
+    
+    # Check if user has access to this task
+    if not request.user.is_superuser:
+        accessible_properties = Property.objects.filter(
+            Q(propertyownership__user=request.user) | 
+            Q(assigned_to=request.user)
+        ).distinct()
+        if task.property_ref not in accessible_properties:
+            raise PermissionDenied("You don't have permission to view this task's photos.")
+    
+    context = {
+        'task': task,
+        'user': request.user,
+    }
+    return render(request, 'photo_comparison.html', context)

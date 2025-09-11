@@ -110,8 +110,8 @@ def test_conflict_behavior():
             external_code='TEST_STATUS',
             guest_name='John Smith',
             property=property_obj,
-            check_in_date=timezone.now().date(),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=2),
+            check_in_date=timezone.now().date() + timezone.timedelta(days=1),
+            check_out_date=timezone.now().date() + timezone.timedelta(days=3),
             external_status='Confirmed',
             source='Airbnb'
         )
@@ -141,8 +141,8 @@ def test_conflict_behavior():
             external_code='TEST_GUEST',
             guest_name='Kathrin MĂ¼ller',  # Encoding issue
             property=property_obj,
-            check_in_date=timezone.now().date(),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=3),
+            check_in_date=timezone.now().date() + timezone.timedelta(days=5),
+            check_out_date=timezone.now().date() + timezone.timedelta(days=8),
             external_status='Confirmed',
             source='Airbnb'
         )
@@ -180,8 +180,8 @@ def test_conflict_behavior():
             external_code='TEST_DIRECT',
             guest_name='Direct Guest',
             property=property_obj,
-            check_in_date=timezone.now().date() + timezone.timedelta(days=5),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=7),
+            check_in_date=timezone.now().date() + timezone.timedelta(days=10),
+            check_out_date=timezone.now().date() + timezone.timedelta(days=12),
             external_status='Confirmed',
             source='Direct'
         )

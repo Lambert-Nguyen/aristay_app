@@ -24,6 +24,8 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`TASK_GROUPS.md`](./features/TASK_GROUPS.md) - ⭐ **NEW** - Task Groups for staff assignment and permissions
 - [`DARK_MODE_SIDE_MENU_IMPROVEMENTS_2025-09-10.md`](./features/DARK_MODE_SIDE_MENU_IMPROVEMENTS_2025-09-10.md) - ⭐ **NEW** - Dark mode and side menu navigation improvements
 - [`DARK_MODE_SIDE_MENU_QUICK_REFERENCE.md`](./features/DARK_MODE_SIDE_MENU_QUICK_REFERENCE.md) - ⭐ **NEW** - Quick reference guide for dark mode and side menu features
+- [`BEFORE_AFTER_PHOTO_SYSTEM_2025-09-10.md`](./features/BEFORE_AFTER_PHOTO_SYSTEM_2025-09-10.md) - ⭐ **NEW** - Before/after photo categorization and approval workflow system
+- [`BEFORE_AFTER_PHOTO_QUICK_REFERENCE.md`](./features/BEFORE_AFTER_PHOTO_QUICK_REFERENCE.md) - ⭐ **NEW** - Quick reference guide for before/after photo system
 
 ### 🏗️ [implementation/](./implementation/) ⭐ **NEW - COMPLETE SYSTEM IMPLEMENTATION**
 **Production system implementation and final completion**
@@ -46,6 +48,10 @@ This is the central documentation hub for the Aristay project. All documentation
 
 ### 🧪 [testing/](./testing/)
 **Testing documentation and test reports**
+- [`TEST_REORGANIZATION_REPORT_2025-09-10.md`](./testing/TEST_REORGANIZATION_REPORT_2025-09-10.md) - ⭐ **NEW** - Complete test suite reorganization and CI cleanup report
+- [`COMPREHENSIVE_TEST_REORGANIZATION_FINAL_REPORT_2025-09-10.md`](./reports/COMPREHENSIVE_TEST_REORGANIZATION_FINAL_REPORT_2025-09-10.md) - ⭐ **NEW** - Final comprehensive report of test reorganization and fixes
+- [`FINAL_TEST_REORGANIZATION_STATUS_REPORT_2025-09-10.md`](./reports/FINAL_TEST_REORGANIZATION_STATUS_REPORT_2025-09-10.md) - ⭐ **NEW** - Complete status report with 4/8 test suites passing
+- [`FINAL_TEST_FIXES_COMPLETE_REPORT_2025-09-10.md`](./reports/FINAL_TEST_FIXES_COMPLETE_REPORT_2025-09-10.md) - ⭐ **NEW** - Final comprehensive report with 2/8 test suites fully passing
 - [`TEST_ORGANIZATION.md`](./testing/TEST_ORGANIZATION.md) - Testing strategy and organization
 - [`TESTING_ORGANIZATION_2025-09-07.md`](./testing/TESTING_ORGANIZATION_2025-09-07.md) - ⭐ **NEW** - Complete testing structure guide
 - [`PYTEST_WORKFLOW_2025-09-07.md`](./testing/PYTEST_WORKFLOW_2025-09-07.md) - ⭐ **NEW** - PyTest configuration and commands
@@ -79,7 +85,8 @@ This is the central documentation hub for the Aristay project. All documentation
 ✅ **Organized Codebase** - Clean file structure following PROJECT_STRUCTURE guidelines  
 ✅ **Modern UI/UX** - Dark mode and side menu navigation across all portals ⭐ **NEW - Sep 10, 2025**  
 ✅ **Mobile Responsive** - Touch-friendly interface for all devices ⭐ **NEW - Sep 10, 2025**  
-✅ **Accessibility Compliant** - ARIA attributes and keyboard navigation support ⭐ **NEW - Sep 10, 2025**
+✅ **Accessibility Compliant** - ARIA attributes and keyboard navigation support ⭐ **NEW - Sep 10, 2025**  
+✅ **Before/After Photo System** - Photo categorization, approval workflow, and comparison functionality ⭐ **NEW - Sep 10, 2025**
 
 ## 🚀 Ready for Production Deployment
 

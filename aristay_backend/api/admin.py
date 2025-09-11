@@ -300,7 +300,7 @@ class TaskImageInline(admin.TabularInline):
     model = TaskImage
     extra = 0
     readonly_fields = ('uploaded_at', 'preview')
-    fields = ('image', 'preview', 'uploaded_at')
+    fields = ('image', 'photo_type', 'photo_status', 'sequence_number', 'is_primary', 'description', 'preview', 'uploaded_at')
 
     def preview(self, obj):
         if obj.image:
@@ -310,17 +310,17 @@ class TaskImageInline(admin.TabularInline):
     preview.short_description = 'Image Preview'
 
 class TaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
-    list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'assigned_to', 'created_at_display', 'due_date_display')
+    list_display = ('id', 'title', 'task_type', 'status', 'property_ref', 'booking', 'assigned_to', 'created_at', 'due_date')
     list_filter = ('status', 'task_type', 'created_at', 'property_ref', 'booking', 'assigned_to')
     search_fields = ('title', 'description')
-    readonly_fields = ('created_at', 'modified_at', 'history', 'created_at_dual', 'modified_at_dual', 'due_date_dual')
+    readonly_fields = ('created_at', 'modified_at', 'history')
     
     fieldsets = (
         (None, {
             'fields': ('title', 'description', 'task_type', 'property_ref', 'booking', 'status', 'assigned_to', 'due_date', 'depends_on')
         }),
         ('Tracking', {
-            'fields': ('created_by', 'created_at_dual', 'modified_by', 'modified_at_dual', 'due_date_dual'),
+            'fields': ('created_by', 'created_at', 'modified_by', 'modified_at'),
             'classes': ('collapse',)
         }),
         ('History', {
@@ -333,6 +333,21 @@ class TaskAdmin(ProvenanceStampMixin, admin.ModelAdmin):
     
     # Use the generic unified history view
     history_view = create_unified_history_view(Task)
+
+class TaskImageAdmin(ProvenanceStampMixin, admin.ModelAdmin):
+    list_display = ('id', 'task', 'photo_type', 'photo_status', 'sequence_number', 'is_primary', 'uploaded_at', 'uploaded_by')
+    list_filter = ('photo_type', 'photo_status', 'is_primary', 'uploaded_at', 'task__property_ref')
+    search_fields = ('task__title', 'description', 'uploaded_by__username')
+    readonly_fields = ('uploaded_at', 'preview')
+    fields = ('task', 'image', 'photo_type', 'photo_status', 'sequence_number', 'is_primary', 'description', 'preview', 'uploaded_at', 'uploaded_by')
+    ordering = ('task', 'photo_type', 'sequence_number', 'uploaded_at')
+    
+    def preview(self, obj):
+        if obj.image:
+            return f'<img src="{obj.image.url}" width="150" height="150" style="object-fit: cover; border-radius: 8px;" />'
+        return "No image"
+    preview.allow_tags = True
+    preview.short_description = 'Image Preview'
 
     def created_at_display(self, obj):
         """Display created time in Tampa timezone"""
@@ -748,6 +763,7 @@ class NotificationAdmin(ProvenanceStampMixin, admin.ModelAdmin):
 
 # Register models with the custom admin site
 admin_site.register(Task, TaskAdmin)
+admin_site.register(TaskImage, TaskImageAdmin)
 admin_site.register(Property, PropertyAdmin)
 admin_site.register(Notification, NotificationAdmin)
 admin_site.register(Booking, BookingAdmin)
@@ -755,6 +771,7 @@ admin_site.register(PropertyOwnership, PropertyOwnershipAdmin)
 
 # Also register with default admin for backward compatibility
 admin.site.register(Task, TaskAdmin)
+admin.site.register(TaskImage, TaskImageAdmin)
 admin.site.register(Property, PropertyAdmin)
 admin.site.register(Notification, NotificationAdmin)
 admin.site.register(Booking, BookingAdmin)

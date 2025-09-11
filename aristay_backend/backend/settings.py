@@ -525,6 +525,8 @@ SIMPLE_JWT = {
 # ============================================================================
 # AXES CONFIGURATION (Login Attempt Monitoring)
 # ============================================================================
+AXES_ENABLED = True
+
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',  # AxesStandaloneBackend should be the first backend
     'django.contrib.auth.backends.ModelBackend',  # Django's default backend
