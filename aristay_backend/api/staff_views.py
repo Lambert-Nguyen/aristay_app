@@ -87,10 +87,12 @@ def staff_dashboard(request):
     try:
         profile = request.user.profile
         is_manager = getattr(profile, 'role', '') == 'manager'
-        can_view_team = getattr(profile, 'can_view_team_tasks', True)
+        # Only users explicitly granted team view can see all tasks
+        can_view_team = bool(getattr(profile, 'can_view_team_tasks', False))
     except Profile.DoesNotExist:
-        is_manager = True
-        can_view_team = True
+        # No profile → treat as regular staff
+        is_manager = False
+        can_view_team = False
 
     if request.user.is_superuser or is_manager or can_view_team:
         scoped_tasks = Task.objects.all()
@@ -431,10 +433,12 @@ def my_tasks(request):
     try:
         profile = request.user.profile
         is_manager = getattr(profile, 'role', '') == 'manager'
-        can_view_team = getattr(profile, 'can_view_team_tasks', True)
+        # Only users explicitly granted team view can see all tasks
+        can_view_team = bool(getattr(profile, 'can_view_team_tasks', False))
     except Profile.DoesNotExist:
-        is_manager = True
-        can_view_team = True
+        # No profile → treat as regular staff
+        is_manager = False
+        can_view_team = False
 
     if request.user.is_superuser or is_manager or can_view_team:
         tasks = Task.objects.all()
