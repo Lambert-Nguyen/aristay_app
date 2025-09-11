@@ -1,0 +1,835 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Photo Management · AriStay{% endblock %}
+
+{% block extra_css %}
+<style>
+    .management-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .management-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .page-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary, #111827);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: var(--card-bg, #ffffff);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--primary-color, #6366f1);
+        margin-bottom: 8px;
+    }
+
+    .stat-label {
+        color: var(--text-secondary, #6b7280);
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .filters-section {
+        background: var(--card-bg, #ffffff);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary, #374151);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-input {
+        padding: 10px 12px;
+        border: 1px solid var(--border-color, #d1d5db);
+        border-radius: 6px;
+        background: var(--input-bg, #ffffff);
+        color: var(--text-primary, #374151);
+        font-size: 14px;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: var(--primary-color, #6366f1);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .photos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .photo-card {
+        background: var(--card-bg, #ffffff);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .photo-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .photo-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        cursor: pointer;
+    }
+
+    .photo-content {
+        padding: 15px;
+    }
+
+    .photo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+
+    .photo-type {
+        background: var(--primary-color, #6366f1);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .photo-status {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-pending {
+        background: var(--warning-bg, #fef3c7);
+        color: var(--warning-color, #92400e);
+    }
+
+    .status-approved {
+        background: var(--success-bg, #d1fae5);
+        color: var(--success-color, #065f46);
+    }
+
+    .status-rejected {
+        background: var(--error-bg, #fee2e2);
+        color: var(--error-color, #991b1b);
+    }
+
+    .photo-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary, #111827);
+        margin-bottom: 8px;
+        line-height: 1.3;
+    }
+
+    .photo-meta {
+        color: var(--text-secondary, #6b7280);
+        font-size: 12px;
+        margin-bottom: 10px;
+    }
+
+    .photo-description {
+        color: var(--text-primary, #374151);
+        font-size: 14px;
+        line-height: 1.4;
+        margin-bottom: 15px;
+    }
+
+    .photo-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .btn-approve {
+        background: var(--success-color, #10b981);
+        color: white;
+    }
+
+    .btn-approve:hover {
+        background: var(--success-hover, #059669);
+    }
+
+    .btn-reject {
+        background: var(--error-color, #ef4444);
+        color: white;
+    }
+
+    .btn-reject:hover {
+        background: var(--error-hover, #dc2626);
+    }
+
+    .btn-view {
+        background: var(--primary-color, #6366f1);
+        color: white;
+    }
+
+    .btn-view:hover {
+        background: var(--primary-hover, #5856eb);
+    }
+
+    .btn-edit {
+        background: var(--secondary-color, #6b7280);
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background: var(--secondary-hover, #4b5563);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .pagination-btn {
+        padding: 8px 12px;
+        border: 1px solid var(--border-color, #d1d5db);
+        background: var(--card-bg, #ffffff);
+        color: var(--text-primary, #374151);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .pagination-btn:hover:not(:disabled) {
+        background: var(--primary-color, #6366f1);
+        color: white;
+        border-color: var(--primary-color, #6366f1);
+    }
+
+    .pagination-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-info {
+        color: var(--text-secondary, #6b7280);
+        font-size: 14px;
+    }
+
+    .bulk-actions {
+        background: var(--card-bg, #ffffff);
+        padding: 15px 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        display: none;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .bulk-actions.show {
+        display: flex;
+    }
+
+    .selected-count {
+        font-weight: 600;
+        color: var(--text-primary, #374151);
+    }
+
+    .bulk-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .bulk-approve {
+        background: var(--success-color, #10b981);
+        color: white;
+    }
+
+    .bulk-reject {
+        background: var(--error-color, #ef4444);
+        color: white;
+    }
+
+    .bulk-clear {
+        background: var(--secondary-color, #6b7280);
+        color: white;
+    }
+
+    .no-photos {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary, #6b7280);
+    }
+
+    .no-photos-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    .no-photos-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .no-photos-text {
+        font-size: 14px;
+    }
+
+    /* Dark mode styles */
+    [data-theme="dark"] .stat-card,
+    [data-theme="dark"] .filters-section,
+    [data-theme="dark"] .photo-card,
+    [data-theme="dark"] .bulk-actions {
+        background: var(--dark-card-bg, #1f2937);
+    }
+
+    [data-theme="dark"] .filter-input {
+        background: var(--dark-input-bg, #374151);
+        border-color: var(--dark-border-color, #4b5563);
+        color: var(--dark-text-primary, #f9fafb);
+    }
+
+    [data-theme="dark"] .pagination-btn {
+        background: var(--dark-card-bg, #1f2937);
+        border-color: var(--dark-border-color, #4b5563);
+        color: var(--dark-text-primary, #f9fafb);
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .management-container {
+            padding: 10px;
+        }
+
+        .management-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .filters-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .photos-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .bulk-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .bulk-actions .bulk-btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="management-container">
+    <div class="management-header">
+        <div class="page-title">
+            📸 Photo Management
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number" id="total-photos">0</div>
+            <div class="stat-label">Total Photos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="pending-photos">0</div>
+            <div class="stat-label">Pending Review</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="approved-photos">0</div>
+            <div class="stat-label">Approved</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="before-after-pairs">0</div>
+            <div class="stat-label">Before/After Pairs</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label class="filter-label">Search</label>
+                <input type="text" id="search-input" class="filter-input" placeholder="Search by task, description...">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Photo Type</label>
+                <select id="type-filter" class="filter-input">
+                    <option value="">All Types</option>
+                    <option value="before">Before</option>
+                    <option value="after">After</option>
+                    <option value="during">During</option>
+                    <option value="reference">Reference</option>
+                    <option value="damage">Damage</option>
+                    <option value="general">General</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Status</label>
+                <select id="status-filter" class="filter-input">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Property</label>
+                <select id="property-filter" class="filter-input">
+                    <option value="">All Properties</option>
+                    <!-- Properties will be loaded here -->
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Date Range</label>
+                <input type="date" id="date-from" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">To</label>
+                <input type="date" id="date-to" class="filter-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions" id="bulk-actions">
+        <div class="selected-count" id="selected-count">0 photos selected</div>
+        <button class="bulk-btn bulk-approve" onclick="photoManager.bulkApprove()">✓ Approve Selected</button>
+        <button class="bulk-btn bulk-reject" onclick="photoManager.bulkReject()">✗ Reject Selected</button>
+        <button class="bulk-btn bulk-clear" onclick="photoManager.clearSelection()">Clear Selection</button>
+    </div>
+
+    <!-- Photos Grid -->
+    <div class="photos-grid" id="photos-grid">
+        <!-- Photos will be loaded here -->
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination">
+        <!-- Pagination will be generated here -->
+    </div>
+</div>
+
+<script>
+class PhotoManager {
+    constructor() {
+        this.photos = [];
+        this.filteredPhotos = [];
+        this.selectedPhotos = new Set();
+        this.currentPage = 1;
+        this.photosPerPage = 12;
+        this.initializeElements();
+        this.attachEventListeners();
+        this.loadPhotos();
+        this.loadProperties();
+    }
+
+    initializeElements() {
+        this.searchInput = document.getElementById('search-input');
+        this.typeFilter = document.getElementById('type-filter');
+        this.statusFilter = document.getElementById('status-filter');
+        this.propertyFilter = document.getElementById('property-filter');
+        this.dateFrom = document.getElementById('date-from');
+        this.dateTo = document.getElementById('date-to');
+        this.photosGrid = document.getElementById('photos-grid');
+        this.pagination = document.getElementById('pagination');
+        this.bulkActions = document.getElementById('bulk-actions');
+        this.selectedCount = document.getElementById('selected-count');
+        
+        // Stats elements
+        this.totalPhotos = document.getElementById('total-photos');
+        this.pendingPhotos = document.getElementById('pending-photos');
+        this.approvedPhotos = document.getElementById('approved-photos');
+        this.beforeAfterPairs = document.getElementById('before-after-pairs');
+    }
+
+    attachEventListeners() {
+        this.searchInput.addEventListener('input', () => this.applyFilters());
+        this.typeFilter.addEventListener('change', () => this.applyFilters());
+        this.statusFilter.addEventListener('change', () => this.applyFilters());
+        this.propertyFilter.addEventListener('change', () => this.applyFilters());
+        this.dateFrom.addEventListener('change', () => this.applyFilters());
+        this.dateTo.addEventListener('change', () => this.applyFilters());
+    }
+
+    async loadPhotos() {
+        try {
+            // Load all photos by getting all tasks and their images
+            const tasksResponse = await fetch('/api/tasks/');
+            const tasks = await tasksResponse.json();
+            
+            const allPhotos = [];
+            for (const task of tasks) {
+                try {
+                    const imagesResponse = await fetch(`/api/tasks/${task.id}/images/`);
+                    const images = await imagesResponse.json();
+                    // Add task information to each photo
+                    images.forEach(image => {
+                        image.task_title = task.title;
+                        image.task_property_id = task.property_ref;
+                    });
+                    allPhotos.push(...images);
+                } catch (error) {
+                    console.warn(`Error loading images for task ${task.id}:`, error);
+                }
+            }
+            
+            this.photos = allPhotos;
+            this.applyFilters();
+            this.updateStats();
+        } catch (error) {
+            console.error('Error loading photos:', error);
+        }
+    }
+
+    async loadProperties() {
+        try {
+            const response = await fetch('/api/properties/');
+            const properties = await response.json();
+            const propertySelect = document.getElementById('property-filter');
+            
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                option.value = property.id;
+                option.textContent = property.name;
+                propertySelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading properties:', error);
+        }
+    }
+
+    applyFilters() {
+        const searchTerm = this.searchInput.value.toLowerCase();
+        const typeFilter = this.typeFilter.value;
+        const statusFilter = this.statusFilter.value;
+        const propertyFilter = this.propertyFilter.value;
+        const dateFrom = this.dateFrom.value;
+        const dateTo = this.dateTo.value;
+
+        this.filteredPhotos = this.photos.filter(photo => {
+            const searchMatch = !searchTerm || 
+                photo.task_title.toLowerCase().includes(searchTerm) ||
+                (photo.description && photo.description.toLowerCase().includes(searchTerm));
+            
+            const typeMatch = !typeFilter || photo.photo_type === typeFilter;
+            const statusMatch = !statusFilter || photo.photo_status === statusFilter;
+            const propertyMatch = !propertyFilter || photo.task_property_id == propertyFilter;
+            
+            const uploadDate = new Date(photo.uploaded_at).toISOString().split('T')[0];
+            const dateMatch = (!dateFrom || uploadDate >= dateFrom) && 
+                            (!dateTo || uploadDate <= dateTo);
+
+            return searchMatch && typeMatch && statusMatch && propertyMatch && dateMatch;
+        });
+
+        this.currentPage = 1;
+        this.renderPhotos();
+        this.renderPagination();
+    }
+
+    renderPhotos() {
+        const startIndex = (this.currentPage - 1) * this.photosPerPage;
+        const endIndex = startIndex + this.photosPerPage;
+        const pagePhotos = this.filteredPhotos.slice(startIndex, endIndex);
+
+        this.photosGrid.innerHTML = '';
+
+        if (pagePhotos.length === 0) {
+            this.photosGrid.innerHTML = `
+                <div class="no-photos">
+                    <div class="no-photos-icon">📷</div>
+                    <div class="no-photos-title">No photos found</div>
+                    <div class="no-photos-text">Try adjusting your filters or upload some photos</div>
+                </div>
+            `;
+            return;
+        }
+
+        pagePhotos.forEach(photo => {
+            const photoCard = this.createPhotoCard(photo);
+            this.photosGrid.appendChild(photoCard);
+        });
+    }
+
+    createPhotoCard(photo) {
+        const card = document.createElement('div');
+        card.className = 'photo-card';
+        card.dataset.photoId = photo.id;
+        
+        const statusClass = `status-${photo.photo_status}`;
+        const uploadedDate = new Date(photo.uploaded_at).toLocaleDateString();
+        
+        card.innerHTML = `
+            <img src="${photo.image}" class="photo-image" alt="${photo.description || 'Photo'}" onclick="photoManager.openPhotoModal('${photo.id}')">
+            <div class="photo-content">
+                <div class="photo-header">
+                    <div class="photo-type">${photo.photo_type_display}</div>
+                    <div class="photo-status ${statusClass}">${photo.photo_status}</div>
+                </div>
+                <div class="photo-title">${photo.task_title}</div>
+                <div class="photo-meta">
+                    Uploaded: ${uploadedDate} | Sequence: #${photo.sequence_number}
+                    ${photo.is_primary ? ' | Primary' : ''}
+                </div>
+                <div class="photo-description">${photo.description || 'No description provided'}</div>
+                <div class="photo-actions">
+                    <input type="checkbox" class="photo-checkbox" onchange="photoManager.toggleSelection(${photo.id})">
+                    <button class="action-btn btn-view" onclick="photoManager.openPhotoModal('${photo.id}')">👁️ View</button>
+                    ${photo.photo_status === 'pending' ? `
+                        <button class="action-btn btn-approve" onclick="photoManager.approvePhoto(${photo.id})">✓ Approve</button>
+                        <button class="action-btn btn-reject" onclick="photoManager.rejectPhoto(${photo.id})">✗ Reject</button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        return card;
+    }
+
+    toggleSelection(photoId) {
+        if (this.selectedPhotos.has(photoId)) {
+            this.selectedPhotos.delete(photoId);
+        } else {
+            this.selectedPhotos.add(photoId);
+        }
+        this.updateBulkActions();
+    }
+
+    updateBulkActions() {
+        const count = this.selectedPhotos.size;
+        this.selectedCount.textContent = `${count} photo${count !== 1 ? 's' : ''} selected`;
+        
+        if (count > 0) {
+            this.bulkActions.classList.add('show');
+        } else {
+            this.bulkActions.classList.remove('show');
+        }
+    }
+
+    clearSelection() {
+        this.selectedPhotos.clear();
+        document.querySelectorAll('.photo-checkbox').forEach(cb => cb.checked = false);
+        this.updateBulkActions();
+    }
+
+    async bulkApprove() {
+        const photoIds = Array.from(this.selectedPhotos);
+        await this.bulkUpdateStatus(photoIds, 'approved');
+    }
+
+    async bulkReject() {
+        const photoIds = Array.from(this.selectedPhotos);
+        await this.bulkUpdateStatus(photoIds, 'rejected');
+    }
+
+    async bulkUpdateStatus(photoIds, status) {
+        try {
+            const promises = photoIds.map(photoId => {
+                // Find the photo to get its task ID
+                const photo = this.photos.find(p => p.id === photoId);
+                if (!photo) return Promise.resolve();
+                
+                return fetch(`/api/tasks/${photo.task}/images/${photoId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ photo_status: status })
+                });
+            });
+
+            await Promise.all(promises);
+            this.clearSelection();
+            this.loadPhotos();
+        } catch (error) {
+            console.error('Error updating photos:', error);
+        }
+    }
+
+    async approvePhoto(photoId) {
+        await this.updatePhotoStatus(photoId, 'approved');
+    }
+
+    async rejectPhoto(photoId) {
+        await this.updatePhotoStatus(photoId, 'rejected');
+    }
+
+    async updatePhotoStatus(photoId, status) {
+        try {
+            // Find the photo to get its task ID
+            const photo = this.photos.find(p => p.id === photoId);
+            if (!photo) return;
+            
+            await fetch(`/api/tasks/${photo.task}/images/${photoId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ photo_status: status })
+            });
+            this.loadPhotos();
+        } catch (error) {
+            console.error('Error updating photo:', error);
+        }
+    }
+
+    openPhotoModal(photoId) {
+        // Implementation for photo modal
+        console.log('Opening photo modal for:', photoId);
+    }
+
+    renderPagination() {
+        const totalPages = Math.ceil(this.filteredPhotos.length / this.photosPerPage);
+        
+        if (totalPages <= 1) {
+            this.pagination.innerHTML = '';
+            return;
+        }
+
+        let paginationHTML = '';
+        
+        // Previous button
+        paginationHTML += `
+            <button class="pagination-btn" ${this.currentPage === 1 ? 'disabled' : ''} 
+                    onclick="photoManager.goToPage(${this.currentPage - 1})">← Previous</button>
+        `;
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
+                paginationHTML += `
+                    <button class="pagination-btn ${i === this.currentPage ? 'active' : ''}" 
+                            onclick="photoManager.goToPage(${i})">${i}</button>
+                `;
+            } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
+                paginationHTML += '<span class="pagination-info">...</span>';
+            }
+        }
+
+        // Next button
+        paginationHTML += `
+            <button class="pagination-btn" ${this.currentPage === totalPages ? 'disabled' : ''} 
+                    onclick="photoManager.goToPage(${this.currentPage + 1})">Next →</button>
+        `;
+
+        this.pagination.innerHTML = paginationHTML;
+    }
+
+    goToPage(page) {
+        this.currentPage = page;
+        this.renderPhotos();
+        this.renderPagination();
+    }
+
+    updateStats() {
+        const total = this.photos.length;
+        const pending = this.photos.filter(p => p.photo_status === 'pending').length;
+        const approved = this.photos.filter(p => p.photo_status === 'approved').length;
+        
+        // Count before/after pairs
+        const beforePhotos = this.photos.filter(p => p.photo_type === 'before');
+        const afterPhotos = this.photos.filter(p => p.photo_type === 'after');
+        const pairs = Math.min(beforePhotos.length, afterPhotos.length);
+
+        this.totalPhotos.textContent = total;
+        this.pendingPhotos.textContent = pending;
+        this.approvedPhotos.textContent = approved;
+        this.beforeAfterPairs.textContent = pairs;
+    }
+}
+
+// Initialize the photo manager
+const photoManager = new PhotoManager();
+</script>
+{% endblock %}

@@ -19,12 +19,31 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aristay_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     env:
       DJANGO_SETTINGS_MODULE: backend.settings
       PYTHONPATH: ${{ github.workspace }}/aristay_backend
       SECRET_KEY: dummy
       DEBUG: '0'
       CI: 'true'
+      POSTGRES_DB: 'aristay_test'
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'postgres'
+      POSTGRES_HOST: 'localhost'
+      POSTGRES_PORT: '5432'
+      TESTING: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -45,9 +64,20 @@ jobs:
       - name: Clean pyc cache
         run: find . -name "__pycache__" -type d -prune -exec rm -rf {} + || true
 
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
       - name: Migrate DB
         working-directory: aristay_backend
         run: python manage.py migrate --noinput
+
+      - name: Collect static files
+        working-directory: aristay_backend
+        run: python manage.py collectstatic --noinput
 
       - name: Run pytest
         run: python -m pytest -q

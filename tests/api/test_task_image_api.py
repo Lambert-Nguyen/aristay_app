@@ -170,6 +170,7 @@ class ImageOptimizationTests(TestCase):
         self.assertIsNotNone(optimized_bytes, "Should return optimized data even for difficult targets")
 
 
+@pytest.mark.django_db(transaction=True)
 class TaskImageAPITests(APITestCase):
     """Test the API endpoints with agent's enhanced approach."""
     
@@ -185,6 +186,10 @@ class TaskImageAPITests(APITestCase):
             created_by=self.user
         )
         self.client.force_authenticate(user=self.user)
+    
+    def tearDown(self):
+        """Clean up TaskImage records after each test."""
+        TaskImage.objects.filter(task=self.task).delete()
     
     def create_large_image(self, target_size_mb=15):
         """Create a large image file to test optimization."""
@@ -241,7 +246,7 @@ class TaskImageAPITests(APITestCase):
         image = self.create_test_image(size_kb=500)  # Small image
         
         response = self.client.post(
-            f'/api/tasks/{self.task.id}/images/',
+            f'/api/tasks/{self.task.id}/images/create/',
             {'image': image},
             format='multipart'
         )
@@ -266,7 +271,7 @@ class TaskImageAPITests(APITestCase):
         large_image = self.create_large_image(target_size_mb=2)  # 2MB image
         
         response = self.client.post(
-            f'/api/tasks/{self.task.id}/images/',
+            f'/api/tasks/{self.task.id}/images/create/',
             {'image': large_image},
             format='multipart'
         )
@@ -284,7 +289,7 @@ class TaskImageAPITests(APITestCase):
         )
         
         response = self.client.post(
-            f'/api/tasks/{self.task.id}/images/',
+            f'/api/tasks/{self.task.id}/images/create/',
             {'image': text_file},
             format='multipart'
         )
@@ -294,14 +299,18 @@ class TaskImageAPITests(APITestCase):
     def test_upload_different_formats(self):
         """Test upload of different supported formats."""
         formats = ['JPEG', 'PNG', 'WEBP']
+        photo_types = ['before', 'after', 'during']
         
-        for fmt in formats:
+        for i, fmt in enumerate(formats):
             with self.subTest(format=fmt):
                 image = self.create_test_image(format=fmt)
                 
                 response = self.client.post(
-                    f'/api/tasks/{self.task.id}/images/',
-                    {'image': image},
+                    f'/api/tasks/{self.task.id}/images/create/',
+                    {
+                        'image': image,
+                        'photo_type': photo_types[i]  # Use different photo_type for each format
+                    },
                     format='multipart'
                 )
                 
@@ -314,8 +323,11 @@ class TaskImageAPITests(APITestCase):
         image = self.create_test_image()
         
         response = self.client.post(
-            f'/api/tasks/{self.task.id}/images/',
-            {'image': image},
+            f'/api/tasks/{self.task.id}/images/create/',
+            {
+                'image': image,
+                'photo_type': 'general'  # Use 'general' instead of 'reference' to avoid conflicts
+            },
             format='multipart'
         )
         
@@ -327,7 +339,7 @@ class TaskImageAPITests(APITestCase):
         image = self.create_test_image()
         
         response = self.client.post(
-            f'/api/tasks/{self.task.id}/images/',
+            f'/api/tasks/{self.task.id}/images/create/',
             {'image': image},
             format='multipart'
         )

@@ -52,7 +52,7 @@ def setup_test_data():
             'external_code': 'HMZE8BT5AC',
             'guest_name': 'Kathrin MĂ¼ller',  # Encoding issue
             'property': property_obj,
-            'check_in_date': timezone.now().date(),
+            'check_in_date': timezone.now().date() + timezone.timedelta(days=1),
             'check_out_date': timezone.now().date() + timezone.timedelta(days=3),
             'external_status': 'Confirmed',
             'source': 'Airbnb'
@@ -63,8 +63,8 @@ def setup_test_data():
             'external_code': 'HMDNHY93WB',
             'guest_name': 'John Smith',
             'property': property_obj,
-            'check_in_date': timezone.now().date(),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=2),
+            'check_in_date': timezone.now().date() + timezone.timedelta(days=5),
+            'check_out_date': timezone.now().date() + timezone.timedelta(days=7),
             'external_status': 'Confirmed',
             'source': 'Airbnb'
         },
@@ -74,8 +74,8 @@ def setup_test_data():
             'external_code': 'HMHCA35ERM',
             'guest_name': 'Jane Doe',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=5),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=7),
+            'check_in_date': timezone.now().date() + timezone.timedelta(days=10),
+            'check_out_date': timezone.now().date() + timezone.timedelta(days=12),
             'external_status': 'Confirmed',
             'source': 'VRBO'
         },
@@ -85,8 +85,8 @@ def setup_test_data():
             'external_code': 'TEST123',
             'guest_name': 'Test Guest',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=10),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=12),
+            'check_in_date': timezone.now().date() + timezone.timedelta(days=15),
+            'check_out_date': timezone.now().date() + timezone.timedelta(days=17),
             'external_status': 'Confirmed',
             'source': 'Direct'
         },
@@ -96,8 +96,8 @@ def setup_test_data():
             'external_code': 'TEST456',
             'guest_name': 'Another Guest',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=15),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=17),
+            'check_in_date': timezone.now().date() + timezone.timedelta(days=20),
+            'check_out_date': timezone.now().date() + timezone.timedelta(days=22),
             'external_status': 'Confirmed',
             'source': 'Booking.com'
         }
@@ -174,8 +174,8 @@ def test_specific_scenarios():
                 'external_code': 'NEW001',
                 'guest_name': 'Jose Garcia',  # ASCII version
                 'property_name': 'Test Villa',
-                'start_date': timezone.now() + timezone.timedelta(days=20),
-                'end_date': timezone.now() + timezone.timedelta(days=23),
+                'start_date': timezone.now() + timezone.timedelta(days=30),
+                'end_date': timezone.now() + timezone.timedelta(days=33),
                 'external_status': 'Confirmed',
                 'source': 'Airbnb'
             },
@@ -191,8 +191,8 @@ def test_specific_scenarios():
                 'external_code': 'COMBINED001',
                 'guest_name': 'Johnny Smith',  # Different guest name
                 'property_name': 'Test Villa',
-                'start_date': timezone.now() + timezone.timedelta(days=25),
-                'end_date': timezone.now() + timezone.timedelta(days=27),
+                'start_date': timezone.now() + timezone.timedelta(days=35),
+                'end_date': timezone.now() + timezone.timedelta(days=37),
                 'external_status': 'Checked Out',  # Different status
                 'source': 'Airbnb'
             },
@@ -295,8 +295,8 @@ def test_other_conflict_types():
                 'external_code': 'DATE001',
                 'guest_name': 'Date Test Guest',
                 'property': property_obj,
-                'check_in_date': timezone.now().date(),
-                'check_out_date': timezone.now().date() + timezone.timedelta(days=3),
+                'check_in_date': timezone.now().date() + timezone.timedelta(days=25),
+                'check_out_date': timezone.now().date() + timezone.timedelta(days=28),
                 'external_status': 'Confirmed',
                 'source': 'Airbnb'
             },
@@ -304,8 +304,8 @@ def test_other_conflict_types():
                 'external_code': 'DATE001',
                 'guest_name': 'Date Test Guest',  # Same guest
                 'property_name': 'Test Villa',
-                'start_date': timezone.now() + timezone.timedelta(days=1),  # Different dates
-                'end_date': timezone.now() + timezone.timedelta(days=4),
+                'start_date': timezone.now() + timezone.timedelta(days=26),  # Different dates
+                'end_date': timezone.now() + timezone.timedelta(days=29),
                 'external_status': 'Confirmed',
                 'source': 'Airbnb'
             },
@@ -319,8 +319,8 @@ def test_other_conflict_types():
                 'external_code': 'PROP001',
                 'guest_name': 'Property Test Guest',
                 'property': property_obj,
-                'check_in_date': timezone.now().date() + timezone.timedelta(days=5),
-                'check_out_date': timezone.now().date() + timezone.timedelta(days=7),
+                'check_in_date': timezone.now().date() + timezone.timedelta(days=30),
+                'check_out_date': timezone.now().date() + timezone.timedelta(days=32),
                 'external_status': 'Confirmed',
                 'source': 'VRBO'
             },
@@ -328,8 +328,8 @@ def test_other_conflict_types():
                 'external_code': 'PROP001',
                 'guest_name': 'Property Test Guest',  # Same guest
                 'property_name': 'Test Villa 2',  # Different property
-                'start_date': timezone.now() + timezone.timedelta(days=5),
-                'end_date': timezone.now() + timezone.timedelta(days=7),
+                'start_date': timezone.now() + timezone.timedelta(days=30),
+                'end_date': timezone.now() + timezone.timedelta(days=32),
                 'external_status': 'Confirmed',
                 'source': 'VRBO'
             },
@@ -343,8 +343,8 @@ def test_other_conflict_types():
                 'external_code': 'DIRECT001',
                 'guest_name': 'Direct Guest',
                 'property': property_obj,
-                'check_in_date': timezone.now().date() + timezone.timedelta(days=10),
-                'check_out_date': timezone.now().date() + timezone.timedelta(days=12),
+                'check_in_date': timezone.now().date() + timezone.timedelta(days=35),
+                'check_out_date': timezone.now().date() + timezone.timedelta(days=37),
                 'external_status': 'Confirmed',
                 'source': 'Direct'
             },
@@ -352,8 +352,8 @@ def test_other_conflict_types():
                 'external_code': 'DIRECT001',
                 'guest_name': 'Direct Guest',  # Exact same
                 'property_name': 'Test Villa',
-                'start_date': timezone.now() + timezone.timedelta(days=10),
-                'end_date': timezone.now() + timezone.timedelta(days=12),
+                'start_date': timezone.now() + timezone.timedelta(days=35),
+                'end_date': timezone.now() + timezone.timedelta(days=37),
                 'external_status': 'Confirmed',
                 'source': 'Direct'
             },

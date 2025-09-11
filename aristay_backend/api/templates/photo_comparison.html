@@ -1,0 +1,609 @@
+{% extends "staff/base.html" %}
+{% load static %}
+
+{% block title %}Photo Comparison · AriStay{% endblock %}
+
+{% block extra_css %}
+<style>
+    .comparison-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .comparison-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .task-info {
+        background: var(--card-bg, #ffffff);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        flex: 1;
+        min-width: 300px;
+    }
+
+    .task-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary, #111827);
+        margin-bottom: 8px;
+    }
+
+    .task-details {
+        color: var(--text-secondary, #6b7280);
+        font-size: 14px;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 8px 12px;
+        border: 1px solid var(--border-color, #d1d5db);
+        border-radius: 6px;
+        background: var(--input-bg, #ffffff);
+        color: var(--text-primary, #374151);
+        font-size: 14px;
+    }
+
+    .comparison-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .photo-section {
+        background: var(--card-bg, #ffffff);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border-color, #e5e7eb);
+    }
+
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary, #111827);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .photo-count {
+        background: var(--primary-color, #6366f1);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    .photo-card {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+    }
+
+    .photo-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .photo-card.primary {
+        border: 3px solid var(--primary-color, #6366f1);
+    }
+
+    .photo-image {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .photo-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 50%, rgba(0,0,0,0.9) 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 10px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .photo-card:hover .photo-overlay {
+        opacity: 1;
+    }
+
+    .photo-status {
+        align-self: flex-start;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .status-pending {
+        background: var(--warning-bg, #fef3c7);
+        color: var(--warning-color, #92400e);
+    }
+
+    .status-approved {
+        background: var(--success-bg, #d1fae5);
+        color: var(--success-color, #065f46);
+    }
+
+    .status-rejected {
+        background: var(--error-bg, #fee2e2);
+        color: var(--error-color, #991b1b);
+    }
+
+    .photo-actions {
+        align-self: flex-end;
+        display: flex;
+        gap: 5px;
+    }
+
+    .photo-action-btn {
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 4px;
+        padding: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.2s ease;
+    }
+
+    .photo-action-btn:hover {
+        background: white;
+    }
+
+    .photo-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .photo-description {
+        margin-top: 4px;
+        opacity: 0.9;
+        line-height: 1.3;
+    }
+
+    .primary-badge {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: var(--primary-color, #6366f1);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 500;
+    }
+
+    .no-photos {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-secondary, #6b7280);
+    }
+
+    .no-photos-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 90vw;
+        max-height: 90vh;
+        background: var(--card-bg, #ffffff);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-image {
+        max-width: 100%;
+        max-height: 80vh;
+        object-fit: contain;
+        display: block;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-info {
+        padding: 20px;
+        background: var(--card-bg, #ffffff);
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-primary, #111827);
+    }
+
+    .modal-meta {
+        color: var(--text-secondary, #6b7280);
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+
+    .modal-description {
+        color: var(--text-primary, #374151);
+        line-height: 1.5;
+    }
+
+    /* Dark mode styles */
+    [data-theme="dark"] .task-info,
+    [data-theme="dark"] .photo-section {
+        background: var(--dark-card-bg, #1f2937);
+    }
+
+    [data-theme="dark"] .filter-select {
+        background: var(--dark-input-bg, #374151);
+        border-color: var(--dark-border-color, #4b5563);
+        color: var(--dark-text-primary, #f9fafb);
+    }
+
+    [data-theme="dark"] .modal-content,
+    [data-theme="dark"] .modal-info {
+        background: var(--dark-card-bg, #1f2937);
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .comparison-container {
+            padding: 10px;
+        }
+
+        .comparison-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .comparison-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .photo-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .filter-controls {
+            justify-content: center;
+        }
+
+        .modal-content {
+            max-width: 95vw;
+            max-height: 95vh;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="comparison-container">
+    <div class="comparison-header">
+        <div class="task-info">
+            <div class="task-title">{{ task.title }}</div>
+            <div class="task-details">
+                <strong>Property:</strong> {{ task.property_ref.name }}<br>
+                <strong>Status:</strong> {{ task.get_status_display }}<br>
+                <strong>Assigned to:</strong> {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
+            </div>
+        </div>
+        <div class="filter-controls">
+            <select id="status-filter" class="filter-select">
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <select id="type-filter" class="filter-select">
+                <option value="">All Types</option>
+                <option value="before">Before</option>
+                <option value="after">After</option>
+                <option value="during">During</option>
+                <option value="reference">Reference</option>
+                <option value="damage">Damage</option>
+                <option value="general">General</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="comparison-grid">
+        <!-- Before Photos -->
+        <div class="photo-section">
+            <div class="section-header">
+                <div class="section-title">
+                    📸 Before Photos
+                    <span class="photo-count" id="before-count">0</span>
+                </div>
+            </div>
+            <div class="photo-grid" id="before-photos">
+                <!-- Before photos will be loaded here -->
+            </div>
+        </div>
+
+        <!-- After Photos -->
+        <div class="photo-section">
+            <div class="section-header">
+                <div class="section-title">
+                    📸 After Photos
+                    <span class="photo-count" id="after-count">0</span>
+                </div>
+            </div>
+            <div class="photo-grid" id="after-photos">
+                <!-- After photos will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Other Photos Section -->
+    <div class="photo-section">
+        <div class="section-header">
+            <div class="section-title">
+                📷 Other Photos
+                <span class="photo-count" id="other-count">0</span>
+            </div>
+        </div>
+        <div class="photo-grid" id="other-photos">
+            <!-- Other photos will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Photo Modal -->
+<div id="photo-modal" class="modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <img id="modal-image" class="modal-image" src="" alt="">
+        <div class="modal-info">
+            <div class="modal-title" id="modal-title"></div>
+            <div class="modal-meta" id="modal-meta"></div>
+            <div class="modal-description" id="modal-description"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+class PhotoComparison {
+    constructor() {
+        this.taskId = {{ task.id }};
+        this.allPhotos = [];
+        this.filteredPhotos = [];
+        this.initializeElements();
+        this.attachEventListeners();
+        this.loadPhotos();
+    }
+
+    initializeElements() {
+        this.statusFilter = document.getElementById('status-filter');
+        this.typeFilter = document.getElementById('type-filter');
+        this.beforePhotos = document.getElementById('before-photos');
+        this.afterPhotos = document.getElementById('after-photos');
+        this.otherPhotos = document.getElementById('other-photos');
+        this.beforeCount = document.getElementById('before-count');
+        this.afterCount = document.getElementById('after-count');
+        this.otherCount = document.getElementById('other-count');
+        this.modal = document.getElementById('photo-modal');
+        this.modalImage = document.getElementById('modal-image');
+        this.modalTitle = document.getElementById('modal-title');
+        this.modalMeta = document.getElementById('modal-meta');
+        this.modalDescription = document.getElementById('modal-description');
+    }
+
+    attachEventListeners() {
+        this.statusFilter.addEventListener('change', () => this.applyFilters());
+        this.typeFilter.addEventListener('change', () => this.applyFilters());
+        
+        // Close modal when clicking outside
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.closeModal();
+            }
+        });
+    }
+
+    async loadPhotos() {
+        try {
+            const response = await fetch(`/api/tasks/${this.taskId}/images/`);
+            const data = await response.json();
+            console.log('API Response:', data);
+            
+            // Handle different response structures
+            if (Array.isArray(data)) {
+                this.allPhotos = data;
+            } else if (data.results && Array.isArray(data.results)) {
+                this.allPhotos = data.results;
+            } else if (data.data && Array.isArray(data.data)) {
+                this.allPhotos = data.data;
+            } else {
+                console.error('Unexpected API response structure:', data);
+                this.allPhotos = [];
+            }
+            
+            console.log('Processed photos:', this.allPhotos);
+            this.applyFilters();
+        } catch (error) {
+            console.error('Error loading photos:', error);
+            this.allPhotos = [];
+        }
+    }
+
+    applyFilters() {
+        // Safety check
+        if (!Array.isArray(this.allPhotos)) {
+            console.error('allPhotos is not an array:', this.allPhotos);
+            this.allPhotos = [];
+            return;
+        }
+        
+        const statusFilter = this.statusFilter.value;
+        const typeFilter = this.typeFilter.value;
+
+        this.filteredPhotos = this.allPhotos.filter(photo => {
+            const statusMatch = !statusFilter || photo.photo_status === statusFilter;
+            const typeMatch = !typeFilter || photo.photo_type === typeFilter;
+            return statusMatch && typeMatch;
+        });
+
+        this.renderPhotos();
+    }
+
+    renderPhotos() {
+        const beforePhotos = this.filteredPhotos.filter(p => p.photo_type === 'before');
+        const afterPhotos = this.filteredPhotos.filter(p => p.photo_type === 'after');
+        const otherPhotos = this.filteredPhotos.filter(p => !['before', 'after'].includes(p.photo_type));
+
+        this.renderPhotoSection(this.beforePhotos, beforePhotos);
+        this.renderPhotoSection(this.afterPhotos, afterPhotos);
+        this.renderPhotoSection(this.otherPhotos, otherPhotos);
+
+        this.beforeCount.textContent = beforePhotos.length;
+        this.afterCount.textContent = afterPhotos.length;
+        this.otherCount.textContent = otherPhotos.length;
+    }
+
+    renderPhotoSection(container, photos) {
+        container.innerHTML = '';
+
+        if (photos.length === 0) {
+            container.innerHTML = `
+                <div class="no-photos">
+                    <div class="no-photos-icon">📷</div>
+                    <div>No photos found</div>
+                </div>
+            `;
+            return;
+        }
+
+        photos.forEach(photo => {
+            const photoCard = this.createPhotoCard(photo);
+            container.appendChild(photoCard);
+        });
+    }
+
+    createPhotoCard(photo) {
+        const card = document.createElement('div');
+        card.className = `photo-card ${photo.is_primary ? 'primary' : ''}`;
+        
+        const statusClass = `status-${photo.photo_status}`;
+        const uploadedDate = new Date(photo.uploaded_at).toLocaleDateString();
+        
+        card.innerHTML = `
+            <img src="${photo.image}" class="photo-image" alt="${photo.description || 'Photo'}">
+            <div class="photo-overlay">
+                <div class="photo-status ${statusClass}">${photo.photo_status}</div>
+                <div class="photo-actions">
+                    <button class="photo-action-btn" onclick="photoComparison.openModal('${photo.image}', '${photo.photo_type_display}', '${photo.uploaded_at}', '${photo.description || ''}')" title="View Full Size">🔍</button>
+                </div>
+            </div>
+            <div class="photo-info">
+                <div>${photo.photo_type_display} #${photo.sequence_number}</div>
+                <div class="photo-description">${photo.description || 'No description'}</div>
+            </div>
+            ${photo.is_primary ? '<div class="primary-badge">Primary</div>' : ''}
+        `;
+
+        return card;
+    }
+
+    openModal(imageSrc, title, uploadedAt, description) {
+        this.modalImage.src = imageSrc;
+        this.modalTitle.textContent = title;
+        this.modalMeta.textContent = `Uploaded: ${new Date(uploadedAt).toLocaleString()}`;
+        this.modalDescription.textContent = description || 'No description provided';
+        this.modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeModal() {
+        this.modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Initialize the photo comparison
+const photoComparison = new PhotoComparison();
+
+// Global function for modal close
+function closeModal() {
+    photoComparison.closeModal();
+}
+</script>
+{% endblock %}

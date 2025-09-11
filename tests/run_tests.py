@@ -48,7 +48,7 @@ def run_production_tests():
     
     python_exe = get_python_executable()
     test_files = [
-        TESTS_DIR / "production" / "test_production_hardening.py",
+        TESTS_DIR / "production" / "test_idempotence_constraints.py",
         TESTS_DIR / "production" / "test_production_readiness.py"
     ]
     
@@ -69,8 +69,8 @@ def run_integration_tests():
     
     python_exe = get_python_executable()
     test_files = [
-        TESTS_DIR / "integration" / "test_final_phases.py",
-        TESTS_DIR / "integration" / "verify_production_readiness.py",
+        TESTS_DIR / "integration" / "test_phase_completion.py",
+        TESTS_DIR / "integration" / "test_production_readiness.py",
         TESTS_DIR / "integration" / "test_no_duplicate_tasks.py"
     ]
     

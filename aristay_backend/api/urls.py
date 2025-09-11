@@ -17,6 +17,7 @@ from .views import (
     PropertyDetail,
     UserList,
     TaskImageCreateView,
+    TaskImageListView,
     TaskImageDetailView,
     AdminInviteUserView,
     AdminPasswordResetView,
@@ -29,7 +30,7 @@ from .views import (
     ManagerUserList,
     ManagerUserDetail,
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
-    system_logs_viewer, system_crash_recovery,
+    system_logs_viewer, system_logs_download, system_crash_recovery,
     portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
     portal_task_detail,
     excel_import_view, excel_import_api, property_approval_create,
@@ -38,7 +39,8 @@ from .views import (
     preview_conflict_resolution, quick_resolve_conflict,
     file_cleanup_api, user_permissions, available_permissions, 
     manageable_users, grant_permission, revoke_permission, remove_permission_override,
-    permission_management_view, file_cleanup_page
+    permission_management_view, file_cleanup_page,
+    photo_upload_view, photo_management_view, photo_comparison_view
 )
 
 # Checklist Management Views
@@ -103,6 +105,11 @@ urlpatterns = [
     
     path(
         'tasks/<int:task_pk>/images/',
+        TaskImageListView.as_view(),
+        name='taskimage-list'
+    ),
+    path(
+        'tasks/<int:task_pk>/images/create/',
         TaskImageCreateView.as_view(),
         name='taskimage-create'
     ),
@@ -130,6 +137,7 @@ urlpatterns = [
     path('admin/metrics/', system_metrics_dashboard, name='admin-metrics'),
     path('admin/metrics/api/', system_metrics_api, name='admin-metrics-api'),
     path('admin/logs/', system_logs_viewer, name='admin-logs'),
+    path('admin/logs/download/', system_logs_download, name='admin-logs-download'),
     path('admin/recovery/', system_crash_recovery, name='admin-recovery'),
     path('devices/', DeviceRegisterView.as_view(), name='device-register'),
     path('notifications/', NotificationListView.as_view(), name='notification-list'),
@@ -171,6 +179,11 @@ urlpatterns = [
     path('staff/inventory/transaction/', log_inventory_transaction, name='log-inventory-transaction'),
     path('staff/task-counts/', task_counts_api, name='staff-task-counts'),
     path('tasks/<int:task_id>/set_status/', update_task_status_api, name='set-task-status'),
+    
+    # Photo Management UI
+    path('staff/photos/upload/', photo_upload_view, name='photo-upload'),
+    path('staff/photos/management/', photo_management_view, name='photo-management'),
+    path('staff/photos/comparison/<int:task_id>/', photo_comparison_view, name='photo-comparison'),
     
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),

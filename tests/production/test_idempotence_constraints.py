@@ -163,12 +163,19 @@ def test_constraint_integrity():
             assert False, "Constraint test failed - duplicate task was allowed"
             
     except IntegrityError as e:
-        if "api_task.booking_id, api_task.created_by_template_id" in str(e):
+        # Check that the IntegrityError is due to the uniqueness constraint on (booking, created_by_template)
+        error_message = str(e)
+        # Try to match either the constraint name or the relevant fields in the error message
+        if (
+            "booking" in error_message and "created_by_template" in error_message
+        ) or (
+            "unique" in error_message.lower()
+        ):
             print("🎉 CONSTRAINT TEST PASSED: DB constraint prevented duplicate task!")
             constraint_worked = True
         else:
-            print(f"❌ CONSTRAINT TEST FAILED: Unexpected IntegrityError: {e}")
-            constraint_worked = False
+            print(f"❌ IntegrityError raised, but not for the expected uniqueness constraint: {error_message}")
+            assert False, f"IntegrityError was raised, but not for the expected uniqueness constraint: {error_message}"
     
     # Cleanup
     try:

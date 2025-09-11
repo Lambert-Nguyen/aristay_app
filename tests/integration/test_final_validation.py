@@ -10,11 +10,11 @@ import sys
 import django
 from datetime import datetime, date
 
-# Add the parent directory to the path to import Django modules
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the aristay_backend directory to the path to import Django modules
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'aristay_backend'))
 
 # Set up Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aristay_backend.backend.settings')
 django.setup()
 
 from api.models import Booking, Property
@@ -110,8 +110,8 @@ def test_conflict_behavior():
             external_code='TEST_STATUS',
             guest_name='John Smith',
             property=property_obj,
-            check_in_date=timezone.now().date(),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=2),
+            check_in_date=timezone.now().date() + timezone.timedelta(days=1),
+            check_out_date=timezone.now().date() + timezone.timedelta(days=3),
             external_status='Confirmed',
             source='Airbnb'
         )
@@ -120,8 +120,8 @@ def test_conflict_behavior():
             'external_code': 'TEST_STATUS',
             'guest_name': 'John Smith',  # Same guest
             'property_name': 'Test Property',
-            'start_date': timezone.now(),
-            'end_date': timezone.now() + timezone.timedelta(days=2),
+            'start_date': timezone.now().date() + timezone.timedelta(days=1),  # Same dates as existing booking
+            'end_date': timezone.now().date() + timezone.timedelta(days=3),    # Same dates as existing booking
             'external_status': 'Checking out today',  # Different status
             'source': 'Airbnb'
         }
@@ -141,8 +141,8 @@ def test_conflict_behavior():
             external_code='TEST_GUEST',
             guest_name='Kathrin MĂ¼ller',  # Encoding issue
             property=property_obj,
-            check_in_date=timezone.now().date(),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=3),
+            check_in_date=timezone.now().date() + timezone.timedelta(days=5),
+            check_out_date=timezone.now().date() + timezone.timedelta(days=8),
             external_status='Confirmed',
             source='Airbnb'
         )
@@ -180,8 +180,8 @@ def test_conflict_behavior():
             external_code='TEST_DIRECT',
             guest_name='Direct Guest',
             property=property_obj,
-            check_in_date=timezone.now().date() + timezone.timedelta(days=5),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=7),
+            check_in_date=timezone.now().date() + timezone.timedelta(days=10),
+            check_out_date=timezone.now().date() + timezone.timedelta(days=12),
             external_status='Confirmed',
             source='Direct'
         )

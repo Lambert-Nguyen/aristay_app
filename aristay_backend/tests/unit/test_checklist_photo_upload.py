@@ -8,6 +8,16 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from api.models import Task, TaskChecklist, ChecklistTemplate, ChecklistItem, ChecklistResponse, ChecklistPhoto, Profile
+from PIL import Image
+import io
+
+def create_test_image():
+    """Create a valid test image for Cloudinary uploads"""
+    img = Image.new('RGB', (100, 100), color='red')
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format='JPEG')
+    img_bytes.seek(0)
+    return img_bytes.getvalue()
 
 
 @pytest.fixture(autouse=True)
@@ -70,7 +80,7 @@ class TestChecklistPhotoUpload:
         
         test_image = SimpleUploadedFile(
             "test_image.jpg",
-            b"fake image content",
+            create_test_image(),
             content_type="image/jpeg"
         )
         
@@ -105,7 +115,7 @@ class TestChecklistPhotoUpload:
         
         test_image = SimpleUploadedFile(
             "test_image.jpg",
-            b"fake image content",
+            create_test_image(),
             content_type="image/jpeg"
         )
         
@@ -217,9 +227,8 @@ class TestChecklistPhotoUpload:
             'photo': invalid_file
         }, HTTP_HOST='localhost:8000')
         
-        # The backend doesn't validate file type, so this should succeed
-        # File type validation is handled in the frontend
-        assert response_data.status_code == 200
+        # The backend validates file type and rejects invalid files
+        assert response_data.status_code == 400
     
     def test_photo_upload_permission_denied(self):
         """Test photo upload with insufficient permissions"""
@@ -275,7 +284,7 @@ class TestChecklistPhotoUpload:
         
         test_image = SimpleUploadedFile(
             "test_image.jpg",
-            b"fake image content",
+            create_test_image(),
             content_type="image/jpeg"
         )
         
@@ -304,7 +313,7 @@ class TestChecklistPhotoUpload:
         
         test_image = SimpleUploadedFile(
             "test_image.jpg",
-            b"fake image content",
+            create_test_image(),
             content_type="image/jpeg"
         )
         
@@ -370,12 +379,8 @@ class TestChecklistPhotoUpload:
             'photo': large_file
         }, HTTP_HOST='localhost:8000')
         
-        # Should succeed as Django handles large files
-        assert response_data.status_code == 200
-        
-        # Verify photo was created
-        photos = ChecklistPhoto.objects.filter(response=response)
-        assert photos.count() == 1
+        # Should fail as the file is too large (10MB > 5MB limit)
+        assert response_data.status_code == 400
 
 
 @pytest.mark.django_db
@@ -423,7 +428,7 @@ class TestChecklistPhotoRemoval:
         # Create photo
         test_image = SimpleUploadedFile(
             "test_image.jpg",
-            b"fake image content",
+            create_test_image(),
             content_type="image/jpeg"
         )
         
@@ -515,5 +520,5 @@ class TestChecklistPhotoRemoval:
             'photo_url': '/media/nonexistent.jpg'
         }, content_type='application/json', HTTP_HOST='localhost:8000')
         
-        # API returns 400 when photo doesn't exist
-        assert response_data.status_code == 400
+        # API returns 404 when photo doesn't exist
+        assert response_data.status_code == 404

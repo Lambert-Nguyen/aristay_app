@@ -31,25 +31,33 @@ class UserSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(read_only=True)  # show disabled state
     is_superuser = serializers.BooleanField(read_only=True)
     role         = serializers.SerializerMethodField(read_only=True)
+    task_group   = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
-        # include email so we can show it, and is_staff for “Admin” flag
+        # include email so we can show it, and is_staff for "Admin" flag
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'is_staff', 'is_superuser', 'is_active',   # ← include is_superuser
-            'role', 'timezone', 'system_timezone',
+            'role', 'task_group', 'timezone', 'system_timezone',
         ]
         
     @extend_schema_field(OpenApiTypes.STR)
     def get_role(self, obj):
-        # Superusers override role; show “superuser” regardless of stored profile.role
+        # Superusers override role; show "superuser" regardless of stored profile.role
         if obj.is_superuser:
             return 'superuser'
         try:
             return obj.profile.role
         except Profile.DoesNotExist:
             return 'staff'
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_task_group(self, obj):
+        try:
+            return obj.profile.task_group
+        except Profile.DoesNotExist:
+            return 'none'
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_system_timezone(self, obj):
@@ -111,16 +119,22 @@ class PropertySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class TaskImageSerializer(serializers.ModelSerializer):
-    # allow direct serializer usage (tests) and view usage (save(task=...))
-    task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all(), write_only=True, required=False)
+    # Serializer for TaskImage with before/after photo functionality
     uploaded_by_username = serializers.CharField(source='uploaded_by.username', read_only=True)
+    photo_type_display = serializers.CharField(source='get_photo_type_display', read_only=True)
+    photo_status_display = serializers.CharField(source='get_photo_status_display', read_only=True)
     
     class Meta:
         model = TaskImage
-        fields = ['id', 'task', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
-                  'size_bytes', 'width', 'height', 'original_size_bytes']
+        fields = [
+            'id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
+            'size_bytes', 'width', 'height', 'original_size_bytes',
+            # NEW: Before/After photo fields
+            'photo_type', 'photo_type_display', 'photo_status', 'photo_status_display',
+            'sequence_number', 'is_primary', 'description'
+        ]
         read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
-                           'width', 'height', 'original_size_bytes']
+                           'width', 'height', 'original_size_bytes', 'photo_type_display', 'photo_status_display']
     
     def validate_image(self, file):
         """Agent's enhanced validation: Accept large files, validate before optimization."""
@@ -138,6 +152,22 @@ class TaskImageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Unsupported file type. Please upload JPEG, PNG, or WebP images.")
         
         return file
+    
+    def validate(self, data):
+        """Validate before/after photo constraints"""
+        from rest_framework import serializers
+        
+        # Validate sequence number is positive
+        if 'sequence_number' in data and data['sequence_number'] <= 0:
+            raise serializers.ValidationError("Sequence number must be positive.")
+        
+        # Validate primary photo constraint
+        if data.get('is_primary', False) and 'photo_type' in data:
+            # Note: task will be set in perform_create, so we skip this validation here
+            # The constraint will be enforced at the model level
+            pass
+        
+        return data
     
     def create(self, validated_data):
         """Agent's optimization approach: Transform large uploads before storage."""
@@ -179,7 +209,7 @@ class TaskSerializer(serializers.ModelSerializer):
     property_name           = serializers.CharField(source='property.name',    read_only=True)
     booking_id              = serializers.IntegerField(source='booking.id', read_only=True)
     booking_window          = serializers.SerializerMethodField(read_only=True)
-    property                = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
+    property_ref            = serializers.PrimaryKeyRelatedField(queryset=Property.objects.all())
     created_by              = serializers.CharField(source='created_by.username',   read_only=True)
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
     modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
@@ -205,7 +235,7 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
           'id',
-          'property',
+          'property_ref',
           'property_name',
           'booking',
           'booking_id',

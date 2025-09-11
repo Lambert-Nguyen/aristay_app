@@ -406,6 +406,9 @@ body {
                 {% if level_filter %} ({{ level_filter }} level){% endif %}
             </div>
             <div>
+                <button onclick="downloadLogs()" style="background: rgba(139, 92, 246, 0.8); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer; margin-right: 0.5rem;">
+                    💾 Download
+                </button>
                 <button onclick="scrollToBottom()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 4px; cursor: pointer;">
                     ⬇️ Bottom
                 </button>
@@ -444,6 +447,9 @@ body {
         <a href="/api/admin/recovery/" class="apply-button" style="text-decoration: none; display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
             🚨 Crash Recovery
         </a>
+        <button onclick="downloadLogs()" class="apply-button" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+            💾 Download Logs
+        </button>
         <button onclick="location.reload()" class="apply-button" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
             🔄 Refresh Logs
         </button>
@@ -451,6 +457,32 @@ body {
 </div>
 
 <script>
+// Download logs function
+function downloadLogs() {
+    const currentFile = '{{ current_file }}';
+    const searchTerm = '{{ search_term }}';
+    const levelFilter = '{{ level_filter }}';
+    
+    // Build download URL with current filters
+    let downloadUrl = '/api/admin/logs/download/?file=' + encodeURIComponent(currentFile);
+    
+    if (searchTerm) {
+        downloadUrl += '&search=' + encodeURIComponent(searchTerm);
+    }
+    
+    if (levelFilter) {
+        downloadUrl += '&level=' + encodeURIComponent(levelFilter);
+    }
+    
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = ''; // Let the server set the filename
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 // Auto-scroll to bottom on load
 function scrollToBottom() {
     const container = document.getElementById('logs-container');
