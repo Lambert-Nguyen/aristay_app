@@ -291,11 +291,11 @@ class SecurityHeadersEnhancedMiddleware(MiddlewareMixin):
             response['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
             response['Content-Security-Policy'] = (
                 "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-                "style-src 'self' 'unsafe-inline'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "img-src 'self' data: https:; "
                 "connect-src 'self'; "
-                "font-src 'self'"
+                "font-src 'self' https://cdn.jsdelivr.net"
             )
             
             # Permissions policy (replace Feature-Policy)

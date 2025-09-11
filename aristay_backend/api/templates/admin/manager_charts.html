@@ -531,46 +531,54 @@ body {
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Chart.js Configuration
-Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-Chart.defaults.font.size = 13;
-Chart.defaults.color = '#4a5568';
+// Wait for Chart.js to load and DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js failed to load');
+        return;
+    }
+    
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.font.size = 13;
+    Chart.defaults.color = '#4a5568';
 
-// Empty data handling
-function hasData(data) {
-    return data && data.length > 0 && data.some(value => value > 0);
-}
+    // Empty data handling
+    function hasData(data) {
+        return data && data.length > 0 && data.some(value => value > 0);
+    }
 
-function createEmptyChart(canvasId, message) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['No Data'],
-            datasets: [{
-                data: [1],
-                backgroundColor: ['#e2e8f0'],
-                borderColor: '#cbd5e0',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: false },
-                title: {
-                    display: true,
-                    text: message,
-                    font: { size: 16, weight: '600' },
-                    color: '#64748b'
+    function createEmptyChart(canvasId, message) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['No Data'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#e2e8f0'],
+                    borderColor: '#cbd5e0',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false },
+                    title: {
+                        display: true,
+                        text: message,
+                        font: { size: 16, weight: '600' },
+                        color: '#64748b'
+                    }
                 }
             }
-        }
-    });
-    return chart;
-}
+        });
+        return chart;
+    }
 
 // Modern Color Palette
 const modernColors = {
@@ -877,7 +885,10 @@ const userActivityChart = new Chart(userActivityCtx, {
     }
 });
 
-// Refresh Function
+    console.log('🚀 AriStay Manager Dashboard loaded successfully!');
+}); // End of DOMContentLoaded event listener
+
+// Refresh Function (outside DOMContentLoaded)
 function refreshData() {
     const refreshBtn = document.querySelector('.refresh-button');
     refreshBtn.classList.add('loading');
@@ -891,7 +902,5 @@ function refreshData() {
 
 // Auto-refresh every 5 minutes
 setInterval(refreshData, 300000);
-
-console.log('🚀 AriStay Manager Dashboard loaded successfully!');
 </script>
 {% endblock %}
