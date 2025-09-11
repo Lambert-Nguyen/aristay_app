@@ -75,6 +75,10 @@ jobs:
         working-directory: aristay_backend
         run: python manage.py migrate --noinput
 
+      - name: Collect static files
+        working-directory: aristay_backend
+        run: python manage.py collectstatic --noinput
+
       - name: Run pytest
         run: python -m pytest -q
 

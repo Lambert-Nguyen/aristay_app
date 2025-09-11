@@ -503,15 +503,24 @@ class TaskImageCreateView(DefaultAuthMixin, generics.CreateAPIView):
         if not can_edit_task(self.request.user, task):
             raise DRFPermissionDenied("You can't add images to this task.")
         
-        # 2) save the new TaskImage with uploaded_by tracking
-        image = serializer.save(task=task, uploaded_by=self.request.user)
+        # 2) Auto-assign sequence number for the photo type
+        photo_type = serializer.validated_data.get('photo_type', 'general')
+        existing_photos = TaskImage.objects.filter(task=task, photo_type=photo_type)
+        next_sequence = existing_photos.count() + 1
         
-        # 3) update task history
+        # 3) save the new TaskImage with uploaded_by tracking and auto-assigned sequence
+        image = serializer.save(
+            task=task, 
+            uploaded_by=self.request.user,
+            sequence_number=next_sequence
+        )
+        
+        # 4) update task history
         history = json.loads(task.history or '[]')
         history.append(f"{timezone.now().isoformat()}: {self.request.user.username} added photo {image.image.url}")
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
         
-        # 4) notify stakeholders
+        # 5) notify stakeholders
         NotificationService.notify_task_photo(task, added=True, actor=self.request.user)
 
 

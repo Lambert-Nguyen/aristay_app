@@ -57,6 +57,7 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`CI_POSTGRESQL_FIX_CORRECTED_REPORT_2025-09-10.md`](./reports/CI_POSTGRESQL_FIX_CORRECTED_REPORT_2025-09-10.md) - 🚨 **CRITICAL** - CI workflow corrected to use PostgreSQL to match production
 - [`MIGRATION_DUPLICATE_CONSTRAINT_FIX_REPORT_2025-09-10.md`](./reports/MIGRATION_DUPLICATE_CONSTRAINT_FIX_REPORT_2025-09-10.md) - 🔧 **FIXED** - Migration duplicate constraint issues resolved
 - [`CI_VALIDATION_SCRIPT_FIX_COMPLETE_REPORT_2025-09-10.md`](./reports/CI_VALIDATION_SCRIPT_FIX_COMPLETE_REPORT_2025-09-10.md) - 🎉 **COMPLETE** - CI validation script fixed, all tests passing
+- [`CI_AND_PHOTO_UPLOAD_FIXES_COMPLETE_REPORT_2025-09-10.md`](./reports/CI_AND_PHOTO_UPLOAD_FIXES_COMPLETE_REPORT_2025-09-10.md) - 🎉 **COMPLETE** - All CI and photo upload issues resolved
 - [`TEST_ORGANIZATION.md`](./testing/TEST_ORGANIZATION.md) - Testing strategy and organization
 - [`TESTING_ORGANIZATION_2025-09-07.md`](./testing/TESTING_ORGANIZATION_2025-09-07.md) - ⭐ **NEW** - Complete testing structure guide
 - [`PYTEST_WORKFLOW_2025-09-07.md`](./testing/PYTEST_WORKFLOW_2025-09-07.md) - ⭐ **NEW** - PyTest configuration and commands

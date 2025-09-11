@@ -120,8 +120,8 @@ def test_conflict_behavior():
             'external_code': 'TEST_STATUS',
             'guest_name': 'John Smith',  # Same guest
             'property_name': 'Test Property',
-            'start_date': timezone.now(),
-            'end_date': timezone.now() + timezone.timedelta(days=2),
+            'start_date': timezone.now().date() + timezone.timedelta(days=1),  # Same dates as existing booking
+            'end_date': timezone.now().date() + timezone.timedelta(days=3),    # Same dates as existing booking
             'external_status': 'Checking out today',  # Different status
             'source': 'Airbnb'
         }
