@@ -45,10 +45,11 @@
             </a>
             {% endif %}
             
-            <!-- Header Dark Mode Toggle (always visible) -->
-            <button id="theme-toggle-header" style="background: rgba(255,255,255,0.15); color: white; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); cursor: pointer; display: flex; align-items: center; justify-content: center;" aria-label="Toggle theme" title="Toggle light/dark mode">
-                🌓
-            </button>
+            <!-- Manager Dashboard button (header) -->
+            <a href="/manager/" style="background: rgba(255,255,255,0.15); color: white; padding: 10px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 1.1rem;">👔</span>
+                <span>Manager</span>
+            </a>
 
             <!-- Menu Button -->
             <button id="menu-toggle" style="background: rgba(255,255,255,0.15); color: white; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); cursor: pointer; display: flex; align-items: center; justify-content: center;" aria-label="Toggle menu" title="Open quick menu">
@@ -338,7 +339,6 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const root = document.documentElement;
         const btn = document.getElementById('theme-toggle');
-        const headerBtn = document.getElementById('theme-toggle-header');
         const STORAGE_KEY = 'aristay_theme';
         const applyTheme = (t) => {
             root.setAttribute('data-theme', t);
@@ -351,7 +351,6 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem(STORAGE_KEY, next);
         };
         if (btn) btn.addEventListener('click', toggle);
-        if (headerBtn) headerBtn.addEventListener('click', toggle);
     } catch (e) {
         console.warn('Theme toggle fallback failed:', e);
     }
