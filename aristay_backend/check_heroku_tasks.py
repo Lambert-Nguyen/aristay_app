@@ -37,12 +37,23 @@ def check_current_tasks():
 def create_demo_checklist_templates():
     print("\n=== CREATING DEMO CHECKLIST TEMPLATES ===")
     
+    # Get or create a demo user for created_by
+    user, _ = User.objects.get_or_create(
+        username='demo_user',
+        defaults={
+            'email': 'demo@aristay.com',
+            'first_name': 'Demo',
+            'last_name': 'User'
+        }
+    )
+    
     # Cleaning Checklist Template
     cleaning_template, created = ChecklistTemplate.objects.get_or_create(
         name="Standard Cleaning Checklist",
         task_type="cleaning",
         defaults={
-            'description': 'Comprehensive cleaning checklist for property maintenance'
+            'description': 'Comprehensive cleaning checklist for property maintenance',
+            'created_by': user
         }
     )
     
@@ -81,7 +92,8 @@ def create_demo_checklist_templates():
         name="Property Maintenance Checklist",
         task_type="maintenance",
         defaults={
-            'description': 'Comprehensive maintenance checklist for property upkeep'
+            'description': 'Comprehensive maintenance checklist for property upkeep',
+            'created_by': user
         }
     )
     
@@ -121,7 +133,8 @@ def create_demo_checklist_templates():
         name="Laundry Management Checklist",
         task_type="laundry",
         defaults={
-            'description': 'Comprehensive laundry checklist for linen management'
+            'description': 'Comprehensive laundry checklist for linen management',
+            'created_by': user
         }
     )
     
