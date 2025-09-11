@@ -3,6 +3,8 @@ from django.utils import timezone
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
+from django.urls import reverse
+from django.conf import settings
 from .services.notification_service import NotificationService
 from .models import (
     NotificationVerb, Booking, BookingImportTemplate, BookingImportLog,
@@ -39,7 +41,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
@@ -361,6 +362,7 @@ def portal_property_list(request):
         })
     return render(request, 'portal/property_list.html', {
         'properties': property_cards,
+        'user': request.user,  # Add user to context
     })
 
 
@@ -384,6 +386,7 @@ def portal_property_detail(request, pk):
     return render(request, 'portal/property_detail.html', {
         'property': prop,
         'groups': groups,
+        'user': request.user,  # Add user to context
     })
 
 
@@ -430,6 +433,7 @@ def portal_booking_detail(request, property_id, pk):
         'all_statuses': [s for s, _ in Task.STATUS_CHOICES],
         'active_status': status or '',
         'active_type': ttype or '',
+        'user': request.user,  # Add user to context
         'search_q': q or '',
         'page': page,
         'has_next': end < total,
@@ -471,6 +475,7 @@ def portal_task_detail(request, task_id):
         'checklist': checklist,
         'responses_by_room': responses_by_room,
         'can_edit': can_edit,
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'portal/task_detail.html', context)
@@ -498,17 +503,44 @@ class TaskImageCreateView(DefaultAuthMixin, generics.CreateAPIView):
         if not can_edit_task(self.request.user, task):
             raise DRFPermissionDenied("You can't add images to this task.")
         
-        # 2) save the new TaskImage with uploaded_by tracking
-        image = serializer.save(task=task, uploaded_by=self.request.user)
+        # 2) Auto-assign sequence number for the photo type
+        photo_type = serializer.validated_data.get('photo_type', 'general')
+        existing_photos = TaskImage.objects.filter(task=task, photo_type=photo_type)
+        next_sequence = existing_photos.count() + 1
         
-        # 3) update task history
+        # 3) save the new TaskImage with uploaded_by tracking and auto-assigned sequence
+        image = serializer.save(
+            task=task, 
+            uploaded_by=self.request.user,
+            sequence_number=next_sequence
+        )
+        
+        # 4) update task history
         history = json.loads(task.history or '[]')
         history.append(f"{timezone.now().isoformat()}: {self.request.user.username} added photo {image.image.url}")
         Task.objects.filter(pk=task.pk).update(history=json.dumps(history))
         
-        # 4) notify stakeholders
+        # 5) notify stakeholders
         NotificationService.notify_task_photo(task, added=True, actor=self.request.user)
 
+
+class TaskImageListView(DefaultAuthMixin, generics.ListAPIView):
+    """
+    GET /api/tasks/{task_pk}/images/
+    List all images for a specific task
+    """
+    serializer_class = TaskImageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        task_pk = self.kwargs['task_pk']
+        task = generics.get_object_or_404(Task, pk=task_pk)
+        
+        # Check if user has permission to view this task
+        if not can_edit_task(self.request.user, task):
+            raise DRFPermissionDenied("You can't view images for this task.")
+        
+        return TaskImage.objects.filter(task_id=task_pk).select_related('task', 'uploaded_by')
 
 class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveDestroyAPIView):
     """
@@ -1351,7 +1383,6 @@ def system_logs_viewer(request):
         raise DjangoPermissionDenied("Log viewer is only available to superusers.")
     
     import os
-    from django.conf import settings
     
     log_dir = os.path.join(settings.BASE_DIR, 'logs')
     log_file = request.GET.get('file', 'debug.log')
@@ -1417,6 +1448,73 @@ def system_logs_viewer(request):
     return render(request, 'admin/system_logs.html', context)
 
 
+@login_required
+def system_logs_download(request):
+    """
+    Download log files for superusers
+    Supports downloading filtered logs with search and level filters
+    """
+    # Only allow superusers to download logs
+    if not request.user.is_superuser:
+        return HttpResponse("Log download is only available to superusers.", status=403)
+    
+    import os
+    from django.http import HttpResponse
+    
+    log_dir = os.path.join(settings.BASE_DIR, 'logs')
+    log_file = request.GET.get('file', 'debug.log')
+    search = request.GET.get('search', '')
+    level = request.GET.get('level', '')
+    
+    try:
+        # Get available log files
+        available_files = []
+        if os.path.exists(log_dir):
+            available_files = [f for f in os.listdir(log_dir) if f.endswith('.log')]
+        
+        # Validate log file
+        if log_file not in available_files:
+            return HttpResponse(f"Log file '{log_file}' not found or not accessible.", status=404)
+        
+        # Read and filter log file
+        log_path = os.path.join(log_dir, log_file)
+        with open(log_path, 'r') as f:
+            all_lines = f.readlines()
+            
+            # Apply filters
+            filtered_lines = all_lines
+            
+            if search:
+                filtered_lines = [line for line in filtered_lines if search.lower() in line.lower()]
+            
+            if level:
+                filtered_lines = [line for line in filtered_lines if level.upper() in line]
+            
+            # Join filtered lines
+            log_content = ''.join(filtered_lines)
+        
+        # Create filename with timestamp and filters
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        filename_parts = [log_file.replace('.log', ''), timestamp]
+        
+        if search:
+            filename_parts.append(f'search_{search[:20]}')
+        if level:
+            filename_parts.append(f'level_{level.lower()}')
+        
+        filename = f"{'_'.join(filename_parts)}.log"
+        
+        # Create response
+        response = HttpResponse(log_content, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Length'] = len(log_content.encode('utf-8'))
+        
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f"Error downloading log file: {str(e)}", status=500)
+
+
 def _extract_log_level(log_line):
     """Extract log level from a log line for color coding"""
     log_line_upper = log_line.upper()
@@ -1445,7 +1543,6 @@ def system_crash_recovery(request):
     
     import os
     import subprocess
-    from django.conf import settings
     
     recovery_info = {
         'system_status': 'operational',
@@ -2027,7 +2124,6 @@ def enhanced_excel_import_view(request):
                         f"{result['auto_updated']} bookings auto-updated."
                     )
                     
-                    from django.urls import reverse
                     conflict_review_url = reverse('conflict-review', args=[result['import_session_id']])
                     return redirect(conflict_review_url)
                 else:
@@ -2100,7 +2196,6 @@ def enhanced_excel_import_api(request):
         
         # Add conflict resolution URL if conflicts detected
         if result.get('requires_review') and result.get('import_session_id'):
-            from django.urls import reverse
             result['conflict_review_url'] = reverse('conflict-review', args=[result['import_session_id']])
         
         return JsonResponse(result)
@@ -2741,3 +2836,82 @@ def custom_exception_handler(exc, context):
         })
 
     return response
+
+
+# ============================================================================
+# PHOTO MANAGEMENT UI VIEWS
+# ============================================================================
+
+@login_required
+@staff_or_perm('view_task')
+def photo_upload_view(request):
+    """Photo upload interface for staff"""
+    # Get tasks that the user can access
+    if request.user.is_superuser:
+        tasks = Task.objects.filter(is_deleted=False).select_related('property_ref')
+    else:
+        # Get tasks for properties the user has access to
+        accessible_properties = Property.objects.filter(
+            Q(propertyownership__user=request.user) | 
+            Q(assigned_to=request.user)
+        ).distinct()
+        tasks = Task.objects.filter(
+            property_ref__in=accessible_properties,
+            is_deleted=False
+        ).select_related('property_ref')
+    
+    # Get pre-selected task from URL parameter
+    selected_task_id = request.GET.get('task')
+    selected_task = None
+    if selected_task_id:
+        try:
+            selected_task = Task.objects.get(id=selected_task_id, is_deleted=False)
+            # Verify user has access to this task
+            if not request.user.is_superuser:
+                accessible_properties = Property.objects.filter(
+                    Q(propertyownership__user=request.user) | 
+                    Q(assigned_to=request.user)
+                ).distinct()
+                if selected_task.property_ref not in accessible_properties:
+                    selected_task = None
+        except Task.DoesNotExist:
+            selected_task = None
+    
+    context = {
+        'tasks': tasks,
+        'selected_task': selected_task,
+        'user': request.user,
+    }
+    return render(request, 'photo_upload.html', context)
+
+
+@login_required
+@staff_or_perm('view_task')
+def photo_management_view(request):
+    """Photo management dashboard for staff"""
+    context = {
+        'user': request.user,
+    }
+    return render(request, 'photo_management.html', context)
+
+
+@login_required
+@staff_or_perm('view_task')
+def photo_comparison_view(request, task_id):
+    """Before/after photo comparison view for a specific task"""
+    task = get_object_or_404(Task, id=task_id, is_deleted=False)
+    
+    # Check if user has access to this task
+    if not request.user.is_superuser:
+        accessible_properties = Property.objects.filter(
+            Q(propertyownership__user=request.user) | 
+            Q(assigned_to=request.user)
+        ).distinct()
+        if task.property_ref not in accessible_properties:
+            raise PermissionDenied("You don't have permission to view this task's photos.")
+    
+    context = {
+        'task': task,
+        'user': request.user,
+    }
+    return render(request, 'photo_comparison.html', context)

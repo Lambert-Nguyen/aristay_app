@@ -41,20 +41,20 @@
                     <div id="notificationsList">
                         {% for notification in user_notifications %}
                         <div class="notification-item" data-id="{{ notification.id }}" 
-                             style="padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; {% if not notification.is_read %}background: #f0f9ff; border-color: #0ea5e9;{% else %}background: #f8fafc;{% endif %}">
+                             style="padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e2e8f0; {% if not notification.read %}background: #f0f9ff; border-color: #0ea5e9;{% else %}background: #f8fafc;{% endif %}">
                             
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                                 <div style="flex: 1;">
                                     <!-- Notification Icon and Status -->
                                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                        {% if not notification.is_read %}
+                                        {% if not notification.read %}
                                             <div style="width: 8px; height: 8px; background: #0ea5e9; border-radius: 50%;"></div>
                                         {% endif %}
                                         <span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase;">
                                             {{ notification.verb.name }}
                                         </span>
                                         <span style="color: #64748b; font-size: 12px;">
-                                            {{ notification.created_at|timesince }} ago
+                                            {{ notification.timestamp|timesince }} ago
                                         </span>
                                     </div>
                                     
@@ -73,7 +73,7 @@
                                 
                                 <!-- Action Buttons -->
                                 <div style="display: flex; flex-direction: column; gap: 6px;">
-                                    {% if not notification.is_read %}
+                                    {% if not notification.read %}
                                     <button onclick="markAsRead({{ notification.id }})" 
                                             style="padding: 4px 8px; font-size: 11px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">
                                         Mark Read

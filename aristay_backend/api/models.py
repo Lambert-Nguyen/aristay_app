@@ -173,7 +173,7 @@ class Booking(SoftDeleteMixin, models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=Q(check_in_date__lt=F('check_out_date')),
+                condition=Q(check_in_date__lt=F('check_out_date')),
                 name='booking_checkin_before_checkout'
             ),
             models.UniqueConstraint(
@@ -521,10 +521,62 @@ def validate_task_image(file):
 
 
 class TaskImage(models.Model):
+    # Photo type choices for before/after functionality
+    PHOTO_TYPE_CHOICES = [
+        ('before', 'Before'),
+        ('after', 'After'),
+        ('during', 'During'),
+        ('reference', 'Reference'),
+        ('damage', 'Damage'),
+        ('general', 'General'),
+    ]
+    
+    # Photo status choices for approval workflow
+    PHOTO_STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('archived', 'Archived'),
+    ]
+    
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    
+    # NEW: Before/After photo categorization
+    photo_type = models.CharField(
+        max_length=20,
+        choices=PHOTO_TYPE_CHOICES,
+        default='general',
+        help_text="Type of photo for before/after comparison"
+    )
+    
+    # NEW: Photo status for approval workflow
+    photo_status = models.CharField(
+        max_length=20,
+        choices=PHOTO_STATUS_CHOICES,
+        default='pending',
+        help_text="Approval status of the photo"
+    )
+    
+    # NEW: Photo grouping and ordering
+    sequence_number = models.PositiveIntegerField(
+        default=1,
+        help_text="Order within the same photo_type group"
+    )
+    
+    # NEW: Primary photo designation
+    is_primary = models.BooleanField(
+        default=False,
+        help_text="Primary photo for this type (e.g., main 'before' photo)"
+    )
+    
+    # NEW: Detailed description
+    description = models.TextField(
+        blank=True,
+        help_text="Detailed description of what the photo shows"
+    )
     
     # Agent's recommended metadata fields for optimized images
     size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Optimized file size in bytes")
@@ -532,8 +584,45 @@ class TaskImage(models.Model):
     height = models.PositiveIntegerField(null=True, blank=True, help_text="Image height in pixels")
     original_size_bytes = models.PositiveIntegerField(null=True, blank=True, help_text="Original upload size before optimization")
 
+    class Meta:
+        ordering = ['task', 'photo_type', 'sequence_number', 'uploaded_at']
+        unique_together = ['task', 'photo_type', 'sequence_number']
+        indexes = [
+            models.Index(fields=['task', 'photo_type']),
+            models.Index(fields=['photo_status']),
+            models.Index(fields=['uploaded_at']),
+        ]
+
     def __str__(self):
-        return f"Image for {self.task.title}"
+        return f"{self.get_photo_type_display()} image for {self.task.title} (#{self.sequence_number})"
+    
+    def clean(self):
+        """Validate photo constraints"""
+        from django.core.exceptions import ValidationError
+        
+        # Ensure only one primary photo per type per task
+        if self.is_primary and self.pk:
+            existing_primary = TaskImage.objects.filter(
+                task=self.task,
+                photo_type=self.photo_type,
+                is_primary=True
+            ).exclude(pk=self.pk)
+            if existing_primary.exists():
+                raise ValidationError(f"Only one primary photo allowed per type per task. Found existing primary {self.photo_type} photo.")
+    
+    def save(self, *args, **kwargs):
+        """Auto-set primary photo if none exists for this type"""
+        if not self.pk:  # New instance
+            # If this is the first photo of this type for this task, make it primary
+            existing_photos = TaskImage.objects.filter(
+                task=self.task,
+                photo_type=self.photo_type
+            )
+            if not existing_photos.exists():
+                self.is_primary = True
+        
+        self.clean()
+        super().save(*args, **kwargs)
     
 class UserRole(models.TextChoices):
     """
@@ -543,6 +632,18 @@ class UserRole(models.TextChoices):
     MANAGER     = 'manager',     'Manager'       # Manages staff and properties
     SUPERUSER   = 'superuser',   'Superuser'     # Full system admin access
     VIEWER      = 'viewer',      'Viewer'        # Read-only access
+
+
+class TaskGroup(models.TextChoices):
+    """
+    Task groups for staff assignment and dashboard permissions
+    """
+    CLEANING    = 'cleaning',    'Cleaning'      # Housekeeping, room cleaning, turnover
+    MAINTENANCE = 'maintenance', 'Maintenance'   # Repairs, HVAC, plumbing, electrical
+    LAUNDRY     = 'laundry',     'Laundry'       # Linens, towels, bedding
+    LAWN_POOL   = 'lawn_pool',   'Lawn/Pool'     # Landscaping, pool maintenance, outdoor
+    GENERAL     = 'general',     'General'       # Multi-purpose, flexible assignments
+    NONE        = 'none',        'Not Assigned'  # No specific task group
 
 
 class DepartmentGroups:
@@ -617,6 +718,14 @@ class Profile(models.Model):
         help_text="App role separate from Django is_staff/is_superuser."
     )
     
+    # Task group assignment for staff/crew
+    task_group = models.CharField(
+        max_length=16,
+        choices=TaskGroup.choices,
+        default=TaskGroup.NONE,
+        help_text="Primary task group for staff assignment and dashboard permissions"
+    )
+    
     # Team visibility controls
     can_view_team_tasks = models.BooleanField(
         default=True,
@@ -629,6 +738,65 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} profile"
+    
+    def get_task_group_display(self):
+        """Get human-readable task group name"""
+        return dict(TaskGroup.choices).get(self.task_group, 'Not Assigned')
+    
+    def is_in_task_group(self, task_group):
+        """Check if user is assigned to a specific task group"""
+        # Handle both string and TaskGroup enum inputs
+        if hasattr(task_group, 'value'):
+            task_group_value = task_group.value
+        else:
+            task_group_value = task_group
+        return self.task_group == task_group_value
+    
+    def can_view_task_group(self, task_group):
+        """Check if user can view tasks for a specific task group"""
+        # Handle both string and TaskGroup enum inputs
+        if hasattr(task_group, 'value'):
+            task_group_value = task_group.value
+        else:
+            task_group_value = task_group
+            
+        # Superusers and managers can view all task groups
+        if self.role in [UserRole.SUPERUSER, UserRole.MANAGER]:
+            return True
+        
+        # Staff can view their own task group and general tasks
+        if self.role == UserRole.STAFF:
+            return self.task_group == task_group_value or task_group_value == TaskGroup.GENERAL.value
+        
+        # Viewers have limited access - can only view if they have permission
+        if self.role == UserRole.VIEWER:
+            return self.can_view_other_teams
+        
+        return False
+    
+    def get_accessible_task_groups(self):
+        """Get list of task groups this user can access"""
+        if self.role in [UserRole.SUPERUSER, UserRole.MANAGER]:
+            # Managers and superusers can access all task groups except NONE
+            return [TaskGroup(choice[0]) for choice in TaskGroup.choices if choice[0] != TaskGroup.NONE.value]
+        
+        if self.role == UserRole.STAFF:
+            # Staff can access their own task group plus GENERAL (if not already GENERAL)
+            # Exception: if task group is NONE, only allow GENERAL
+            if self.task_group == TaskGroup.NONE.value:
+                return [TaskGroup.GENERAL]
+            
+            groups = [TaskGroup(self.task_group)]
+            if self.task_group != TaskGroup.GENERAL.value:
+                groups.append(TaskGroup.GENERAL)
+            return groups
+        
+        if self.role == UserRole.VIEWER and self.can_view_other_teams:
+            # Viewers with cross-team permission can access all task groups except NONE
+            return [TaskGroup(choice[0]) for choice in TaskGroup.choices if choice[0] != TaskGroup.NONE.value]
+        
+        # Viewers without cross-team permission get empty list
+        return []
     
     def get_departments(self):
         """Get list of departments (groups) this user belongs to"""
@@ -931,24 +1099,23 @@ class UserPermissionOverride(models.Model):
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_and_sync_user_profile(sender, instance, created, **kwargs):
     """Create profile for new users and sync superuser role."""
-    if created:
-        # Set default role based on Django user flags - decouple is_staff from manager role
-        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
-        Profile.objects.create(user=instance, role=default_role)
-    else:
-        # For existing users, ensure profile exists and sync superuser role
-        # Use proper defaults to avoid overwriting existing roles
-        default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
-        profile, created_profile = Profile.objects.get_or_create(
-            user=instance,
-            defaults={'role': default_role}
-        )
-        
-        # Only auto-sync superuser role - do NOT sync is_staff to manager
-        # This keeps Django admin permissions separate from business roles
-        if instance.is_superuser and profile.role != UserRole.SUPERUSER:
-            profile.role = UserRole.SUPERUSER
-            profile.save()
+    # Set default role based on Django user flags - decouple is_staff from manager role
+    default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
+    
+    # Always use get_or_create to prevent duplicate creation
+    profile, profile_created = Profile.objects.get_or_create(
+        user=instance,
+        defaults={
+            'role': default_role,
+            'timezone': 'America/New_York',  # Default timezone
+        }
+    )
+    
+    # Only auto-sync superuser role - do NOT sync is_staff to manager
+    # This keeps Django admin permissions separate from business roles
+    if instance.is_superuser and profile.role != UserRole.SUPERUSER:
+        profile.role = UserRole.SUPERUSER
+        profile.save()
     # REMOVED: is_staff -> manager auto-conversion for clean separation
 
 class Device(models.Model):

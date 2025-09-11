@@ -83,6 +83,16 @@
                         🔍 Report Lost & Found
                     </button>
                 </div>
+                
+                <!-- Photo Management Actions -->
+                <div class="photo-actions">
+                    <a href="/api/staff/photos/upload/?task={{ task.id }}" class="btn-action photo-upload">
+                        📸 Upload Photos
+                    </a>
+                    <a href="/api/staff/photos/comparison/{{ task.id }}/" class="btn-action photo-comparison">
+                        🔍 View Before/After
+                    </a>
+                </div>
 
                 <!-- Task Timer -->
                 <div class="task-timer" id="taskTimer">
@@ -1700,6 +1710,15 @@ window.updateChecklistItem = updateChecklistItem;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
+}
+
+.photo-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .btn-action {

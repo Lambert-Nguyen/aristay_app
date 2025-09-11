@@ -536,6 +536,42 @@ Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe
 Chart.defaults.font.size = 13;
 Chart.defaults.color = '#4a5568';
 
+// Empty data handling
+function hasData(data) {
+    return data && data.length > 0 && data.some(value => value > 0);
+}
+
+function createEmptyChart(canvasId, message) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['No Data'],
+            datasets: [{
+                data: [1],
+                backgroundColor: ['#e2e8f0'],
+                borderColor: '#cbd5e0',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+                title: {
+                    display: true,
+                    text: message,
+                    font: { size: 16, weight: '600' },
+                    color: '#64748b'
+                }
+            }
+        }
+    });
+    return chart;
+}
+
 // Modern Color Palette
 const modernColors = {
     primary: '#667eea',

@@ -52,9 +52,9 @@ def main():
     print("="*80)
     
     tests = [
-        ("Production Hardening", "../tests/production/test_production_hardening.py"),
-        ("Phase 6 Integration", "../tests/integration/test_final_phases.py"),
-        ("Production Readiness", "../tests/integration/verify_production_readiness.py"),
+        ("Production Hardening", "../tests/production/test_production_readiness.py"),
+        ("Phase 6 Integration", "../tests/integration/test_final_validation.py"),
+        ("Production Readiness", "../tests/integration/verify_production_readiness_new.py"),
     ]
     
     passed = 0

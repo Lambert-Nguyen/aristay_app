@@ -112,6 +112,7 @@ def staff_dashboard(request):
         'task_counts': task_counts,
         'recent_tasks': recent_tasks,
         'accessible_properties': accessible_properties,
+        'user': request.user,  # Add user to context
     }
     
     logger.info(f"Staff dashboard rendered successfully for user: {request.user.username}")
@@ -157,6 +158,7 @@ def cleaning_dashboard(request):
         'upcoming_tasks': upcoming_tasks,
         'tasks_with_progress': tasks_with_progress,
         'total_assigned': team_tasks.count(),
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/cleaning_dashboard.html', context)
@@ -196,6 +198,7 @@ def maintenance_dashboard(request):
         'low_stock_items': low_stock_items,
         'recent_transactions': recent_transactions,
         'total_assigned': team_tasks.count(),
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/maintenance_dashboard.html', context)
@@ -224,6 +227,7 @@ def laundry_dashboard(request):
         'processing_tasks': processing_tasks,
         'linen_items': linen_items,
         'total_assigned': team_tasks.count(),
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/laundry_dashboard.html', context)
@@ -255,6 +259,7 @@ def lawn_pool_dashboard(request):
         'tasks_by_property': tasks_by_property,
         'pool_items': pool_items,
         'total_assigned': team_tasks.count(),
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/lawn_pool_dashboard.html', context)
@@ -302,6 +307,7 @@ def task_detail(request, task_id):
         'checklist': checklist,
         'responses_by_room': responses_by_room,
         'can_edit': can_edit_task(request.user, task),
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/task_detail.html', context)
@@ -443,6 +449,7 @@ def my_tasks(request):
         'search': search,
         'status_choices': Task.STATUS_CHOICES,
         'type_choices': TASK_TYPE_CHOICES,
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/my_tasks.html', context)
@@ -498,6 +505,7 @@ def inventory_lookup(request):
         'inventory_by_category': inventory_by_category,
         'properties': properties,
         'selected_property': property_filter,
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/inventory_lookup.html', context)
@@ -606,6 +614,7 @@ def lost_found_list(request):
         'items': items,
         'status_filter': status_filter,
         'status_choices': LostFoundItem.STATUS_CHOICES,
+        'user': request.user,  # Add user to context
     }
     
     return render(request, 'staff/lost_found_list.html', context)
@@ -666,17 +675,21 @@ def remove_checklist_photo(request):
             return JsonResponse({'error': 'Permission denied'}, status=403)
 
         # Find and delete the photo
-        photo = get_object_or_404(
-            ChecklistPhoto,
-            response=response,
-            image__endswith=photo_url.split('/')[-1]
-        )
-        
-        # Delete the file
-        photo.image.delete(save=False)
-        photo.delete()
+        try:
+            photo = ChecklistPhoto.objects.get(
+                response=response,
+                image__endswith=photo_url.split('/')[-1]
+            )
+            
+            # Delete the file
+            photo.image.delete(save=False)
+            photo.delete()
 
-        return JsonResponse({'success': True})
+            return JsonResponse({'success': True})
+            
+        except ChecklistPhoto.DoesNotExist:
+            logger.warning(f"ChecklistPhoto not found for response {item_id} with photo_url {photo_url}")
+            return JsonResponse({'error': 'Photo not found'}, status=404)
 
     except Exception as e:
         logger.error(f"Error removing checklist photo: {str(e)}")

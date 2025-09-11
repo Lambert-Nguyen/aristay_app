@@ -349,8 +349,8 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     - Cannot modify is_staff/is_superuser
     - Can trigger password reset emails
     """
-    list_display = ('username', 'email', 'get_profile_role', 'get_departments', 'is_active', 'is_staff', 'date_joined')
-    list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
+    list_display = ('username', 'email', 'get_profile_role', 'get_task_group', 'get_departments', 'is_active', 'is_staff', 'date_joined')
+    list_filter = ('is_active', 'is_staff', 'groups', 'profile__role', 'profile__task_group')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     # Don't exclude password - let Django handle it properly
     filter_horizontal = ('groups',)  # Allow editing groups/departments
@@ -503,6 +503,15 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         except:
             return 'Staff'
     get_profile_role.short_description = 'Role'
+    
+    def get_task_group(self, obj):
+        """Display user's task group"""
+        try:
+            return obj.profile.get_task_group_display()
+        except:
+            return 'Not Assigned'
+    get_task_group.short_description = 'Task Group'
+    get_task_group.admin_order_field = 'profile__task_group'
 
     def has_delete_permission(self, request, obj=None):
         """Managers cannot delete users"""

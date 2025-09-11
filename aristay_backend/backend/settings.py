@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import socket
 from pathlib import Path
 import os
+import dj_database_url
 
 # Production logging configuration
 from backend.logging_config import setup_logging
@@ -116,6 +117,7 @@ else:
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware near top
     "axes.middleware.AxesMiddleware",  # before AuthenticationMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -131,6 +133,7 @@ MIDDLEWARE = [
     "backend.middleware.TimezoneMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "backend.memory_middleware.MemoryManagementMiddleware",  # Memory management
     # Production logging and monitoring middleware
     "backend.middleware.RequestLoggingMiddleware",
     "backend.middleware.ErrorLoggingMiddleware", 
@@ -219,12 +222,24 @@ SWAGGER_UI_SETTINGS = {
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": {}
 }
 
+# Prefer DATABASE_URL if present (Heroku/Prod/CI)
+_db_url = os.getenv("DATABASE_URL")
+if _db_url:
+    DATABASES["default"] = dj_database_url.parse(_db_url, conn_max_age=60, ssl_require=True)
+else:
+    # Default to PostgreSQL for local development
+    DATABASES["default"] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "aristay"),
+        "USER": os.getenv("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
+        "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
+        "PORT": int(os.getenv("POSTGRES_PORT", "5432")),
+        "CONN_MAX_AGE": 60,
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -298,15 +313,44 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 FRONTEND_URL = "http://localhost:3000"
 
 # ============================================================================
+# MEMORY MANAGEMENT CONFIGURATION
+# ============================================================================
+# Optimize memory usage for Heroku dynos
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+
+# Database connection management
+DATABASES['default'].update({
+    'CONN_MAX_AGE': 60,  # Close connections after 60 seconds
+})
+
+# Cache configuration for better memory management
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,  # Limit cache entries
+            'CULL_FREQUENCY': 3,  # Remove 1/3 of entries when max reached
+        }
+    }
+}
+
+# ============================================================================
 # EMAIL CONFIGURATION (single source of truth)
 # ============================================================================
 # Use console backend in development to print emails instead of sending
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    # In production, use console backend if no SMTP credentials are provided
+    # This prevents connection refused errors when SMTP is not configured
+    if os.getenv('EMAIL_HOST_USER') and os.getenv('EMAIL_HOST_PASSWORD'):
+        EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    else:
+        EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost' if DEBUG else 'smtp.example.com')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost' if DEBUG else 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '1025' if DEBUG else '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false' if DEBUG else 'true').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
@@ -411,28 +455,19 @@ if not DEBUG:
         if origin.strip()
     ]
     
+    # Static files via WhiteNoise (hashed manifest)
+    STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
     # Database connection pooling for production
     DATABASES['default']['CONN_MAX_AGE'] = 60
-    DATABASES['default']['OPTIONS'] = {
-        'MAX_CONNS': int(os.getenv('DB_MAX_CONNECTIONS', '20')),
-    }
+    # Do not set unsupported driver-specific DSN options like MAX_CONNS for psycopg2
 
-# --- Guard against SQLite-unsupported database options ---
-engine = DATABASES["default"]["ENGINE"]
-
-if engine == "django.db.backends.sqlite3":
-    # Keep only SQLite-supported options (Django docs mention 'timeout')
+# --- Driver-specific options cleanup (no SQLite default anymore) ---
+engine = DATABASES["default"].get("ENGINE", "")
+if engine.endswith("sqlite3"):
     opts = DATABASES["default"].get("OPTIONS", {}) or {}
-    sqlite_allowed = {"timeout"}
-    DATABASES["default"]["OPTIONS"] = {k: v for k, v in opts.items() if k in sqlite_allowed}
-    
-    # Optional: ensure CONN_MAX_AGE is 0 for SQLite (though it's harmless)
+    DATABASES["default"]["OPTIONS"] = {k: v for k, v in opts.items() if k in {"timeout"}}
     DATABASES["default"]["CONN_MAX_AGE"] = 0
-
-else:
-    # For non-SQLite engines (Postgres, etc.), keep connection tuning
-    # CONN_MAX_AGE and driver-specific options in OPTIONS are preserved
-    pass
 
 # Logging-specific settings
 LOGGING_CONFIG = None  # Disable Django's default logging config
@@ -490,6 +525,8 @@ SIMPLE_JWT = {
 # ============================================================================
 # AXES CONFIGURATION (Login Attempt Monitoring)
 # ============================================================================
+AXES_ENABLED = True
+
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',  # AxesStandaloneBackend should be the first backend
     'django.contrib.auth.backends.ModelBackend',  # Django's default backend

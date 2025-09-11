@@ -2,24 +2,18 @@
 Quick Phase Completion Verification
 Check that all major components are in place
 """
-import sys
-import os
+import pytest
+from api.models import Property, Booking, Task, AutoTaskTemplate, AuditEvent
 
-# Add the aristay_backend directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'aristay_backend'))
 
-# Setup Django environment  
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
-import django
-django.setup()
+@pytest.mark.django_db
+def test_phase_completion_verification():
+    """Verify all major components are in place."""
+    print("🎯 FINAL PHASE COMPLETION CHECK")
+    print("=" * 40)
 
-print("🎯 FINAL PHASE COMPLETION CHECK")
-print("=" * 40)
-
-try:
     # Check 1: Models can be imported
     print("1. Model imports...")
-    from api.models import Property, Booking, Task, AutoTaskTemplate, AuditEvent
     print("   ✅ All models imported successfully")
     
     # Check 2: Soft delete fields exist  
@@ -29,6 +23,7 @@ try:
         model_fields = [f.name for f in model._meta.fields]
         has_all_fields = all(field in model_fields for field in soft_delete_fields)
         print(f"   ✅ {model.__name__} has soft delete: {has_all_fields}")
+        assert has_all_fields, f"{model.__name__} missing soft delete fields"
     
     # Check 3: Task template system
     print("3. Task template system...")
@@ -36,11 +31,13 @@ try:
     template_model_fields = [f.name for f in AutoTaskTemplate._meta.fields]
     has_template_fields = all(field in template_model_fields for field in template_fields)
     print(f"   ✅ AutoTaskTemplate model complete: {has_template_fields}")
+    assert has_template_fields, "AutoTaskTemplate missing required fields"
     
     # Check 4: Task has template tracking
     task_fields = [f.name for f in Task._meta.fields]
     has_template_tracking = 'created_by_template' in task_fields
     print(f"   ✅ Task template tracking: {has_template_tracking}")
+    assert has_template_tracking, "Task missing template tracking field"
     
     # Check 5: Enhanced import service
     print("4. Enhanced import service...")
@@ -95,9 +92,3 @@ try:
 
 🚀 SYSTEM READY FOR PRODUCTION USE!
 """)
-
-except Exception as e:
-    print(f"❌ ERROR: {e}")
-    import traceback
-    traceback.print_exc()
-    exit(1)
