@@ -808,16 +808,28 @@ def task_counts_api(request):
     logger.info(f"Task counts API accessed by user: {request.user.username}")
     
     try:
-        # Get user's task summary
-        my_tasks = Task.objects.filter(assigned_to=request.user)
-        total_tasks = my_tasks.count()
+        # Scope like staff_dashboard: managers/superusers/team-view see all tasks; others only assigned
+        try:
+            profile = request.user.profile
+            is_manager = getattr(profile, 'role', '') == 'manager'
+            can_view_team = bool(getattr(profile, 'can_view_team_tasks', False))
+        except Profile.DoesNotExist:
+            is_manager = False
+            can_view_team = False
+
+        if request.user.is_superuser or is_manager or can_view_team:
+            scoped_tasks = Task.objects.all()
+        else:
+            scoped_tasks = Task.objects.filter(assigned_to=request.user)
+
+        total_tasks = scoped_tasks.count()
         
         task_counts = {
             'total': total_tasks,
-            'pending': my_tasks.filter(status='pending').count(),
-            'in-progress': my_tasks.filter(status='in-progress').count(),
-            'completed': my_tasks.filter(status='completed').count(),
-            'overdue': my_tasks.filter(
+            'pending': scoped_tasks.filter(status='pending').count(),
+            'in-progress': scoped_tasks.filter(status='in-progress').count(),
+            'completed': scoped_tasks.filter(status='completed').count(),
+            'overdue': scoped_tasks.filter(
                 status__in=['pending', 'in-progress'],
                 due_date__lt=timezone.now()
             ).count()
