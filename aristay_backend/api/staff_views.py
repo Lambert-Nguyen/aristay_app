@@ -83,15 +83,28 @@ def staff_dashboard(request):
         user_role = 'staff'
         logger.warning(f"User {request.user.username} has no profile, defaulting to staff role")
     
-    # Get user's task summary
-    my_tasks = Task.objects.filter(assigned_to=request.user)
-    total_tasks = my_tasks.count()
+    # Determine scope: managers and superusers see all tasks; staff see only assigned
+    try:
+        profile = request.user.profile
+        is_manager = getattr(profile, 'role', '') == 'manager'
+        can_view_team = getattr(profile, 'can_view_team_tasks', True)
+    except Profile.DoesNotExist:
+        is_manager = True
+        can_view_team = True
+
+    if request.user.is_superuser or is_manager or can_view_team:
+        scoped_tasks = Task.objects.all()
+    else:
+        scoped_tasks = Task.objects.filter(assigned_to=request.user)
+
+    # Get user's task summary (scoped)
+    total_tasks = scoped_tasks.count()
     
     task_counts = {
-        'pending': my_tasks.filter(status='pending').count(),
-        'in-progress': my_tasks.filter(status='in-progress').count(),
-        'completed': my_tasks.filter(status='completed').count(),
-        'overdue': my_tasks.filter(
+        'pending': scoped_tasks.filter(status='pending').count(),
+        'in-progress': scoped_tasks.filter(status='in-progress').count(),
+        'completed': scoped_tasks.filter(status='completed').count(),
+        'overdue': scoped_tasks.filter(
             status__in=['pending', 'in-progress'],
             due_date__lt=timezone.now()
         ).count()
@@ -100,7 +113,7 @@ def staff_dashboard(request):
     logger.debug(f"User {request.user.username} has {total_tasks} total tasks: {task_counts}")
     
     # Get recent tasks
-    recent_tasks = my_tasks.select_related('property_ref', 'booking').order_by('-created_at')[:5]
+    recent_tasks = scoped_tasks.select_related('property_ref', 'booking').order_by('-created_at')[:5]
     
     # Get properties user has access to using centralized authorization
     from .authz import AuthzHelper
@@ -414,9 +427,21 @@ def update_checklist_item(request, item_id):
 def my_tasks(request):
     """List of all tasks assigned to current user."""
     
-    tasks = Task.objects.filter(
-        assigned_to=request.user
-    ).select_related('property_ref', 'booking').order_by('-due_date')
+    # Managers and superusers see all tasks; others see only assigned
+    try:
+        profile = request.user.profile
+        is_manager = getattr(profile, 'role', '') == 'manager'
+        can_view_team = getattr(profile, 'can_view_team_tasks', True)
+    except Profile.DoesNotExist:
+        is_manager = True
+        can_view_team = True
+
+    if request.user.is_superuser or is_manager or can_view_team:
+        tasks = Task.objects.all()
+    else:
+        tasks = Task.objects.filter(assigned_to=request.user)
+
+    tasks = tasks.select_related('property_ref', 'booking').order_by('-due_date')
     
     # Filter by status if provided
     status_filter = request.GET.get('status')
