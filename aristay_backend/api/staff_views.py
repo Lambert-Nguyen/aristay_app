@@ -294,13 +294,36 @@ def task_detail(request, task_id):
         messages.error(request, "You don't have permission to view this task.")
         return redirect('/api/staff/')
     
-    # Get or create checklist
+    # Get or lazily create checklist from an active template matching task type
     try:
         checklist = task.checklist
         responses = checklist.responses.select_related('item').prefetch_related('photos')
-    except:
+    except Exception:
         checklist = None
         responses = []
+
+    if checklist is None:
+        from django.db import transaction
+        from .models import ChecklistTemplate, TaskChecklist, ChecklistItem, ChecklistResponse
+
+        # Prefer an active template matching the task type
+        template = (
+            ChecklistTemplate.objects.filter(is_active=True, task_type=task.task_type)
+            .order_by('-created_at')
+            .first()
+        )
+
+        if template:
+            # Create checklist and backfill responses atomically
+            with transaction.atomic():
+                checklist = TaskChecklist.objects.create(task=task, template=template)
+                items = ChecklistItem.objects.filter(template=template)
+                responses_to_create = [
+                    ChecklistResponse(task_checklist=checklist, item=item)
+                    for item in items
+                ]
+                ChecklistResponse.objects.bulk_create(responses_to_create, ignore_conflicts=True)
+                responses = checklist.responses.select_related('item').prefetch_related('photos')
     
     # Group responses by room type for better organization
     responses_by_room = {}
