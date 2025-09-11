@@ -214,6 +214,11 @@ class TaskSerializer(serializers.ModelSerializer):
     assigned_to_username    = serializers.CharField(source='assigned_to.username',  read_only=True)
     modified_by_username    = serializers.CharField(source='modified_by.username',  read_only=True)
     images = TaskImageSerializer(many=True, read_only=True)
+
+    # Checklist summary (read-only) so clients can show steps/progress
+    checklist_id = serializers.SerializerMethodField(read_only=True)
+    checklist_template = serializers.SerializerMethodField(read_only=True)
+    checklist_progress = serializers.SerializerMethodField(read_only=True)
     
     # NEW: “is_muted” for **current** user (read-only)
     is_muted = serializers.SerializerMethodField(read_only=True)
@@ -252,6 +257,9 @@ class TaskSerializer(serializers.ModelSerializer):
           'modified_at',
           'due_date',
           'images',
+          'checklist_id',
+          'checklist_template',
+          'checklist_progress',
           'history',
           'is_muted',
           'depends_on',
@@ -343,6 +351,39 @@ class TaskSerializer(serializers.ModelSerializer):
             return json.loads(obj.history or '[]')
         except json.JSONDecodeError:
             return []
+
+    # -------------------- Checklist Helpers --------------------
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_checklist_id(self, obj):
+        try:
+            return obj.checklist.id
+        except Exception:
+            return None
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_checklist_template(self, obj):
+        try:
+            return obj.checklist.template.name
+        except Exception:
+            return None
+
+    @extend_schema_field(serializers.DictField())
+    def get_checklist_progress(self, obj):
+        try:
+            cl = obj.checklist
+            return {
+                'percentage': cl.completion_percentage,
+                'completed': cl.completed_items,
+                'total': cl.total_items,
+                'is_completed': cl.is_completed,
+            }
+        except Exception:
+            return {
+                'percentage': 0,
+                'completed': 0,
+                'total': 0,
+                'is_completed': False,
+            }
 
     def _append_history(self, instance, user, changes):
         existing = self.get_history(instance)
