@@ -1,1 +1,7 @@
 aristay_backend/media/
+
+# Build artifacts
+__pycache__/
+*.pyc
+logs/*.log
+scripts/

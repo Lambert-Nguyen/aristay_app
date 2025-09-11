@@ -59,3 +59,8 @@ aristay_backend/firebase_credentials.json
 aristay_backend/logs/
 *.log
 *.log.*
+# Build artifacts
+__pycache__/
+*.pyc
+logs/*.log
+scripts/
