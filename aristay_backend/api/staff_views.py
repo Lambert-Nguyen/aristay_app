@@ -319,7 +319,7 @@ def task_detail(request, task_id):
                 checklist = TaskChecklist.objects.create(task=task, template=template)
                 items = ChecklistItem.objects.filter(template=template)
                 responses_to_create = [
-                    ChecklistResponse(task_checklist=checklist, item=item)
+                    ChecklistResponse(checklist=checklist, item=item)
                     for item in items
                 ]
                 ChecklistResponse.objects.bulk_create(responses_to_create, ignore_conflicts=True)
