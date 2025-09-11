@@ -1420,7 +1420,9 @@ function updateProgressOverview() {
     fetch(`/api/staff/tasks/${taskId}/progress/`)
         .then(response => response.json())
         .then(data => {
-            updateProgressUI(data);
+            // Accept flat fields or nested 'progress'
+            const payload = typeof data.percentage !== 'undefined' ? data : (data.progress || {percentage:0, completed:0, total:0, remaining:0});
+            updateProgressUI(payload);
         })
         .catch(error => {
             console.error('Error updating progress:', error);
@@ -1433,15 +1435,19 @@ function updateProgressUI(data) {
     const progressFraction = document.querySelector('.progress-fraction');
 
     if (progressFill) {
-        progressFill.style.width = `${data.percentage}%`;
+        const pct = Number.isFinite(data.percentage) ? data.percentage : 0;
+        progressFill.style.width = `${pct}%`;
     }
 
     if (progressPercentage) {
-        progressPercentage.textContent = `${data.percentage}%`;
+        const pct = Number.isFinite(data.percentage) ? data.percentage : 0;
+        progressPercentage.textContent = `${pct}%`;
     }
 
     if (progressFraction) {
-        progressFraction.textContent = `${data.completed}/${data.total} items`;
+        const completed = Number.isFinite(data.completed) ? data.completed : 0;
+        const total = Number.isFinite(data.total) ? data.total : 0;
+        progressFraction.textContent = `${completed}/${total} items`;
     }
 
     // Update detail items
@@ -1449,11 +1455,11 @@ function updateProgressUI(data) {
     const remainingItem = document.querySelector('.detail-value.remaining');
 
     if (completedItem) {
-        completedItem.textContent = data.completed;
+        completedItem.textContent = Number.isFinite(data.completed) ? data.completed : 0;
     }
 
     if (remainingItem) {
-        remainingItem.textContent = data.remaining;
+        remainingItem.textContent = Number.isFinite(data.remaining) ? data.remaining : 0;
     }
 }
 

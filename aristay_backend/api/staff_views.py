@@ -316,14 +316,15 @@ def task_detail(request, task_id):
         if template:
             # Create checklist and backfill responses atomically
             with transaction.atomic():
-                checklist = TaskChecklist.objects.create(task=task, template=template)
                 items = ChecklistItem.objects.filter(template=template)
-                responses_to_create = [
-                    ChecklistResponse(checklist=checklist, item=item)
-                    for item in items
-                ]
-                ChecklistResponse.objects.bulk_create(responses_to_create, ignore_conflicts=True)
-                responses = checklist.responses.select_related('item').prefetch_related('photos')
+                if items.exists():
+                    checklist = TaskChecklist.objects.create(task=task, template=template)
+                    responses_to_create = [
+                        ChecklistResponse(checklist=checklist, item=item)
+                        for item in items
+                    ]
+                    ChecklistResponse.objects.bulk_create(responses_to_create, ignore_conflicts=True)
+                    responses = checklist.responses.select_related('item').prefetch_related('photos')
     
     # Group responses by room type for better organization
     responses_by_room = {}
@@ -810,13 +811,18 @@ def task_progress_api(request, task_id):
             completed_items = 0
             percentage = 0
 
+        # Return flat fields and a nested object for backward compatibility
         return JsonResponse({
             'success': True,
+            'completed': completed_items,
+            'total': total_items,
+            'percentage': percentage,
+            'remaining': total_items - completed_items,
             'progress': {
                 'completed': completed_items,
                 'total': total_items,
                 'percentage': percentage,
-                'remaining': total_items - completed_items
+                'remaining': total_items - completed_items,
             }
         })
 
