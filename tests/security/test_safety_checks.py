@@ -86,8 +86,8 @@ def test_safety_checks():
     Booking.objects.filter(external_code='SAFETY_DATE').delete()
     
     # Ensure previous booking is not considered active for exclusion constraint
-    # Cancel or delete the previous booking to avoid overlap violation on Postgres
-    Booking.objects.filter(external_code='SAFETY_PROP').update(status='cancelled')
+    # Delete the previous booking to avoid overlap violation on Postgres
+    Booking.objects.filter(external_code='SAFETY_PROP').delete()
 
     test_booking = Booking.objects.create(
         external_code='SAFETY_DATE',
