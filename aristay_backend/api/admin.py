@@ -785,6 +785,15 @@ class ProfileInline(admin.StackedInline):
     fk_name = 'user'
     fields = ('role', 'task_group', 'timezone', 'phone_number', 'address', 'can_view_team_tasks', 'can_view_other_teams', 'digest_opt_out')
     
+    def get_queryset(self, request):
+        """Only show existing profiles, don't create new ones"""
+        qs = super().get_queryset(request)
+        return qs
+    
+    def has_add_permission(self, request, obj=None):
+        """Prevent adding new profiles - they're created by signals"""
+        return False
+    
     def formfield_for_choice_field(self, db_field, request, **kwargs):
         if db_field.name == 'role':
             kwargs['help_text'] = 'Select user role: Administration/Cleaning/Maintenance/Laundry/Lawn Pool'

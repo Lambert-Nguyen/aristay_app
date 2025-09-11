@@ -1099,6 +1099,10 @@ class UserPermissionOverride(models.Model):
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_and_sync_user_profile(sender, instance, created, **kwargs):
     """Create profile for new users and sync superuser role."""
+    # Skip if this is a raw save (e.g., from fixtures)
+    if kwargs.get('raw', False):
+        return
+    
     # Set default role based on Django user flags - decouple is_staff from manager role
     default_role = UserRole.SUPERUSER if instance.is_superuser else UserRole.STAFF
     
@@ -1108,6 +1112,9 @@ def create_and_sync_user_profile(sender, instance, created, **kwargs):
         defaults={
             'role': default_role,
             'timezone': 'America/New_York',  # Default timezone
+            'can_view_team_tasks': True,
+            'can_view_other_teams': False,
+            'digest_opt_out': False,
         }
     )
     
