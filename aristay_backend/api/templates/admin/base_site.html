@@ -328,6 +328,27 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.boxShadow = 'none';
         });
     });
+    
+    // Fallback: ensure dark mode toggle works in Admin sidebar
+    try {
+        const root = document.documentElement;
+        const btn = document.getElementById('theme-toggle');
+        const STORAGE_KEY = 'aristay_theme';
+        const applyTheme = (t) => {
+            root.setAttribute('data-theme', t);
+        };
+        const current = localStorage.getItem(STORAGE_KEY) || 'light';
+        applyTheme(current);
+        if (btn) {
+            btn.addEventListener('click', function() {
+                const next = (root.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+                applyTheme(next);
+                localStorage.setItem(STORAGE_KEY, next);
+            });
+        }
+    } catch (e) {
+        console.warn('Theme toggle fallback failed:', e);
+    }
 });
 </script>
 
