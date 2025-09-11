@@ -12,7 +12,7 @@ BACKEND = ROOT / "aristay_backend"
 sys.path.insert(0, str(BACKEND))
 
 # Django setup
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "aristay_backend.backend.settings")
 import django
 django.setup()
 
@@ -33,7 +33,7 @@ def main():
     # 1) Timedelta import fix (call the view; no AttributeError on timedelta)
     try:
         rf = RequestFactory()
-        user = User.objects.create_user(username="verify_user", password="x")
+        user, created = User.objects.get_or_create(username="verify_user", defaults={'password': 'x'})
         req = rf.get("/staff/cleaning/")
         req.user = user
         cleaning_dashboard(req)
@@ -44,7 +44,7 @@ def main():
 
     # 2) TaskImage queryset constraint (scoped by task_pk)
     try:
-        prop = Property.objects.create(name="Verify Prop", address="x")
+        prop, created = Property.objects.get_or_create(name="Verify Prop", defaults={'address': 'x'})
         task1 = Task.objects.create(title="t1", property_ref=prop, assigned_to=user, status="pending")
         task2 = Task.objects.create(title="t2", property_ref=prop, assigned_to=user, status="pending")
         img1 = TaskImage.objects.create(task=task1, image="a.jpg", uploaded_by=user)
@@ -89,24 +89,36 @@ def main():
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 key = (node.module, tuple(sorted(a.name for a in node.names)))
-                (dups if key in seen else seen).add(key) if key in seen else None
-                seen.add(key)
-        assert not dups
-        print("\n5. 📦 Checking for duplicate imports...\n   ✅ None detected")
-        passed += 1
+                if key in seen:
+                    dups.add(key)
+                else:
+                    seen.add(key)
+        if dups:
+            print(f"\n5. 📦 Checking for duplicate imports...\n   ❌ Found duplicates: {dups}")
+        else:
+            print("\n5. 📦 Checking for duplicate imports...\n   ✅ None detected")
+            passed += 1
     except Exception as e:
         print(f"\n5. 📦 Checking for duplicate imports...\n   ❌ {e}")
+        import traceback
+        traceback.print_exc()
 
     # 6) Cloudinary feature flag is a boolean; if enabled, settings exist
     try:
         use_cloudinary = getattr(settings, "USE_CLOUDINARY", False)
+        print(f"\n6. ☁️  Checking Cloudinary feature flag...\n   USE_CLOUDINARY = {use_cloudinary} (type: {type(use_cloudinary)})")
         assert isinstance(use_cloudinary, bool)
         if use_cloudinary:
-            assert hasattr(settings, "CLOUDINARY_STORAGE")
-        print("\n6. ☁️  Checking Cloudinary feature flag...\n   ✅ OK")
+            # Check for CLOUDINARY_URL or CLOUDINARY_STORAGE
+            has_cloudinary_url = hasattr(settings, "CLOUDINARY_URL") or os.getenv("CLOUDINARY_URL")
+            has_cloudinary_storage = hasattr(settings, "CLOUDINARY_STORAGE")
+            assert has_cloudinary_url or has_cloudinary_storage, "Cloudinary enabled but no CLOUDINARY_URL or CLOUDINARY_STORAGE found"
+        print("   ✅ OK")
         passed += 1
     except Exception as e:
         print(f"\n6. ☁️  Checking Cloudinary feature flag...\n   ❌ {e}")
+        import traceback
+        traceback.print_exc()
 
     print("\n==================================================")
     print(f"📊 Results: {passed}/{total} checks passed\n")

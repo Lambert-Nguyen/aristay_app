@@ -3,6 +3,8 @@ from django.utils import timezone
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
+from django.urls import reverse
+from django.conf import settings
 from .services.notification_service import NotificationService
 from .models import (
     NotificationVerb, Booking, BookingImportTemplate, BookingImportLog,
@@ -39,7 +41,6 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
@@ -1373,7 +1374,6 @@ def system_logs_viewer(request):
         raise DjangoPermissionDenied("Log viewer is only available to superusers.")
     
     import os
-    from django.conf import settings
     
     log_dir = os.path.join(settings.BASE_DIR, 'logs')
     log_file = request.GET.get('file', 'debug.log')
@@ -1450,9 +1450,7 @@ def system_logs_download(request):
         return HttpResponse("Log download is only available to superusers.", status=403)
     
     import os
-    from django.conf import settings
     from django.http import HttpResponse
-    from django.utils import timezone
     
     log_dir = os.path.join(settings.BASE_DIR, 'logs')
     log_file = request.GET.get('file', 'debug.log')
@@ -1536,7 +1534,6 @@ def system_crash_recovery(request):
     
     import os
     import subprocess
-    from django.conf import settings
     
     recovery_info = {
         'system_status': 'operational',
@@ -2118,7 +2115,6 @@ def enhanced_excel_import_view(request):
                         f"{result['auto_updated']} bookings auto-updated."
                     )
                     
-                    from django.urls import reverse
                     conflict_review_url = reverse('conflict-review', args=[result['import_session_id']])
                     return redirect(conflict_review_url)
                 else:
@@ -2191,7 +2187,6 @@ def enhanced_excel_import_api(request):
         
         # Add conflict resolution URL if conflicts detected
         if result.get('requires_review') and result.get('import_session_id'):
-            from django.urls import reverse
             result['conflict_review_url'] = reverse('conflict-review', args=[result['import_session_id']])
         
         return JsonResponse(result)

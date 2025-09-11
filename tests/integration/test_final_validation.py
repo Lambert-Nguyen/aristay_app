@@ -10,11 +10,11 @@ import sys
 import django
 from datetime import datetime, date
 
-# Add the parent directory to the path to import Django modules
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the aristay_backend directory to the path to import Django modules
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'aristay_backend'))
 
 # Set up Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aristay_backend.backend.settings')
 django.setup()
 
 from api.models import Booking, Property
