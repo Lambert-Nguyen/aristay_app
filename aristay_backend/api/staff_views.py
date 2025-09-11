@@ -297,7 +297,16 @@ def task_detail(request, task_id):
     # Get or lazily create checklist from an active template matching task type
     try:
         checklist = task.checklist
-        responses = checklist.responses.select_related('item').prefetch_related('photos')
+        # If checklist exists but has no responses, backfill from its template
+        if checklist and not checklist.responses.exists():
+            from django.db import transaction
+            from .models import ChecklistItem, ChecklistResponse
+            with transaction.atomic():
+                items = ChecklistItem.objects.filter(template=checklist.template)
+                ChecklistResponse.objects.bulk_create([
+                    ChecklistResponse(checklist=checklist, item=item)
+                for item in items], ignore_conflicts=True)
+        responses = checklist.responses.select_related('item').prefetch_related('photos') if checklist else []
     except Exception:
         checklist = None
         responses = []
