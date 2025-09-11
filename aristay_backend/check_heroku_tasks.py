@@ -62,22 +62,22 @@ def create_demo_checklist_templates():
         
         # Add cleaning checklist items
         cleaning_items = [
-            ("Bathroom Cleaning", "Check items", True, "Clean toilet, sink, mirror, and shower"),
-            ("Bathroom Photos", "Photo required", True, "Take before/after photos of bathroom"),
-            ("Bedroom Cleaning", "Check items", True, "Make bed, vacuum, dust surfaces"),
-            ("Bedroom Photos", "Photo required", True, "Take before/after photos of bedroom"),
-            ("Kitchen Cleaning", "Check items", True, "Clean countertops, sink, and appliances"),
-            ("Kitchen Photos", "Photo required", True, "Take before/after photos of kitchen"),
-            ("Living Room Cleaning", "Check items", True, "Vacuum, dust, organize furniture"),
-            ("Living Room Photos", "Photo required", True, "Take before/after photos of living room"),
-            ("Final Inspection", "Check items", True, "Walk through entire property for quality check"),
-            ("Completion Notes", "Text input", False, "Add any additional notes or issues found")
+            ("Bathroom Cleaning", "check", True, "Clean toilet, sink, mirror, and shower"),
+            ("Bathroom Photos", "photo_required", True, "Take before/after photos of bathroom"),
+            ("Bedroom Cleaning", "check", True, "Make bed, vacuum, dust surfaces"),
+            ("Bedroom Photos", "photo_required", True, "Take before/after photos of bedroom"),
+            ("Kitchen Cleaning", "check", True, "Clean countertops, sink, and appliances"),
+            ("Kitchen Photos", "photo_required", True, "Take before/after photos of kitchen"),
+            ("Living Room Cleaning", "check", True, "Vacuum, dust, organize furniture"),
+            ("Living Room Photos", "photo_required", True, "Take before/after photos of living room"),
+            ("Final Inspection", "check", True, "Walk through entire property for quality check"),
+            ("Completion Notes", "text_input", False, "Add any additional notes or issues found")
         ]
         
         for item_text, item_type, is_required, description in cleaning_items:
             ChecklistItem.objects.create(
                 template=cleaning_template,
-                text=item_text,
+                title=item_text,
                 item_type=item_type,
                 is_required=is_required,
                 description=description
@@ -102,23 +102,23 @@ def create_demo_checklist_templates():
         
         # Add maintenance checklist items
         maintenance_items = [
-            ("HVAC Check", "Check items", True, "Test heating and cooling systems"),
-            ("HVAC Photos", "Photo required", True, "Take photos of HVAC units and thermostats"),
-            ("Plumbing Check", "Check items", True, "Check faucets, toilets, and water pressure"),
-            ("Plumbing Photos", "Photo required", True, "Take photos of any plumbing issues"),
-            ("Electrical Check", "Check items", True, "Test outlets, switches, and lighting"),
-            ("Electrical Photos", "Photo required", True, "Take photos of electrical panels and outlets"),
-            ("Safety Check", "Check items", True, "Check smoke detectors, locks, and security"),
-            ("Safety Photos", "Photo required", True, "Take photos of safety equipment"),
-            ("Exterior Check", "Check items", True, "Inspect exterior walls, windows, and doors"),
-            ("Exterior Photos", "Photo required", True, "Take photos of exterior condition"),
-            ("Maintenance Notes", "Text input", False, "Document any issues or repairs needed")
+            ("HVAC Check", "check", True, "Test heating and cooling systems"),
+            ("HVAC Photos", "photo_required", True, "Take photos of HVAC units and thermostats"),
+            ("Plumbing Check", "check", True, "Check faucets, toilets, and water pressure"),
+            ("Plumbing Photos", "photo_required", True, "Take photos of any plumbing issues"),
+            ("Electrical Check", "check", True, "Test outlets, switches, and lighting"),
+            ("Electrical Photos", "photo_required", True, "Take photos of electrical panels and outlets"),
+            ("Safety Check", "check", True, "Check smoke detectors, locks, and security"),
+            ("Safety Photos", "photo_required", True, "Take photos of safety equipment"),
+            ("Exterior Check", "check", True, "Inspect exterior walls, windows, and doors"),
+            ("Exterior Photos", "photo_required", True, "Take photos of exterior condition"),
+            ("Maintenance Notes", "text_input", False, "Document any issues or repairs needed")
         ]
         
         for item_text, item_type, is_required, description in maintenance_items:
             ChecklistItem.objects.create(
                 template=maintenance_template,
-                text=item_text,
+                title=item_text,
                 item_type=item_type,
                 is_required=is_required,
                 description=description
@@ -143,23 +143,23 @@ def create_demo_checklist_templates():
         
         # Add laundry checklist items
         laundry_items = [
-            ("Linen Count In", "Number input", True, "Count all linens being collected"),
-            ("Linen Count Photos", "Photo required", True, "Take photos of linens being collected"),
-            ("Quality Inspection", "Check items", True, "Check for stains, tears, or damage"),
-            ("Quality Photos", "Photo required", True, "Take photos of any damaged items"),
-            ("Wash Cycle", "Check items", True, "Complete wash cycle with appropriate settings"),
-            ("Dry Cycle", "Check items", True, "Complete dry cycle and check for proper drying"),
-            ("Folding & Sorting", "Check items", True, "Fold and sort linens by type and size"),
-            ("Folding Photos", "Photo required", True, "Take photos of folded linens"),
-            ("Storage", "Check items", True, "Store linens in appropriate locations"),
-            ("Storage Photos", "Photo required", True, "Take photos of storage areas"),
-            ("Laundry Notes", "Text input", False, "Add any notes about laundry condition or issues")
+            ("Linen Count In", "number_input", True, "Count all linens being collected"),
+            ("Linen Count Photos", "photo_required", True, "Take photos of linens being collected"),
+            ("Quality Inspection", "check", True, "Check for stains, tears, or damage"),
+            ("Quality Photos", "photo_required", True, "Take photos of any damaged items"),
+            ("Wash Cycle", "check", True, "Complete wash cycle with appropriate settings"),
+            ("Dry Cycle", "check", True, "Complete dry cycle and check for proper drying"),
+            ("Folding & Sorting", "check", True, "Fold and sort linens by type and size"),
+            ("Folding Photos", "photo_required", True, "Take photos of folded linens"),
+            ("Storage", "check", True, "Store linens in appropriate locations"),
+            ("Storage Photos", "photo_required", True, "Take photos of storage areas"),
+            ("Laundry Notes", "text_input", False, "Add any notes about laundry condition or issues")
         ]
         
         for item_text, item_type, is_required, description in laundry_items:
             ChecklistItem.objects.create(
                 template=laundry_template,
-                text=item_text,
+                title=item_text,
                 item_type=item_type,
                 is_required=is_required,
                 description=description
