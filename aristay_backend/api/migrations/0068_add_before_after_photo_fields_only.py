@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0066_booking_booking_no_overlap_active"),
+        ("api", "0064_add_task_group_to_profile"),
     ]
 
     operations = [
