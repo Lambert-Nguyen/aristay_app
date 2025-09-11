@@ -25,6 +25,8 @@ jobs:
       SECRET_KEY: dummy
       DEBUG: '0'
       CI: 'true'
+      DATABASE_URL: 'sqlite:///./test.db'
+      TESTING: 'true'
     steps:
       - uses: actions/checkout@v4
 

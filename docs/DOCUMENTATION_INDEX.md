@@ -53,6 +53,7 @@ This is the central documentation hub for the Aristay project. All documentation
 - [`FINAL_TEST_REORGANIZATION_STATUS_REPORT_2025-09-10.md`](./reports/FINAL_TEST_REORGANIZATION_STATUS_REPORT_2025-09-10.md) - ⭐ **NEW** - Complete status report with 4/8 test suites passing
 - [`FINAL_TEST_FIXES_COMPLETE_REPORT_2025-09-10.md`](./reports/FINAL_TEST_FIXES_COMPLETE_REPORT_2025-09-10.md) - ⭐ **NEW** - Final comprehensive report with 2/8 test suites fully passing
 - [`FINAL_FUNCTIONALITY_VERIFICATION_REPORT_2025-09-10.md`](./reports/FINAL_FUNCTIONALITY_VERIFICATION_REPORT_2025-09-10.md) - ⭐ **NEW** - Complete functionality verification with 100% test success rate
+- [`CI_WORKFLOW_FIX_COMPLETE_REPORT_2025-09-10.md`](./reports/CI_WORKFLOW_FIX_COMPLETE_REPORT_2025-09-10.md) - ⭐ **NEW** - CI workflow database connection fix with SQLite
 - [`TEST_ORGANIZATION.md`](./testing/TEST_ORGANIZATION.md) - Testing strategy and organization
 - [`TESTING_ORGANIZATION_2025-09-07.md`](./testing/TESTING_ORGANIZATION_2025-09-07.md) - ⭐ **NEW** - Complete testing structure guide
 - [`PYTEST_WORKFLOW_2025-09-07.md`](./testing/PYTEST_WORKFLOW_2025-09-07.md) - ⭐ **NEW** - PyTest configuration and commands
