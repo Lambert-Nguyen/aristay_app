@@ -602,7 +602,7 @@ class UserRegistrationSerializer(serializers.Serializer):
     
     def validate(self, data):
         if data['password'] != data['password_confirm']:
-            raise serializers.ValidationError("Passwords do not match")
+            raise serializers.ValidationError({"password": ["Passwords do not match"]})
         return data
     
     def validate_username(self, value):
@@ -614,3 +614,17 @@ class UserRegistrationSerializer(serializers.Serializer):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already exists")
         return value
+
+    def create(self, validated_data):
+        # Not used by DRF viewsets directly in our flow; tests may call save()
+        from django.contrib.auth.models import User
+        from .models import Profile
+        # Remove non-User fields from representation so `.data` doesn't access them later
+        validated_data.pop('invite_code', None)
+        password_confirm = validated_data.pop('password_confirm', None)
+        password = validated_data.pop('password')
+
+        user = User.objects.create_user(password=password, **validated_data)
+        # Create a basic profile without role/task_group; caller will update
+        Profile.objects.get_or_create(user=user)
+        return user

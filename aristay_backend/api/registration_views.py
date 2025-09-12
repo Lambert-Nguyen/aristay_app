@@ -87,7 +87,6 @@ def registration_view(request):
                             user=user,
                             role=invite.role,
                             task_group=invite.task_group,
-                            is_active=True
                         )
                         
                         # Mark invite code as used
@@ -172,13 +171,11 @@ def register_user(request):
                     last_name=serializer.validated_data.get('last_name', '')
                 )
                 
-                # Create profile
-                profile = Profile.objects.create(
-                    user=user,
-                    role=invite.role,
-                    task_group=invite.task_group,
-                    is_active=True
-                )
+                # Create or update profile (idempotent for tests)
+                profile, _ = Profile.objects.get_or_create(user=user)
+                profile.role = invite.role
+                profile.task_group = invite.task_group
+                profile.save()
                 
                 # Mark invite code as used
                 invite.use_code(user)

@@ -167,12 +167,10 @@ class TestUserRegistration:
         )
         
         # Create profile with invite code settings
-        profile = Profile.objects.create(
-            user=user,
-            role=invite.role,
-            task_group=invite.task_group,
-            is_active=True
-        )
+        profile, _ = Profile.objects.get_or_create(user=user)
+        profile.role = invite.role
+        profile.task_group = invite.task_group
+        profile.save()
         
         # Mark invite code as used
         invite.use_code(user)
@@ -344,9 +342,12 @@ class TestInviteCodeAdmin:
     
     def test_invite_code_admin_list_display(self, admin_client):
         """Test invite code admin list display"""
-        admin_user = User.objects.create_superuser(
-            username='admin', email='admin@example.com', password='testpass'
+        admin_user, _ = User.objects.get_or_create(
+            username='admin_invites', defaults={'email': 'admin_invites@example.com', 'is_superuser': True, 'is_staff': True}
         )
+        if not admin_user.check_password('testpass'):
+            admin_user.set_password('testpass')
+            admin_user.save()
         invite = InviteCode.objects.create(
             code='ADMIN123',
             created_by=admin_user,
@@ -362,9 +363,12 @@ class TestInviteCodeAdmin:
     
     def test_invite_code_admin_actions(self, admin_client):
         """Test invite code admin actions"""
-        admin_user = User.objects.create_superuser(
-            username='admin', email='admin@example.com', password='testpass'
+        admin_user, _ = User.objects.get_or_create(
+            username='admin_invites2', defaults={'email': 'admin_invites2@example.com', 'is_superuser': True, 'is_staff': True}
         )
+        if not admin_user.check_password('testpass'):
+            admin_user.set_password('testpass')
+            admin_user.save()
         invite1 = InviteCode.objects.create(
             code='ACTIVE123',
             created_by=admin_user,

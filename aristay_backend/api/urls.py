@@ -98,7 +98,9 @@ router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 
 urlpatterns = [
-    path('register/', UserRegistrationView.as_view(), name='user-register'),
+    # Invite-based registration API (web/mobile)
+    path('register/', register_user, name='api-register'),
+    path('validate-invite/', validate_invite_code, name='validate-invite'),
     path('logout/', logout_view, name='api-logout'),
     path('', include(router.urls)),
     
