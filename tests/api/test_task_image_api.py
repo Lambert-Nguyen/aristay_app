@@ -247,9 +247,13 @@ class TaskImageAPITests(APITestCase):
         
         response = self.client.post(
             f'/api/tasks/{self.task.id}/images/create/',
-            {'image': image},
+            {'image': image, 'task': self.task.id},
             format='multipart'
         )
+        
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"Response status: {response.status_code}")
+            print(f"Response data: {response.data}")
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('id', response.data)
@@ -309,6 +313,7 @@ class TaskImageAPITests(APITestCase):
                     f'/api/tasks/{self.task.id}/images/create/',
                     {
                         'image': image,
+                        'task': self.task.id,
                         'photo_type': photo_types[i]  # Use different photo_type for each format
                     },
                     format='multipart'
@@ -326,6 +331,7 @@ class TaskImageAPITests(APITestCase):
             f'/api/tasks/{self.task.id}/images/create/',
             {
                 'image': image,
+                'task': self.task.id,
                 'photo_type': 'general'  # Use 'general' instead of 'reference' to avoid conflicts
             },
             format='multipart'
@@ -340,7 +346,7 @@ class TaskImageAPITests(APITestCase):
         
         response = self.client.post(
             f'/api/tasks/{self.task.id}/images/create/',
-            {'image': image},
+            {'image': image, 'task': self.task.id},
             format='multipart'
         )
         
@@ -387,10 +393,10 @@ class TaskImageSerializerTests(TestCase):
             'uploaded_by': self.user
         }
         
-        serializer = TaskImageSerializer(data={'image': image})
+        serializer = TaskImageSerializer(data={'image': image, 'task': self.task.id})
         self.assertTrue(serializer.is_valid(), f"Serializer errors: {serializer.errors}")
         
-        task_image = serializer.save(task=self.task, uploaded_by=self.user)
+        task_image = serializer.save(uploaded_by=self.user)
         
         # Check that metadata was populated
         self.assertIsNotNone(task_image.size_bytes)
@@ -425,11 +431,11 @@ class TaskImageSerializerTests(TestCase):
         
         image = SimpleUploadedFile('complex.jpg', buffer.getvalue(), content_type='image/jpeg')
         
-        serializer = TaskImageSerializer(data={'image': image})
+        serializer = TaskImageSerializer(data={'image': image, 'task': self.task.id})
         # Optimization should succeed even with complex images (our optimizer is good!)
         self.assertTrue(serializer.is_valid(), f"Serializer errors: {serializer.errors}")
         
-        task_image = serializer.save(task=self.task, uploaded_by=self.user)
+        task_image = serializer.save(uploaded_by=self.user)
         
         # Check that metadata was populated despite complexity
         self.assertIsNotNone(task_image.size_bytes)

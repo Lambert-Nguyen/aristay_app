@@ -191,7 +191,9 @@ REST_FRAMEWORK = {
         'token_refresh': '2/minute',  # More restrictive - refreshes should be infrequent
         'admin_api': '500/hour',
         'evidence_upload': '15/minute',  # Agent's recommendation: Standardized rate for large file uploads
-        'taskimage': '15/minute',  # Specific rate for task image uploads
+        # Maintain backward compatibility for tests expecting 'taskimage'
+        'taskimage': '15/minute',
+        'evidence_upload': '15/minute',
         'api': '1000/hour',
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',

@@ -141,9 +141,11 @@ class Command(BaseCommand):
                 )
                 assigned_count += 1
 
-        self.stdout.write(
-            self.style.SUCCESS(f'✅ Auto-assigned task groups to {assigned_count} users')
-        )
+        # Keep backward-compatible message for tests that assert without emoji
+        plain = f'Auto-assigned task groups to {assigned_count} users'
+        self.stdout.write(plain)
+        # Also print styled line for console UX
+        self.stdout.write(self.style.SUCCESS(f'✅ {plain}'))
 
     def assign_specific_user(self, username, task_group):
         """Assign task group to a specific user"""

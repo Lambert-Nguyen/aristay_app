@@ -127,7 +127,7 @@ class TaskImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskImage
         fields = [
-            'id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
+            'id', 'task', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
             'size_bytes', 'width', 'height', 'original_size_bytes',
             # NEW: Before/After photo fields
             'photo_type', 'photo_type_display', 'photo_status', 'photo_status_display',

@@ -4,7 +4,9 @@ Centralized exception handling middleware for API requests
 """
 import logging
 from django.utils.deprecation import MiddlewareMixin
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,17 @@ class ApiExceptionMiddleware(MiddlewareMixin):
             }
         )
         
-        # Return JSON responses for API paths
+        # Map permission errors to 403 so UI tests expect 403 instead of 500
+        if isinstance(exception, (DjangoPermissionDenied, DRFPermissionDenied)):
+            if request.path.startswith("/api/"):
+                return JsonResponse({
+                    "success": False,
+                    "error": "Forbidden",
+                    "detail": "You don't have permission to perform this action."
+                }, status=403)
+            return HttpResponseForbidden("Forbidden")
+
+        # Return JSON responses for other API path errors
         if request.path.startswith("/api/"):
             return JsonResponse({
                 "success": False,
