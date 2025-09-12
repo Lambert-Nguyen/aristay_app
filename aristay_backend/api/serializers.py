@@ -18,7 +18,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from rest_framework import serializers
 from .models import Task, Property, TaskImage, Profile, Device, Notification, UserRole
-from .models import Booking, PropertyOwnership, AuditEvent  # Agent's Phase 2: Add AuditEvent
+from .models import Booking, PropertyOwnership, AuditEvent, InviteCode  # Agent's Phase 2: Add AuditEvent
 import json
 import pytz
 
@@ -570,3 +570,47 @@ class AuditEventSerializer(serializers.ModelSerializer):
             "user_agent",
             "changes",
         ]
+
+
+class InviteCodeSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    is_usable = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = InviteCode
+        fields = [
+            'id', 'code', 'created_by', 'created_by_username', 'task_group', 'role',
+            'max_uses', 'used_count', 'expires_at', 'is_active', 'is_expired', 'is_usable',
+            'created_at', 'last_used_at', 'notes'
+        ]
+        read_only_fields = ['code', 'created_by', 'used_count', 'created_at', 'last_used_at']
+
+
+class InviteCodeValidationSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=32, help_text="Invite code to validate")
+
+
+class UserRegistrationSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150, min_length=3)
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=8, write_only=True)
+    password_confirm = serializers.CharField(write_only=True)
+    first_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    invite_code = serializers.CharField(max_length=32)
+    
+    def validate(self, data):
+        if data['password'] != data['password_confirm']:
+            raise serializers.ValidationError("Passwords do not match")
+        return data
+    
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists")
+        return value
+    
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email already exists")
+        return value

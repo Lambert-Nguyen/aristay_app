@@ -2,6 +2,10 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .auth_views import logout_view
+from .registration_views import (
+    registration_view, register_user, validate_invite_code,
+    admin_invite_codes, create_invite_code, revoke_invite_code
+)
 
 from .views import (
     AdminUserCreateView,
@@ -238,6 +242,14 @@ urlpatterns = [
     path('checklists/create/', create_checklist_template, name='create_checklist_template'),
     path('checklists/assign/<int:task_id>/', assign_checklist_to_task, name='assign_checklist_to_task'),
     path('checklists/quick-assign/', quick_assign_checklists, name='quick_assign_checklists'),
+    
+    # User Registration endpoints
+    path('register/', registration_view, name='register'),
+    path('api/register/', register_user, name='api-register'),
+    path('api/validate-invite/', validate_invite_code, name='validate-invite'),
+    path('admin/invite-codes/', admin_invite_codes, name='admin-invite-codes'),
+    path('admin/create-invite-code/', create_invite_code, name='create-invite-code'),
+    path('admin/revoke-invite-code/<int:code_id>/', revoke_invite_code, name='revoke-invite-code'),
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),

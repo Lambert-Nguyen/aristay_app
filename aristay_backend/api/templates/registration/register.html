@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Register - AriStay{% endblock %}
+
+{% block extra_css %}
+<style>
+    .registration-container {
+        max-width: 500px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .registration-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .registration-header h1 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+    
+    .registration-header p {
+        color: #7f8c8d;
+        margin: 0;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+    }
+    
+    .form-group input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+    
+    .invite-code-group {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        margin-bottom: 1.5rem;
+    }
+    
+    .invite-code-group label {
+        color: #495057;
+        font-weight: 700;
+    }
+    
+    .invite-code-group input {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        text-align: center;
+    }
+    
+    .btn-register {
+        width: 100%;
+        padding: 0.875rem;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-register:hover {
+        background: linear-gradient(135deg, #2980b9, #1f5f8b);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    }
+    
+    .btn-register:active {
+        transform: translateY(0);
+    }
+    
+    .login-link {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e1e8ed;
+    }
+    
+    .login-link a {
+        color: #3498db;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .login-link a:hover {
+        text-decoration: underline;
+    }
+    
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .password-requirements {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="registration-container">
+    <div class="registration-header">
+        <h1>Join AriStay</h1>
+        <p>Create your account with an invite code</p>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="invite-code-group">
+            <label for="invite_code">Invite Code *</label>
+            <input 
+                type="text" 
+                id="invite_code" 
+                name="invite_code" 
+                value="{{ request.POST.invite_code|default:'' }}"
+                placeholder="Enter your invite code"
+                required
+                maxlength="32"
+            >
+            <div class="password-requirements">
+                Ask your administrator for an invite code to register
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="username">Username *</label>
+            <input 
+                type="text" 
+                id="username" 
+                name="username" 
+                value="{{ request.POST.username|default:'' }}"
+                placeholder="Choose a username"
+                required
+                minlength="3"
+                maxlength="150"
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email Address *</label>
+            <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                value="{{ request.POST.email|default:'' }}"
+                placeholder="your.email@example.com"
+                required
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="first_name">First Name</label>
+            <input 
+                type="text" 
+                id="first_name" 
+                name="first_name" 
+                value="{{ request.POST.first_name|default:'' }}"
+                placeholder="Your first name"
+                maxlength="30"
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="last_name">Last Name</label>
+            <input 
+                type="text" 
+                id="last_name" 
+                name="last_name" 
+                value="{{ request.POST.last_name|default:'' }}"
+                placeholder="Your last name"
+                maxlength="30"
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password *</label>
+            <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                placeholder="Create a strong password"
+                required
+                minlength="8"
+            >
+            <div class="password-requirements">
+                Password must be at least 8 characters long
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="password_confirm">Confirm Password *</label>
+            <input 
+                type="password" 
+                id="password_confirm" 
+                name="password_confirm" 
+                placeholder="Confirm your password"
+                required
+                minlength="8"
+            >
+        </div>
+        
+        <button type="submit" class="btn-register">
+            Create Account
+        </button>
+    </form>
+    
+    <div class="login-link">
+        <p>Already have an account? <a href="{% url 'unified_login' %}">Sign in here</a></p>
+    </div>
+</div>
+
+<script>
+// Auto-format invite code input
+document.getElementById('invite_code').addEventListener('input', function(e) {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+
+// Password confirmation validation
+document.getElementById('password_confirm').addEventListener('input', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = e.target.value;
+    
+    if (confirmPassword && password !== confirmPassword) {
+        e.target.setCustomValidity('Passwords do not match');
+    } else {
+        e.target.setCustomValidity('');
+    }
+});
+
+// Real-time password validation
+document.getElementById('password').addEventListener('input', function(e) {
+    const confirmPassword = document.getElementById('password_confirm');
+    if (confirmPassword.value && e.target.value !== confirmPassword.value) {
+        confirmPassword.setCustomValidity('Passwords do not match');
+    } else {
+        confirmPassword.setCustomValidity('');
+    }
+});
+</script>
+{% endblock %}

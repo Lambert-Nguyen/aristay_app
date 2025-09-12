@@ -1,0 +1,423 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Invite Codes - AriStay Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .invite-codes-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e1e8ed;
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .btn-create {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-create:hover {
+        background: linear-gradient(135deg, #2980b9, #1f5f8b);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    }
+    
+    .invite-codes-table {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .table-header {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-bottom: 1px solid #e1e8ed;
+    }
+    
+    .table-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e1e8ed;
+    }
+    
+    .table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .code-cell {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-expired {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .usage-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .usage-bar {
+        flex: 1;
+        height: 8px;
+        background: #e1e8ed;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .usage-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        transition: width 0.3s ease;
+    }
+    
+    .usage-fill.warning {
+        background: linear-gradient(90deg, #ffc107, #fd7e14);
+    }
+    
+    .usage-fill.danger {
+        background: linear-gradient(90deg, #dc3545, #e83e8c);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-action {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .btn-revoke {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-revoke:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+    }
+    
+    .btn-copy {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-copy:hover {
+        background: #5a6268;
+        transform: translateY(-1px);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h3 {
+        margin-bottom: 0.5rem;
+        color: #495057;
+    }
+    
+    .empty-state p {
+        margin-bottom: 1.5rem;
+    }
+    
+    .filters {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .filter-row {
+        display: flex;
+        gap: 1rem;
+        align-items: end;
+    }
+    
+    .filter-group {
+        flex: 1;
+    }
+    
+    .filter-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+    
+    .filter-group select:focus,
+    .filter-group input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+    
+    .btn-filter {
+        background: #17a2b8;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-filter:hover {
+        background: #138496;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invite-codes-container">
+    <div class="page-header">
+        <h1 class="page-title">Invite Codes</h1>
+        <a href="/admin/create-invite-code/" class="btn-create">
+            ➕ Create New Invite Code
+        </a>
+    </div>
+    
+    <div class="filters">
+        <form method="get" class="filter-row">
+            <div class="filter-group">
+                <label for="role">Role</label>
+                <select name="role" id="role">
+                    <option value="">All Roles</option>
+                    <option value="member" {% if request.GET.role == 'member' %}selected{% endif %}>Member</option>
+                    <option value="manager" {% if request.GET.role == 'manager' %}selected{% endif %}>Manager</option>
+                    <option value="admin" {% if request.GET.role == 'admin' %}selected{% endif %}>Admin</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="task_group">Task Group</label>
+                <select name="task_group" id="task_group">
+                    <option value="">All Groups</option>
+                    <option value="general" {% if request.GET.task_group == 'general' %}selected{% endif %}>General</option>
+                    <option value="cleaning" {% if request.GET.task_group == 'cleaning' %}selected{% endif %}>Cleaning</option>
+                    <option value="maintenance" {% if request.GET.task_group == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                    <option value="laundry" {% if request.GET.task_group == 'laundry' %}selected{% endif %}>Laundry</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="status">Status</label>
+                <select name="status" id="status">
+                    <option value="">All Status</option>
+                    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="expired" {% if request.GET.status == 'expired' %}selected{% endif %}>Expired</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button type="submit" class="btn-filter">Filter</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="invite-codes-table">
+        <div class="table-header">
+            <h2 class="table-title">All Invite Codes ({{ invite_codes|length }})</h2>
+        </div>
+        
+        {% if invite_codes %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Created By</th>
+                        <th>Role</th>
+                        <th>Task Group</th>
+                        <th>Usage</th>
+                        <th>Status</th>
+                        <th>Expires</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for code in invite_codes %}
+                        <tr>
+                            <td class="code-cell">{{ code.code }}</td>
+                            <td>{{ code.created_by.username }}</td>
+                            <td>
+                                <span class="status-badge status-{{ code.role }}">
+                                    {{ code.get_role_display }}
+                                </span>
+                            </td>
+                            <td>{{ code.get_task_group_display }}</td>
+                            <td>
+                                <div class="usage-indicator">
+                                    <span>{{ code.used_count }}/{{ code.max_uses|default:"∞" }}</span>
+                                    <div class="usage-bar">
+                                        {% if code.max_uses > 0 %}
+                                            {% widthratio code.used_count code.max_uses 100 as usage_percent %}
+                                            <div class="usage-fill {% if usage_percent >= 100 %}danger{% elif usage_percent >= 80 %}warning{% endif %}" 
+                                                 style="width: {{ usage_percent }}%"></div>
+                                        {% else %}
+                                            <div class="usage-fill" style="width: 0%"></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if code.is_expired %}
+                                    <span class="status-badge status-expired">Expired</span>
+                                {% elif code.is_active %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% else %}
+                                    <span class="status-badge status-inactive">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if code.expires_at %}
+                                    {{ code.expires_at|date:"M d, Y" }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </td>
+                            <td>{{ code.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn-action btn-copy" onclick="copyCode('{{ code.code }}')">
+                                        📋 Copy
+                                    </button>
+                                    {% if code.is_active %}
+                                        <a href="/admin/revoke-invite-code/{{ code.id }}/" 
+                                           class="btn-action btn-revoke"
+                                           onclick="return confirm('Are you sure you want to revoke this invite code?')">
+                                            🚫 Revoke
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🔑</div>
+                <h3>No Invite Codes Found</h3>
+                <p>Create your first invite code to start inviting users to your system.</p>
+                <a href="/admin/create-invite-code/" class="btn-create">
+                    Create Invite Code
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function copyCode(code) {
+    navigator.clipboard.writeText(code).then(function() {
+        // Show success feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✅ Copied!';
+        button.style.background = '#28a745';
+        
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.style.background = '#6c757d';
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy code. Please copy manually: ' + code);
+    });
+}
+</script>
+{% endblock %}

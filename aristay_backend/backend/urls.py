@@ -20,6 +20,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from api.managersite import manager_site
+from api.registration_views import registration_view
 from api.auth_views import UnifiedLoginView, logout_view
 
 # JWT Authentication imports
@@ -93,6 +94,9 @@ urlpatterns = [
     path('login/', UnifiedLoginView.as_view(), name='unified_login'),
     path('logout/', logout_view, name='unified_logout'),
     path('', UnifiedLoginView.as_view(), name='home'),  # Root URL redirects to login
+    
+    # User registration (HTML form)
+    path('register/', registration_view, name='register'),
     
     # Password reset endpoints - using custom views with audit logging
     path('api/auth/password_reset/', 

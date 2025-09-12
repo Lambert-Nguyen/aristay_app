@@ -128,9 +128,9 @@ class UnifiedLoginView(LoginView):
         """
         context = super().get_context_data(**kwargs)
         context.update({
-            'site_title': 'AriStay Login',
-            'site_header': 'AriStay Administration',
-            'site_description': 'Access your admin or manager dashboard',
+            'site_title': 'AriStay Management',
+            'site_header': 'AriStay Management',
+            'site_description': 'Access your management dashboards',
         })
         return context
 

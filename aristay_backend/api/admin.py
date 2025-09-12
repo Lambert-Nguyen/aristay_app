@@ -20,7 +20,7 @@ from .models import (
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
     BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride,
-    AuditEvent, AutoTaskTemplate  # Agent's Phase 2: Add audit system and task templates
+    AuditEvent, AutoTaskTemplate, InviteCode  # Agent's Phase 2: Add audit system and task templates
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
@@ -1876,4 +1876,108 @@ class AuditEventAdmin(admin.ModelAdmin):
         return response
     
     export_audit_events.short_description = "Export selected audit events to CSV"
+
+
+@admin.register(InviteCode)
+class InviteCodeAdmin(admin.ModelAdmin):
+    """Admin interface for managing invite codes"""
+    list_display = [
+        'code', 'created_by', 'role', 'task_group', 'is_active', 
+        'is_usable', 'used_count', 'max_uses', 'expires_at', 'created_at'
+    ]
+    list_filter = [
+        'role', 'task_group', 'is_active', 'created_at', 'expires_at'
+    ]
+    search_fields = ['code', 'created_by__username', 'notes']
+    readonly_fields = [
+        'code', 'created_by', 'used_count', 'created_at', 'last_used_at',
+        'is_expired', 'is_usable'
+    ]
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('code', 'created_by', 'role', 'task_group')
+        }),
+        ('Usage Settings', {
+            'fields': ('max_uses', 'used_count', 'used_by')
+        }),
+        ('Expiration', {
+            'fields': ('expires_at', 'is_active', 'is_expired', 'is_usable')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'last_used_at', 'notes'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('created_by')
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Creating new invite code
+            obj.created_by = request.user
+            if not obj.code:
+                # Generate a unique code if not provided
+                import secrets
+                import string
+                alphabet = string.ascii_uppercase + string.digits
+                while True:
+                    code = ''.join(secrets.choice(alphabet) for _ in range(8))
+                    if not InviteCode.objects.filter(code=code).exists():
+                        obj.code = code
+                        break
+        super().save_model(request, obj, form, change)
+    
+    def is_expired(self, obj):
+        return obj.is_expired
+    is_expired.boolean = True
+    is_expired.short_description = 'Expired'
+    
+    def is_usable(self, obj):
+        return obj.is_usable
+    is_usable.boolean = True
+    is_usable.short_description = 'Usable'
+    
+    actions = ['deactivate_codes', 'activate_codes', 'export_codes']
+    
+    def deactivate_codes(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} invite codes deactivated.')
+    deactivate_codes.short_description = "Deactivate selected invite codes"
+    
+    def activate_codes(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} invite codes activated.')
+    activate_codes.short_description = "Activate selected invite codes"
+    
+    def export_codes(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="invite_codes.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Code', 'Created By', 'Role', 'Task Group', 'Max Uses', 
+            'Used Count', 'Is Active', 'Expires At', 'Created At', 'Notes'
+        ])
+        
+        for code in queryset:
+            writer.writerow([
+                code.code,
+                code.created_by.username,
+                code.role,
+                code.task_group,
+                code.max_uses,
+                code.used_count,
+                code.is_active,
+                code.expires_at.isoformat() if code.expires_at else '',
+                code.created_at.isoformat(),
+                code.notes
+            ])
+        
+        return response
+    export_codes.short_description = "Export selected invite codes to CSV"
+
+
 admin.site.register(UserPermissionOverride, UserPermissionOverrideAdmin)

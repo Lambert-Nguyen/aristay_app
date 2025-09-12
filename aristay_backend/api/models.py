@@ -2369,6 +2369,76 @@ from .security_models import UserSession, SecurityEvent, SuspiciousActivity
 
 
 # =============================================================================
+# INVITE CODE SYSTEM
+# =============================================================================
+
+class InviteCode(models.Model):
+    """Admin-generated invite codes for user registration"""
+    code = models.CharField(max_length=32, unique=True, db_index=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_invite_codes')
+    task_group = models.CharField(max_length=50, choices=TaskGroup.choices, default=TaskGroup.GENERAL)
+    role = models.CharField(max_length=20, choices=[
+        ('member', 'Member'),
+        ('manager', 'Manager'),
+        ('admin', 'Admin'),
+    ], default='member')
+    
+    # Usage tracking
+    max_uses = models.PositiveIntegerField(default=1, help_text="Maximum number of times this code can be used (0 = unlimited)")
+    used_count = models.PositiveIntegerField(default=0)
+    used_by = models.ManyToManyField(User, blank=True, related_name='used_invite_codes')
+    
+    # Expiration
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Leave blank for no expiration")
+    is_active = models.BooleanField(default=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, help_text="Optional notes about this invite code")
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.code} ({self.role}/{self.task_group})"
+    
+    @property
+    def is_expired(self):
+        if not self.expires_at:
+            return False
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_usable(self):
+        return (
+            self.is_active and 
+            not self.is_expired and 
+            (self.max_uses == 0 or self.used_count < self.max_uses)
+        )
+    
+    def can_be_used_by(self, user):
+        """Check if a specific user can use this code"""
+        if not self.is_usable:
+            return False
+        if self.max_uses > 0 and self.used_count >= self.max_uses:
+            return False
+        if self.max_uses == 1 and user in self.used_by.all():
+            return False
+        return True
+    
+    def use_code(self, user):
+        """Mark this code as used by a specific user"""
+        if not self.can_be_used_by(user):
+            raise ValueError("Code cannot be used")
+        
+        self.used_count += 1
+        self.used_by.add(user)
+        self.last_used_at = timezone.now()
+        self.save()
+
+
+# =============================================================================
 # SIGNAL RECEIVERS
 # =============================================================================
 
