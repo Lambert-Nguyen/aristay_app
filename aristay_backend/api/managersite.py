@@ -349,8 +349,8 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
     - Cannot modify is_staff/is_superuser
     - Can trigger password reset emails
     """
-    list_display = ('username', 'email', 'get_profile_role', 'get_task_group', 'get_departments', 'is_active', 'is_staff', 'date_joined')
-    list_filter = ('is_active', 'is_staff', 'groups', 'profile__role', 'profile__task_group')
+    list_display = ('username', 'email', 'get_profile_role', 'get_task_group', 'get_departments', 'is_active', 'is_superuser', 'date_joined')
+    list_filter = ('is_active', 'groups', 'profile__role', 'profile__task_group')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     # Don't exclude password - let Django handle it properly
     filter_horizontal = ('groups',)  # Allow editing groups/departments
@@ -366,7 +366,7 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         ('Permissions', {
             'fields': ('is_active', 'groups'),
             'classes': ('collapse',),
-            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
+            'description': 'Note: User role (staff/manager/superuser/viewer) is set in the Profile section below. Django admin access (is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -451,15 +451,15 @@ class UserManagerAdmin(ManagerPermissionMixin, DjangoUserAdmin):
         """Override to handle Profile inline saves"""
         super().save_formset(request, form, formset, change)
         
-        # After saving Profile inline, ensure is_staff is synced correctly
+        # After saving Profile inline, ensure is_superuser is synced correctly
         user = form.instance
         if hasattr(user, 'profile') and user.profile:
-            # Set is_staff based on profile role (for Django admin access)
-            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
-            if user.is_staff != should_have_staff_access:
-                user.is_staff = should_have_staff_access
-                user.save(update_fields=['is_staff'])
-                print(f"✅ Synced is_staff={user.is_staff} for {user.username} (role: {user.profile.role})")
+            # Set is_superuser based on profile role (only for superuser role)
+            should_have_superuser_access = user.profile.role == UserRole.SUPERUSER
+            if user.is_superuser != should_have_superuser_access:
+                user.is_superuser = should_have_superuser_access
+                user.save(update_fields=['is_superuser'])
+                print(f"✅ Synced is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
 
     def send_password_reset(self, request, queryset):
         """Trigger Django's password reset flow for selected users"""

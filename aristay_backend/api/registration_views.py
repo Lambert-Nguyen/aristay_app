@@ -82,12 +82,19 @@ def registration_view(request):
                             last_name=last_name
                         )
                         
-                        # Create profile with invite code settings
-                        profile = Profile.objects.create(
+                        # Get or create profile (signal may have already created it)
+                        profile, created = Profile.objects.get_or_create(
                             user=user,
-                            role=invite.role,
-                            task_group=invite.task_group,
+                            defaults={
+                                'role': invite.role,
+                                'task_group': invite.task_group,
+                            }
                         )
+                        
+                        # Always update with invite code settings (signal may have set defaults)
+                        profile.role = invite.role
+                        profile.task_group = invite.task_group
+                        profile.save()
                         
                         # Mark invite code as used
                         invite.use_code(user)
@@ -96,7 +103,7 @@ def registration_view(request):
                         logger.info(f"User {username} registered with invite code {invite_code}")
                         
                         # Auto-login the user
-                        login(request, user)
+                        login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                         messages.success(request, f'Welcome! You have been registered as a {invite.role}.')
                         return redirect('/api/portal/')
                         
@@ -206,7 +213,7 @@ def register_user(request):
 # Admin views for invite code management
 def admin_invite_codes(request):
     """Admin view to manage invite codes"""
-    if not request.user.is_staff:
+    if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser'])):
         messages.error(request, 'Access denied')
         return redirect('/admin/')
     
@@ -218,7 +225,7 @@ def admin_invite_codes(request):
 
 def create_invite_code(request):
     """Create a new invite code"""
-    if not request.user.is_staff:
+    if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser'])):
         messages.error(request, 'Access denied')
         return redirect('/admin/')
     
@@ -258,7 +265,7 @@ def create_invite_code(request):
 
 def revoke_invite_code(request, code_id):
     """Revoke an invite code"""
-    if not request.user.is_staff:
+    if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser'])):
         messages.error(request, 'Access denied')
         return redirect('/admin/')
     

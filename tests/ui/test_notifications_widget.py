@@ -29,7 +29,7 @@ class NotificationsWidgetTestCase(TestCase):
         )
         
         self.staff_user = User.objects.create_user(
-            'staff', 'staff@test.com', 'password123', is_staff=True
+            'staff', 'staff@test.com', 'password123'
         )
         
         self.regular_user = User.objects.create_user(

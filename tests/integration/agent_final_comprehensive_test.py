@@ -38,7 +38,6 @@ def test_comprehensive_system():
             'email': 'test@aristay.com',
             'first_name': 'Test',
             'last_name': 'Manager',
-            'is_staff': True
         }
     )
     print(f"✓ Test user: {user.username}")

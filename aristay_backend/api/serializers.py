@@ -35,10 +35,10 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        # include email so we can show it, and is_staff for "Admin" flag
+        # include email so we can show it, and profile role for business permissions
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'is_staff', 'is_superuser', 'is_active',   # ← include is_superuser
+            'is_superuser', 'is_active',   # ← keep is_superuser for Django admin access
             'role', 'task_group', 'timezone', 'system_timezone',
         ]
         
@@ -77,11 +77,11 @@ class UserSerializer(serializers.ModelSerializer):
         # 3) update the rest of the User fields (email, etc.)
         return super().update(instance, validated_data)
 
-# Admin can PATCH is_staff / is_active
+# Admin can PATCH is_active (role managed via Profile)
 class AdminUserAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
-        fields = ('id','username','email','first_name','last_name','is_staff','is_active')
+        fields = ('id','username','email','first_name','last_name','is_active')
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -468,11 +468,11 @@ class AdminPasswordResetSerializer(serializers.Serializer):
         
 class AdminUserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    is_staff = serializers.BooleanField(default=False)
+    role = serializers.ChoiceField(choices=UserRole.choices, default=UserRole.STAFF)
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'is_staff')    
+        fields = ('id', 'username', 'email', 'password', 'role')    
     
     def validate_password(self, pw):
         # raise a ValidationError if pw too weak
@@ -481,21 +481,19 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
-        is_staff = validated_data.get('is_staff', False)
+        role = validated_data.pop('role', UserRole.STAFF)
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
         )
-        user.is_staff = is_staff
-        user.save()
 
         profile, _ = Profile.objects.get_or_create(user=user)
         if user.is_superuser:
-            # leave profile.role as-is; serializer will report “owner”
+            # leave profile.role as-is; serializer will report "owner"
             pass
         else:
-            profile.role = UserRole.MANAGER if is_staff else UserRole.STAFF
+            profile.role = role
             profile.save(update_fields=['role'])
         return user
     

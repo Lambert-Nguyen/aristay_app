@@ -31,8 +31,8 @@ class AdminAccessMiddleware(MiddlewareMixin):
                 except:
                     pass
                     
-                # For non-manager staff users trying to access admin
-                if request.user.is_staff:
+                # For non-superuser users trying to access admin
+                if hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'staff', 'viewer']:
                     messages.error(request, 'Access Denied: Only superusers can access the admin area.')
                     return redirect('/api/portal/')
         return None

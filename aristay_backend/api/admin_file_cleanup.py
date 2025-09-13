@@ -30,7 +30,7 @@ class FileCleanupAdminMixin:
     
     def file_cleanup_view(self, request):
         """File cleanup management view"""
-        if not request.user.is_staff:
+        if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser'])):
             raise PermissionDenied
         
         context = {

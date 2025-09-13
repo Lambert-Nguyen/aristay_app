@@ -343,7 +343,7 @@ class TestInviteCodeAdmin:
     def test_invite_code_admin_list_display(self, admin_client):
         """Test invite code admin list display"""
         admin_user, _ = User.objects.get_or_create(
-            username='admin_invites', defaults={'email': 'admin_invites@example.com', 'is_superuser': True, 'is_staff': True}
+            username='admin_invites', defaults={'email': 'admin_invites@example.com', 'is_superuser': True}
         )
         if not admin_user.check_password('testpass'):
             admin_user.set_password('testpass')
@@ -364,7 +364,7 @@ class TestInviteCodeAdmin:
     def test_invite_code_admin_actions(self, admin_client):
         """Test invite code admin actions"""
         admin_user, _ = User.objects.get_or_create(
-            username='admin_invites2', defaults={'email': 'admin_invites2@example.com', 'is_superuser': True, 'is_staff': True}
+            username='admin_invites2', defaults={'email': 'admin_invites2@example.com', 'is_superuser': True}
         )
         if not admin_user.check_password('testpass'):
             admin_user.set_password('testpass')

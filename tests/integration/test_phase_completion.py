@@ -27,7 +27,7 @@ def test_all_phases_complete():
     # Get or create test user
     user, _ = User.objects.get_or_create(
         username='test_user',
-        defaults={'email': 'test@aristay.com', 'is_staff': True}
+        defaults={'email': 'test@aristay.com'}
     )
     print(f"✓ Test user: {user.username}")
     

@@ -237,7 +237,8 @@ class SystemMetrics:
                 'user_metrics': {
                     'total': User.objects.count(),
                     'active': User.objects.filter(is_active=True).count(),
-                    'staff': User.objects.filter(is_staff=True).count(),
+                    'staff': User.objects.filter(profile__role='staff').count(),
+                    'managers': User.objects.filter(profile__role='manager').count(),
                     'superusers': User.objects.filter(is_superuser=True).count(),
                     'logged_in_24h': User.objects.filter(last_login__gte=last_24h).count(),
                     'with_profiles': Profile.objects.count(),

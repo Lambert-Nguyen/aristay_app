@@ -36,7 +36,6 @@ class TestEnhancedExcelImport(TestCase):
             email='test@example.com',
             first_name='Test',
             last_name='User',
-            is_staff=True
         )
         
         # Create test property with unique name (Property model only has name and address)

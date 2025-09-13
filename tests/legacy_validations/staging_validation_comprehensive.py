@@ -50,7 +50,7 @@ class StagingValidation:
         """Create or get test user"""
         user, created = User.objects.get_or_create(
             username='staging_validator',
-            defaults={'email': 'staging@test.com', 'is_staff': True}
+            defaults={'email': 'staging@test.com'}
         )
         if created:
             logger.info("✅ Created staging test user")

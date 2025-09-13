@@ -31,32 +31,34 @@ class TestDataGenerator:
         self.bookings = []
         self.tasks = []
 
-    def _ensure_profile(self, user):
-        Profile.objects.get_or_create(user=user)
+    def _ensure_profile(self, user, role='staff'):
+        profile, created = Profile.objects.get_or_create(user=user)
+        if created or profile.role != role:
+            profile.role = role
+            profile.save(update_fields=['role'])
 
     def create_users(self):
         self.stdout("\nCreating users and profiles...")
         User = get_user_model()
 
         users_def = [
-            {"key": "super", "username": "admin_super", "password": "admin123", "is_superuser": True, "is_staff": True},
-            {"key": "manager", "username": "manager_alice", "password": "manager123", "is_superuser": False, "is_staff": True},
-            {"key": "staff", "username": "staff_bob", "password": "staff123", "is_superuser": False, "is_staff": True},
-            {"key": "crew_charlie", "username": "crew_charlie", "password": "crew123", "is_superuser": False, "is_staff": True},
-            {"key": "crew_diana", "username": "crew_diana", "password": "crew123", "is_superuser": False, "is_staff": True},
-            {"key": "crew_eve", "username": "crew_eve", "password": "crew123", "is_superuser": False, "is_staff": True},
+            {"key": "super", "username": "admin_super", "password": "admin123", "is_superuser": True, "role": "superuser"},
+            {"key": "manager", "username": "manager_alice", "password": "manager123", "is_superuser": False, "role": "manager"},
+            {"key": "staff", "username": "staff_bob", "password": "staff123", "is_superuser": False, "role": "staff"},
+            {"key": "crew_charlie", "username": "crew_charlie", "password": "crew123", "is_superuser": False, "role": "staff"},
+            {"key": "crew_diana", "username": "crew_diana", "password": "crew123", "is_superuser": False, "role": "staff"},
+            {"key": "crew_eve", "username": "crew_eve", "password": "crew123", "is_superuser": False, "role": "staff"},
         ]
 
         for ud in users_def:
             user, _ = User.objects.get_or_create(username=ud["username"], defaults={
                 "is_superuser": ud["is_superuser"],
-                "is_staff": ud["is_staff"],
                 "email": f"{ud['username']}@example.com",
             })
             # Always ensure password is set to known value
             user.set_password(ud["password"])  # nosec - test only
             user.save(update_fields=["password"])
-            self._ensure_profile(user)
+            self._ensure_profile(user, ud["role"])
             self.users[ud["key"]] = user
             self.stdout(f"✅ User ready: {user.username}")
 

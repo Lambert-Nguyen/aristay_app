@@ -2377,11 +2377,7 @@ class InviteCode(models.Model):
     code = models.CharField(max_length=32, unique=True, db_index=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_invite_codes')
     task_group = models.CharField(max_length=50, choices=TaskGroup.choices, default=TaskGroup.GENERAL)
-    role = models.CharField(max_length=20, choices=[
-        ('member', 'Member'),
-        ('manager', 'Manager'),
-        ('admin', 'Admin'),
-    ], default='member')
+    role = models.CharField(max_length=20, choices=UserRole.choices, default=UserRole.STAFF)
     
     # Usage tracking
     max_uses = models.PositiveIntegerField(default=1, help_text="Maximum number of times this code can be used (0 = unlimited)")

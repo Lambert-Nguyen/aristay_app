@@ -679,7 +679,7 @@ body {
         <p><strong>Access Level:</strong> 
             {% if user.is_superuser %}
                 🔴 Superuser (Full System Access)
-            {% elif user.is_staff %}
+            {% elif user.profile.role in 'manager,superuser' %}
                 🟡 Staff Member (Limited Access)
             {% else %}
                 🔵 Regular User

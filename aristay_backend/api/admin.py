@@ -848,7 +848,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             return []
         return super().get_inline_instances(request, obj)
 
-    list_display = ('username', 'email', 'get_task_group', 'is_active', 'is_staff', 'is_superuser', 'password_status', 'last_login', 'date_joined')
+    list_display = ('username', 'email', 'get_task_group', 'is_active', 'get_profile_role', 'is_superuser', 'password_status', 'last_login', 'date_joined')
 
     # Override Django's default fieldsets to avoid field conflicts
     fieldsets = (
@@ -858,7 +858,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
         ('Permissions', {
             'fields': ('is_active', 'groups', 'user_permissions'),
             'classes': ('collapse',),
-            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
+            'description': 'Note: User role (staff/manager/superuser/viewer) is set in the Profile section below. Django admin access (is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -894,6 +894,15 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             return "Not Assigned"
     get_task_group.short_description = "Task Group"
     get_task_group.admin_order_field = 'profile__task_group'
+
+    def get_profile_role(self, obj):
+        """Display profile role in the admin list view"""
+        try:
+            return obj.profile.get_role_display()
+        except Profile.DoesNotExist:
+            return "Not Assigned"
+    get_profile_role.short_description = "Role"
+    get_profile_role.admin_order_field = 'profile__role'
 
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""
@@ -954,28 +963,20 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             print(f"✅ Admin created new user '{obj.username}' - Profile will be created by signal")
             
     def save_formset(self, request, form, formset, change):
-        """Override to handle Profile inline saves and sync is_staff/is_superuser"""
+        """Override to handle Profile inline saves and sync is_superuser"""
         super().save_formset(request, form, formset, change)
         
-        # After saving Profile inline, ensure is_staff/is_superuser are synced correctly
+        # After saving Profile inline, ensure is_superuser is synced correctly
         user = form.instance
         if hasattr(user, 'profile') and user.profile:
             from .models import UserRole
-            # Set is_staff and is_superuser based on profile role
-            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
+            # Set is_superuser based on profile role (only for superuser role)
             should_have_superuser_access = user.profile.role == UserRole.SUPERUSER
             
-            changed = False
-            if user.is_staff != should_have_staff_access:
-                user.is_staff = should_have_staff_access
-                changed = True
             if user.is_superuser != should_have_superuser_access:
                 user.is_superuser = should_have_superuser_access
-                changed = True
-                
-            if changed:
-                user.save(update_fields=['is_staff', 'is_superuser'])
-                print(f"✅ Admin synced is_staff={user.is_staff}, is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
+                user.save(update_fields=['is_superuser'])
+                print(f"✅ Admin synced is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
 
     def get_actions(self, request):
         """Customize actions based on user permissions"""
@@ -1127,7 +1128,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
         """Customize changelist view based on permissions"""
         # For managers, filter out superusers from the list
         if not request.user.is_superuser:
-            self.list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
+            self.list_filter = ('is_active', 'groups', 'profile__role')
             # Override queryset to exclude superusers
             self.queryset = User.objects.exclude(is_superuser=True)
 
@@ -1267,9 +1268,7 @@ class ManagerUserAdmin(AriStayUserAdmin):
         """Customize form for managers"""
         form = super().get_form(request, obj, **kwargs)
 
-        # Managers should not be able to modify is_staff or is_superuser
-        if 'is_staff' in form.fields:
-            form.fields['is_staff'].disabled = True
+        # Managers should not be able to modify is_superuser
         if 'is_superuser' in form.fields:
             form.fields['is_superuser'].disabled = True
 

@@ -23,7 +23,6 @@ class AssignTaskGroupsCommandTestCase(TestCase):
             email='super@test.com',
             password='testpass123',
             is_superuser=True,
-            is_staff=True
         )
         
         self.manager = User.objects.create_user(

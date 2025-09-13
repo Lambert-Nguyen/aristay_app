@@ -20,7 +20,6 @@ class TaskGroupFunctionalityTestCase(TestCase):
             email='super@test.com',
             password='testpass123',
             is_superuser=True,
-            is_staff=True
         )
         self.superuser_profile, _ = Profile.objects.get_or_create(
             user=self.superuser,
