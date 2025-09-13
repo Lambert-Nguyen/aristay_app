@@ -132,7 +132,14 @@ def main():
         use_cloudinary = getattr(settings, "USE_CLOUDINARY", False)
         assert isinstance(use_cloudinary, bool)
         if use_cloudinary:
-            assert hasattr(settings, "CLOUDINARY_STORAGE")
+            # Check for either CLOUDINARY_STORAGE (old) or STORAGES (new) configuration
+            has_cloudinary_config = (
+                hasattr(settings, "CLOUDINARY_STORAGE") or 
+                (hasattr(settings, "STORAGES") and 
+                 "default" in settings.STORAGES and 
+                 "cloudinary_storage" in settings.STORAGES["default"].get("BACKEND", ""))
+            )
+            assert has_cloudinary_config, "Cloudinary enabled but no storage configuration found"
         print("\n6. ☁️  Checking Cloudinary feature flag...\n   ✅ OK")
         passed += 1
     except Exception as e:
