@@ -273,8 +273,8 @@ urlpatterns = [
     path('manager/invite-codes/<int:code_id>/delete/', delete_invite_code, name='manager-delete-invite-code'),
     
     # API endpoints for AJAX operations
-    path('api/invite-codes/create/', create_invite_code_api, name='api-create-invite-code'),
-    path('api/invite-codes/<int:code_id>/revoke/', revoke_invite_code_api, name='api-revoke-invite-code'),
+    path('invite-codes/create/', create_invite_code_api, name='api-create-invite-code'),
+    path('invite-codes/<int:code_id>/revoke/', revoke_invite_code_api, name='api-revoke-invite-code'),
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),
