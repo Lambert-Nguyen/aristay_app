@@ -46,7 +46,13 @@
                     {% endif %}
                     <div class="meta-item">
                         <span class="meta-icon">👤</span>
-                        <span class="meta-text">Assigned to {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</span>
+                        <span class="meta-text">
+                            {% if task.assigned_to %}
+                                Assigned to {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
+                            {% else %}
+                                Not assigned
+                            {% endif %}
+                        </span>
                     </div>
                     {% if task.created_by %}
                     <div class="meta-item">

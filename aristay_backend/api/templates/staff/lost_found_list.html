@@ -62,7 +62,7 @@
                     
                     {% if item.found_by %}
                     <div style="font-size: 0.875rem;">
-                        <strong>Found by:</strong> {{ item.found_by.get_full_name|default:item.found_by.username }}
+                        <strong>Found by:</strong> {% if item.found_by %}{{ item.found_by.get_full_name|default:item.found_by.username }}{% else %}Unknown{% endif %}
                     </div>
                     {% endif %}
                 </div>

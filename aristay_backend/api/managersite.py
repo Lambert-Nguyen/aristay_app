@@ -146,6 +146,13 @@ class ManagerAdminSite(admin.AdminSite):
         urls = super().get_urls()
         custom_urls = [
             path('charts/', self.admin_view(self.charts_view), name='manager_charts'),
+            path('invite-codes/', self.admin_view(self.invite_codes_view), name='manager_invite_codes'),
+            path('create-invite-code/', self.admin_view(self.create_invite_code_view), name='manager_create_invite_code'),
+            path('invite-codes/<int:code_id>/', self.admin_view(self.invite_code_detail_view), name='manager_invite_code_detail'),
+            path('invite-codes/<int:code_id>/edit/', self.admin_view(self.edit_invite_code_view), name='manager_edit_invite_code'),
+            path('invite-codes/<int:code_id>/revoke/', self.admin_view(self.revoke_invite_code_view), name='manager_revoke_invite_code'),
+            path('invite-codes/<int:code_id>/reactivate/', self.admin_view(self.reactivate_invite_code_view), name='manager_reactivate_invite_code'),
+            path('invite-codes/<int:code_id>/delete/', self.admin_view(self.delete_invite_code_view), name='manager_delete_invite_code'),
         ]
         return custom_urls + urls
     
@@ -153,6 +160,41 @@ class ManagerAdminSite(admin.AdminSite):
         """Custom charts dashboard view"""
         from .views import manager_charts_dashboard
         return manager_charts_dashboard(request)
+    
+    def invite_codes_view(self, request):
+        """Invite codes list view"""
+        from .invite_code_views import invite_code_list
+        return invite_code_list(request)
+    
+    def create_invite_code_view(self, request):
+        """Create invite code view"""
+        from .invite_code_views import create_invite_code
+        return create_invite_code(request)
+    
+    def invite_code_detail_view(self, request, code_id):
+        """Invite code detail view"""
+        from .invite_code_views import invite_code_detail
+        return invite_code_detail(request, code_id)
+    
+    def edit_invite_code_view(self, request, code_id):
+        """Edit invite code view"""
+        from .invite_code_views import edit_invite_code
+        return edit_invite_code(request, code_id)
+    
+    def revoke_invite_code_view(self, request, code_id):
+        """Revoke invite code view"""
+        from .invite_code_views import revoke_invite_code
+        return revoke_invite_code(request, code_id)
+    
+    def reactivate_invite_code_view(self, request, code_id):
+        """Reactivate invite code view"""
+        from .invite_code_views import reactivate_invite_code
+        return reactivate_invite_code(request, code_id)
+    
+    def delete_invite_code_view(self, request, code_id):
+        """Delete invite code view"""
+        from .invite_code_views import delete_invite_code
+        return delete_invite_code(request, code_id)
 
 manager_site = ManagerAdminSite(name='manager_admin')
 

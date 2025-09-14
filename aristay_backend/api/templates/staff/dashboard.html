@@ -9,7 +9,7 @@
     <!-- Welcome Card -->
     <div class="card" style="grid-column: 1 / -1;">
         <div class="card-header">
-            👋 Welcome back, {{ user.get_full_name|default:user.username }}!
+            👋 Welcome back, {% if user %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}!
         </div>
         <div class="welcome-content">
             <div style="display: flex; justify-content: space-between; align-items: center;">

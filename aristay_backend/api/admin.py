@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import render
+from django.contrib.admin import AdminSite
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
@@ -1980,3 +1981,28 @@ class InviteCodeAdmin(admin.ModelAdmin):
 
 
 admin.site.register(UserPermissionOverride, UserPermissionOverrideAdmin)
+
+
+# Add invite code URLs to the default admin site
+from django.urls import path
+
+def get_admin_urls():
+    """Get admin URLs including invite code management"""
+    from .invite_code_views import (
+        invite_code_list, create_invite_code, invite_code_detail,
+        edit_invite_code, revoke_invite_code, reactivate_invite_code, delete_invite_code
+    )
+    
+    return [
+        path('invite-codes/', admin.site.admin_view(invite_code_list), name='admin_invite_codes'),
+        path('create-invite-code/', admin.site.admin_view(create_invite_code), name='admin_create_invite_code'),
+        path('invite-codes/<int:code_id>/', admin.site.admin_view(invite_code_detail), name='admin_invite_code_detail'),
+        path('invite-codes/<int:code_id>/edit/', admin.site.admin_view(edit_invite_code), name='admin_edit_invite_code'),
+        path('invite-codes/<int:code_id>/revoke/', admin.site.admin_view(revoke_invite_code), name='admin_revoke_invite_code'),
+        path('invite-codes/<int:code_id>/reactivate/', admin.site.admin_view(reactivate_invite_code), name='admin_reactivate_invite_code'),
+        path('invite-codes/<int:code_id>/delete/', admin.site.admin_view(delete_invite_code), name='admin_delete_invite_code'),
+    ]
+
+# Override admin site URLs to include invite code management
+original_get_urls = admin.site.get_urls
+admin.site.get_urls = lambda: get_admin_urls() + original_get_urls()

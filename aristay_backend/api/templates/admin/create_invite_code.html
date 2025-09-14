@@ -244,7 +244,7 @@
         <h1 class="page-title">Create Invite Code</h1>
         <div class="breadcrumb">
             <a href="/admin/">Admin</a> &gt; 
-            <a href="/admin/invite-codes/">Invite Codes</a> &gt; 
+            <a href="/api/admin/invite-codes/">Invite Codes</a> &gt; 
             Create New
         </div>
     </div>
@@ -269,9 +269,9 @@
                         <label for="role">Role *</label>
                         <select name="role" id="role" required onchange="updateRoleDescription()">
                             <option value="">Select a role</option>
-                            <option value="member" {% if request.POST.role == 'member' %}selected{% endif %}>Member</option>
-                            <option value="manager" {% if request.POST.role == 'manager' %}selected{% endif %}>Manager</option>
-                            <option value="admin" {% if request.POST.role == 'admin' %}selected{% endif %}>Admin</option>
+                            {% for value, label in role_choices %}
+                            <option value="{{ value }}" {% if request.POST.role == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
                         </select>
                         <div class="form-help">The permission level for the invited user</div>
                         <div id="role-description" class="role-description" style="display: none;"></div>
@@ -281,10 +281,9 @@
                         <label for="task_group">Task Group *</label>
                         <select name="task_group" id="task_group" required>
                             <option value="">Select a task group</option>
-                            <option value="general" {% if request.POST.task_group == 'general' %}selected{% endif %}>General</option>
-                            <option value="cleaning" {% if request.POST.task_group == 'cleaning' %}selected{% endif %}>Cleaning</option>
-                            <option value="maintenance" {% if request.POST.task_group == 'maintenance' %}selected{% endif %}>Maintenance</option>
-                            <option value="laundry" {% if request.POST.task_group == 'laundry' %}selected{% endif %}>Laundry</option>
+                            {% for value, label in task_group_choices %}
+                            <option value="{{ value }}" {% if request.POST.task_group == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
                         </select>
                         <div class="form-help">The task group the user will be assigned to</div>
                     </div>
@@ -338,7 +337,7 @@
             </div>
             
             <div class="button-group">
-                <a href="/admin/invite-codes/" class="btn btn-secondary">Cancel</a>
+                <a href="/api/admin/invite-codes/" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Invite Code</button>
             </div>
         </form>
@@ -374,9 +373,10 @@ function updateRoleDescription() {
     const role = roleSelect.value;
     
     const descriptions = {
-        'member': 'Basic user with limited permissions. Can view and update assigned tasks.',
+        'staff': 'Basic user with limited permissions. Can view and update assigned tasks.',
         'manager': 'Can view all tasks, manage team members, and access reporting features.',
-        'admin': 'Full system access including user management, system settings, and all features.'
+        'superuser': 'Full system access including user management, system settings, and all features.',
+        'viewer': 'Read-only access to view information without making changes.'
     };
     
     if (role && descriptions[role]) {

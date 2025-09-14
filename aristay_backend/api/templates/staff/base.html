@@ -660,7 +660,7 @@
                     </svg>
                 </button>
                 <span class="role-badge">{{ user.profile.get_role_display|default:"Staff" }}</span>
-                <span>{{ user.get_full_name|default:user.username }}</span>
+                <span>{% if user %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}</span>
                 <a href="{% url 'unified_logout' %}" class="nav-link">Logout</a>
             </div>
         </div>

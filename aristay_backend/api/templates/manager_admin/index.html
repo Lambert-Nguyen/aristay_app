@@ -905,7 +905,7 @@ body {
                 <span class="action-label">Analytics Dashboard</span>
                 <span class="action-description">View detailed analytics, performance metrics, and business insights</span>
             </a>
-            <a href="{% url 'manager_admin:api_task_changelist' %}" class="action-card">
+            <a href="{% url 'task-list' %}" class="action-card">
                 <span class="action-icon">📋</span>
                 <span class="action-label">Manage Tasks</span>
                 <span class="action-description">Oversee all cleaning and maintenance tasks across properties</span>
@@ -919,6 +919,11 @@ body {
                 <span class="action-icon">👥</span>
                 <span class="action-label">Manage Users</span>
                 <span class="action-description">Handle team members, roles, and access permissions</span>
+            </a>
+            <a href="/manager/invite-codes/" class="action-card">
+                <span class="action-icon">🎫</span>
+                <span class="action-label">Invite Codes</span>
+                <span class="action-description">Create and manage invite codes for user registration</span>
             </a>
             <a href="/api/manager/enhanced-excel-import/" class="action-card">
                 <span class="action-icon">📊</span>

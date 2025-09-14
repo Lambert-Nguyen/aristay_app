@@ -1,0 +1,351 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Edit Invite Code{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .edit-invite-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        color: #333;
+        margin: 0;
+    }
+    
+    .breadcrumb {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .breadcrumb a {
+        color: #007cba;
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    
+    .form-container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        color: #333;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        margin-bottom: 5px;
+        color: #333;
+    }
+    
+    .form-group select,
+    .form-group input,
+    .form-group textarea {
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.3s ease;
+    }
+    
+    .form-group select:focus,
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #007cba;
+        box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.2);
+    }
+    
+    .form-help {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .role-description {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 5px;
+        font-size: 0.9rem;
+        color: #333;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+    }
+    
+    .btn-primary {
+        background-color: #007cba;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #005a87;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #545b62;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .required {
+        color: #dc3545;
+    }
+    
+    .code-display {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #007cba;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .usage-info {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .usage-info h4 {
+        margin: 0 0 10px 0;
+        color: #1976d2;
+    }
+    
+    .usage-info p {
+        margin: 0;
+        color: #424242;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-invite-container">
+    <div class="page-header">
+        <h1 class="page-title">Edit Invite Code</h1>
+        <div class="breadcrumb">
+            {% if is_manager_portal %}
+                <a href="/manager/">Manager Console</a> &gt; 
+                <a href="/manager/invite-codes/">Invite Codes</a> &gt; 
+                Edit {{ invite_code.code }}
+            {% else %}
+                <a href="/admin/">Admin</a> &gt; 
+                <a href="/admin/invite-codes/">Invite Codes</a> &gt; 
+                Edit {{ invite_code.code }}
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="code-display">
+        Code: {{ invite_code.code }}
+    </div>
+    
+    <div class="usage-info">
+        <h4>📊 Usage Information</h4>
+        <p><strong>Used:</strong> {{ invite_code.used_count }} times | <strong>Max Uses:</strong> {{ invite_code.max_uses|default:"∞" }} | <strong>Status:</strong> 
+        {% if invite_code.is_expired %}
+            <span style="color: #f39c12;">Expired</span>
+        {% elif not invite_code.is_active %}
+            <span style="color: #e74c3c;">Inactive</span>
+        {% elif invite_code.is_usable %}
+            <span style="color: #27ae60;">Usable</span>
+        {% else %}
+            <span style="color: #3498db;">Active</span>
+        {% endif %}
+        </p>
+    </div>
+    
+    <div class="form-container">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-section">
+                <h2 class="section-title">Basic Information</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="role">Role <span class="required">*</span></label>
+                        <select name="role" id="role" required onchange="updateRoleDescription()">
+                            <option value="">Select a role</option>
+                            {% for value, label in role_choices %}
+                                <option value="{{ value }}" {% if invite_code.role == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-help">The permission level for the invited user</div>
+                        <div id="role-description" class="role-description" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task_group">Task Group <span class="required">*</span></label>
+                        <select name="task_group" id="task_group" required>
+                            <option value="">Select a task group</option>
+                            {% for value, label in task_group_choices %}
+                                <option value="{{ value }}" {% if invite_code.task_group == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-help">The primary task group for the invited user</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">Usage Settings</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="max_uses">Maximum Uses</label>
+                        <input type="number" name="max_uses" id="max_uses" value="{{ invite_code.max_uses }}" min="1" max="1000">
+                        <div class="form-help">How many times this code can be used (1 = single use, recommended for security)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="expires_days">Expiration (Days)</label>
+                        <input type="number" name="expires_days" id="expires_days" value="{% if invite_code.expires_at %}{{ invite_code.expires_at|timeuntil|slice:":1" }}{% endif %}" min="1" max="365">
+                        <div class="form-help">Leave blank for no expiration (1-365 days)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">Additional Information</h2>
+                
+                <div class="form-group">
+                    <label for="notes">Notes (Optional)</label>
+                    <textarea name="notes" id="notes" rows="3" placeholder="Internal notes about this invite code...">{{ invite_code.notes }}</textarea>
+                    <div class="form-help">Add any notes about the purpose or context of this invite code</div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <a href="{% if is_manager_portal %}/manager/invite-codes/{% else %}/admin/invite-codes/{% endif %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Update Invite Code</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateRoleDescription() {
+    const roleSelect = document.getElementById('role');
+    const descriptionDiv = document.getElementById('role-description');
+    
+    const descriptions = {
+        'staff': 'Staff members can view and manage tasks assigned to them. They have limited access to system features.',
+        'manager': 'Managers can view all tasks, manage team members, and access management features. They have broader system access.',
+        'admin': 'Admins have full system access including user management, system settings, and all administrative features.',
+        'viewer': 'Viewers have read-only access to view tasks and system information without the ability to make changes.'
+    };
+    
+    const selectedRole = roleSelect.value;
+    if (selectedRole && descriptions[selectedRole]) {
+        descriptionDiv.textContent = descriptions[selectedRole];
+        descriptionDiv.style.display = 'block';
+    } else {
+        descriptionDiv.style.display = 'none';
+    }
+}
+
+// Initialize role description on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateRoleDescription();
+});
+</script>
+{% endblock %}
