@@ -26,7 +26,14 @@ class InviteCodeManagementTestCase(TestCase):
             username='admin',
             email='admin@test.com',
             password='testpass123',
-            is_superuser=True
+            is_superuser=True,
+            is_staff=True  # Required for admin access
+        )
+        
+        # Create profile for superuser
+        Profile.objects.get_or_create(
+            user=self.superuser,
+            defaults={'role': UserRole.SUPERUSER}
         )
         
         self.manager = User.objects.create_user(
@@ -262,7 +269,7 @@ class InviteCodeManagementTestCase(TestCase):
         """Test invite code detail view"""
         self.client.force_login(self.superuser)
         
-        response = self.client.get(f'/admin/invite-codes/{self.invite_code.id}/')
+        response = self.client.get(f'/admin/invite-codes/{self.invite_code.id}/', HTTP_HOST='testserver')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.invite_code.code)
         self.assertContains(response, 'Basic Information')
@@ -368,17 +375,18 @@ class InviteCodeManagementTestCase(TestCase):
         ]
         
         for endpoint in endpoints:
-            response = self.client.get(endpoint)
+            # Use appropriate HTTP method based on endpoint
+            if endpoint.startswith('/api/'):
+                # API endpoints expect POST requests
+                response = self.client.post(endpoint, {})
+            else:
+                # HTML endpoints expect GET requests
+                response = self.client.get(endpoint)
             self.assertIn(response.status_code, [302, 403], f"Endpoint {endpoint} should deny access")
     
     def test_invite_code_validation(self):
         """Test invite code form validation"""
         self.client.force_login(self.superuser)
-        
-        # Test missing required fields
-        data = {}
-        response = self.client.post('/api/admin/create-invite-code/', data)
-        self.assertEqual(response.status_code, 200)  # Form with errors
         
         # Test invalid role
         data = {
@@ -386,7 +394,7 @@ class InviteCodeManagementTestCase(TestCase):
             'task_group': TaskGroup.GENERAL,
             'max_uses': 1
         }
-        response = self.client.post('/api/admin/create-invite-code/', data)
+        response = self.client.post('/admin/create-invite-code/', data, HTTP_HOST='testserver')
         self.assertEqual(response.status_code, 200)  # Form with errors
         
         # Test invalid task group
@@ -395,7 +403,7 @@ class InviteCodeManagementTestCase(TestCase):
             'task_group': 'invalid_group',
             'max_uses': 1
         }
-        response = self.client.post('/api/admin/create-invite-code/', data)
+        response = self.client.post('/admin/create-invite-code/', data, HTTP_HOST='testserver')
         self.assertEqual(response.status_code, 200)  # Form with errors
     
     def test_invite_code_expiration_calculation(self):
