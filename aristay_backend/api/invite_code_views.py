@@ -74,7 +74,11 @@ def invite_code_list(request):
     elif status_filter == 'expired':
         invite_codes = invite_codes.filter(expires_at__lt=timezone.now())
     elif status_filter == 'usable':
-        invite_codes = invite_codes.filter(is_active=True, expires_at__gt=timezone.now())
+        invite_codes = invite_codes.filter(
+            is_active=True
+        ).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+        )
     
     if search_query:
         invite_codes = invite_codes.filter(

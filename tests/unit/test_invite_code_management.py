@@ -315,7 +315,8 @@ class InviteCodeManagementTestCase(TestCase):
     
     def test_api_create_invite_code(self):
         """Test API endpoint for creating invite codes"""
-        self.client.force_login(self.superuser)
+        from rest_framework.authtoken.models import Token
+        token, created = Token.objects.get_or_create(user=self.superuser)
         
         data = {
             'role': UserRole.VIEWER,
@@ -325,7 +326,7 @@ class InviteCodeManagementTestCase(TestCase):
             'notes': 'API created code'
         }
         
-        response = self.client.post('/api/invite-codes/create/', data, content_type='application/json')
+        response = self.client.post('/api/invite-codes/create/', data, content_type='application/json', HTTP_AUTHORIZATION=f'Token {token.key}')
         self.assertEqual(response.status_code, 201)
         
         # Check response data
@@ -337,9 +338,10 @@ class InviteCodeManagementTestCase(TestCase):
     
     def test_api_revoke_invite_code(self):
         """Test API endpoint for revoking invite codes"""
-        self.client.force_login(self.superuser)
+        from rest_framework.authtoken.models import Token
+        token, created = Token.objects.get_or_create(user=self.superuser)
         
-        response = self.client.post(f'/api/invite-codes/{self.invite_code.id}/revoke/')
+        response = self.client.post(f'/api/invite-codes/{self.invite_code.id}/revoke/', HTTP_AUTHORIZATION=f'Token {token.key}')
         self.assertEqual(response.status_code, 200)
         
         # Check response data

@@ -13,15 +13,18 @@ import os
 DEBUG = True
 DJANGO_ENVIRONMENT = "testing"
 
-# Use in-memory SQLite for faster tests
+# Use SQLite for tests to avoid GiST constraint issues
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': ':memory:',
+        'OPTIONS': {
+            'timeout': 20,
+        }
     }
 }
 
-# Disable migrations for faster tests
+# Disable all migrations for testing to avoid constraint issues
 class DisableMigrations:
     def __contains__(self, item):
         return True
@@ -84,6 +87,37 @@ CSRF_COOKIE_SECURE = False
 # Disable CORS during tests
 CORS_ALLOW_ALL_ORIGINS = True
 
-# Disable timezone during tests for consistency
-USE_TZ = False
+# Enable timezone for tests to support timezone-aware datetimes
+USE_TZ = True
 TIME_ZONE = 'UTC'
+
+# Ensure throttle rates are available for tests
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'login': '5/minute',
+        'password_reset': '3/hour',
+        'token_refresh': '2/minute',
+        'admin_api': '500/hour',
+        'evidence_upload': '15/minute',
+        'taskimage': '15/minute',
+    }
+}
+
+# Add missing apps for tests
+INSTALLED_APPS = INSTALLED_APPS + [
+    'rest_framework.authtoken',
+]
+
+# Add authentication backends for tests
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'rest_framework_simplejwt.authentication.JWTAuthentication',
+]

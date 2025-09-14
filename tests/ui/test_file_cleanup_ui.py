@@ -29,7 +29,8 @@ class FileCleanupUITestCase(TestCase):
         )
         
         self.staff_user = User.objects.create_user(
-            'staff', 'staff@test.com', 'password123'
+            'staff', 'staff@test.com', 'password123',
+            is_staff=True
         )
         
         self.regular_user = User.objects.create_user(

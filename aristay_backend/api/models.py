@@ -24,6 +24,11 @@ try:
 except ImportError:
     POSTGRES = False
 
+# Disable PostgreSQL features in test environment
+import os
+if os.environ.get('DJANGO_SETTINGS_MODULE') == 'backend.settings_test':
+    POSTGRES = False
+
 class Property(SoftDeleteMixin, models.Model):
     name       = models.CharField(max_length=100)
     address    = models.TextField(blank=True)

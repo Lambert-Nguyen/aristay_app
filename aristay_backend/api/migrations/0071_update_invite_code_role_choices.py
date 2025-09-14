@@ -32,6 +32,9 @@ class Migration(migrations.Migration):
             sql="""
             DO $$ 
             BEGIN
+                -- Ensure btree_gist extension is available
+                CREATE EXTENSION IF NOT EXISTS btree_gist;
+                
                 IF NOT EXISTS (
                     SELECT 1 FROM pg_constraint 
                     WHERE conname = 'booking_no_overlap_active'

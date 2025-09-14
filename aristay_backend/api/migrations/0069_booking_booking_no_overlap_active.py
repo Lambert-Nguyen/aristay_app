@@ -14,6 +14,9 @@ def ensure_booking_overlap_constraint(apps, schema_editor):
     if connection.vendor != 'postgresql':
         return
 
+    # Ensure btree_gist extension is available
+    schema_editor.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
+
     # Drop if exists (covers prior raw-SQL migration 0063 or partial runs)
     schema_editor.execute(
         "ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;"
