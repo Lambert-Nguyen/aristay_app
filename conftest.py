@@ -17,7 +17,8 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 # Set essential environment variables for testing
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_local')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_test')
+os.environ.setdefault('DJANGO_ENVIRONMENT', 'testing')
 os.environ.setdefault('TESTING', 'true')
 
 # Ensure minimal configuration for Django setup

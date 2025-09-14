@@ -5,15 +5,13 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-User = get_user_model()
-
 
 class SoftDeleteMixin(models.Model):
     """Mixin to add soft delete functionality"""
     is_deleted = models.BooleanField(default=False, db_index=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
     deleted_by = models.ForeignKey(
-        User,
+        'auth.User',
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
