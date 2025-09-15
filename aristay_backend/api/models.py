@@ -24,9 +24,13 @@ try:
 except ImportError:
     POSTGRES = False
 
-# Disable PostgreSQL features in test environment
+# Disable PostgreSQL features when not using a Postgres engine (e.g., tests)
 import os
-if os.environ.get('DJANGO_SETTINGS_MODULE') == 'backend.settings_test':
+from django.conf import settings as django_settings  # alias to avoid confusion
+if (
+    os.environ.get('DJANGO_SETTINGS_MODULE') == 'backend.settings_test'
+    or 'postgresql' not in django_settings.DATABASES.get('default', {}).get('ENGINE', '')
+):
     POSTGRES = False
 
 class Property(SoftDeleteMixin, models.Model):

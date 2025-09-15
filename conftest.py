@@ -18,8 +18,13 @@ if str(BACKEND_DIR) not in sys.path:
 
 # Set essential environment variables for testing
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_test')
+# Force simple staticfiles storage for all tests (avoid manifest lookups)
+os.environ.setdefault('STATICFILES_STORAGE', 'django.contrib.staticfiles.storage.StaticFilesStorage')
 os.environ.setdefault('DJANGO_ENVIRONMENT', 'testing')
 os.environ.setdefault('TESTING', 'true')
+os.environ.setdefault('USE_CLOUDINARY', 'false')
+os.environ.setdefault('DATABASE_URL', '')
+os.environ.setdefault('LOAD_DOTENV', 'false')
 
 # Ensure minimal configuration for Django setup
 try:

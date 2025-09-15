@@ -3,8 +3,12 @@ Test Settings for Aristay
 Use this for running tests
 """
 
-from .settings_base import *
 import os
+
+# Force-disable DATABASE_URL so base settings don't connect to Postgres during tests
+os.environ["DATABASE_URL"] = ""
+
+from .settings_base import *
 
 # Using Django's default User model
 # AUTH_USER_MODEL = 'auth.User'  # This is the default
@@ -24,15 +28,12 @@ DATABASES = {
     }
 }
 
-# Disable all migrations for testing to avoid constraint issues
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-    
-    def __getitem__(self, item):
-        return None
-
-MIGRATION_MODULES = DisableMigrations()
+# Disable API app migrations for tests (avoid Postgres-specific SQL like DO $$ blocks)
+# Disable all migrations for tests. Django will create tables directly from models.
+# Disable api migrations only; point to empty module to force syncdb
+MIGRATION_MODULES = {
+    'api': None,
+}
 
 # Disable password hashing for faster tests
 PASSWORD_HASHERS = [
@@ -74,8 +75,32 @@ SECURE_CONTENT_TYPE_NOSNIFF = False
 # Test-specific settings
 TESTING = True
 
-# Disable static files collection during tests
+# Disable Cloudinary entirely during tests and force local file storage
+USE_CLOUDINARY = False
+os.environ['USE_CLOUDINARY'] = 'false'
+
+# Remove cloudinary apps to prevent backend initialization during tests
+INSTALLED_APPS = [
+    app for app in INSTALLED_APPS
+    if app not in ('cloudinary', 'cloudinary_storage')
+]
+
+# Storage backends: use local filesystem for both default and staticfiles
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
+
+# Ensure Django knows we're testing
+os.environ['TESTING'] = 'true'
+
+# Some third-party packages still respect legacy settings
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Disable media files during tests
 MEDIA_ROOT = '/tmp/test_media'

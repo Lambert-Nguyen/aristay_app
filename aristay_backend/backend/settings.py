@@ -16,14 +16,16 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # --- Load .env file FIRST before environment detection ---
-if os.getenv("LOAD_DOTENV", "true").lower() == "true":
+# Skip loading .env during tests/CI so test overrides win
+_is_testing = bool(os.getenv('PYTEST_CURRENT_TEST') or os.getenv('TESTING') or os.getenv('CI'))
+if not _is_testing and os.getenv("LOAD_DOTENV", "true").lower() == "true":
     try:
         from dotenv import load_dotenv
         for _candidate in [(BASE_DIR / ".env"), (BASE_DIR.parent / ".env")]:
             try:
                 if _candidate.exists():
-                    load_dotenv(_candidate, override=True)  # <-- add override=True
-                    break  # Use the first .env file found
+                    load_dotenv(_candidate, override=True)
+                    break
             except Exception:
                 pass
     except Exception:
@@ -31,6 +33,10 @@ if os.getenv("LOAD_DOTENV", "true").lower() == "true":
 # ---------------------------------------------------
 
 # Determine environment AFTER loading .env
+# Force testing environment when running under pytest/CI regardless of .env
+if _is_testing:
+    os.environ['DJANGO_ENVIRONMENT'] = 'testing'
+    os.environ.setdefault('USE_CLOUDINARY', 'false')
 DJANGO_ENVIRONMENT = os.getenv('DJANGO_ENVIRONMENT', 'development')
 
 # Load appropriate settings based on environment
@@ -118,6 +124,15 @@ else:
         "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
+
+# Force local storage and simple staticfiles during tests/CI regardless of env
+if os.getenv('TESTING') or os.getenv('CI') or DJANGO_ENVIRONMENT == 'testing':
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -462,8 +477,9 @@ if not DEBUG:
         if origin.strip()
     ]
     
-    # Static files via WhiteNoise (hashed manifest)
-    STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    # Static files via WhiteNoise (hashed manifest), except during tests/CI
+    if not (os.getenv('TESTING') or os.getenv('CI') or DJANGO_ENVIRONMENT == 'testing'):
+        STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
     # Database connection pooling for production
     DATABASES['default']['CONN_MAX_AGE'] = 60

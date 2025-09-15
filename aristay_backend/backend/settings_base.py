@@ -47,13 +47,15 @@ THIRD_PARTY_APPS = [
     'corsheaders',
     'axes',
     'django_extensions',
-    'cloudinary',  # Cloudinary for image storage
-    'cloudinary_storage',  # Cloudinary storage backend
 ]
 
 LOCAL_APPS = [
     'api',
 ]
+
+USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'false').lower() == 'true'
+if USE_CLOUDINARY:
+    THIRD_PARTY_APPS += ['cloudinary', 'cloudinary_storage']
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -102,30 +104,41 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/aristay_local')
-
-# Only use dj_database_url if DATABASE_URL is not empty
-if DATABASE_URL and DATABASE_URL.strip():
-    DATABASES = {
-        'default': dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=60,
-            conn_health_checks=True,
-        )
-    }
-else:
-    # Fallback to default PostgreSQL configuration
+# Prefer lightweight SQLite during tests to avoid Postgres-specific constraints
+if os.getenv('DJANGO_ENVIRONMENT', '').lower() == 'testing':
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'aristay_local',
-            'USER': 'postgres',
-            'PASSWORD': 'postgres',
-            'HOST': '127.0.0.1',
-            'PORT': '5432',
-            'CONN_MAX_AGE': 60,
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+            'OPTIONS': {
+                'timeout': 20,
+            }
         }
     }
+else:
+    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/aristay_local')
+    # Only use dj_database_url if DATABASE_URL is not empty
+    if DATABASE_URL and DATABASE_URL.strip():
+        DATABASES = {
+            'default': dj_database_url.parse(
+                DATABASE_URL,
+                conn_max_age=60,
+                conn_health_checks=True,
+            )
+        }
+    else:
+        # Fallback to default PostgreSQL configuration
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': 'aristay_local',
+                'USER': 'postgres',
+                'PASSWORD': 'postgres',
+                'HOST': '127.0.0.1',
+                'PORT': '5432',
+                'CONN_MAX_AGE': 60,
+            }
+        }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -311,22 +324,62 @@ SESSION_SAVE_EVERY_REQUEST = True
 USE_TZ = True
 TIME_ZONE = 'America/New_York'  # Tampa, FL timezone
 
-# Cloudinary configuration
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
+if USE_CLOUDINARY:
+    # Cloudinary configuration
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
+        'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
+        'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
+    }
+    if all([CLOUDINARY_STORAGE['CLOUD_NAME'], CLOUDINARY_STORAGE['API_KEY'], CLOUDINARY_STORAGE['API_SECRET']]):
+        cloudinary.config(
+            cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+            api_key=CLOUDINARY_STORAGE['API_KEY'],
+            api_secret=CLOUDINARY_STORAGE['API_SECRET']
+        )
 
-# Cloudinary settings (can be overridden in environment-specific settings)
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
-}
+# Storage backend selection
+# Expose a simple feature flag used by tests and CI
+USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'false').lower() == 'true'
 
-# Initialize Cloudinary if credentials are provided
-if all([CLOUDINARY_STORAGE['CLOUD_NAME'], CLOUDINARY_STORAGE['API_KEY'], CLOUDINARY_STORAGE['API_SECRET']]):
-    cloudinary.config(
-        cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
-        api_key=CLOUDINARY_STORAGE['API_KEY'],
-        api_secret=CLOUDINARY_STORAGE['API_SECRET']
-    )
+# Django 5+ STORAGES setting
+if USE_CLOUDINARY:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+else:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+            'OPTIONS': {
+                'location': str(MEDIA_ROOT),
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+
+# In tests/CI, avoid manifest storage entirely to prevent missing-manifest errors
+if os.getenv('TESTING') or os.getenv('CI') or os.getenv('DJANGO_ENVIRONMENT', '').lower() == 'testing':
+    try:
+        STORAGES['staticfiles']['BACKEND'] = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    except Exception:
+        STORAGES = {
+            **(STORAGES or {}),
+            'staticfiles': {
+                'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+            },
+        }
+    # Also force default storage to local filesystem during tests
+    STORAGES['default'] = {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    }
