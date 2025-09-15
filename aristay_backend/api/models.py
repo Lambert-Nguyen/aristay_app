@@ -2424,19 +2424,30 @@ class InviteCode(models.Model):
             return False
         if self.max_uses > 0 and self.used_count >= self.max_uses:
             return False
-        if self.max_uses == 1 and user in self.used_by.all():
+        # Prevent any user from using the same code multiple times
+        if user in self.used_by.all():
             return False
         return True
     
     def use_code(self, user):
-        """Mark this code as used by a specific user"""
-        if not self.can_be_used_by(user):
-            raise ValueError("Code cannot be used")
+        """Mark this code as used by a specific user (atomic operation)"""
+        from django.db import transaction
         
-        self.used_count += 1
-        self.used_by.add(user)
-        self.last_used_at = timezone.now()
-        self.save()
+        with transaction.atomic():
+            # Refresh from database to get latest state
+            self.refresh_from_db()
+            
+            # Check if code can be used (including user not already used it)
+            if not self.can_be_used_by(user):
+                raise ValueError("Code cannot be used")
+            
+            # Atomic update: increment count and add user
+            self.used_count += 1
+            self.last_used_at = timezone.now()
+            self.save(update_fields=['used_count', 'last_used_at'])
+            
+            # Add user to many-to-many relationship
+            self.used_by.add(user)
 
 
 # =============================================================================
