@@ -207,7 +207,7 @@ class Booking(SoftDeleteMixin, models.Model):
                     ),
                 ],
                 condition=~Q(status__in=['cancelled', 'completed']),
-                index_type='gist',
+                # Remove index_type='gist' to use default index type
             ),
         ] if POSTGRES else [])
 

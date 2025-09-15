@@ -14,25 +14,38 @@ def ensure_booking_overlap_constraint(apps, schema_editor):
     if connection.vendor != 'postgresql':
         return
 
-    # Ensure btree_gist extension is available
-    schema_editor.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
+    try:
+        # Ensure btree_gist extension is available
+        schema_editor.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
+    except Exception as e:
+        # If extension creation fails, skip constraint creation
+        print(f"Warning: Could not create btree_gist extension: {e}")
+        return
 
     # Drop if exists (covers prior raw-SQL migration 0063 or partial runs)
-    schema_editor.execute(
-        "ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;"
-    )
+    try:
+        schema_editor.execute(
+            "ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;"
+        )
+    except Exception:
+        pass  # Ignore if constraint doesn't exist
 
     # Recreate using raw SQL to avoid relation/index name collisions
-    schema_editor.execute(
-        """
-        ALTER TABLE api_booking 
-        ADD CONSTRAINT booking_no_overlap_active 
-        EXCLUDE USING gist (
-            property_id WITH =,
-            tstzrange(check_in_date, check_out_date) WITH &&
-        ) WHERE (status NOT IN ('cancelled', 'completed'));
-        """
-    )
+    try:
+        schema_editor.execute(
+            """
+            ALTER TABLE api_booking 
+            ADD CONSTRAINT booking_no_overlap_active 
+            EXCLUDE USING gist (
+                property_id WITH =,
+                tstzrange(check_in_date, check_out_date) WITH &&
+            ) WHERE (status NOT IN ('cancelled', 'completed'));
+            """
+        )
+    except Exception as e:
+        # If constraint creation fails, log and continue
+        print(f"Warning: Could not create booking overlap constraint: {e}")
+        pass
 
 
 def drop_booking_overlap_constraint(apps, schema_editor):

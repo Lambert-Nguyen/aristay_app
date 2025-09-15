@@ -37,6 +37,13 @@ if not _is_testing and os.getenv("LOAD_DOTENV", "true").lower() == "true":
 if _is_testing:
     os.environ['DJANGO_ENVIRONMENT'] = 'testing'
     os.environ.setdefault('USE_CLOUDINARY', 'false')
+
+# Also check for CI environment variable (common in CI systems)
+if os.getenv('CI') or os.getenv('GITHUB_ACTIONS') or os.getenv('GITLAB_CI'):
+    os.environ['DJANGO_ENVIRONMENT'] = 'testing'
+    os.environ.setdefault('USE_CLOUDINARY', 'false')
+    os.environ.setdefault('TESTING', 'true')
+
 DJANGO_ENVIRONMENT = os.getenv('DJANGO_ENVIRONMENT', 'development')
 
 # Load appropriate settings based on environment
