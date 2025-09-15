@@ -111,10 +111,11 @@ REST_FRAMEWORK = {
     }
 }
 
-# Add missing apps for tests
-INSTALLED_APPS = INSTALLED_APPS + [
-    'rest_framework.authtoken',
-]
+# Add missing apps for tests (avoid duplicates)
+if 'rest_framework.authtoken' not in INSTALLED_APPS:
+    INSTALLED_APPS = INSTALLED_APPS + [
+        'rest_framework.authtoken',
+    ]
 
 # Add authentication backends for tests
 AUTHENTICATION_BACKENDS = [
