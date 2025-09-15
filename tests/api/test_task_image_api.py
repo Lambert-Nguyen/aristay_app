@@ -276,7 +276,7 @@ class TaskImageAPITests(APITestCase):
         
         response = self.client.post(
             f'/api/tasks/{self.task.id}/images/create/',
-            {'image': large_image},
+            {'image': large_image, 'task': self.task.id},
             format='multipart'
         )
         

@@ -11,6 +11,7 @@ from datetime import timedelta
 import json
 
 from api.models import InviteCode, Profile, UserRole, TaskGroup
+from api.invite_code_views import can_manage_invite_codes
 
 User = get_user_model()
 
@@ -28,6 +29,13 @@ class InviteCodeIntegrationTestCase(TestCase):
             is_superuser=True,
             is_staff=True
         )
+        # Ensure admin has correct profile
+        Profile.objects.filter(user=self.admin).delete()
+        Profile.objects.create(
+            user=self.admin,
+            role=UserRole.SUPERUSER,
+            can_view_team_tasks=True
+        )
         
         # Create manager user
         self.manager = User.objects.create_user(
@@ -44,12 +52,12 @@ class InviteCodeIntegrationTestCase(TestCase):
             can_view_team_tasks=True
         )
         
-        self.client = APIClient()
+        self.client = Client()
     
     def test_complete_invite_code_workflow_admin(self):
         """Test complete invite code workflow via admin portal"""
-        # Use force_authenticate to avoid Axes issues in tests
-        self.client.force_authenticate(user=self.admin)
+        # Use session authentication for form views
+        self.client.force_login(self.admin)
         
         # Step 1: Create invite code
         data = {
@@ -63,6 +71,15 @@ class InviteCodeIntegrationTestCase(TestCase):
         response = self.client.post('/admin/create-invite-code/', data)
         print(f"Response status: {response.status_code}")
         print(f"Response content: {response.content.decode()[:500]}")
+        
+        # If we get a redirect, follow it to see what's happening
+        if response.status_code == 302:
+            redirect_url = response.get('Location', '')
+            print(f"Redirect URL: {redirect_url}")
+            follow_response = self.client.get(redirect_url)
+            print(f"Follow response status: {follow_response.status_code}")
+            print(f"Follow response content: {follow_response.content.decode()[:500]}")
+        
         self.assertEqual(response.status_code, 302)
         
         # Debug: Check if invite code was created
@@ -138,7 +155,14 @@ class InviteCodeIntegrationTestCase(TestCase):
     
     def test_complete_invite_code_workflow_manager(self):
         """Test complete invite code workflow via manager portal"""
-        self.client.force_login(self.manager)
+        # Use login instead of force_login for form views
+        self.client.login(username='manager', password='testpass123')
+        
+        # Debug: Check if user is authenticated
+        print(f"User authenticated: {self.client.session.get('_auth_user_id')}")
+        print(f"Manager user ID: {self.manager.id}")
+        print(f"Manager profile role: {self.manager.profile.role}")
+        print(f"Can manage invite codes: {can_manage_invite_codes(self.manager)}")
         
         # Step 1: Create invite code
         data = {
@@ -149,8 +173,25 @@ class InviteCodeIntegrationTestCase(TestCase):
             'notes': 'Manager created code'
         }
         
-        response = self.client.post('/admin/create-invite-code/', data, HTTP_HOST='testserver')
+        response = self.client.post('/manager/create-invite-code/', data)
+        print(f"Response status: {response.status_code}")
+        print(f"Response content: {response.content.decode()[:500]}")
+        
+        # If we get a redirect, follow it to see what's happening
+        if response.status_code == 302:
+            redirect_url = response.get('Location', '')
+            print(f"Redirect URL: {redirect_url}")
+            follow_response = self.client.get(redirect_url)
+            print(f"Follow response status: {follow_response.status_code}")
+            print(f"Follow response content: {follow_response.content.decode()[:500]}")
+        
         self.assertEqual(response.status_code, 302)
+        
+        # Debug: Check if invite code was created
+        invite_codes = InviteCode.objects.all()
+        print(f"Total invite codes: {invite_codes.count()}")
+        for ic in invite_codes:
+            print(f"Invite code: {ic.code}, notes: {ic.notes}, role: {ic.role}")
         
         # Step 2: Verify code was created
         invite_code = InviteCode.objects.filter(notes='Manager created code').first()
@@ -176,7 +217,7 @@ class InviteCodeIntegrationTestCase(TestCase):
     
     def test_invite_code_api_workflow(self):
         """Test invite code management via API"""
-        self.client.force_authenticate(user=self.admin)
+        self.client.force_login(self.admin)
         
         # Step 1: Create invite code via API
         data = {
@@ -238,7 +279,7 @@ class InviteCodeIntegrationTestCase(TestCase):
         codes[1].is_active = False
         codes[1].save()
         
-        self.client.force_authenticate(user=self.admin)
+        self.client.force_login(self.admin)
         
         # Test role filtering
         response = self.client.get('/admin/invite-codes/?role=staff')
@@ -299,18 +340,25 @@ class InviteCodeIntegrationTestCase(TestCase):
         
         # Test staff user access (should be denied)
         # Create staff user for this test
-        staff_user = User.objects.create_user(
-            username='staff',
-            email='staff@test.com',
-            password='testpass123',
-            is_staff=True
+        staff_user, created = User.objects.get_or_create(
+            username='staff_permissions',
+            defaults={
+                'email': 'staff_permissions@test.com',
+                'password': 'testpass123',
+                'is_staff': True
+            }
         )
+        if created:
+            staff_user.set_password('testpass123')
+            staff_user.save()
+        
+        Profile.objects.filter(user=staff_user).delete()
         Profile.objects.create(
             user=staff_user,
             role=UserRole.STAFF,
             can_view_team_tasks=False
         )
-        self.client.force_authenticate(user=staff_user)
+        self.client.force_login(staff_user)
         
         admin_endpoints = [
             '/admin/invite-codes/',
@@ -341,7 +389,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             self.assertIn(response.status_code, [302, 403], f"Staff should not access {endpoint}")
         
         # Test manager user access (should be allowed)
-        self.client.force_authenticate(user=self.manager)
+        self.client.force_login(self.manager)
         
         response = self.client.get('/manager/invite-codes/')
         self.assertEqual(response.status_code, 200)
@@ -350,7 +398,7 @@ class InviteCodeIntegrationTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         
         # Test admin user access (should be allowed)
-        self.client.force_authenticate(user=self.admin)
+        self.client.force_login(self.admin)
         
         response = self.client.get('/admin/invite-codes/')
         self.assertEqual(response.status_code, 200)
@@ -438,7 +486,7 @@ class InviteCodeIntegrationTestCase(TestCase):
         self.assertTrue(permanent_code.is_usable)
         
         # Test filtering by expiration status
-        self.client.force_authenticate(user=self.admin)
+        self.client.force_login(self.admin)
         
         response = self.client.get('/admin/invite-codes/?status=expired')
         self.assertEqual(response.status_code, 200)
@@ -466,11 +514,13 @@ class InviteCodePerformanceTestCase(TestCase):
             is_superuser=True
         )
         
-        self.client = APIClient()
-        self.client.force_authenticate(user=self.admin)
+        self.client = Client()
     
     def test_large_invite_code_list_performance(self):
         """Test performance with large number of invite codes"""
+        # Authenticate as admin
+        self.client.force_login(self.admin)
+        
         # Create many invite codes
         for i in range(100):
             InviteCode.objects.create(
