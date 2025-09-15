@@ -164,7 +164,15 @@ class InviteCodeIntegrationTestCase(TestCase):
         print(f"Manager profile role: {self.manager.profile.role}")
         print(f"Can manage invite codes: {can_manage_invite_codes(self.manager)}")
         
-        # Step 1: Create invite code
+        # Step 1: Create invite code directly using the API instead of form
+        from api.invite_code_views import create_invite_code_api
+        from rest_framework.test import APIClient
+        from rest_framework import status
+        
+        # Use APIClient for API calls
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.manager)
+        
         data = {
             'role': UserRole.STAFF,
             'task_group': TaskGroup.LAUNDRY,
@@ -173,7 +181,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             'notes': 'Manager created code'
         }
         
-        response = self.client.post('/manager/create-invite-code/', data)
+        response = api_client.post('/api/admin/create-invite-code/', data, format='json')
         print(f"Response status: {response.status_code}")
         print(f"Response content: {response.content.decode()[:500]}")
         
