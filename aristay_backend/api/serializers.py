@@ -145,8 +145,9 @@ class TaskImageSerializer(serializers.ModelSerializer):
         from rest_framework import serializers
         
         # Inline validation for security test compliance
-        max_mb = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024) // (1024 * 1024)
-        if file.size > max_mb * 1024 * 1024:
+        max_bytes = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024)
+        if file.size > max_bytes:
+            max_mb = max_bytes // (1024 * 1024)
             raise serializers.ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
         
         # Validate allowed content types

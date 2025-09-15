@@ -71,6 +71,9 @@ AXES_ENABLED = False
 MIDDLEWARE = [m for m in MIDDLEWARE if not m.startswith('axes.')]
 INSTALLED_APPS = [app for app in INSTALLED_APPS if not app.startswith('axes')]
 
+# Completely disable Axes to prevent any loading
+os.environ['AXES_ENABLED'] = 'False'
+
 # Disable security features during tests
 SECURE_SSL_REDIRECT = False
 SECURE_BROWSER_XSS_FILTER = False
@@ -139,6 +142,9 @@ REST_FRAMEWORK = {
         'taskimage': '15/minute',
     }
 }
+
+# Add MAX_UPLOAD_BYTES for tests
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25MB default for tests
 
 # Add missing apps for tests (avoid duplicates)
 if 'rest_framework.authtoken' not in INSTALLED_APPS:
