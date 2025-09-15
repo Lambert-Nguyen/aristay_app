@@ -50,6 +50,27 @@ class AgentCriticalFixesTest(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
     
+    def _validate_throttle_scopes(self, throttle_rates):
+        """Validate throttle scope configuration and return status result."""
+        has_taskimage = 'taskimage' in throttle_rates
+        has_evidence_upload = 'evidence_upload' in throttle_rates
+        
+        if has_taskimage and has_evidence_upload:
+            return {
+                'valid': True,
+                'message': "✅ Both 'taskimage' and 'evidence_upload' scopes present for backward compatibility"
+            }
+        elif has_evidence_upload:
+            return {
+                'valid': True,
+                'message': "✅ 'evidence_upload' scope present (legacy 'taskimage' removed)"
+            }
+        else:
+            return {
+                'valid': False,
+                'message': "❌ Neither 'taskimage' nor 'evidence_upload' throttle scopes found"
+            }
+    
     def _create_test_image(self, width=1000, height=1000, mode="RGB", size_kb=None):
         """Create test image with specified parameters."""
         img = Image.new(mode, (width, height), color='red')
@@ -228,14 +249,12 @@ class AgentCriticalFixesTest(TestCase):
         
         throttle_rates = settings.REST_FRAMEWORK.get('DEFAULT_THROTTLE_RATES', {})
         
-        # Agent's fix: Both 'taskimage' and 'evidence_upload' should be present for backward compatibility
-        if 'taskimage' in throttle_rates and 'evidence_upload' in throttle_rates:
-            print("✅ Both 'taskimage' and 'evidence_upload' scopes present for backward compatibility")
-        elif 'evidence_upload' in throttle_rates:
-            print("✅ 'evidence_upload' scope present (legacy 'taskimage' removed)")
-        else:
-            print("❌ Neither 'taskimage' nor 'evidence_upload' throttle scopes found")
-            self.fail("Expected at least 'evidence_upload' throttle scope")
+        # Validate throttle scope configuration
+        scope_status = self._validate_throttle_scopes(throttle_rates)
+        if not scope_status['valid']:
+            self.fail(scope_status['message'])
+        
+        print(scope_status['message'])
         
         # Agent's fix: 'evidence_upload' should be standardized
         evidence_rate = throttle_rates.get('evidence_upload')

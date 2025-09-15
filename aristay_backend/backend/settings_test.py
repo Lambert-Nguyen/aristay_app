@@ -67,6 +67,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 # Disable Axes during tests
 AXES_ENABLED = False
 
+# Remove Axes middleware from MIDDLEWARE during tests
+MIDDLEWARE = [m for m in MIDDLEWARE if not m.startswith('axes.')]
+
 # Disable security features during tests
 SECURE_SSL_REDIRECT = False
 SECURE_BROWSER_XSS_FILTER = False
@@ -142,7 +145,7 @@ if 'rest_framework.authtoken' not in INSTALLED_APPS:
         'rest_framework.authtoken',
     ]
 
-# Add authentication backends for tests
+# Add authentication backends for tests (exclude Axes)
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'rest_framework_simplejwt.authentication.JWTAuthentication',

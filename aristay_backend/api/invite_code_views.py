@@ -44,12 +44,22 @@ def can_manage_invite_codes(user):
         return user.is_superuser
 
 
+def get_invite_code_redirect_url(request):
+    """Get the appropriate redirect URL based on the request path"""
+    if request.path.startswith('/manager/'):
+        return '/manager/invite-codes/'
+    elif request.path.startswith('/api/portal/'):
+        return '/api/portal/'
+    else:
+        return '/admin/invite-codes/'
+
+
 @login_required
 def invite_code_list(request):
     """List all invite codes with filtering and pagination"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to manage invite codes.')
-        return redirect('/api/portal/')
+        return redirect(get_invite_code_redirect_url(request))
     
     # Get filter parameters
     role_filter = request.GET.get('role', '')
@@ -118,7 +128,7 @@ def create_invite_code(request):
     """Create a new invite code"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to create invite codes.')
-        return redirect('/admin/')
+        return redirect(get_invite_code_redirect_url(request))
     
     if request.method == 'POST':
         try:
@@ -195,7 +205,7 @@ def edit_invite_code(request, code_id):
     """Edit an existing invite code"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to edit invite codes.')
-        return redirect('/admin/')
+        return redirect(get_invite_code_redirect_url(request))
     
     invite_code = get_object_or_404(InviteCode, id=code_id)
     
@@ -253,7 +263,7 @@ def revoke_invite_code(request, code_id):
     """Revoke an invite code (deactivate it)"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to revoke invite codes.')
-        return redirect('/admin/')
+        return redirect(get_invite_code_redirect_url(request))
     
     invite_code = get_object_or_404(InviteCode, id=code_id)
     
@@ -281,7 +291,7 @@ def reactivate_invite_code(request, code_id):
     """Reactivate a revoked invite code"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to reactivate invite codes.')
-        return redirect('/admin/')
+        return redirect(get_invite_code_redirect_url(request))
     
     invite_code = get_object_or_404(InviteCode, id=code_id)
     
@@ -309,7 +319,7 @@ def delete_invite_code(request, code_id):
     """Delete an invite code permanently"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to delete invite codes.')
-        return redirect('/admin/')
+        return redirect(get_invite_code_redirect_url(request))
     
     invite_code = get_object_or_404(InviteCode, id=code_id)
     
@@ -345,7 +355,7 @@ def invite_code_detail(request, code_id):
     """View detailed information about an invite code"""
     if not can_manage_invite_codes(request.user):
         messages.error(request, 'Access denied. You do not have permission to view invite code details.')
-        return redirect('/admin/')
+        return redirect(get_invite_code_redirect_url(request))
     
     invite_code = get_object_or_404(InviteCode, id=code_id)
     
