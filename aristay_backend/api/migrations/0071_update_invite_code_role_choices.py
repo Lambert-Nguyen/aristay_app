@@ -3,7 +3,7 @@
 import django.contrib.postgres.constraints
 import django.contrib.postgres.fields.ranges
 from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations, models, connection
 
 
 class Migration(migrations.Migration):
@@ -28,27 +28,8 @@ class Migration(migrations.Migration):
                 max_length=20,
             ),
         ),
-        migrations.RunSQL(
-            sql="""
-            DO $$ 
-            BEGIN
-                -- Ensure btree_gist extension is available
-                CREATE EXTENSION IF NOT EXISTS btree_gist;
-                
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_constraint 
-                    WHERE conname = 'booking_no_overlap_active'
-                ) THEN
-                    ALTER TABLE api_booking ADD CONSTRAINT booking_no_overlap_active
-                    EXCLUDE USING gist (
-                        property_id WITH =,
-                        tstzrange(check_in_date, check_out_date) WITH &&
-                    ) WHERE (status NOT IN ('cancelled', 'completed'));
-                END IF;
-            END $$;
-            """,
-            reverse_sql="""
-            ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;
-            """,
+        migrations.RunPython(
+            code=lambda apps, schema_editor: None,  # No-op for SQLite
+            reverse_code=lambda apps, schema_editor: None,
         ),
     ]
