@@ -40,6 +40,8 @@
             <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
             {% if task.assigned_to %}
             <span>👤 {{ task.assigned_to.username }}</span>
+            {% else %}
+            <span>👤 Not assigned</span>
             {% endif %}
         </div>
     </div>

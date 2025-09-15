@@ -47,6 +47,8 @@
             {% endif %}
             {% if task.assigned_to %}
             <span>👤 {{ task.assigned_to.username }}</span>
+            {% else %}
+            <span>👤 Not assigned</span>
             {% endif %}
         </div>
         {% for task_progress in tasks_with_progress %}
