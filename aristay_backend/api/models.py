@@ -2424,19 +2424,35 @@ class InviteCode(models.Model):
             return False
         if self.max_uses > 0 and self.used_count >= self.max_uses:
             return False
-        if self.max_uses == 1 and user in self.used_by.all():
+        # Prevent the same user from reusing the code regardless of max_uses
+        if self.used_by.filter(pk=user.pk).exists():
             return False
         return True
     
     def use_code(self, user):
         """Mark this code as used by a specific user"""
-        if not self.can_be_used_by(user):
-            raise ValueError("Code cannot be used")
-        
-        self.used_count += 1
-        self.used_by.add(user)
-        self.last_used_at = timezone.now()
-        self.save()
+        from django.db import transaction
+        from django.db.models import F
+
+        with transaction.atomic():
+            # Lock the row to avoid concurrent updates beyond max_uses
+            locked = InviteCode.objects.select_for_update().get(pk=self.pk)
+
+            # Re-evaluate conditions under lock
+            if not locked.is_active or locked.is_expired:
+                raise ValueError("Code cannot be used")
+            if locked.max_uses > 0 and locked.used_count >= locked.max_uses:
+                raise ValueError("Code cannot be used")
+            if locked.used_by.filter(pk=user.pk).exists():
+                raise ValueError("User has already used this code")
+
+            # Record usage and increment atomically
+            locked.used_by.add(user)
+            locked.used_count = F('used_count') + 1
+            locked.last_used_at = timezone.now()
+            locked.save(update_fields=['used_count', 'last_used_at'])
+            # Sync current instance counters
+            self.refresh_from_db(fields=['used_count', 'last_used_at'])
 
 
 # =============================================================================
