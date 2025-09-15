@@ -4,6 +4,7 @@ Tests the complete workflow from creation to usage
 """
 import pytest
 from django.test import TestCase, Client
+from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
@@ -43,11 +44,12 @@ class InviteCodeIntegrationTestCase(TestCase):
             can_view_team_tasks=True
         )
         
-        self.client = Client()
+        self.client = APIClient()
     
     def test_complete_invite_code_workflow_admin(self):
         """Test complete invite code workflow via admin portal"""
-        self.client.login(username='admin', password='testpass123')
+        # Use force_authenticate to avoid Axes issues in tests
+        self.client.force_authenticate(user=self.admin)
         
         # Step 1: Create invite code
         data = {
@@ -59,7 +61,15 @@ class InviteCodeIntegrationTestCase(TestCase):
         }
         
         response = self.client.post('/admin/create-invite-code/', data)
+        print(f"Response status: {response.status_code}")
+        print(f"Response content: {response.content.decode()[:500]}")
         self.assertEqual(response.status_code, 302)
+        
+        # Debug: Check if invite code was created
+        invite_codes = InviteCode.objects.all()
+        print(f"Total invite codes: {invite_codes.count()}")
+        for ic in invite_codes:
+            print(f"Invite code: {ic.code}, notes: {ic.notes}, role: {ic.role}")
         
         # Step 2: Verify code was created
         invite_code = InviteCode.objects.filter(notes='Integration test code').first()
@@ -166,7 +176,7 @@ class InviteCodeIntegrationTestCase(TestCase):
     
     def test_invite_code_api_workflow(self):
         """Test invite code management via API"""
-        self.client.login(username='admin', password='testpass123')
+        self.client.force_authenticate(user=self.admin)
         
         # Step 1: Create invite code via API
         data = {
@@ -228,7 +238,7 @@ class InviteCodeIntegrationTestCase(TestCase):
         codes[1].is_active = False
         codes[1].save()
         
-        self.client.login(username='admin', password='testpass123')
+        self.client.force_authenticate(user=self.admin)
         
         # Test role filtering
         response = self.client.get('/admin/invite-codes/?role=staff')
@@ -288,7 +298,19 @@ class InviteCodeIntegrationTestCase(TestCase):
         )
         
         # Test staff user access (should be denied)
-        self.client.login(username='staff', password='testpass123')
+        # Create staff user for this test
+        staff_user = User.objects.create_user(
+            username='staff',
+            email='staff@test.com',
+            password='testpass123',
+            is_staff=True
+        )
+        Profile.objects.create(
+            user=staff_user,
+            role=UserRole.STAFF,
+            can_view_team_tasks=False
+        )
+        self.client.force_authenticate(user=staff_user)
         
         admin_endpoints = [
             '/admin/invite-codes/',
@@ -319,7 +341,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             self.assertIn(response.status_code, [302, 403], f"Staff should not access {endpoint}")
         
         # Test manager user access (should be allowed)
-        self.client.login(username='manager', password='testpass123')
+        self.client.force_authenticate(user=self.manager)
         
         response = self.client.get('/manager/invite-codes/')
         self.assertEqual(response.status_code, 200)
@@ -328,7 +350,7 @@ class InviteCodeIntegrationTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         
         # Test admin user access (should be allowed)
-        self.client.login(username='admin', password='testpass123')
+        self.client.force_authenticate(user=self.admin)
         
         response = self.client.get('/admin/invite-codes/')
         self.assertEqual(response.status_code, 200)
@@ -416,7 +438,7 @@ class InviteCodeIntegrationTestCase(TestCase):
         self.assertTrue(permanent_code.is_usable)
         
         # Test filtering by expiration status
-        self.client.login(username='admin', password='testpass123')
+        self.client.force_authenticate(user=self.admin)
         
         response = self.client.get('/admin/invite-codes/?status=expired')
         self.assertEqual(response.status_code, 200)
@@ -444,8 +466,8 @@ class InviteCodePerformanceTestCase(TestCase):
             is_superuser=True
         )
         
-        self.client = Client()
-        self.client.login(username='admin', password='testpass123')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin)
     
     def test_large_invite_code_list_performance(self):
         """Test performance with large number of invite codes"""

@@ -135,6 +135,9 @@ class TaskImageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
                            'width', 'height', 'original_size_bytes', 'photo_type_display', 'photo_status_display']
+        extra_kwargs = {
+            'task': {'required': False}  # Task is set by the view from URL parameter
+        }
     
     def validate_image(self, file):
         """Agent's enhanced validation: Accept large files, validate before optimization."""

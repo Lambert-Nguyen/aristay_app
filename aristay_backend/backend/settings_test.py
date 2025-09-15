@@ -67,8 +67,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 # Disable Axes during tests
 AXES_ENABLED = False
 
-# Remove Axes middleware from MIDDLEWARE during tests
+# Remove Axes middleware and apps from MIDDLEWARE and INSTALLED_APPS during tests
 MIDDLEWARE = [m for m in MIDDLEWARE if not m.startswith('axes.')]
+INSTALLED_APPS = [app for app in INSTALLED_APPS if not app.startswith('axes')]
 
 # Disable security features during tests
 SECURE_SSL_REDIRECT = False
