@@ -114,7 +114,7 @@
                 </div>
             </a>
 
-            {% if user|is_in_department:'Maintenance' or user.profile.role in 'manager,superuser' %}
+            {% if user|is_in_department:'Maintenance' or user.profile.role == 'manager' or user.profile.role == 'superuser' %}
             <a href="/api/staff/inventory/" class="action-item">
                 <div class="action-icon">📦</div>
                 <div class="action-text">
