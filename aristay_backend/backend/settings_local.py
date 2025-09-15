@@ -42,6 +42,23 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'true').lower() == 'true'
 if USE_CLOUDINARY:
     CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
+    if CLOUDINARY_URL:
+        # Parse CLOUDINARY_URL if provided
+        import cloudinary
+        cloudinary.config(cloudinary_url=CLOUDINARY_URL)
+    else:
+        # Use individual environment variables
+        CLOUDINARY_STORAGE = {
+            'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
+            'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
+            'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
+        }
+        if all([CLOUDINARY_STORAGE['CLOUD_NAME'], CLOUDINARY_STORAGE['API_KEY'], CLOUDINARY_STORAGE['API_SECRET']]):
+            cloudinary.config(
+                cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+                api_key=CLOUDINARY_STORAGE['API_KEY'],
+                api_secret=CLOUDINARY_STORAGE['API_SECRET']
+            )
 
 # Redis configuration from your .env (optional)
 REDIS_URL = os.getenv('REDIS_URL')
