@@ -107,7 +107,7 @@ class AssignTaskGroupsCommandTestCase(TestCase):
         
         # Check that the command ran and assigned users
         self.assertIn('Auto-assigning task groups...', output)
-        self.assertIn('Auto-assigned task groups to', output)
+        self.assertRegex(output, r'Auto-assigned task groups to \d+ users?')
         
         # Check that staff users were assigned to general group
         self.assertIn('Assigned staff1 to general', output)
