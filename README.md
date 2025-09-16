@@ -200,7 +200,7 @@ For detailed status information, see [Final Project Status](docs/reports/FINAL_P
 
 ## 📝 License
 
-This project is proprietary software developed for Aristay property management operations.
+Copyright (c) 2025 Nguyen, Phuong Duy Lam. All rights reserved.
 
 ## 🏆 Acknowledgments
 
