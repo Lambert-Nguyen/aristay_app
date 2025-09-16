@@ -659,7 +659,7 @@
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                     </svg>
                 </button>
-                <span class="role-badge">{{ user.profile.get_role_display|default:"Staff" }}</span>
+                <span class="role-badge">{% if user.profile %}{{ user.profile.get_role_display|default:"Staff" }}{% else %}Staff{% endif %}</span>
                 <span>{% if user %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}</span>
                 <a href="{% url 'unified_logout' %}" class="nav-link">Logout</a>
             </div>

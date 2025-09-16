@@ -7,7 +7,7 @@
     <div class="section-title">Welcome to AriStay, {{ user.get_full_name|default:user.username }}! 👋</div>
     
     <div style="margin-bottom: 2rem;">
-        <p>Your role: <strong>{{ user.profile.get_role_display|default:"Staff" }}</strong></p>
+        <p>Your role: <strong>{% if user.profile %}{{ user.profile.get_role_display|default:"Staff" }}{% else %}Staff{% endif %}</strong></p>
         <p>Choose where you'd like to go:</p>
     </div>
     
@@ -55,7 +55,7 @@
         {% endif %}
         
         <!-- Invite Code Management -->
-        {% if user.is_superuser or user.profile.role == 'manager' %}
+        {% if user.is_superuser or user.profile and user.profile.role == 'manager' %}
         <div class="card" style="text-align: center; padding: 1.5rem;">
             <div style="font-size: 2.5rem; margin-bottom: 1rem;">🎫</div>
             <h3 style="margin-bottom: 0.5rem;">Invite Code Management</h3>
@@ -70,7 +70,7 @@
         {% endif %}
     </div>
     
-    {% if user.profile.role == 'viewer' %}
+    {% if user.profile and user.profile.role == 'viewer' %}
     <!-- Viewer-only content -->
     <div style="margin-top: 2rem;">
         <div class="tag">Read-only access</div>
@@ -91,7 +91,7 @@
         <div class="muted">Properties You Can Access</div>
     </div>
     
-    {% if user.profile.role and user.profile.role != 'viewer' %}
+    {% if user.profile and user.profile.role and user.profile.role != 'viewer' %}
     <div class="card" style="text-align: center;">
         <div style="font-size: 2rem; font-weight: bold; color: #6366f1; margin-bottom: 0.5rem;">
             {{ assigned_tasks_count|default:"0" }}
@@ -145,7 +145,7 @@
             📊 Excel Import
         </a>
         {% endif %}
-        {% if user.is_superuser or user.profile.role == 'manager' %}
+        {% if user.is_superuser or user.profile and user.profile.role == 'manager' %}
         <a href="{% if user.is_superuser %}/api/admin/create-invite-code/{% else %}/manager/create-invite-code/{% endif %}" class="button" style="text-align: center; padding: 1rem; background-color: #7c3aed; border-color: #7c3aed;">
             🎫 Create Invite Code
         </a>

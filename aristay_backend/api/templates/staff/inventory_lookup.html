@@ -65,7 +65,7 @@
                     </div>
                     
                     <!-- Quick Transaction Form -->
-                    {% if user.profile.role == 'maintenance' or user.is_staff %}
+                    {% if user.profile and user.profile.role == 'maintenance' or user.is_staff %}
                     <div style="border-top: 1px solid #f1f5f9; padding-top: 0.75rem;">
                         <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
                             <select class="transaction-type" style="padding: 0.25rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.875rem;">
@@ -114,7 +114,7 @@
     {% endif %}
 </div>
 
-{% if user.profile.role == 'maintenance' or user.is_staff %}
+{% if user.profile and user.profile.role == 'maintenance' or user.is_staff %}
 <div class="card">
     <div class="card-header">
         🔧 Maintenance Tools

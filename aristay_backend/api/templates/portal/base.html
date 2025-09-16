@@ -336,7 +336,7 @@
                         <!-- Role-based navigation -->
                         {% if user.is_superuser %}
                             <a href="/admin/" class="button">⚙️ Admin</a>
-                        {% elif user.profile.role == 'manager' or user.profile.role == 'superuser' %}
+                        {% elif user.profile and user.profile.role == 'manager' or user.profile and user.profile.role == 'superuser' %}
                             <a href="/manager/" class="button">👔 Manager</a>
                         {% endif %}
                         
