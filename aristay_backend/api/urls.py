@@ -71,6 +71,12 @@ from .notification_management_views import (
 # Agent's Phase 2: Import audit views
 from .audit_views import AuditEventViewSet
 
+# Calendar views
+from .calendar_views import CalendarViewSet
+from .calendar_django_views import (
+    CalendarView, calendar_properties_api, calendar_users_api, calendar_stats_api
+)
+
 # Remove separate imports since they're now in the main views.py
 
 from .staff_views import (
@@ -100,6 +106,8 @@ router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 # Agent's Phase 2: Register audit API endpoints
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
+# Calendar API endpoints
+router.register(r'calendar', CalendarViewSet, basename='calendar')
 
 urlpatterns = [
     # Invite-based registration API (web/mobile)
@@ -278,4 +286,10 @@ urlpatterns = [
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),
+    
+    # Calendar HTML views
+    path('calendar/', CalendarView.as_view(), name='calendar-view'),
+    path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
+    path('calendar/users/', calendar_users_api, name='calendar-users'),
+    path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
 ]
