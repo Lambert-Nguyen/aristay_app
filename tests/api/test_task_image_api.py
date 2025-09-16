@@ -271,20 +271,18 @@ class TaskImageAPITests(APITestCase):
         self.assertIsNotNone(task_image.height)
         self.assertIsNotNone(task_image.original_size_bytes)
     
+    @override_settings(MAX_UPLOAD_BYTES=1 * 1024 * 1024)  # 1MB for this test
     def test_upload_oversized_file_rejected(self):
         """Test that oversized files are rejected with friendly message."""
-        from unittest.mock import patch
         
         # Create a real image that's over 1MB
         large_image = self.create_large_image(target_size_mb=2)  # 2MB image
         
-        # Mock the MAX_UPLOAD_BYTES setting to 1MB for this test
-        with patch('django.conf.settings.MAX_UPLOAD_BYTES', 1 * 1024 * 1024):
-            response = self.client.post(
-                f'/api/tasks/{self.task.id}/images/create/',
-                {'image': large_image, 'task': self.task.id},
-                format='multipart'
-            )
+        response = self.client.post(
+            f'/api/tasks/{self.task.id}/images/create/',
+            {'image': large_image, 'task': self.task.id},
+            format='multipart'
+        )
         
         print(f"Response status: {response.status_code}")
         print(f"Response data: {response.data}")
