@@ -24,6 +24,7 @@ DATABASES = {
         'NAME': ':memory:',
         'OPTIONS': {
             'timeout': 20,
+            'init_command': 'PRAGMA foreign_keys=OFF;',
         }
     }
 }
