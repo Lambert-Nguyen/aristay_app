@@ -33,7 +33,7 @@ def fix_booking_overlap_constraint(apps, schema_editor):
             ALTER TABLE api_booking 
             ADD CONSTRAINT booking_no_overlap_active 
             EXCLUDE USING gist (
-                property_id WITH =,
+                property_id gist_int8_ops WITH =,
                 tstzrange(check_in_date, check_out_date) WITH &&
             ) WHERE (status NOT IN ('cancelled', 'completed'));
             """
