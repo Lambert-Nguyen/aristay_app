@@ -15,10 +15,11 @@ backend_path = Path(__file__).parent.parent.parent / 'aristay_backend'
 sys.path.insert(0, str(backend_path))
 
 # Set up Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_test')
 django.setup()
 
 from django.test import TestCase, RequestFactory
+from django.core.management import execute_from_command_line
 from django.contrib.auth.models import User
 from django.urls import reverse
 from uuid import uuid4
@@ -33,6 +34,10 @@ class ProductionReadinessTestSuite(TestCase):
 
     def setUp(self):
         """Set up test data."""
+        # Run migrations to create database tables
+        from django.core.management import call_command
+        call_command('migrate', verbosity=0, interactive=False)
+        
         self.factory = RequestFactory()
         # Use unique values so running this file directly never hits UNIQUE constraints
         unique = uuid4().hex[:8]

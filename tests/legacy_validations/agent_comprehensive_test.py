@@ -110,7 +110,7 @@ def main():
     # Setup
     user, _ = User.objects.get_or_create(
         username='agent_tester',
-        defaults={'email': 'agent@test.com', 'is_staff': True}
+        defaults={'email': 'agent@test.com'}
     )
     
     # Cleanup

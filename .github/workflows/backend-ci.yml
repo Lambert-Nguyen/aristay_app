@@ -33,7 +33,7 @@ jobs:
         ports:
           - 5432:5432
     env:
-      DJANGO_SETTINGS_MODULE: backend.settings
+      DJANGO_SETTINGS_MODULE: backend.settings_test
       PYTHONPATH: ${{ github.workspace }}/aristay_backend
       SECRET_KEY: dummy
       DEBUG: '0'
@@ -70,6 +70,10 @@ jobs:
             echo "Waiting for PostgreSQL..."
             sleep 2
           done
+
+      - name: Create database if not exists
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE aristay_test;" || true
 
       - name: Migrate DB
         working-directory: aristay_backend

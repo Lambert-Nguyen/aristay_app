@@ -2,6 +2,14 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .auth_views import logout_view
+from .registration_views import (
+    registration_view, register_user, validate_invite_code
+)
+from .invite_code_views import (
+    invite_code_list, create_invite_code, edit_invite_code, revoke_invite_code,
+    reactivate_invite_code, delete_invite_code, invite_code_detail,
+    create_invite_code_api, revoke_invite_code_api
+)
 
 from .views import (
     AdminUserCreateView,
@@ -94,7 +102,9 @@ router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 
 urlpatterns = [
-    path('register/', UserRegistrationView.as_view(), name='user-register'),
+    # Invite-based registration API (web/mobile)
+    path('register/', register_user, name='api-register'),
+    path('validate-invite/', validate_invite_code, name='validate-invite'),
     path('logout/', logout_view, name='api-logout'),
     path('', include(router.urls)),
     
@@ -238,6 +248,33 @@ urlpatterns = [
     path('checklists/create/', create_checklist_template, name='create_checklist_template'),
     path('checklists/assign/<int:task_id>/', assign_checklist_to_task, name='assign_checklist_to_task'),
     path('checklists/quick-assign/', quick_assign_checklists, name='quick_assign_checklists'),
+    
+    # User Registration endpoints
+    path('register/', registration_view, name='register'),
+    path('api/register/', register_user, name='api-register'),
+    path('api/validate-invite/', validate_invite_code, name='validate-invite'),
+    
+    # Enhanced Invite Code Management (Admin & Manager)
+    path('admin/invite-codes/', invite_code_list, name='admin-invite-codes-enhanced'),
+    path('admin/create-invite-code/', create_invite_code, name='admin-create-invite-code-enhanced'),
+    path('admin/invite-codes/<int:code_id>/', invite_code_detail, name='admin-invite-code-detail'),
+    path('admin/invite-codes/<int:code_id>/edit/', edit_invite_code, name='admin-edit-invite-code'),
+    path('admin/invite-codes/<int:code_id>/revoke/', revoke_invite_code, name='admin-revoke-invite-code'),
+    path('admin/invite-codes/<int:code_id>/reactivate/', reactivate_invite_code, name='admin-reactivate-invite-code'),
+    path('admin/invite-codes/<int:code_id>/delete/', delete_invite_code, name='admin-delete-invite-code'),
+    
+    # Manager Invite Code Management
+    path('manager/invite-codes/', invite_code_list, name='manager-invite-codes'),
+    path('manager/create-invite-code/', create_invite_code, name='manager-create-invite-code'),
+    path('manager/invite-codes/<int:code_id>/', invite_code_detail, name='manager-invite-code-detail'),
+    path('manager/invite-codes/<int:code_id>/edit/', edit_invite_code, name='manager-edit-invite-code'),
+    path('manager/invite-codes/<int:code_id>/revoke/', revoke_invite_code, name='manager-revoke-invite-code'),
+    path('manager/invite-codes/<int:code_id>/reactivate/', reactivate_invite_code, name='manager-reactivate-invite-code'),
+    path('manager/invite-codes/<int:code_id>/delete/', delete_invite_code, name='manager-delete-invite-code'),
+    
+    # API endpoints for AJAX operations
+    path('invite-codes/create/', create_invite_code_api, name='api-create-invite-code'),
+    path('invite-codes/<int:code_id>/revoke/', revoke_invite_code_api, name='api-revoke-invite-code'),
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),

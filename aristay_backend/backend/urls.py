@@ -20,6 +20,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from api.managersite import manager_site
+from api.invite_code_views import invite_code_list, create_invite_code, edit_invite_code, revoke_invite_code, reactivate_invite_code, delete_invite_code, invite_code_detail
+from api.registration_views import registration_view
 from api.auth_views import UnifiedLoginView, logout_view
 
 # JWT Authentication imports
@@ -60,6 +62,13 @@ from api.password_reset_views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('admin/invite-codes/', invite_code_list, name='admin_invite_codes'),
+    path('admin/create-invite-code/', create_invite_code, name='admin_create_invite_code'),
+    path('admin/invite-codes/<int:code_id>/', invite_code_detail, name='admin_invite_code_detail'),
+    path('admin/invite-codes/<int:code_id>/edit/', edit_invite_code, name='admin_edit_invite_code'),
+    path('admin/invite-codes/<int:code_id>/revoke/', revoke_invite_code, name='admin_revoke_invite_code'),
+    path('admin/invite-codes/<int:code_id>/reactivate/', reactivate_invite_code, name='admin_reactivate_invite_code'),
+    path('admin/invite-codes/<int:code_id>/delete/', delete_invite_code, name='admin_delete_invite_code'),
     path('manager/', include((manager_site.urls[0], 'admin'), namespace='manager_admin')),   # Manager console
     path('api/', include('api.urls')),
     
@@ -93,6 +102,9 @@ urlpatterns = [
     path('login/', UnifiedLoginView.as_view(), name='unified_login'),
     path('logout/', logout_view, name='unified_logout'),
     path('', UnifiedLoginView.as_view(), name='home'),  # Root URL redirects to login
+    
+    # User registration (HTML form)
+    path('register/', registration_view, name='register'),
     
     # Password reset endpoints - using custom views with audit logging
     path('api/auth/password_reset/', 

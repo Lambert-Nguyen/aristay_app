@@ -14,7 +14,7 @@ from datetime import datetime, date
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'aristay_backend'))
 
 # Set up Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aristay_backend.backend.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_test')
 django.setup()
 
 from api.models import Booking, Property
@@ -25,6 +25,10 @@ from django.db import transaction
 
 def test_requested_scenarios():
     """Test all specifically requested scenarios"""
+    # Run migrations to create database tables
+    from django.core.management import call_command
+    call_command('migrate', verbosity=0, interactive=False)
+    
     print("🎯 TESTING ALL REQUESTED SCENARIOS")
     print("=" * 50)
     
@@ -87,6 +91,10 @@ def test_requested_scenarios():
 
 def test_conflict_behavior():
     """Test that conflicts behave as expected"""
+    # Run migrations to create database tables
+    from django.core.management import call_command
+    call_command('migrate', verbosity=0, interactive=False)
+    
     print("\n🔍 TESTING CONFLICT BEHAVIOR")
     print("=" * 50)
     

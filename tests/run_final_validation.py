@@ -34,9 +34,10 @@ def run_test(test_name, test_path):
     print(f"{'='*60}")
     
     try:
+        # Use pytest to run the test with proper database setup
         result = subprocess.run([
-            PYTHON_EXE, str(test_path)
-        ], capture_output=False, text=True, cwd=str(BACKEND))
+            PYTHON_EXE, "-m", "pytest", str(test_path), "-v", "--tb=short"
+        ], capture_output=False, text=True, cwd=str(ROOT))
         
         success = result.returncode == 0
         status = "✅ PASSED" if success else "❌ FAILED"
@@ -52,9 +53,9 @@ def main():
     print("="*80)
     
     tests = [
-        ("Production Hardening", "../tests/production/test_production_readiness.py"),
-        ("Phase 6 Integration", "../tests/integration/test_final_validation.py"),
-        ("Production Readiness", "../tests/integration/verify_production_readiness_new.py"),
+        ("Production Hardening", "tests/production/test_production_readiness.py"),
+        ("Phase 6 Integration", "tests/integration/test_final_validation.py"),
+        ("Production Readiness", "tests/integration/verify_production_readiness_new.py"),
     ]
     
     passed = 0

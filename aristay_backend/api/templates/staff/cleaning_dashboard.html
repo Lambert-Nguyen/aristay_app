@@ -46,9 +46,7 @@
             <span>⏰ {{ task.due_date|date:"H:i" }}</span>
             {% endif %}
             {% if task.assigned_to %}
-            <span>👤 {{ task.assigned_to.username }}</span>
-            {% else %}
-            <span>👤 Not assigned</span>
+            <span>👤 {% if task.assigned_to %}{{ task.assigned_to.username }}{% else %}Not assigned{% endif %}</span>
             {% endif %}
         </div>
         {% for task_progress in tasks_with_progress %}

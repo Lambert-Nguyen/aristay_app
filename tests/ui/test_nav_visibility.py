@@ -37,7 +37,7 @@ class NavigationVisibilityTestCase(TestCase):
         self.manager_profile.save()
         
         self.staff_user = User.objects.create_user(
-            'staff', 'staff@test.com', 'password123', is_staff=True
+            'staff', 'staff@test.com', 'password123'
         )
         # Get or update the automatically created profile  
         self.staff_profile = Profile.objects.get(user=self.staff_user)

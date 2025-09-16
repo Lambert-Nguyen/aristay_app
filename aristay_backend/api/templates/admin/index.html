@@ -590,7 +590,7 @@ body {
                 <span class="action-label">Analytics Dashboard</span>
                 <span class="action-description">View comprehensive system analytics and performance metrics</span>
             </a>
-            <a href="{% url 'admin:api_task_changelist' %}" class="action-card">
+            <a href="{% url 'staff-tasks' %}" class="action-card">
                 <span class="action-icon">📋</span>
                 <span class="action-label">Manage Tasks</span>
                 <span class="action-description">Create, edit, and monitor all cleaning and maintenance tasks</span>
@@ -679,7 +679,7 @@ body {
         <p><strong>Access Level:</strong> 
             {% if user.is_superuser %}
                 🔴 Superuser (Full System Access)
-            {% elif user.is_staff %}
+            {% elif user.profile and user.profile.role == 'manager' or user.profile and user.profile.role == 'superuser' %}
                 🟡 Staff Member (Limited Access)
             {% else %}
                 🔵 Regular User

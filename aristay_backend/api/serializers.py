@@ -18,7 +18,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from rest_framework import serializers
 from .models import Task, Property, TaskImage, Profile, Device, Notification, UserRole
-from .models import Booking, PropertyOwnership, AuditEvent  # Agent's Phase 2: Add AuditEvent
+from .models import Booking, PropertyOwnership, AuditEvent, InviteCode  # Agent's Phase 2: Add AuditEvent
 import json
 import pytz
 
@@ -35,10 +35,10 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        # include email so we can show it, and is_staff for "Admin" flag
+        # include email so we can show it, and profile role for business permissions
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'is_staff', 'is_superuser', 'is_active',   # ← include is_superuser
+            'is_superuser', 'is_active',   # ← keep is_superuser for Django admin access
             'role', 'task_group', 'timezone', 'system_timezone',
         ]
         
@@ -77,11 +77,11 @@ class UserSerializer(serializers.ModelSerializer):
         # 3) update the rest of the User fields (email, etc.)
         return super().update(instance, validated_data)
 
-# Admin can PATCH is_staff / is_active
+# Admin can PATCH is_active (role managed via Profile)
 class AdminUserAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
-        fields = ('id','username','email','first_name','last_name','is_staff','is_active')
+        fields = ('id','username','email','first_name','last_name','is_active')
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -127,7 +127,7 @@ class TaskImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskImage
         fields = [
-            'id', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
+            'id', 'task', 'image', 'uploaded_at', 'uploaded_by', 'uploaded_by_username',
             'size_bytes', 'width', 'height', 'original_size_bytes',
             # NEW: Before/After photo fields
             'photo_type', 'photo_type_display', 'photo_status', 'photo_status_display',
@@ -135,6 +135,9 @@ class TaskImageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
                            'width', 'height', 'original_size_bytes', 'photo_type_display', 'photo_status_display']
+        extra_kwargs = {
+            'task': {'required': False}  # Task is set by the view from URL parameter
+        }
     
     def validate_image(self, file):
         """Agent's enhanced validation: Accept large files, validate before optimization."""
@@ -142,8 +145,9 @@ class TaskImageSerializer(serializers.ModelSerializer):
         from rest_framework import serializers
         
         # Inline validation for security test compliance
-        max_mb = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024) // (1024 * 1024)
-        if file.size > max_mb * 1024 * 1024:
+        max_bytes = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024)
+        if file.size > max_bytes:
+            max_mb = max_bytes // (1024 * 1024)
             raise serializers.ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
         
         # Validate allowed content types
@@ -468,11 +472,11 @@ class AdminPasswordResetSerializer(serializers.Serializer):
         
 class AdminUserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    is_staff = serializers.BooleanField(default=False)
+    role = serializers.ChoiceField(choices=UserRole.choices, default=UserRole.STAFF)
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'is_staff')    
+        fields = ('id', 'username', 'email', 'password', 'role')    
     
     def validate_password(self, pw):
         # raise a ValidationError if pw too weak
@@ -481,21 +485,19 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
-        is_staff = validated_data.get('is_staff', False)
+        role = validated_data.pop('role', UserRole.STAFF)
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
         )
-        user.is_staff = is_staff
-        user.save()
 
         profile, _ = Profile.objects.get_or_create(user=user)
         if user.is_superuser:
-            # leave profile.role as-is; serializer will report “owner”
+            # leave profile.role as-is; serializer will report "owner"
             pass
         else:
-            profile.role = UserRole.MANAGER if is_staff else UserRole.STAFF
+            profile.role = role
             profile.save(update_fields=['role'])
         return user
     
@@ -570,3 +572,61 @@ class AuditEventSerializer(serializers.ModelSerializer):
             "user_agent",
             "changes",
         ]
+
+
+class InviteCodeSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    is_usable = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = InviteCode
+        fields = [
+            'id', 'code', 'created_by', 'created_by_username', 'task_group', 'role',
+            'max_uses', 'used_count', 'expires_at', 'is_active', 'is_expired', 'is_usable',
+            'created_at', 'last_used_at', 'notes'
+        ]
+        read_only_fields = ['code', 'created_by', 'used_count', 'created_at', 'last_used_at']
+
+
+class InviteCodeValidationSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=32, help_text="Invite code to validate")
+
+
+class UserRegistrationSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150, min_length=3)
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=8, write_only=True)
+    password_confirm = serializers.CharField(write_only=True)
+    first_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    invite_code = serializers.CharField(max_length=32)
+    
+    def validate(self, data):
+        if data['password'] != data['password_confirm']:
+            raise serializers.ValidationError({"password": ["Passwords do not match"]})
+        return data
+    
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists")
+        return value
+    
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email already exists")
+        return value
+
+    def create(self, validated_data):
+        # Not used by DRF viewsets directly in our flow; tests may call save()
+        from django.contrib.auth.models import User
+        from .models import Profile
+        # Remove non-User fields from representation so `.data` doesn't access them later
+        validated_data.pop('invite_code', None)
+        password_confirm = validated_data.pop('password_confirm', None)
+        password = validated_data.pop('password')
+
+        user = User.objects.create_user(password=password, **validated_data)
+        # Create a basic profile without role/task_group; caller will update
+        Profile.objects.get_or_create(user=user)
+        return user

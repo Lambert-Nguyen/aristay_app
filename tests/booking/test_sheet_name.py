@@ -22,7 +22,6 @@ def test_sheet_name():
             username='test_import_user',
             defaults={
                 'email': 'test@aristay.com',
-                'is_staff': True,
                 'is_superuser': True
             }
         )

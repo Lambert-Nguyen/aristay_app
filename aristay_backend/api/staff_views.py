@@ -15,7 +15,7 @@ Key Features:
 Authorization:
 - Uses centralized AuthzHelper for consistent permission checking
 - Supports both role-based and permission-based access control
-- Compatible with legacy is_staff users during transition period
+- Uses Profile.role for all business permission checks
 """
 
 from django.shortcuts import render, get_object_or_404, redirect

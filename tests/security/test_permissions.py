@@ -34,7 +34,6 @@ class DynamicPermissionsTestCase(APITestCase):
             email='super@test.com',
             password='testpass123',
             is_superuser=True,
-            is_staff=True
         )
         self.superuser_profile, created = Profile.objects.get_or_create(
             user=self.superuser,
@@ -531,7 +530,6 @@ class PermissionIntegrationTestCase(APITestCase):
             email='super@test.com',
             password='testpass123',
             is_superuser=True,
-            is_staff=True
         )
         Profile.objects.get_or_create(user=self.superuser, defaults={'role': UserRole.SUPERUSER, 'task_group': TaskGroup.NONE})
         
@@ -539,7 +537,6 @@ class PermissionIntegrationTestCase(APITestCase):
             username='manager',
             email='manager@test.com',
             password='testpass123',
-            is_staff=True
         )
         manager_profile, created = Profile.objects.get_or_create(user=self.manager, defaults={'role': UserRole.MANAGER, 'task_group': TaskGroup.NONE})
         if not created:

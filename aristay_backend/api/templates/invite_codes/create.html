@@ -1,0 +1,125 @@
+{% extends "invite_codes/base.html" %}
+{% load static %}
+
+{% block title %}Create Invite Code - AriStay{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="breadcrumb">
+            <a href="{% if is_manager_portal %}/manager/{% else %}/admin/{% endif %}">{% if is_manager_portal %}Manager{% else %}Admin{% endif %}</a> &gt; 
+            <a href="{% if is_manager_portal %}/manager/invite-codes/{% else %}/admin/invite-codes/{% endif %}">Invite Codes</a> &gt; 
+            Create New
+        </div>
+        <h1 class="card-title">🎫 Create New Invite Code</h1>
+    </div>
+    
+    <div class="card-body">
+        <form method="post" style="max-width: 800px;">
+            {% csrf_token %}
+            
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-body">
+                    <h3 style="margin-bottom: 1rem; color: #374151;">📋 Basic Information</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div class="form-group">
+                            <label for="role">Role *</label>
+                            <select name="role" id="role" class="form-control" required onchange="updateRoleDescription()">
+                                <option value="">Select a role</option>
+                                {% for value, label in role_choices %}
+                                <option value="{{ value }}" {% if request.POST.role == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">The permission level for the invited user</div>
+                            <div id="role-description" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: #f1f5f9; border-radius: 6px; font-size: 0.875rem; color: #374151;"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="task_group">Task Group *</label>
+                            <select name="task_group" id="task_group" class="form-control" required>
+                                <option value="">Select a task group</option>
+                                {% for value, label in task_group_choices %}
+                                <option value="{{ value }}" {% if request.POST.task_group == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">The task group the user will be assigned to</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-body">
+                    <h3 style="margin-bottom: 1rem; color: #374151;">⚙️ Usage Settings</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div class="form-group">
+                            <label for="max_uses">Maximum Uses</label>
+                            <input type="number" name="max_uses" id="max_uses" class="form-control" 
+                                   value="{{ request.POST.max_uses|default:'1' }}" min="1" max="1000">
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">How many times this code can be used (leave empty for unlimited)</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="expires_days">Expires In (Days)</label>
+                            <input type="number" name="expires_days" id="expires_days" class="form-control" 
+                                   value="{{ request.POST.expires_days }}" min="1" max="365" placeholder="e.g., 30">
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">Leave empty for no expiration</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-body">
+                    <h3 style="margin-bottom: 1rem; color: #374151;">📝 Additional Information</h3>
+                    
+                    <div class="form-group">
+                        <label for="notes">Notes (Optional)</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3" 
+                                  placeholder="Internal notes about this invite code...">{{ request.POST.notes }}</textarea>
+                        <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">Internal notes about this invite code</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; flex-wrap: wrap;">
+                <a href="{% if is_manager_portal %}/manager/invite-codes/{% else %}/admin/invite-codes/{% endif %}" class="btn btn-secondary">
+                    ❌ Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    ✅ Create Invite Code
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateRoleDescription() {
+    const roleSelect = document.getElementById('role');
+    const descriptionDiv = document.getElementById('role-description');
+    const role = roleSelect.value;
+    
+    const descriptions = {
+        'staff': 'Basic user with limited permissions. Can view and update assigned tasks.',
+        'manager': 'Can view all tasks, manage team members, and access reporting features.',
+        'superuser': 'Full system access including user management, system settings, and all features.',
+        'viewer': 'Read-only access to view information without making changes.'
+    };
+    
+    if (role && descriptions[role]) {
+        descriptionDiv.textContent = descriptions[role];
+        descriptionDiv.style.display = 'block';
+    } else {
+        descriptionDiv.style.display = 'none';
+    }
+}
+
+// Initialize role description on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateRoleDescription();
+});
+</script>
+{% endblock %}

@@ -41,7 +41,7 @@ class UnifiedLoginView(LoginView):
                 'user_id': user.id,
                 'username': user.username,
                 'is_superuser': user.is_superuser,
-                'is_staff': user.is_staff,
+                'role': user.profile.role if hasattr(user, 'profile') and user.profile else 'staff',
                 'remote_addr': self.request.META.get('REMOTE_ADDR', 'unknown'),
                 'user_agent': self.request.META.get('HTTP_USER_AGENT', 'unknown'),
             }
@@ -128,9 +128,9 @@ class UnifiedLoginView(LoginView):
         """
         context = super().get_context_data(**kwargs)
         context.update({
-            'site_title': 'AriStay Login',
-            'site_header': 'AriStay Administration',
-            'site_description': 'Access your admin or manager dashboard',
+            'site_title': 'AriStay Management',
+            'site_header': 'AriStay Management',
+            'site_description': 'Access your management dashboards',
         })
         return context
 
@@ -179,8 +179,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         
         # Add essential claims only (removed permissions for security and payload size)
-        token['role'] = getattr(getattr(user, 'profile', None), 'role', 'viewer')
-        token['is_staff'] = user.is_staff
+        token['role'] = user.profile.role if hasattr(user, 'profile') and user.profile else 'staff'
         token['is_superuser'] = user.is_superuser
         # Note: Granular permissions should be fetched via API when needed
         

@@ -28,7 +28,7 @@ def main():
     # Setup
     user, _ = User.objects.get_or_create(
         username='quick_validator',
-        defaults={'email': 'quick@test.com', 'is_staff': True}
+        defaults={'email': 'quick@test.com'}
     )
     
     property_obj, _ = Property.objects.get_or_create(

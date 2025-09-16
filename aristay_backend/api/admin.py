@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import render
+from django.contrib.admin import AdminSite
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.safestring import mark_safe
@@ -20,7 +21,7 @@ from .models import (
     InventoryCategory, InventoryItem, PropertyInventory, InventoryTransaction,
     LostFoundItem, LostFoundPhoto, ScheduleTemplate, GeneratedTask,
     BookingImportTemplate, BookingImportLog, CustomPermission, RolePermission, UserPermissionOverride,
-    AuditEvent, AutoTaskTemplate  # Agent's Phase 2: Add audit system and task templates
+    AuditEvent, AutoTaskTemplate, InviteCode  # Agent's Phase 2: Add audit system and task templates
 )
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
@@ -848,7 +849,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             return []
         return super().get_inline_instances(request, obj)
 
-    list_display = ('username', 'email', 'get_task_group', 'is_active', 'is_staff', 'is_superuser', 'password_status', 'last_login', 'date_joined')
+    list_display = ('username', 'email', 'get_task_group', 'is_active', 'get_profile_role', 'is_superuser', 'password_status', 'last_login', 'date_joined')
 
     # Override Django's default fieldsets to avoid field conflicts
     fieldsets = (
@@ -858,7 +859,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
         ('Permissions', {
             'fields': ('is_active', 'groups', 'user_permissions'),
             'classes': ('collapse',),
-            'description': 'Note: User role (staff/manager) is set in the Profile section below. Django admin access (is_staff/is_superuser) will be automatically synced based on Profile role.'
+            'description': 'Note: User role (staff/manager/superuser/viewer) is set in the Profile section below. Django admin access (is_superuser) will be automatically synced based on Profile role.'
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined'), 'classes': ('collapse',)}),
     )
@@ -894,6 +895,15 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             return "Not Assigned"
     get_task_group.short_description = "Task Group"
     get_task_group.admin_order_field = 'profile__task_group'
+
+    def get_profile_role(self, obj):
+        """Display profile role in the admin list view"""
+        try:
+            return obj.profile.get_role_display()
+        except Profile.DoesNotExist:
+            return "Not Assigned"
+    get_profile_role.short_description = "Role"
+    get_profile_role.admin_order_field = 'profile__role'
 
     def has_permission(self, request):
         """Check if user has permission to access this admin interface"""
@@ -954,28 +964,20 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
             print(f"✅ Admin created new user '{obj.username}' - Profile will be created by signal")
             
     def save_formset(self, request, form, formset, change):
-        """Override to handle Profile inline saves and sync is_staff/is_superuser"""
+        """Override to handle Profile inline saves and sync is_superuser"""
         super().save_formset(request, form, formset, change)
         
-        # After saving Profile inline, ensure is_staff/is_superuser are synced correctly
+        # After saving Profile inline, ensure is_superuser is synced correctly
         user = form.instance
         if hasattr(user, 'profile') and user.profile:
             from .models import UserRole
-            # Set is_staff and is_superuser based on profile role
-            should_have_staff_access = user.profile.role in [UserRole.MANAGER, UserRole.SUPERUSER]
+            # Set is_superuser based on profile role (only for superuser role)
             should_have_superuser_access = user.profile.role == UserRole.SUPERUSER
             
-            changed = False
-            if user.is_staff != should_have_staff_access:
-                user.is_staff = should_have_staff_access
-                changed = True
             if user.is_superuser != should_have_superuser_access:
                 user.is_superuser = should_have_superuser_access
-                changed = True
-                
-            if changed:
-                user.save(update_fields=['is_staff', 'is_superuser'])
-                print(f"✅ Admin synced is_staff={user.is_staff}, is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
+                user.save(update_fields=['is_superuser'])
+                print(f"✅ Admin synced is_superuser={user.is_superuser} for {user.username} (role: {user.profile.role})")
 
     def get_actions(self, request):
         """Customize actions based on user permissions"""
@@ -1127,7 +1129,7 @@ class AriStayUserAdmin(ProvenanceStampMixin, DjangoUserAdmin):
         """Customize changelist view based on permissions"""
         # For managers, filter out superusers from the list
         if not request.user.is_superuser:
-            self.list_filter = ('is_active', 'is_staff', 'groups', 'profile__role')
+            self.list_filter = ('is_active', 'groups', 'profile__role')
             # Override queryset to exclude superusers
             self.queryset = User.objects.exclude(is_superuser=True)
 
@@ -1267,9 +1269,7 @@ class ManagerUserAdmin(AriStayUserAdmin):
         """Customize form for managers"""
         form = super().get_form(request, obj, **kwargs)
 
-        # Managers should not be able to modify is_staff or is_superuser
-        if 'is_staff' in form.fields:
-            form.fields['is_staff'].disabled = True
+        # Managers should not be able to modify is_superuser
         if 'is_superuser' in form.fields:
             form.fields['is_superuser'].disabled = True
 
@@ -1876,4 +1876,133 @@ class AuditEventAdmin(admin.ModelAdmin):
         return response
     
     export_audit_events.short_description = "Export selected audit events to CSV"
+
+
+@admin.register(InviteCode)
+class InviteCodeAdmin(admin.ModelAdmin):
+    """Admin interface for managing invite codes"""
+    list_display = [
+        'code', 'created_by', 'role', 'task_group', 'is_active', 
+        'is_usable', 'used_count', 'max_uses', 'expires_at', 'created_at'
+    ]
+    list_filter = [
+        'role', 'task_group', 'is_active', 'created_at', 'expires_at'
+    ]
+    search_fields = ['code', 'created_by__username', 'notes']
+    readonly_fields = [
+        'code', 'created_by', 'used_count', 'created_at', 'last_used_at',
+        'is_expired', 'is_usable'
+    ]
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('code', 'created_by', 'role', 'task_group')
+        }),
+        ('Usage Settings', {
+            'fields': ('max_uses', 'used_count', 'used_by')
+        }),
+        ('Expiration', {
+            'fields': ('expires_at', 'is_active', 'is_expired', 'is_usable')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'last_used_at', 'notes'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('created_by')
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Creating new invite code
+            obj.created_by = request.user
+            if not obj.code:
+                # Generate a unique code if not provided
+                import secrets
+                import string
+                alphabet = string.ascii_uppercase + string.digits
+                while True:
+                    code = ''.join(secrets.choice(alphabet) for _ in range(8))
+                    if not InviteCode.objects.filter(code=code).exists():
+                        obj.code = code
+                        break
+        super().save_model(request, obj, form, change)
+    
+    def is_expired(self, obj):
+        return obj.is_expired
+    is_expired.boolean = True
+    is_expired.short_description = 'Expired'
+    
+    def is_usable(self, obj):
+        return obj.is_usable
+    is_usable.boolean = True
+    is_usable.short_description = 'Usable'
+    
+    actions = ['deactivate_codes', 'activate_codes', 'export_codes']
+    
+    def deactivate_codes(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} invite codes deactivated.')
+    deactivate_codes.short_description = "Deactivate selected invite codes"
+    
+    def activate_codes(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} invite codes activated.')
+    activate_codes.short_description = "Activate selected invite codes"
+    
+    def export_codes(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="invite_codes.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Code', 'Created By', 'Role', 'Task Group', 'Max Uses', 
+            'Used Count', 'Is Active', 'Expires At', 'Created At', 'Notes'
+        ])
+        
+        for code in queryset:
+            writer.writerow([
+                code.code,
+                code.created_by.username,
+                code.role,
+                code.task_group,
+                code.max_uses,
+                code.used_count,
+                code.is_active,
+                code.expires_at.isoformat() if code.expires_at else '',
+                code.created_at.isoformat(),
+                code.notes
+            ])
+        
+        return response
+    export_codes.short_description = "Export selected invite codes to CSV"
+
+
 admin.site.register(UserPermissionOverride, UserPermissionOverrideAdmin)
+
+
+# Add invite code URLs to the default admin site
+from django.urls import path
+
+def get_admin_urls():
+    """Get admin URLs including invite code management"""
+    from .invite_code_views import (
+        invite_code_list, create_invite_code, invite_code_detail,
+        edit_invite_code, revoke_invite_code, reactivate_invite_code, delete_invite_code
+    )
+    
+    return [
+        path('invite-codes/', admin.site.admin_view(invite_code_list), name='admin_invite_codes'),
+        path('create-invite-code/', admin.site.admin_view(create_invite_code), name='admin_create_invite_code'),
+        path('invite-codes/<int:code_id>/', admin.site.admin_view(invite_code_detail), name='admin_invite_code_detail'),
+        path('invite-codes/<int:code_id>/edit/', admin.site.admin_view(edit_invite_code), name='admin_edit_invite_code'),
+        path('invite-codes/<int:code_id>/revoke/', admin.site.admin_view(revoke_invite_code), name='admin_revoke_invite_code'),
+        path('invite-codes/<int:code_id>/reactivate/', admin.site.admin_view(reactivate_invite_code), name='admin_reactivate_invite_code'),
+        path('invite-codes/<int:code_id>/delete/', admin.site.admin_view(delete_invite_code), name='admin_delete_invite_code'),
+    ]
+
+# Override admin site URLs to include invite code management
+original_get_urls = admin.site.get_urls
+admin.site.get_urls = lambda: get_admin_urls() + original_get_urls()

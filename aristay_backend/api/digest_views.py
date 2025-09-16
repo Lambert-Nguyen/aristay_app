@@ -53,7 +53,7 @@ def send_digest_api(request):
     DRF API endpoint to trigger email digest sending
     POST /api/digest/send/
     """
-    if not request.user.is_staff:
+    if not (request.user.is_superuser or (hasattr(request.user, 'profile') and request.user.profile.role in ['manager', 'superuser'])):
         return Response(
             {"error": "Staff permissions required"}, 
             status=status.HTTP_403_FORBIDDEN

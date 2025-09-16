@@ -17,7 +17,7 @@ from api.authz import has_role
 
 def is_staff_or_manager(user):
     """Check if user is staff or manager"""
-    return user.is_authenticated and (user.is_staff or has_role(user, 'manager'))
+    return user.is_authenticated and has_role(user, ['manager', 'superuser'])
 
 
 @login_required

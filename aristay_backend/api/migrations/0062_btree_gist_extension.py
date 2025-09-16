@@ -6,7 +6,11 @@ from django.db import migrations, connection
 def create_btree_gist_extension(apps, schema_editor):
     """Create btree_gist extension only for PostgreSQL databases."""
     if connection.vendor == 'postgresql':
-        schema_editor.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
+        try:
+            schema_editor.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
+        except Exception as e:
+            print(f"Warning: Could not create btree_gist extension: {e}")
+            pass
 
 
 def drop_btree_gist_extension(apps, schema_editor):

@@ -27,7 +27,6 @@ def test_booking_creation():
             username='test_import_user',
             defaults={
                 'email': 'test@aristay.com',
-                'is_staff': True,
                 'is_superuser': True
             }
         )

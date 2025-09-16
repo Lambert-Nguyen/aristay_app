@@ -27,7 +27,6 @@ def test_nights_handling():
             username='test_nights_user',
             defaults={
                 'email': 'test@aristay.com',
-                'is_staff': True,
                 'is_superuser': True
             }
         )

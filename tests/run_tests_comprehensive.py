@@ -8,6 +8,10 @@ import sys
 import subprocess
 from pathlib import Path
 
+# Ensure test settings by default for stability (can be overridden via env)
+os.environ['DJANGO_SETTINGS_MODULE'] = 'backend.settings_test'
+os.environ['DJANGO_ENVIRONMENT'] = 'testing'
+
 # Project root directory  
 PROJECT_ROOT = Path(__file__).parent.parent  # Go up to /Users/.../aristay_app
 BACKEND_DIR = PROJECT_ROOT / "aristay_backend"

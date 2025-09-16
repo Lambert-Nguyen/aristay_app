@@ -37,7 +37,7 @@ def create_staging_evidence():
     # Setup
     user, _ = User.objects.get_or_create(
         username='staging_validator',
-        defaults={'email': 'staging@test.com', 'is_staff': True}
+        defaults={'email': 'staging@test.com'}
     )
     
     property_obj, _ = Property.objects.get_or_create(

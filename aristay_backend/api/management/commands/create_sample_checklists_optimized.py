@@ -43,7 +43,6 @@ class Command(BaseCommand):
                     username='admin',
                     defaults={
                         'email': 'admin@aristay.com',
-                        'is_staff': True,
                         'is_superuser': True,
                     }
                 )

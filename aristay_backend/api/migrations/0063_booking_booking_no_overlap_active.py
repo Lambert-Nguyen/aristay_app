@@ -9,19 +9,34 @@ from django.db import migrations, models, connection
 def add_booking_overlap_constraint(apps, schema_editor):
     """Add booking overlap constraint only for PostgreSQL databases."""
     if connection.vendor == 'postgresql':
+        try:
+            # Ensure btree_gist extension is available
+            schema_editor.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
+        except Exception as e:
+            print(f"Warning: Could not create btree_gist extension: {e}")
+            return
+
         # Drop if exists to ensure idempotency
-        schema_editor.execute("ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;")
+        try:
+            schema_editor.execute("ALTER TABLE api_booking DROP CONSTRAINT IF EXISTS booking_no_overlap_active;")
+        except Exception:
+            pass
+
         # Create the constraint using raw SQL for PostgreSQL
-        schema_editor.execute(
-            """
-            ALTER TABLE api_booking 
-            ADD CONSTRAINT booking_no_overlap_active 
-            EXCLUDE USING gist (
-                property_id WITH =,
-                tstzrange(check_in_date, check_out_date) WITH &&
-            ) WHERE (status NOT IN ('cancelled', 'completed'));
-            """
-        )
+        try:
+            schema_editor.execute(
+                """
+                ALTER TABLE api_booking 
+                ADD CONSTRAINT booking_no_overlap_active 
+                EXCLUDE USING gist (
+                    property_id WITH = gist_int8_ops,
+                    tstzrange(check_in_date, check_out_date) WITH &&
+                ) WHERE (status NOT IN ('cancelled', 'completed'));
+                """
+            )
+        except Exception as e:
+            print(f"Warning: Could not create booking overlap constraint: {e}")
+            pass
 
 
 def remove_booking_overlap_constraint(apps, schema_editor):

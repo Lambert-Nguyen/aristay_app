@@ -679,7 +679,7 @@ class UserList(DefaultAuthMixin, generics.ListAPIView):
 class AdminUserDetailView(generics.RetrieveUpdateAPIView):
     """
     GET/PATCH /api/admin/users/<id>/
-    Owner-only for updates. Safe fields: is_active, is_staff.
+    Owner-only for updates. Safe fields: is_active.
     """
     queryset = User.objects.all()
     serializer_class = AdminUserAdminSerializer
@@ -2081,7 +2081,7 @@ def enhanced_excel_import_view(request):
     """Enhanced Excel import view with conflict detection"""
     
     # GPT Agent Fix: Enhanced import access validation and logging
-    logger.info(f"Enhanced Excel import accessed by {request.user.username} (staff={request.user.is_staff}, superuser={request.user.is_superuser})")
+    logger.info(f"Enhanced Excel import accessed by {request.user.username} (role={getattr(request.user.profile, 'role', 'unknown')}, superuser={request.user.is_superuser})")
     
     # Additional validation: Ensure user has active profile
     if not hasattr(request.user, 'profile') and not request.user.is_superuser:
@@ -2163,7 +2163,7 @@ def enhanced_excel_import_api(request):
     """Enhanced Excel import API endpoint"""
     
     # GPT Agent Fix: Enhanced import access validation and logging
-    logger.info(f"Enhanced Excel import API accessed by {request.user.username} (staff={request.user.is_staff}, superuser={request.user.is_superuser})")
+    logger.info(f"Enhanced Excel import API accessed by {request.user.username} (role={getattr(request.user.profile, 'role', 'unknown')}, superuser={request.user.is_superuser})")
     
     if request.method != 'POST':
         logger.warning(f"User {request.user.username} attempted non-POST access to import API")

@@ -1,0 +1,492 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Invite Code Management{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .invite-code-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        color: #333;
+        margin: 0;
+    }
+    
+    .breadcrumb {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .breadcrumb a {
+        color: #007cba;
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        background-color: #007cba;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #005a87;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #545b62;
+    }
+    
+    .filters-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+    }
+    
+    .filters-row {
+        display: flex;
+        gap: 20px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 150px;
+    }
+    
+    .filter-group label {
+        font-weight: 500;
+        margin-bottom: 5px;
+        color: #333;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .filter-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .table-container {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-inactive {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-expired {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-usable {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .code-cell {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        color: #007cba;
+    }
+    
+    .action-cell {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .btn-sm {
+        padding: 5px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #218838;
+    }
+    
+    .btn-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    .btn-warning:hover {
+        background-color: #e0a800;
+    }
+    
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    
+    .btn-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .btn-info:hover {
+        background-color: #138496;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    
+    .pagination a,
+    .pagination span {
+        padding: 8px 12px;
+        margin: 0 2px;
+        border: 1px solid #ddd;
+        text-decoration: none;
+        color: #007cba;
+    }
+    
+    .pagination .current {
+        background-color: #007cba;
+        color: white;
+        border-color: #007cba;
+    }
+    
+    .pagination a:hover {
+        background-color: #e9ecef;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .stats-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        flex: 1;
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #007cba;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invite-code-container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Invite Code Management</h1>
+            <div class="breadcrumb">
+                {% if is_manager_portal %}
+                    <a href="/manager/">Manager Console</a> &gt; Invite Codes
+                {% else %}
+                    <a href="/admin/">Admin</a> &gt; Invite Codes
+                {% endif %}
+            </div>
+        </div>
+        <div class="action-buttons">
+            <a href="{% if is_manager_portal %}/manager/create-invite-code/{% else %}/admin/create-invite-code/{% endif %}" class="btn btn-primary">
+                ➕ Create New Invite Code
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-number">{{ page_obj.paginator.count }}</div>
+            <div class="stat-label">Total Codes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ page_obj.object_list|length }}</div>
+            <div class="stat-label">On This Page</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ page_obj.object_list|length|add:"-1"|add:"1" }}</div>
+            <div class="stat-label">Active Codes</div>
+        </div>
+    </div>
+    
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <form method="get" class="filters-form">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label for="role">Role</label>
+                    <select name="role" id="role">
+                        <option value="">All Roles</option>
+                        {% for value, label in role_choices %}
+                            <option value="{{ value }}" {% if current_filters.role == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="task_group">Task Group</label>
+                    <select name="task_group" id="task_group">
+                        <option value="">All Groups</option>
+                        {% for value, label in task_group_choices %}
+                            <option value="{{ value }}" {% if current_filters.task_group == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="status">Status</label>
+                    <select name="status" id="status">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if current_filters.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if current_filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="expired" {% if current_filters.status == 'expired' %}selected{% endif %}>Expired</option>
+                        <option value="usable" {% if current_filters.status == 'usable' %}selected{% endif %}>Usable</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="search">Search</label>
+                    <input type="text" name="search" id="search" value="{{ current_filters.search }}" placeholder="Code, creator, notes...">
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a href="{% if is_manager_portal %}/manager/invite-codes/{% else %}/api/admin/invite-codes/{% endif %}" class="btn btn-secondary">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Results Table -->
+    <div class="table-container">
+        {% if page_obj.object_list %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Role</th>
+                        <th>Task Group</th>
+                        <th>Created By</th>
+                        <th>Status</th>
+                        <th>Usage</th>
+                        <th>Expires</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invite_code in page_obj.object_list %}
+                        <tr>
+                            <td class="code-cell">{{ invite_code.code }}</td>
+                            <td>{{ invite_code.get_role_display }}</td>
+                            <td>{{ invite_code.get_task_group_display }}</td>
+                            <td>{{ invite_code.created_by.username }}</td>
+                            <td>
+                                {% if invite_code.is_expired %}
+                                    <span class="status-badge status-expired">Expired</span>
+                                {% elif not invite_code.is_active %}
+                                    <span class="status-badge status-inactive">Inactive</span>
+                                {% elif invite_code.is_usable %}
+                                    <span class="status-badge status-usable">Usable</span>
+                                {% else %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ invite_code.used_count }}/{{ invite_code.max_uses|default:"∞" }}</td>
+                            <td>
+                                {% if invite_code.expires_at %}
+                                    {{ invite_code.expires_at|date:"M d, Y" }}
+                                {% else %}
+                                    Never
+                                {% endif %}
+                            </td>
+                            <td>{{ invite_code.created_at|date:"M d, Y" }}</td>
+                            <td class="action-cell">
+                                <a href="{% if is_manager_portal %}/manager/invite-codes/{{ invite_code.id }}/{% else %}/api/admin/invite-codes/{{ invite_code.id }}/{% endif %}" class="btn btn-sm btn-info" title="View Details">👁️</a>
+                                
+                                {% if invite_code.used_count == 0 %}
+                                    <a href="{% if is_manager_portal %}/manager/invite-codes/{{ invite_code.id }}/edit/{% else %}/api/admin/invite-codes/{{ invite_code.id }}/edit/{% endif %}" class="btn btn-sm btn-warning" title="Edit">✏️</a>
+                                {% endif %}
+                                
+                                {% if invite_code.is_active %}
+                                    <form method="post" action="{% if is_manager_portal %}/manager/invite-codes/{{ invite_code.id }}/revoke/{% else %}/api/admin/invite-codes/{{ invite_code.id }}/revoke/{% endif %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Revoke" onclick="return confirm('Are you sure you want to revoke this invite code?')">🚫</button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{% if is_manager_portal %}/manager/invite-codes/{{ invite_code.id }}/reactivate/{% else %}/api/admin/invite-codes/{{ invite_code.id }}/reactivate/{% endif %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success" title="Reactivate">✅</button>
+                                    </form>
+                                {% endif %}
+                                
+                                {% if invite_code.used_count == 0 %}
+                                    <form method="post" action="{% if is_manager_portal %}/manager/invite-codes/{{ invite_code.id }}/delete/{% else %}/api/admin/invite-codes/{{ invite_code.id }}/delete/{% endif %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure you want to permanently delete this invite code? This action cannot be undone.')">🗑️</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+                <div class="pagination">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}{% if current_filters.task_group %}&task_group={{ current_filters.task_group }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">&laquo; First</a>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}{% if current_filters.task_group %}&task_group={{ current_filters.task_group }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Previous</a>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <span class="current">{{ num }}</span>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <a href="?page={{ num }}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}{% if current_filters.task_group %}&task_group={{ current_filters.task_group }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">{{ num }}</a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}{% if current_filters.task_group %}&task_group={{ current_filters.task_group }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Next</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if current_filters.role %}&role={{ current_filters.role }}{% endif %}{% if current_filters.task_group %}&task_group={{ current_filters.task_group }}{% endif %}{% if current_filters.status %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Last &raquo;</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="no-results">
+                <h3>No invite codes found</h3>
+                <p>Try adjusting your filters or create a new invite code.</p>
+                <a href="{% if is_manager_portal %}/manager/create-invite-code/{% else %}/admin/create-invite-code/{% endif %}" class="btn btn-primary">Create First Invite Code</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Auto-submit form on filter change
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelects = document.querySelectorAll('select[name="role"], select[name="task_group"], select[name="status"]');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+</script>
+{% endblock %}
