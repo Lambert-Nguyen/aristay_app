@@ -27,7 +27,7 @@ class CalendarView(LoginRequiredMixin, View):
         """Render the calendar page"""
         context = {
             'user': request.user,
-            'can_view_tasks': AuthzHelper.can_view_task(request.user, None) if hasattr(request.user, 'profile') else False,
+            'can_view_tasks': hasattr(request.user, 'profile') and request.user.profile.has_permission('view_all_tasks'),
             'can_view_bookings': True,  # Simplified - you might want to implement proper booking permissions
         }
         return render(request, self.template_name, context)

@@ -17,15 +17,16 @@ from .settings_base import *
 DEBUG = True
 DJANGO_ENVIRONMENT = "testing"
 
-# Use SQLite for tests to avoid GiST constraint issues
+# Override DATABASES after importing base settings to ensure it takes precedence
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
-        'OPTIONS': {
-            'timeout': 20,
-            'init_command': 'PRAGMA foreign_keys=OFF;',
-        }
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'aristay_test',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+        'CONN_MAX_AGE': 0,  # Don't keep connections open during tests
     }
 }
 

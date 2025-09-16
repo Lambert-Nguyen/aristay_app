@@ -492,12 +492,8 @@ if not DEBUG:
     DATABASES['default']['CONN_MAX_AGE'] = 60
     # Do not set unsupported driver-specific DSN options like MAX_CONNS for psycopg2
 
-# --- Driver-specific options cleanup (no SQLite default anymore) ---
-engine = DATABASES["default"].get("ENGINE", "")
-if engine.endswith("sqlite3"):
-    opts = DATABASES["default"].get("OPTIONS", {}) or {}
-    DATABASES["default"]["OPTIONS"] = {k: v for k, v in opts.items() if k in {"timeout"}}
-    DATABASES["default"]["CONN_MAX_AGE"] = 0
+# --- PostgreSQL-specific optimizations ---
+# All environments now use PostgreSQL only
 
 # Logging-specific settings
 LOGGING_CONFIG = None  # Disable Django's default logging config
