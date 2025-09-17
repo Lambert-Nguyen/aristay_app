@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendar - Aristay Property Management</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
@@ -268,6 +269,7 @@
                     loadCalendarEvents(info.start, info.end, successCallback, failureCallback);
                 },
                 eventClick: function(info) {
+                    info.jsEvent.preventDefault(); // Prevent default navigation
                     showEventDetails(info.event);
                 },
                 dateClick: function(info) {
@@ -315,7 +317,18 @@
                     return response.json();
                 })
                 .then(events => {
-                    successCallback(events);
+                    // Remove url property from events to prevent automatic navigation
+                    const processedEvents = events.map(event => {
+                        const { url, ...eventWithoutUrl } = event;
+                        return {
+                            ...eventWithoutUrl,
+                            extendedProps: {
+                                ...eventWithoutUrl,
+                                url: url // Keep url in extendedProps for modal use
+                            }
+                        };
+                    });
+                    successCallback(processedEvents);
                 })
                 .catch(error => {
                     console.error('Error loading events:', error);
