@@ -6,6 +6,7 @@ Calendar-specific serializers for unified booking and task display
 from rest_framework import serializers
 from .models import Task, Booking, Property
 from django.utils import timezone
+from django.urls import reverse
 from datetime import datetime, date
 
 
@@ -33,14 +34,22 @@ class CalendarTaskSerializer(serializers.ModelSerializer):
     property_name = serializers.CharField(source='property_ref.name', read_only=True)
     assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    url = serializers.SerializerMethodField()
     
     class Meta:
         model = Task
         fields = [
             'id', 'title', 'description', 'status', 'status_display',
             'due_date', 'created_at', 'property_ref', 'property_name',
-            'assigned_to', 'assigned_to_username', 'task_type'
+            'assigned_to', 'assigned_to_username', 'task_type', 'url'
         ]
+    
+    def get_url(self, obj):
+        """Generate URL for task detail view"""
+        try:
+            return reverse('portal-task-detail', kwargs={'task_id': obj.id})
+        except:
+            return f'/api/tasks/{obj.id}/'
 
 
 class CalendarBookingSerializer(serializers.ModelSerializer):
@@ -48,14 +57,22 @@ class CalendarBookingSerializer(serializers.ModelSerializer):
     property_name = serializers.CharField(source='property.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     tasks_count = serializers.IntegerField(source='tasks.count', read_only=True)
+    url = serializers.SerializerMethodField()
     
     class Meta:
         model = Booking
         fields = [
             'id', 'property', 'property_name', 'check_in_date', 'check_out_date',
             'guest_name', 'guest_contact', 'status', 'status_display',
-            'external_code', 'tasks_count'
+            'external_code', 'tasks_count', 'url'
         ]
+    
+    def get_url(self, obj):
+        """Generate URL for booking detail view"""
+        try:
+            return reverse('portal-booking-detail', kwargs={'property_id': obj.property.id, 'pk': obj.id})
+        except:
+            return f'/api/bookings/{obj.id}/'
 
 
 class CalendarFilterSerializer(serializers.Serializer):
