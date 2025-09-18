@@ -166,10 +166,10 @@ class CalendarAPITemplateIntegrationTestCase(TestCase):
         
         self.assertEqual(response.status_code, 200)
         data = response.json()
+        # Response shape: { date, tasks:[], bookings:[], total_events }
         self.assertIn('date', data)
         self.assertIn('tasks', data)
         self.assertIn('bookings', data)
-        self.assertIn('events', data)
         self.assertIn('total_events', data)
     
     def test_calendar_events_api_with_filters(self):

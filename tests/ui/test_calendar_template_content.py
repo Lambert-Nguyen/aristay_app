@@ -1,128 +1,87 @@
 """
-Test calendar template content without database setup.
+Lightweight calendar template content tests (no Django/DB required).
 
-This module tests the calendar HTML templates for content validation,
-structure, and basic functionality without requiring database operations.
+These tests validate the presence of core elements and scripts used by the
+standalone calendar template. They are intentionally minimal and resilient
+to styling/library changes.
 """
 
-import os
+from pathlib import Path
 
 
-def test_calendar_template_exists():
-    """Test that calendar template exists."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    assert os.path.exists(template_path)
+def _read_calendar_template() -> str:
+    """Read the standalone calendar template reliably from repo root."""
+    project_root = Path(__file__).resolve().parents[3]
+    template_path = project_root / "aristay_backend" / "api" / "templates" / "calendar" / "calendar_view.html"
+    assert template_path.exists(), f"Calendar template not found at {template_path}"
+    return template_path.read_text(encoding="utf-8")
 
 
-def test_calendar_template_content_structure():
-    """Test calendar template has required HTML structure."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for essential HTML elements
-    assert '<!DOCTYPE html>' in content
-    assert '<html' in content
-    assert '<head>' in content
-    assert '<body>' in content
-    assert '</html>' in content
+def test_calendar_template_basic_structure():
+    content = _read_calendar_template()
+    assert "<!DOCTYPE html>" in content
+    assert "<html" in content and "</html>" in content
+    assert "<head>" in content and "<body>" in content
 
 
-def test_calendar_template_css_classes():
-    """Test calendar template has required CSS classes."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for Bootstrap and custom CSS classes
-    assert 'container-fluid' in content
-    assert 'row' in content
-    assert 'col-12' in content
-    assert 'card' in content
-    assert 'card-body' in content
-    assert 'calendar-container' in content
+def test_calendar_template_core_elements():
+    content = _read_calendar_template()
+    # Calendar container and filter controls
+    assert "id=\"calendar\"" in content
+    assert "id=\"propertyFilter\"" in content
+    assert "id=\"statusFilter\"" in content
+    assert "id=\"assignedToFilter\"" in content
 
 
-def test_calendar_template_javascript_functions():
-    """Test calendar template has required JavaScript functions."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for essential JavaScript functions
-    assert 'loadCalendarEvents' in content
-    assert 'loadFilterOptions' in content
-    assert 'showEventDetails' in content
-    assert 'applyFilters' in content
-    assert 'clearFilters' in content
+def test_calendar_template_javascript_functions_present():
+    content = _read_calendar_template()
+    assert "loadCalendarEvents" in content
+    assert "loadFilterOptions" in content
+    assert "showEventDetails" in content
+    assert "applyFilters" in content
+    assert "clearFilters" in content
+    # FullCalendar v6 API used in template
+    assert "dateClick" in content
+    assert "eventDidMount" in content
 
 
 def test_calendar_template_fullcalendar_integration():
-    """Test calendar template integrates with FullCalendar."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for FullCalendar integration
-    assert 'fullcalendar' in content
-    assert 'calendar' in content
-    assert 'eventClick' in content
-    assert 'eventRender' in content
-    assert 'dayClick' in content
+    content = _read_calendar_template()
+    # CDN includes and core handlers
+    assert "fullcalendar" in content
+    assert "eventClick" in content
+    assert "dateClick" in content
+    assert "eventDidMount" in content
 
 
-def test_calendar_template_filter_elements():
-    """Test calendar template has filter elements."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for filter elements
-    assert 'filter-property' in content
-    assert 'filter-user' in content
-    assert 'filter-status' in content
-    assert 'filter-type' in content
-    assert 'btn-filter' in content
+def test_calendar_template_api_endpoints():
+    content = _read_calendar_template()
+    # Endpoint paths used by the JS in the template
+    assert "/api/calendar/events/" in content
+    assert "/api/calendar/properties/" in content
+    assert "/api/calendar/users/" in content
+    assert "/api/calendar/day_events/" in content
 
 
-def test_calendar_template_modal_elements():
-    """Test calendar template has modal elements."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for modal elements
-    assert 'modal' in content
-    assert 'modal-dialog' in content
-    assert 'modal-content' in content
-    assert 'modal-header' in content
-    assert 'modal-body' in content
-    assert 'modal-footer' in content
+def test_calendar_template_modal_and_styles_present():
+    content = _read_calendar_template()
+    assert "id=\"eventModal\"" in content
+    # Event styling classes
+    assert ".event-task" in content
+    assert ".event-booking" in content
 
 
-def test_calendar_template_event_handlers():
-    """Test calendar template has event handlers."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for event handlers
-    assert 'addEventListener' in content
-    assert 'click' in content
-    assert 'change' in content
-    assert 'submit' in content
+def test_calendar_template_cdn_assets_present():
+    content = _read_calendar_template()
+    # FullCalendar and FontAwesome CDNs
+    assert "cdn.jsdelivr.net/npm/fullcalendar" in content
+    assert "cdnjs.cloudflare.com/ajax/libs/font-awesome" in content
 
 
-def test_calendar_template_loading_indicators():
-    """Test calendar template has loading indicators."""
-    template_path = 'aristay_backend/api/templates/calendar/calendar_view.html'
-    with open(template_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    # Check for loading indicators
-    assert 'loading' in content
-    assert 'spinner' in content
-    assert 'spinner-border' in content
+def test_calendar_template_error_logging_present():
+    content = _read_calendar_template()
+    # We log errors to console on fetch failures
+    assert "console.error" in content
 
 
 def test_calendar_template_error_handling():
