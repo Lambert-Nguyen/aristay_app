@@ -74,7 +74,8 @@ from .audit_views import AuditEventViewSet
 # Calendar views
 from .calendar_views import CalendarViewSet
 from .calendar_django_views import (
-    CalendarView, calendar_properties_api, calendar_users_api, calendar_stats_api
+    CalendarView, calendar_properties_api, calendar_users_api, calendar_stats_api,
+    calendar_day_events_api, calendar_tasks_api, calendar_bookings_api
 )
 
 # Remove separate imports since they're now in the main views.py
@@ -293,4 +294,7 @@ urlpatterns = [
     path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
     path('calendar/users/', calendar_users_api, name='calendar-users'),
     path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
+    path('calendar/day_events/', calendar_day_events_api, name='calendar-day-events'),
+    path('calendar/tasks/', calendar_tasks_api, name='calendar-tasks'),
+    path('calendar/bookings/', calendar_bookings_api, name='calendar-bookings'),
 ]

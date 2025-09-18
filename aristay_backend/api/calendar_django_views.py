@@ -100,3 +100,176 @@ def calendar_stats_api(request):
     }
     
     return JsonResponse(stats)
+
+
+@login_required
+@require_http_methods(["GET"])
+def calendar_day_events_api(request):
+    """
+    API endpoint to get events for a specific day
+    """
+    from .models import Task, Booking
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    from .calendar_serializers import CalendarTaskSerializer, CalendarBookingSerializer
+    
+    date_str = request.GET.get('date')
+    if not date_str:
+        return JsonResponse({'error': 'Date parameter required'}, status=400)
+    
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format'}, status=400)
+    
+    # Get tasks for the day
+    tasks = Task.objects.filter(
+        due_date__date=target_date,
+        is_deleted=False
+    )
+    
+    # Get bookings for the day
+    bookings = Booking.objects.filter(
+        Q(check_in_date__date=target_date) | 
+        Q(check_out_date__date=target_date) |
+        (Q(check_in_date__date__lte=target_date) & Q(check_out_date__date__gte=target_date)),
+        is_deleted=False
+    )
+    
+    # Serialize the data
+    task_data = CalendarTaskSerializer(tasks, many=True).data
+    booking_data = CalendarBookingSerializer(bookings, many=True).data
+    
+    # Convert to calendar events format
+    events = []
+    
+    for task in task_data:
+        events.append({
+            'id': f"task_{task['id']}",
+            'title': task['title'],
+            'start': task['due_date'],
+            'allDay': True,
+            'type': 'task',
+            'status': task['status'],
+            'color': '#007bff',
+            'property_name': task['property_name'],
+            'assigned_to': task['assigned_to_username'],
+            'description': task['description'],
+            'url': task['url']
+        })
+    
+    for booking in booking_data:
+        events.append({
+            'id': f"booking_{booking['id']}",
+            'title': f"{booking['property_name']} - {booking['guest_name']}",
+            'start': booking['check_in_date'],
+            'end': booking['check_out_date'],
+            'allDay': True,
+            'type': 'booking',
+            'status': booking['status'],
+            'color': '#28a745',
+            'property_name': booking['property_name'],
+            'guest_name': booking['guest_name'],
+            'description': f"Booking from {booking['check_in_date']} to {booking['check_out_date']}",
+            'url': booking['url']
+        })
+    
+    return JsonResponse({
+        'date': date_str,
+        'tasks': task_data,
+        'bookings': booking_data,
+        'events': events,
+        'total_events': len(events)
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def calendar_tasks_api(request):
+    """
+    API endpoint to get tasks for calendar
+    """
+    from .models import Task
+    from .calendar_serializers import CalendarTaskSerializer
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    
+    # Get date range from query parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    tasks = Task.objects.filter(is_deleted=False)
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            tasks = tasks.filter(due_date__date__gte=start_dt)
+        except ValueError:
+            pass
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+            tasks = tasks.filter(due_date__date__lte=end_dt)
+        except ValueError:
+            pass
+    
+    # Apply additional filters
+    property_id = request.GET.get('property_id')
+    if property_id:
+        tasks = tasks.filter(property_ref_id=property_id)
+    
+    status = request.GET.get('status')
+    if status:
+        tasks = tasks.filter(status=status)
+    
+    user_id = request.GET.get('user_id')
+    if user_id:
+        tasks = tasks.filter(assigned_to_id=user_id)
+    
+    serializer = CalendarTaskSerializer(tasks, many=True)
+    return JsonResponse(serializer.data, safe=False)
+
+
+@login_required
+@require_http_methods(["GET"])
+def calendar_bookings_api(request):
+    """
+    API endpoint to get bookings for calendar
+    """
+    from .models import Booking
+    from .calendar_serializers import CalendarBookingSerializer
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    
+    # Get date range from query parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    bookings = Booking.objects.filter(is_deleted=False)
+    
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            bookings = bookings.filter(check_in_date__date__gte=start_dt)
+        except ValueError:
+            pass
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+            bookings = bookings.filter(check_out_date__date__lte=end_dt)
+        except ValueError:
+            pass
+    
+    # Apply additional filters
+    property_id = request.GET.get('property_id')
+    if property_id:
+        bookings = bookings.filter(property_id=property_id)
+    
+    status = request.GET.get('status')
+    if status:
+        bookings = bookings.filter(status=status)
+    
+    serializer = CalendarBookingSerializer(bookings, many=True)
+    return JsonResponse(serializer.data, safe=False)
