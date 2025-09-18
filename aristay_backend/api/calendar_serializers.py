@@ -1,6 +1,27 @@
 from rest_framework import serializers
 
 
+class CalendarEventSerializer(serializers.Serializer):
+    """Generic event serializer for unified calendar responses.
+
+    This aligns with tests that import CalendarEventSerializer directly.
+    All fields are optional to accommodate both task and booking shapes.
+    """
+    id = serializers.CharField(required=False)
+    title = serializers.CharField(required=False)
+    start = serializers.CharField(required=False)
+    end = serializers.CharField(required=False, allow_null=True)
+    allDay = serializers.BooleanField(required=False)
+    type = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)
+    color = serializers.CharField(required=False)
+    property_name = serializers.CharField(required=False, allow_null=True)
+    guest_name = serializers.CharField(required=False, allow_null=True)
+    assigned_to = serializers.CharField(required=False, allow_null=True)
+    description = serializers.CharField(required=False, allow_null=True)
+    url = serializers.CharField(required=False, allow_null=True)
+
+
 class CalendarTaskSerializer(serializers.Serializer):
     id = serializers.IntegerField(source="pk")
     title = serializers.CharField()

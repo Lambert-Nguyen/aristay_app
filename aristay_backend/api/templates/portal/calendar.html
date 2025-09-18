@@ -3,15 +3,17 @@
 {% block title %}Calendar - AriStay Portal{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="section-title">Property Management Calendar</div>
+<div class="calendar-container">
+    <div class="card calendar-header">
+        <div class="section-title">Property Management Calendar</div>
+    </div>
     
     <div style="margin-bottom: 2rem;">
         <p>View all your bookings and tasks in a unified calendar interface.</p>
     </div>
 
     <!-- Calendar Filters -->
-    <div class="card" style="margin-bottom: 2rem;">
+    <div class="card calendar-filters" style="margin-bottom: 2rem;">
         <h5 style="margin-bottom: 1rem;">Filters</h5>
         <div class="grid cols-1 md:cols-4 gap-4">
             <div>
@@ -53,7 +55,7 @@
     <div id="errorDisplay" style="display:none; margin-bottom: 1rem; color: #b91c1c;"></div>
 
     <!-- Calendar Container -->
-    <div class="card">
+    <div class="card calendar-wrapper">
         <div id="calendar" style="min-height: 600px;"></div>
     </div>
 </div>
