@@ -35,6 +35,16 @@
         </div>
         {% endif %}
         
+        <!-- Calendar Portal -->
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📅</div>
+            <h3 style="margin-bottom: 0.5rem;">Calendar View</h3>
+            <p style="margin-bottom: 1rem; color: #64748b;">View all bookings and tasks in a unified calendar</p>
+            <a href="/api/portal/calendar/" class="button" style="width: 100%; display: block;">
+                Open Calendar
+            </a>
+        </div>
+        
         <!-- Admin/Manager Portal -->
         {% if user.is_staff %}
         <div class="card" style="text-align: center; padding: 1.5rem;">

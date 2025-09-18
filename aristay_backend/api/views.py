@@ -320,6 +320,17 @@ def portal_home(request):
     return render(request, 'portal/home.html', context)
 
 
+@login_required
+def portal_calendar(request):
+    """Portal calendar view with unified booking and task display"""
+    context = {
+        'user': request.user,
+        'can_view_tasks': hasattr(request.user, 'profile') and request.user.profile.has_permission('view_all_tasks'),
+        'can_view_bookings': True,  # Simplified - you might want to implement proper booking permissions
+    }
+    return render(request, 'portal/calendar.html', context)
+
+
 def _accessible_properties_for(user):
     """Return a queryset of properties visible to this user."""
     if user.is_superuser:

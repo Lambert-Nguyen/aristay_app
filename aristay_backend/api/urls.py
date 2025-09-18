@@ -39,7 +39,7 @@ from .views import (
     ManagerUserDetail,
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
     system_logs_viewer, system_logs_download, system_crash_recovery,
-    portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
+    portal_home, portal_calendar, portal_property_list, portal_property_detail, portal_booking_detail,
     portal_task_detail,
     excel_import_view, excel_import_api, property_approval_create,
     enhanced_excel_import_view, enhanced_excel_import_api,
@@ -170,6 +170,7 @@ urlpatterns = [
 
     # Portal (web) routes
     path('portal/', portal_home, name='portal-home'),
+    path('portal/calendar/', portal_calendar, name='portal-calendar'),
     path('portal/properties/', portal_property_list, name='portal-properties'),
     path('portal/properties/<int:pk>/', portal_property_detail, name='portal-property-detail'),
     path('portal/properties/<int:property_id>/bookings/<int:pk>/', portal_booking_detail, name='portal-booking-detail'),
