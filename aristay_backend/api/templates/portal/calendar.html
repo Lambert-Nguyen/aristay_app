@@ -48,6 +48,10 @@
         </div>
     </div>
 
+    <!-- Loading / Error Hooks for CI expectations -->
+    <div id="loadingIndicator" style="display:none; margin-bottom: 1rem; color: #64748b;">Loading...</div>
+    <div id="errorDisplay" style="display:none; margin-bottom: 1rem; color: #b91c1c;"></div>
+
     <!-- Calendar Container -->
     <div class="card">
         <div id="calendar" style="min-height: 600px;"></div>
@@ -121,6 +125,25 @@
         calendar.render();
     }
 
+    function showLoading() {
+        const el = document.getElementById('loadingIndicator');
+        if (el) el.style.display = 'block';
+    }
+
+    function hideLoading() {
+        const el = document.getElementById('loadingIndicator');
+        if (el) el.style.display = 'none';
+    }
+
+    function showError(message) {
+        console.error(message);
+        const el = document.getElementById('errorDisplay');
+        if (el) {
+            el.textContent = message;
+            el.style.display = 'block';
+        }
+    }
+
     function loadCalendarEvents(start, end, successCallback, failureCallback) {
         const params = new URLSearchParams({
             start_date: start.toISOString().split('T')[0],
@@ -128,6 +151,7 @@
             ...currentFilters
         });
 
+        showLoading();
         fetch(`/api/calendar/events/?${params}`)
             .then(response => {
                 if (!response.ok) {
@@ -146,10 +170,12 @@
                         }
                     };
                 });
+                hideLoading();
                 successCallback(processedEvents);
             })
             .catch(error => {
-                console.error('Error loading events:', error);
+                showError('Error loading events');
+                hideLoading();
                 failureCallback(error);
             });
     }

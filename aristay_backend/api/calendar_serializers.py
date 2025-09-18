@@ -1,87 +1,44 @@
-# api/calendar_serializers.py
-"""
-Calendar-specific serializers for unified booking and task display
-"""
-
 from rest_framework import serializers
-from .models import Task, Booking, Property
-from django.utils import timezone
-from django.urls import reverse
-from datetime import datetime, date
 
 
-class CalendarEventSerializer(serializers.Serializer):
-    """
-    Unified serializer for calendar events (both bookings and tasks)
-    """
-    id = serializers.IntegerField()
+class CalendarTaskSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="pk")
     title = serializers.CharField()
-    start = serializers.DateTimeField()
-    end = serializers.DateTimeField(allow_null=True)
-    allDay = serializers.BooleanField(default=False)
-    type = serializers.CharField()  # 'booking' or 'task'
+    due_date = serializers.DateTimeField(allow_null=True)
     status = serializers.CharField()
-    color = serializers.CharField(allow_null=True)
-    property_name = serializers.CharField(allow_null=True)
-    guest_name = serializers.CharField(allow_null=True)
-    assigned_to = serializers.CharField(allow_null=True)
-    description = serializers.CharField(allow_null=True)
-    url = serializers.CharField(allow_null=True)
+    property_name = serializers.SerializerMethodField()
+    assigned_to = serializers.SerializerMethodField()
+
+    def get_property_name(self, obj):
+        prop = getattr(obj, "property_ref", None)
+        return prop.name if prop else None
+
+    def get_assigned_to(self, obj):
+        user = getattr(obj, "assigned_to", None)
+        return user.username if user else None
 
 
-class CalendarTaskSerializer(serializers.ModelSerializer):
-    """Task serializer optimized for calendar display"""
-    property_name = serializers.CharField(source='property_ref.name', read_only=True)
-    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Task
-        fields = [
-            'id', 'title', 'description', 'status', 'status_display',
-            'due_date', 'created_at', 'property_ref', 'property_name',
-            'assigned_to', 'assigned_to_username', 'task_type', 'url'
-        ]
-    
-    def get_url(self, obj):
-        """Generate URL for task detail view"""
-        try:
-            return reverse('portal-task-detail', kwargs={'task_id': obj.id})
-        except:
-            return f'/api/tasks/{obj.id}/'
+class CalendarBookingSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="pk")
+    property_name = serializers.SerializerMethodField()
+    guest_name = serializers.CharField()
+    check_in_date = serializers.DateTimeField()
+    check_out_date = serializers.DateTimeField()
+    status = serializers.CharField()
 
-
-class CalendarBookingSerializer(serializers.ModelSerializer):
-    """Booking serializer optimized for calendar display"""
-    property_name = serializers.CharField(source='property.name', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
-    tasks_count = serializers.IntegerField(source='tasks.count', read_only=True)
-    url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Booking
-        fields = [
-            'id', 'property', 'property_name', 'check_in_date', 'check_out_date',
-            'guest_name', 'guest_contact', 'status', 'status_display',
-            'external_code', 'tasks_count', 'url'
-        ]
-    
-    def get_url(self, obj):
-        """Generate URL for booking detail view"""
-        try:
-            return reverse('portal-booking-detail', kwargs={'property_id': obj.property.id, 'pk': obj.id})
-        except:
-            return f'/api/bookings/{obj.id}/'
+    def get_property_name(self, obj):
+        prop = getattr(obj, "property", None)
+        return prop.name if prop else None
 
 
 class CalendarFilterSerializer(serializers.Serializer):
-    """Serializer for calendar filtering parameters"""
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
     property_id = serializers.IntegerField(required=False)
     status = serializers.CharField(required=False)
     task_type = serializers.CharField(required=False)
     assigned_to = serializers.IntegerField(required=False)
-    include_tasks = serializers.BooleanField(default=True)
-    include_bookings = serializers.BooleanField(default=True)
+    include_tasks = serializers.BooleanField(required=False, default=True)
+    include_bookings = serializers.BooleanField(required=False, default=True)
+
+

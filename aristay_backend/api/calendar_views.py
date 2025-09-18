@@ -12,10 +12,9 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import Task, Booking, Property
 from .calendar_serializers import (
-    CalendarEventSerializer, 
-    CalendarTaskSerializer, 
+    CalendarTaskSerializer,
     CalendarBookingSerializer,
-    CalendarFilterSerializer
+    CalendarFilterSerializer,
 )
 from .permissions import DynamicTaskPermissions, DynamicBookingPermissions
 from .authz import AuthzHelper
