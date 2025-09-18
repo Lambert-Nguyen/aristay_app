@@ -204,6 +204,8 @@ def run_ui_tests():
     
     python_exe = get_python_executable()
     test_files = [
+        # Calendar UI - simple template content test (run without pytest/django)
+        TESTS_DIR / "ui" / "test_calendar_template_content.py",
         TESTS_DIR / "ui" / "test_button_fix_verification.py",
         TESTS_DIR / "ui" / "test_button_functionality_analysis.py",
         TESTS_DIR / "ui" / "test_button_timing_analysis.py",
@@ -219,6 +221,13 @@ def run_ui_tests():
     success = True
     for test_file in test_files:
         if test_file.exists():
+            # Run the simple template content test without pytest/django from project root
+            if test_file.name == "test_calendar_template_content.py":
+                if not run_command([python_exe, str(test_file)], cwd=PROJECT_ROOT):
+                    success = False
+                continue
+
+            # All other UI tests run under pytest with Django settings from backend dir
             if not run_command([python_exe, "-m", "pytest", str(test_file), "-v"], cwd=BACKEND_DIR):
                 success = False
         else:
