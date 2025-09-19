@@ -114,6 +114,29 @@ os.environ['TESTING'] = 'true'
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
+# Ensure staticfiles are collected for tests (like CI does)
+import subprocess
+import sys
+from pathlib import Path
+
+def collect_static_for_tests():
+    """Collect static files for tests to avoid missing manifest errors"""
+    try:
+        # Run collectstatic in test mode
+        result = subprocess.run([
+            sys.executable, 'manage.py', 'collectstatic', '--noinput', '--clear',
+            '--settings=backend.settings_test'
+        ], cwd=Path(__file__).parent.parent, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"Warning: collectstatic failed: {result.stderr}")
+    except Exception as e:
+        print(f"Warning: Could not collect static files: {e}")
+
+# Only collect static if not already done (avoid repeated calls)
+if not os.getenv('STATIC_COLLECTED'):
+    collect_static_for_tests()
+    os.environ['STATIC_COLLECTED'] = 'true'
+
 # Disable media files during tests
 MEDIA_ROOT = '/tmp/test_media'
 
@@ -162,3 +185,15 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'rest_framework_simplejwt.authentication.JWTAuthentication',
 ]
+
+# Mock Cloudinary settings for tests to prevent "Must supply api_key" errors
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'test_cloud',
+    'API_KEY': 'test_key',
+    'API_SECRET': 'test_secret',
+}
+
+# Ensure Cloudinary is properly mocked
+os.environ['CLOUDINARY_CLOUD_NAME'] = 'test_cloud'
+os.environ['CLOUDINARY_API_KEY'] = 'test_key'
+os.environ['CLOUDINARY_API_SECRET'] = 'test_secret'
