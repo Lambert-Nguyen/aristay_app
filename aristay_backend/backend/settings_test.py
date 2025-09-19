@@ -97,14 +97,24 @@ INSTALLED_APPS = [
     if app not in ('cloudinary', 'cloudinary_storage')
 ]
 
-# Storage backends: use local filesystem for both default and staticfiles
+# Override STORAGES to ensure local filesystem is used (not Cloudinary)
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'OPTIONS': {
+            'location': '/tmp/test_media',
+        },
     },
     'staticfiles': {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
+}
+
+# Mock Cloudinary settings to prevent "Must supply api_key" errors during tests
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'test',
+    'API_KEY': 'test',
+    'API_SECRET': 'test',
 }
 
 # Ensure Django knows we're testing
@@ -113,29 +123,6 @@ os.environ['TESTING'] = 'true'
 # Some third-party packages still respect legacy settings
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-
-# Ensure staticfiles are collected for tests (like CI does)
-import subprocess
-import sys
-from pathlib import Path
-
-def collect_static_for_tests():
-    """Collect static files for tests to avoid missing manifest errors"""
-    try:
-        # Run collectstatic in test mode
-        result = subprocess.run([
-            sys.executable, 'manage.py', 'collectstatic', '--noinput', '--clear',
-            '--settings=backend.settings_test'
-        ], cwd=Path(__file__).parent.parent, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Warning: collectstatic failed: {result.stderr}")
-    except Exception as e:
-        print(f"Warning: Could not collect static files: {e}")
-
-# Only collect static if not already done (avoid repeated calls)
-if not os.getenv('STATIC_COLLECTED'):
-    collect_static_for_tests()
-    os.environ['STATIC_COLLECTED'] = 'true'
 
 # Disable media files during tests
 MEDIA_ROOT = '/tmp/test_media'

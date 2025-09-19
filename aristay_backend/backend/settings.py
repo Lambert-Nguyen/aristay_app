@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 from pathlib import Path
-import ssl
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -586,35 +585,17 @@ if DEBUG or os.getenv('CI') or os.getenv('TESTING'):
         }
     }
 else:
-    _redis_url = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1')
-    _use_ssl = os.getenv('REDIS_USE_SSL', 'true').lower() == 'true' or _redis_url.startswith('rediss://')
-    _ssl_cert_reqs_env = os.getenv('REDIS_SSL_CERT_REQS', 'required').lower()
-    _ssl_cert_reqs = (
-        ssl.CERT_NONE if _ssl_cert_reqs_env in ('none', 'false', '0') else ssl.CERT_REQUIRED
-    )
-    _ssl_ca_path = os.getenv('REDIS_SSL_CA_CERTS')
-    _ignore_exceptions = os.getenv('REDIS_IGNORE_EXCEPTIONS', 'true').lower() == 'true'
-
-    _options = {
-        'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        'CONNECTION_POOL_KWARGS': {
-            'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
-            'retry_on_timeout': True,
-        },
-    }
-    if _use_ssl:
-        _ssl_opts = {'ssl_cert_reqs': _ssl_cert_reqs}
-        if _ssl_ca_path:
-            _ssl_opts['ca_certs'] = _ssl_ca_path
-        _options['SSL'] = _ssl_opts
-    if _ignore_exceptions:
-        _options['IGNORE_EXCEPTIONS'] = True  # prevent cache outages from causing 500s
-
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': _redis_url,
-            'OPTIONS': _options,
+            'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+                    'retry_on_timeout': True,
+                },
+            },
             'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),  # 5 minutes default
         }
     }
