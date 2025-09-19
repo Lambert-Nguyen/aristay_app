@@ -12,6 +12,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
+from django.urls import reverse
 from .models import Property, User
 from .authz import AuthzHelper
 import json
@@ -155,10 +156,14 @@ def calendar_day_events_api(request):
             'property_name': task['property_name'],
             'assigned_to': task['assigned_to_username'],
             'description': task['description'],
-            'url': task['url']
+            'url': reverse('portal-task-detail', args=[task['id']])
         })
     
     for booking in booking_data:
+        # Get the property_id from the original booking object
+        booking_obj = next((b for b in bookings if b.id == booking['id']), None)
+        property_id = booking_obj.property.id if booking_obj else None
+        
         events.append({
             'id': f"booking_{booking['id']}",
             'title': f"{booking['property_name']} - {booking['guest_name']}",
@@ -171,7 +176,7 @@ def calendar_day_events_api(request):
             'property_name': booking['property_name'],
             'guest_name': booking['guest_name'],
             'description': f"Booking from {booking['check_in_date']} to {booking['check_out_date']}",
-            'url': booking['url']
+            'url': reverse('portal-booking-detail', args=[property_id, booking['id']]) if property_id else None
         })
     
     return JsonResponse({

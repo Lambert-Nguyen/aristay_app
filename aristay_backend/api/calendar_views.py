@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from django.utils import timezone
+from django.urls import reverse
 from datetime import datetime, timedelta
 from .models import Task, Booking, Property
 from .calendar_serializers import (
@@ -125,7 +126,7 @@ class CalendarViewSet(viewsets.ViewSet):
                         'property_name': task.property_ref.name if task.property_ref else None,
                         'assigned_to': task.assigned_to.username if task.assigned_to else None,
                         'description': task.description,
-                        'url': f"/tasks/{task.id}/"
+                        'url': reverse('portal-task-detail', args=[task.id])
                     }
                     events.append(event)
         
@@ -156,7 +157,7 @@ class CalendarViewSet(viewsets.ViewSet):
                     'guest_name': booking.guest_name,
                     'assigned_to': None,
                     'description': f"Check-in: {booking.check_in_date.strftime('%Y-%m-%d %H:%M')}\nCheck-out: {booking.check_out_date.strftime('%Y-%m-%d %H:%M')}",
-                    'url': f"/bookings/{booking.id}/"
+                    'url': reverse('portal-booking-detail', args=[booking.property.id, booking.id])
                 }
                 events.append(event)
         
