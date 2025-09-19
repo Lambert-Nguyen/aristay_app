@@ -5,9 +5,6 @@ Use this for running tests
 
 import os
 
-# Force-disable DATABASE_URL so base settings don't connect to Postgres during tests
-os.environ["DATABASE_URL"] = ""
-
 from .settings_base import *
 
 # Using Django's default User model
@@ -18,25 +15,30 @@ DEBUG = True
 DJANGO_ENVIRONMENT = "testing"
 ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 
-# Override DATABASES after importing base settings to ensure it takes precedence
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'aristay_test',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-        'CONN_MAX_AGE': 0,  # Don't keep connections open during tests
-    }
-}
+# Prefer DATABASE_URL in CI/local if provided, else fall back to local Postgres
+from pathlib import Path
+import dj_database_url
 
-# Disable API app migrations for tests (avoid Postgres-specific SQL like DO $$ blocks)
-# Disable all migrations for tests. Django will create tables directly from models.
-# Disable api migrations only; point to empty module to force syncdb
-MIGRATION_MODULES = {
-    'api': None,
-}
+_db_url = os.getenv('DATABASE_URL')
+if _db_url:
+    DATABASES = {
+        'default': dj_database_url.parse(_db_url, conn_max_age=0, ssl_require=False),
+    }
+else:
+    # Local Postgres default for tests
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'aristay_test'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'postgres'),
+            'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'CONN_MAX_AGE': 0,
+        }
+    }
+
+# Run real migrations in tests to match CI behavior
 
 # Disable password hashing for faster tests
 PASSWORD_HASHERS = [
