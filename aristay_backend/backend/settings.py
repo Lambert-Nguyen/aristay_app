@@ -587,9 +587,10 @@ if DEBUG or os.getenv('CI') or os.getenv('TESTING'):
 else:
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
             'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'CONNECTION_POOL_KWARGS': {
                     'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
                     'retry_on_timeout': True,

@@ -85,15 +85,25 @@ def run_integration_tests():
     return success
 
 def run_django_tests():
-    """Run Django's built-in tests"""
+    """Run Django tests (unit + api) using pytest"""
     print("\n🐍 RUNNING DJANGO TESTS")
     print("=" * 50)
     
     python_exe = get_python_executable()
-    return run_command([python_exe, "manage.py", "test"], cwd=BACKEND_DIR)
+    
+    # Set up environment for Django tests
+    env = os.environ.copy()
+    env['DJANGO_SETTINGS_MODULE'] = 'backend.settings_test'
+    env['PYTHONPATH'] = str(PROJECT_ROOT)
+    
+    # Run unit and API tests as Django tests
+    unit_tests = run_command([python_exe, "-m", "pytest", "-q", str(TESTS_DIR / "unit"), "-v"], cwd=BACKEND_DIR, env=env)
+    api_tests = run_command([python_exe, "-m", "pytest", "-q", str(TESTS_DIR / "api"), "-v"], cwd=BACKEND_DIR, env=env)
+    
+    return unit_tests and api_tests
 
 def run_ui_tests():
-    """Run UI template tests using Django test runner"""
+    """Run UI template tests using pytest"""
     print("\n🎨 RUNNING UI TESTS")
     print("=" * 50)
     
@@ -102,11 +112,10 @@ def run_ui_tests():
     # Set up environment for Django tests
     env = os.environ.copy()
     env['DJANGO_SETTINGS_MODULE'] = 'backend.settings_test'
-    env['PYTHONPATH'] = str(PROJECT_ROOT)  # Add project root to Python path
+    env['PYTHONPATH'] = str(PROJECT_ROOT)
     
-    # Run UI tests by specifying the full path to the ui directory
-    ui_test_path = str(TESTS_DIR / "ui")
-    return run_command([python_exe, "manage.py", "test", ui_test_path, "--keepdb"], cwd=BACKEND_DIR, env=env)
+    # Use pytest instead of Django test runner for consistency
+    return run_command([python_exe, "-m", "pytest", "-q", str(TESTS_DIR / "ui"), "-v"], cwd=BACKEND_DIR, env=env)
 
 def main():
     """Main test runner"""
