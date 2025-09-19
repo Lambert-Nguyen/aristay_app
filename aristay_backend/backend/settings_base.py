@@ -104,41 +104,31 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-# Prefer lightweight SQLite during tests to avoid Postgres-specific constraints
-if os.getenv('DJANGO_ENVIRONMENT', '').lower() == 'testing':
+# PostgreSQL only - no SQLite3 support
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/aristay_local')
+
+# Use dj_database_url if DATABASE_URL is provided, otherwise use default PostgreSQL config
+if DATABASE_URL and DATABASE_URL.strip():
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
-            'OPTIONS': {
-                'timeout': 20,
-            }
-        }
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=60,
+            conn_health_checks=True,
+        )
     }
 else:
-    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/aristay_local')
-    # Only use dj_database_url if DATABASE_URL is not empty
-    if DATABASE_URL and DATABASE_URL.strip():
-        DATABASES = {
-            'default': dj_database_url.parse(
-                DATABASE_URL,
-                conn_max_age=60,
-                conn_health_checks=True,
-            )
+    # Default PostgreSQL configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'aristay_local',
+            'USER': 'postgres',
+            'PASSWORD': 'postgres',
+            'HOST': '127.0.0.1',
+            'PORT': '5432',
+            'CONN_MAX_AGE': 60,
         }
-    else:
-        # Fallback to default PostgreSQL configuration
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': 'aristay_local',
-                'USER': 'postgres',
-                'PASSWORD': 'postgres',
-                'HOST': '127.0.0.1',
-                'PORT': '5432',
-                'CONN_MAX_AGE': 60,
-            }
-        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

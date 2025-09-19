@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar - Aristay Property Management</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap CSS for styling -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        .calendar-container {
+            padding: 20px;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .calendar-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .calendar-filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .calendar-wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        #calendar {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .event-details {
+            font-size: 0.9em;
+        }
+        
+        .event-task {
+            border-left: 4px solid #007bff;
+        }
+        
+        .event-booking {
+            border-left: 4px solid #28a745;
+        }
+        
+        .filter-section {
+            margin-bottom: 15px;
+        }
+        
+        .filter-section label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+        
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-in-progress { background-color: #cce5ff; color: #004085; }
+        .status-completed { background-color: #d4edda; color: #155724; }
+        .status-canceled { background-color: #f8d7da; color: #721c24; }
+        .status-booked { background-color: #d1ecf1; color: #0c5460; }
+        .status-confirmed { background-color: #cce5ff; color: #004085; }
+        .status-currently-hosting { background-color: #d4edda; color: #155724; }
+        .status-cancelled { background-color: #f8d7da; color: #721c24; }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-container {
+                padding: 10px;
+            }
+            
+            .calendar-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .btn-group .btn {
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calendar-container">
+        <!-- Header -->
+        <div class="calendar-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="mb-0">Property Management Calendar</h1>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="refreshCalendar()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="exportCalendar()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="calendar-filters">
+            <h5 class="mb-3">Filters</h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="filter-section">
+                        <label for="propertyFilter" class="form-label">Property</label>
+                        <select class="form-select" id="propertyFilter">
+                            <option value="">All Properties</option>
+                            <!-- Populated via JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="filter-section">
+                        <label for="statusFilter" class="form-label">Status</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="canceled">Canceled</option>
+                            <option value="booked">Booked</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="currently_hosting">Currently Hosting</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="filter-section">
+                        <label for="taskTypeFilter" class="form-label">Task Type</label>
+                        <select class="form-select" id="taskTypeFilter">
+                            <option value="">All Types</option>
+                            <option value="cleaning">Cleaning</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="inspection">Inspection</option>
+                            <option value="preparation">Preparation</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="filter-section">
+                        <label for="assignedToFilter" class="form-label">Assigned To</label>
+                        <select class="form-select" id="assignedToFilter">
+                            <option value="">All Users</option>
+                            <!-- Populated via JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="filter-section">
+                        <label class="form-label">Event Types</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeTasks" checked>
+                            <label class="form-check-label" for="includeTasks">Tasks</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="includeBookings" checked>
+                            <label class="form-check-label" for="includeBookings">Bookings</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearFilters()">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="calendar-wrapper">
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <!-- Event Details Modal -->
+    <div class="modal fade" id="eventModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventModalTitle">Event Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="eventModalBody">
+                    <!-- Content populated via JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="eventModalAction">View Details</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        let calendar;
+        let currentFilters = {};
+
+        // Initialize calendar when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCalendar();
+            loadFilterOptions();
+        });
+
+        function initializeCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
+                height: 'auto',
+                events: function(info, successCallback, failureCallback) {
+                    loadCalendarEvents(info.start, info.end, successCallback, failureCallback);
+                },
+                eventClick: function(info) {
+                    info.jsEvent.preventDefault(); // Prevent default navigation
+                    showEventDetails(info.event);
+                },
+                dateClick: function(info) {
+                    showDayEvents(info.dateStr);
+                },
+                eventDidMount: function(info) {
+                    // Add custom styling based on event type
+                    if (info.event.extendedProps.type === 'task') {
+                        info.el.classList.add('event-task');
+                    } else if (info.event.extendedProps.type === 'booking') {
+                        info.el.classList.add('event-booking');
+                    }
+                },
+                eventContent: function(arg) {
+                    // Custom event content with status badge
+                    const status = arg.event.extendedProps.status;
+                    const statusClass = `status-${status.replace('_', '-')}`;
+                    
+                    return {
+                        html: `
+                            <div class="event-details">
+                                <div class="fw-bold">${arg.event.title}</div>
+                                <span class="status-badge ${statusClass}">${status}</span>
+                            </div>
+                        `
+                    };
+                }
+            });
+            
+            calendar.render();
+        }
+
+        function loadCalendarEvents(start, end, successCallback, failureCallback) {
+            const params = new URLSearchParams({
+                start_date: start.toISOString().split('T')[0],
+                end_date: end.toISOString().split('T')[0],
+                ...currentFilters
+            });
+
+            fetch(`/api/calendar/events/?${params}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load events');
+                    }
+                    return response.json();
+                })
+                .then(events => {
+                    // Remove url property from events to prevent automatic navigation
+                    const processedEvents = events.map(event => {
+                        const { url, ...eventWithoutUrl } = event;
+                        return {
+                            ...eventWithoutUrl,
+                            extendedProps: {
+                                ...eventWithoutUrl,
+                                url: url // Keep url in extendedProps for modal use
+                            }
+                        };
+                    });
+                    successCallback(processedEvents);
+                })
+                .catch(error => {
+                    console.error('Error loading events:', error);
+                    failureCallback(error);
+                });
+        }
+
+        function loadFilterOptions() {
+            // Load properties
+            fetch('/api/calendar/properties/')
+                .then(response => response.json())
+                .then(data => {
+                    const propertySelect = document.getElementById('propertyFilter');
+                    // Handle both array and paginated response formats
+                    const properties = Array.isArray(data) ? data : (data.results || data);
+                    if (properties && properties.forEach) {
+                        properties.forEach(property => {
+                            const option = document.createElement('option');
+                            option.value = property.id;
+                            option.textContent = property.name;
+                            propertySelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error loading properties:', error));
+
+            // Load users
+            fetch('/api/calendar/users/')
+                .then(response => response.json())
+                .then(data => {
+                    const userSelect = document.getElementById('assignedToFilter');
+                    // Handle both array and paginated response formats
+                    const users = Array.isArray(data) ? data : (data.results || data);
+                    if (users && users.forEach) {
+                        users.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user.id;
+                            option.textContent = user.username;
+                            userSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error loading users:', error));
+        }
+
+        function applyFilters() {
+            currentFilters = {
+                property_id: document.getElementById('propertyFilter').value,
+                status: document.getElementById('statusFilter').value,
+                task_type: document.getElementById('taskTypeFilter').value,
+                assigned_to: document.getElementById('assignedToFilter').value,
+                include_tasks: document.getElementById('includeTasks').checked,
+                include_bookings: document.getElementById('includeBookings').checked
+            };
+
+            // Remove empty filters
+            Object.keys(currentFilters).forEach(key => {
+                if (currentFilters[key] === '' || currentFilters[key] === false) {
+                    delete currentFilters[key];
+                }
+            });
+
+            calendar.refetchEvents();
+        }
+
+        function clearFilters() {
+            document.getElementById('propertyFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('taskTypeFilter').value = '';
+            document.getElementById('assignedToFilter').value = '';
+            document.getElementById('includeTasks').checked = true;
+            document.getElementById('includeBookings').checked = true;
+            
+            currentFilters = {};
+            calendar.refetchEvents();
+        }
+
+        function refreshCalendar() {
+            calendar.refetchEvents();
+        }
+
+        function showEventDetails(event) {
+            const props = event.extendedProps;
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            
+            document.getElementById('eventModalTitle').textContent = event.title;
+            
+            let bodyContent = `
+                <div class="row">
+                    <div class="col-6"><strong>Type:</strong> ${props.type}</div>
+                    <div class="col-6"><strong>Status:</strong> <span class="status-badge status-${props.status.replace('_', '-')}">${props.status}</span></div>
+                </div>
+            `;
+            
+            if (props.property_name) {
+                bodyContent += `<div class="row mt-2"><div class="col-12"><strong>Property:</strong> ${props.property_name}</div></div>`;
+            }
+            
+            if (props.guest_name) {
+                bodyContent += `<div class="row mt-2"><div class="col-12"><strong>Guest:</strong> ${props.guest_name}</div></div>`;
+            }
+            
+            if (props.assigned_to) {
+                bodyContent += `<div class="row mt-2"><div class="col-12"><strong>Assigned To:</strong> ${props.assigned_to}</div></div>`;
+            }
+            
+            if (props.description) {
+                bodyContent += `<div class="row mt-2"><div class="col-12"><strong>Description:</strong><br>${props.description.replace(/\n/g, '<br>')}</div></div>`;
+            }
+            
+            bodyContent += `
+                <div class="row mt-2">
+                    <div class="col-6"><strong>Start:</strong> ${event.start.toLocaleString()}</div>
+                    <div class="col-6"><strong>End:</strong> ${event.end ? event.end.toLocaleString() : 'All Day'}</div>
+                </div>
+            `;
+            
+            document.getElementById('eventModalBody').innerHTML = bodyContent;
+            document.getElementById('eventModalAction').onclick = () => {
+                window.open(props.url, '_blank');
+            };
+            
+            modal.show();
+        }
+
+        function showDayEvents(dateStr) {
+            fetch(`/api/calendar/day_events/?date=${dateStr}`)
+                .then(response => response.json())
+                .then(data => {
+                    let content = `<h6>Events for ${dateStr}</h6>`;
+                    
+                    if (data.tasks.length > 0) {
+                        content += '<h6>Tasks:</h6><ul>';
+                        data.tasks.forEach(task => {
+                            content += `<li>${task.title} - ${task.status_display}</li>`;
+                        });
+                        content += '</ul>';
+                    }
+                    
+                    if (data.bookings.length > 0) {
+                        content += '<h6>Bookings:</h6><ul>';
+                        data.bookings.forEach(booking => {
+                            content += `<li>${booking.guest_name} - ${booking.property_name} (${booking.status_display})</li>`;
+                        });
+                        content += '</ul>';
+                    }
+                    
+                    if (data.total_events === 0) {
+                        content += '<p class="text-muted">No events for this day.</p>';
+                    }
+                    
+                    // Show in a simple alert for now - you could create a more sophisticated modal
+                    alert(content);
+                })
+                .catch(error => {
+                    console.error('Error loading day events:', error);
+                    alert('Error loading events for this day.');
+                });
+        }
+
+        function exportCalendar() {
+            // Simple CSV export functionality
+            const events = calendar.getEvents();
+            let csv = 'Title,Type,Start,End,Status,Property,Description\n';
+            
+            events.forEach(event => {
+                const props = event.extendedProps;
+                csv += `"${event.title}","${props.type}","${event.start.toISOString()}","${event.end ? event.end.toISOString() : ''}","${props.status}","${props.property_name || ''}","${props.description || ''}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `calendar-export-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

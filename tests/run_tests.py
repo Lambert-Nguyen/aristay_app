@@ -13,14 +13,14 @@ PROJECT_ROOT = Path(__file__).parent.parent  # Go up to /Users/.../aristay_app
 BACKEND_DIR = PROJECT_ROOT / "aristay_backend"
 TESTS_DIR = PROJECT_ROOT / "tests"
 
-def run_command(cmd, cwd=None):
+def run_command(cmd, cwd=None, env=None):
     """Run a shell command and return the result"""
     print(f"🏃 Running: {' '.join(cmd)}")
     if cwd:
         print(f"📍 Directory: {cwd}")
     
     try:
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True)
+        result = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, check=True)
         print(f"✅ Success: {' '.join(cmd)}")
         if result.stdout:
             print(result.stdout)
@@ -92,6 +92,22 @@ def run_django_tests():
     python_exe = get_python_executable()
     return run_command([python_exe, "manage.py", "test"], cwd=BACKEND_DIR)
 
+def run_ui_tests():
+    """Run UI template tests using Django test runner"""
+    print("\n🎨 RUNNING UI TESTS")
+    print("=" * 50)
+    
+    python_exe = get_python_executable()
+    
+    # Set up environment for Django tests
+    env = os.environ.copy()
+    env['DJANGO_SETTINGS_MODULE'] = 'backend.settings_test'
+    env['PYTHONPATH'] = str(PROJECT_ROOT)  # Add project root to Python path
+    
+    # Run UI tests by specifying the full path to the ui directory
+    ui_test_path = str(TESTS_DIR / "ui")
+    return run_command([python_exe, "manage.py", "test", ui_test_path, "--keepdb"], cwd=BACKEND_DIR, env=env)
+
 def main():
     """Main test runner"""
     print("🧪 ARISTAY PROJECT TEST SUITE")
@@ -112,7 +128,8 @@ def main():
     results = {
         "production": False,
         "integration": False,
-        "django": False
+        "django": False,
+        "ui": False
     }
     
     # Run test suites
@@ -125,11 +142,15 @@ def main():
     if "--django" in sys.argv or "--all" in sys.argv:
         results["django"] = run_django_tests()
     
+    if "--ui" in sys.argv or "--all" in sys.argv:
+        results["ui"] = run_ui_tests()
+    
     # If no specific test type requested, run all
-    if not any(arg in sys.argv for arg in ["--production", "--integration", "--django", "--all"]):
+    if not any(arg in sys.argv for arg in ["--production", "--integration", "--django", "--ui", "--all"]):
         results["production"] = run_production_tests()
         results["integration"] = run_integration_tests() 
         results["django"] = run_django_tests()
+        results["ui"] = run_ui_tests()
     
     # Print summary
     print("\n" + "=" * 60)
@@ -140,7 +161,7 @@ def main():
     total_passed = 0
     
     for test_type, passed in results.items():
-        if test_type in ["production", "integration", "django"]:
+        if test_type in ["production", "integration", "django", "ui"]:
             total_run += 1
             if passed:
                 total_passed += 1
@@ -172,12 +193,14 @@ Options:
     --production    Run only production hardening tests
     --integration   Run only integration tests  
     --django        Run only Django built-in tests
+    --ui            Run only UI template tests
     --help          Show this help message
 
 Examples:
     python run_tests.py                 # Run all tests
     python run_tests.py --production    # Run only production tests
     python run_tests.py --integration   # Run only integration tests
+    python run_tests.py --ui            # Run only UI template tests
 """)
         sys.exit(0)
     
