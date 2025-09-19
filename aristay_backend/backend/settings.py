@@ -256,17 +256,20 @@ DATABASES = {
 # Prefer DATABASE_URL if present (Heroku/Prod/CI)
 _db_url = os.getenv("DATABASE_URL")
 if _db_url:
-    DATABASES["default"] = dj_database_url.parse(_db_url, conn_max_age=60, ssl_require=True)
+    DATABASES["default"] = dj_database_url.parse(_db_url, conn_max_age=60, ssl_require=False)
 else:
     # Default to PostgreSQL for local development
     DATABASES["default"] = {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "aristay"),
+        "NAME": os.getenv("POSTGRES_DB", "aristay_local"),
         "USER": os.getenv("POSTGRES_USER", "postgres"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
         "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
         "PORT": int(os.getenv("POSTGRES_PORT", "5432")),
         "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "sslmode": "prefer",  # Use SSL if available, but don't require it
+        },
     }
 
 # Password validation

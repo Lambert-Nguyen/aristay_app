@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
-from api.models import Task, Booking, Property, UserProfile
+from api.models import Task, Booking, Property, Profile
 
 User = get_user_model()
 
@@ -29,17 +29,19 @@ class TestCalendarURLFix:
         property_obj = Property.objects.create(
             name='Test Property',
             address='123 Test St',
-            property_type='apartment'
         )
         
         # Create a task
+        from django.utils import timezone
+        due_date = timezone.now() + timezone.timedelta(days=1)
         task = Task.objects.create(
             title='Test Task',
             description='Test Description',
             property_ref=property_obj,
             created_by=user,
             assigned_to=user,
-            status='pending'
+            status='pending',
+            due_date=due_date
         )
         
         # Test the calendar events endpoint
@@ -66,22 +68,27 @@ class TestCalendarURLFix:
         user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
-            password='testpass123'
+            password='testpass123',
+            is_superuser=True
         )
         
         # Create a property
         property_obj = Property.objects.create(
             name='Test Property',
             address='123 Test St',
-            property_type='apartment'
         )
         
         # Create a booking
+        from django.utils import timezone
+        from datetime import timezone as dt_timezone
+        today = timezone.now().date()
+        check_in = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc)
+        check_out = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc) + timezone.timedelta(days=2)
         booking = Booking.objects.create(
             guest_name='Test Guest',
             property=property_obj,
-            check_in_date='2024-01-01',
-            check_out_date='2024-01-05',
+            check_in_date=check_in,
+            check_out_date=check_out,
             status='confirmed'
         )
         
@@ -118,12 +125,13 @@ class TestCalendarURLFix:
         property_obj = Property.objects.create(
             name='Test Property',
             address='123 Test St',
-            property_type='apartment'
         )
         
         # Create a task for today
         from django.utils import timezone
+        from datetime import timezone as dt_timezone
         today = timezone.now().date()
+        due_datetime = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc)
         
         task = Task.objects.create(
             title='Test Task Today',
@@ -132,15 +140,19 @@ class TestCalendarURLFix:
             created_by=user,
             assigned_to=user,
             status='pending',
-            due_date=today
+            due_date=due_datetime
         )
         
         # Create a booking for today
+        from django.utils import timezone
+        from datetime import timezone as dt_timezone
+        check_in = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc)
+        check_out = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc) + timezone.timedelta(days=1)
         booking = Booking.objects.create(
             guest_name='Test Guest',
             property=property_obj,
-            check_in_date=today,
-            check_out_date=today,
+            check_in_date=check_in,
+            check_out_date=check_out,
             status='confirmed'
         )
         

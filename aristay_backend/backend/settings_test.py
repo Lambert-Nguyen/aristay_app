@@ -16,6 +16,7 @@ from .settings_base import *
 # Test-specific overrides
 DEBUG = True
 DJANGO_ENVIRONMENT = "testing"
+ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 
 # Override DATABASES after importing base settings to ensure it takes precedence
 DATABASES = {
