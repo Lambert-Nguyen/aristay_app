@@ -39,7 +39,7 @@ from .views import (
     ManagerUserDetail,
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
     system_logs_viewer, system_logs_download, system_crash_recovery,
-    portal_home, portal_property_list, portal_property_detail, portal_booking_detail,
+    portal_home, portal_calendar, portal_property_list, portal_property_detail, portal_booking_detail,
     portal_task_detail,
     excel_import_view, excel_import_api, property_approval_create,
     enhanced_excel_import_view, enhanced_excel_import_api,
@@ -71,6 +71,13 @@ from .notification_management_views import (
 # Agent's Phase 2: Import audit views
 from .audit_views import AuditEventViewSet
 
+# Calendar views
+from .calendar_views import CalendarViewSet
+from .calendar_django_views import (
+    CalendarView, calendar_properties_api, calendar_users_api, calendar_stats_api,
+    calendar_day_events_api, calendar_tasks_api, calendar_bookings_api
+)
+
 # Remove separate imports since they're now in the main views.py
 
 from .staff_views import (
@@ -100,6 +107,8 @@ router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 # Agent's Phase 2: Register audit API endpoints
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
+# Calendar API endpoints
+router.register(r'calendar', CalendarViewSet, basename='calendar')
 
 urlpatterns = [
     # Invite-based registration API (web/mobile)
@@ -162,6 +171,7 @@ urlpatterns = [
 
     # Portal (web) routes
     path('portal/', portal_home, name='portal-home'),
+    path('portal/calendar/', portal_calendar, name='portal-calendar'),
     path('portal/properties/', portal_property_list, name='portal-properties'),
     path('portal/properties/<int:pk>/', portal_property_detail, name='portal-property-detail'),
     path('portal/properties/<int:property_id>/bookings/<int:pk>/', portal_booking_detail, name='portal-booking-detail'),
@@ -278,4 +288,13 @@ urlpatterns = [
     
     # Logout endpoint
     path('logout/', logout_view, name='logout'),
+    
+    # Calendar HTML views
+    path('calendar/', CalendarView.as_view(), name='calendar-view'),
+    path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
+    path('calendar/users/', calendar_users_api, name='calendar-users'),
+    path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
+    path('calendar/day_events/', calendar_day_events_api, name='calendar-day-events'),
+    path('calendar/tasks/', calendar_tasks_api, name='calendar-tasks'),
+    path('calendar/bookings/', calendar_bookings_api, name='calendar-bookings'),
 ]
