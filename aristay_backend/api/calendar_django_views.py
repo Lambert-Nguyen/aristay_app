@@ -34,7 +34,6 @@ class CalendarView(LoginRequiredMixin, View):
         return render(request, self.template_name, context)
 
 
-@login_required
 @require_http_methods(["GET"])
 def calendar_properties_api(request):
     """
@@ -44,7 +43,6 @@ def calendar_properties_api(request):
     return JsonResponse(list(properties), safe=False)
 
 
-@login_required
 @require_http_methods(["GET"])
 def calendar_users_api(request):
     """
@@ -54,7 +52,6 @@ def calendar_users_api(request):
     return JsonResponse(list(users), safe=False)
 
 
-@login_required
 @require_http_methods(["GET"])
 def calendar_stats_api(request):
     """
@@ -103,7 +100,6 @@ def calendar_stats_api(request):
     return JsonResponse(stats)
 
 
-@login_required
 @require_http_methods(["GET"])
 def calendar_day_events_api(request):
     """
@@ -188,7 +184,6 @@ def calendar_day_events_api(request):
     })
 
 
-@login_required
 @require_http_methods(["GET"])
 def calendar_tasks_api(request):
     """
@@ -236,7 +231,6 @@ def calendar_tasks_api(request):
     return JsonResponse(serializer.data, safe=False)
 
 
-@login_required
 @require_http_methods(["GET"])
 def calendar_bookings_api(request):
     """
