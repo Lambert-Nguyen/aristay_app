@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from tests.utils.timezone_helpers import create_booking_dates, days_from_now
 
 from api.models import Property, Booking, BookingImportLog
 from api.services.enhanced_excel_import_service import (
@@ -77,8 +78,8 @@ class TestEnhancedExcelImport(TestCase):
                 property=self.property,
                 external_code=external_code,
                 guest_name='John Doe',
-                check_in_date=timezone.now() + timedelta(days=1),
-                check_out_date=timezone.now() + timedelta(days=3),
+                check_in_date=days_from_now(1),
+                check_out_date=days_from_now(3),
                 external_status='confirmed',
                 source='Airbnb'
             )
@@ -91,8 +92,8 @@ class TestEnhancedExcelImport(TestCase):
             'external_code': external_code,
             'guest_name': 'John Doe',
             'property_name': self.property.name,
-            'start_date': timezone.now() + timedelta(days=2),  # Different date
-            'end_date': timezone.now() + timedelta(days=4),    # Different date
+            'start_date': days_from_now(2),  # Different date
+            'end_date': days_from_now(4),    # Different date
             'external_status': 'confirmed',
             'source': 'Airbnb'
         }
@@ -118,8 +119,8 @@ class TestEnhancedExcelImport(TestCase):
                 property=self.property,
                 external_code=external_code,
                 guest_name='Jane Smith',
-                check_in_date=timezone.now() + timedelta(days=5),
-                check_out_date=timezone.now() + timedelta(days=7),
+                check_in_date=days_from_now(5),
+                check_out_date=days_from_now(7),
                 external_status='confirmed',
                 source='VRBO'
             )
@@ -128,8 +129,8 @@ class TestEnhancedExcelImport(TestCase):
             'external_code': external_code,
             'guest_name': 'Jane Smith Updated',
             'property_name': self.property.name,
-            'start_date': timezone.now() + timedelta(days=6),
-            'end_date': timezone.now() + timedelta(days=8),
+            'start_date': days_from_now(6),
+            'end_date': days_from_now(8),
             'external_status': 'modified',
             'source': 'VRBO'
         }
@@ -160,8 +161,8 @@ class TestEnhancedExcelImport(TestCase):
                 property=self.property,
                 external_code=external_code,
                 guest_name='Bob Wilson',
-                check_in_date=timezone.now() + timedelta(days=10),
-                check_out_date=timezone.now() + timedelta(days=12),
+                check_in_date=days_from_now(10),
+                check_out_date=days_from_now(12),
                 external_status='confirmed',
                 source='Direct'
             )
@@ -217,8 +218,8 @@ class TestEnhancedExcelImport(TestCase):
                 property=self.property,
                 external_code=external_code,
                 guest_name='Constraint Test User',
-                check_in_date=timezone.now() + timedelta(days=1),
-                check_out_date=timezone.now() + timedelta(days=3),
+                check_in_date=days_from_now(1),
+                check_out_date=days_from_now(3),
                 external_status='confirmed',
                 source='Test'
             )
@@ -231,8 +232,8 @@ class TestEnhancedExcelImport(TestCase):
             'external_code': f'DIFFERENT_CODE_{datetime.now().microsecond}',
             'guest_name': 'Different Guest',
             'property_name': self.property.name,
-            'start_date': timezone.now() + timedelta(days=5),
-            'end_date': timezone.now() + timedelta(days=7),
+            'start_date': days_from_now(5),
+            'end_date': days_from_now(7),
             'external_status': 'confirmed',
             'source': 'Test'
         }

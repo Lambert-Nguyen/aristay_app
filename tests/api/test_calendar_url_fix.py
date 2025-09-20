@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
 from api.models import Task, Booking, Property, Profile
+from tests.utils.timezone_helpers import create_task_dates, create_booking_dates
 
 User = get_user_model()
 
@@ -33,7 +34,7 @@ class TestCalendarURLFix:
         
         # Create a task
         from django.utils import timezone
-        due_date = timezone.now() + timezone.timedelta(days=1)
+        due_date = create_task_dates(due_days=1)
         task = Task.objects.create(
             title='Test Task',
             description='Test Description',
@@ -80,10 +81,7 @@ class TestCalendarURLFix:
         
         # Create a booking
         from django.utils import timezone
-        from datetime import timezone as dt_timezone
-        today = timezone.now().date()
-        check_in = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc)
-        check_out = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc) + timezone.timedelta(days=2)
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=2)
         booking = Booking.objects.create(
             guest_name='Test Guest',
             property=property_obj,
@@ -129,9 +127,7 @@ class TestCalendarURLFix:
         
         # Create a task for today
         from django.utils import timezone
-        from datetime import timezone as dt_timezone
-        today = timezone.now().date()
-        due_datetime = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc)
+        due_datetime = create_task_dates(due_days=0)
         
         task = Task.objects.create(
             title='Test Task Today',
@@ -145,9 +141,7 @@ class TestCalendarURLFix:
         
         # Create a booking for today
         from django.utils import timezone
-        from datetime import timezone as dt_timezone
-        check_in = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc)
-        check_out = timezone.datetime.combine(today, timezone.datetime.min.time(), tzinfo=dt_timezone.utc) + timezone.timedelta(days=1)
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=1)
         booking = Booking.objects.create(
             guest_name='Test Guest',
             property=property_obj,

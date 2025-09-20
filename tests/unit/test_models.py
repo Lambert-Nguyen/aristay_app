@@ -12,6 +12,7 @@ from api.models import Property, Booking, Task, TaskImage
 from api.serializers import TaskImageSerializer
 from django.utils import timezone
 from datetime import timedelta
+from tests.utils.timezone_helpers import create_booking_dates
 
 User = get_user_model()
 
@@ -38,8 +39,7 @@ def test_property():
 @pytest.fixture
 def test_booking(test_property):
     """Create a test booking."""
-    check_in = timezone.now() + timedelta(days=1)
-    check_out = check_in + timedelta(days=3)
+    check_in, check_out = create_booking_dates(check_in_days=1, check_out_days=3)
     return Booking.objects.create(
         property=test_property,
         check_in_date=check_in,

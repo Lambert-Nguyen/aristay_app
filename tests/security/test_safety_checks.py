@@ -7,6 +7,8 @@ import os
 import sys
 import django
 from datetime import timedelta
+from django.utils import timezone
+from tests.utils.timezone_helpers import create_booking_dates
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
@@ -46,12 +48,13 @@ def test_safety_checks():
     
     Booking.objects.filter(external_code='SAFETY_PROP').delete()
     
+    check_in1, check_out1 = create_booking_dates(check_in_days=0, check_out_days=2)
     test_booking = Booking.objects.create(
         external_code='SAFETY_PROP',
         guest_name='Property Test Guest',
         property=property1,
-        check_in_date=timezone.now().date(),
-        check_out_date=timezone.now().date() + timedelta(days=2),
+        check_in_date=check_in1,
+        check_out_date=check_out1,
         external_status='Confirmed',
         source='Airbnb'
     )
@@ -89,12 +92,13 @@ def test_safety_checks():
     # Delete the previous booking to avoid overlap violation on Postgres
     Booking.objects.filter(external_code='SAFETY_PROP').delete()
 
+    check_in2, check_out2 = create_booking_dates(check_in_days=0, check_out_days=3)
     test_booking = Booking.objects.create(
         external_code='SAFETY_DATE',
         guest_name='Date Test Guest',
         property=property1,
-        check_in_date=timezone.now().date(),
-        check_out_date=timezone.now().date() + timedelta(days=3),
+        check_in_date=check_in2,
+        check_out_date=check_out2,
         external_status='Confirmed',
         source='VRBO'
     )
@@ -128,12 +132,13 @@ def test_safety_checks():
     
     Booking.objects.filter(external_code='SAFETY_DIRECT').delete()
     
+    check_in3, check_out3 = create_booking_dates(check_in_days=5, check_out_days=7)
     test_booking = Booking.objects.create(
         external_code='SAFETY_DIRECT',
         guest_name='Direct Guest',
         property=property1,
-        check_in_date=timezone.now().date() + timedelta(days=5),
-        check_out_date=timezone.now().date() + timedelta(days=7),
+        check_in_date=check_in3,
+        check_out_date=check_out3,
         external_status='Confirmed',
         source='Direct'
     )

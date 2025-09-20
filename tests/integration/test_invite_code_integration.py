@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
+from tests.utils.timezone_helpers import create_invite_code_dates, create_datetime_with_hours
 import json
 
 from api.models import InviteCode, Profile, UserRole, TaskGroup
@@ -164,7 +165,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             role=UserRole.STAFF,
             task_group=TaskGroup.LAUNDRY,
             max_uses=2,
-            expires_at=datetime.now() + timedelta(days=14),
+            expires_at=create_invite_code_dates(expires_days=14),
             notes='Manager created code',
             created_by=self.manager
         )
@@ -247,7 +248,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             codes.append(code)
         
         # Make one code expired
-        codes[0].expires_at = timezone.now() - timedelta(days=1)
+        codes[0].expires_at = create_invite_code_dates(expires_days=-1)
         codes[0].save()
         
         # Make one code inactive
@@ -394,7 +395,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             created_by=self.admin,
             task_group=TaskGroup.GENERAL,
             role=UserRole.STAFF,
-            expires_at=timezone.now() - timedelta(days=1)
+            expires_at=create_invite_code_dates(expires_days=-1)
         )
         
         # Create expiring soon code
@@ -403,7 +404,7 @@ class InviteCodeIntegrationTestCase(TestCase):
             created_by=self.admin,
             task_group=TaskGroup.GENERAL,
             role=UserRole.STAFF,
-            expires_at=timezone.now() + timedelta(hours=1)
+            expires_at=create_datetime_with_hours(hours=1)
         )
         
         # Create non-expiring code
@@ -467,7 +468,7 @@ class InviteCodePerformanceTestCase(TestCase):
                 created_by=self.admin,
                 task_group=TaskGroup.GENERAL,
                 role=UserRole.STAFF,
-                expires_at=datetime.now() + timedelta(days=30),
+                expires_at=create_invite_code_dates(expires_days=30),
                 notes=f'Performance test {i}'
             )
             invite_codes.append(invite_code)

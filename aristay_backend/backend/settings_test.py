@@ -136,7 +136,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Enable timezone for tests to support timezone-aware datetimes
 USE_TZ = True
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/New_York'  # Tampa, FL timezone to match production
 
 # Ensure throttle rates are available for tests
 REST_FRAMEWORK = {

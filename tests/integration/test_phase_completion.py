@@ -17,6 +17,7 @@ from api.models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date, timedelta
+from tests.utils.timezone_helpers import create_booking_dates, create_task_dates
 
 def test_all_phases_complete():
     """Validate all phases are implemented and working"""
@@ -84,12 +85,13 @@ def test_all_phases_complete():
     
     # Create a booking to test template
     booking_code = f'TEST{user.id}_FINAL'
+    check_in_date, check_out_date = create_booking_dates(check_in_days=3, check_out_days=5)
     booking, created = Booking.objects.get_or_create(
         external_code=booking_code,
         defaults={
             'property': prop,
-            'check_in_date': date.today() + timedelta(days=3),
-            'check_out_date': date.today() + timedelta(days=5),
+            'check_in_date': check_in_date,
+            'check_out_date': check_out_date,
             'guest_name': 'John Doe Final Test',
             'source': 'Airbnb',
             'status': 'confirmed'

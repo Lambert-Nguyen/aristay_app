@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.utils import timezone
+from tests.utils.timezone_helpers import create_booking_dates, create_expired_datetime
 from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
@@ -217,10 +218,11 @@ class DynamicPermissionsTestCase(APITestCase):
             address='123 Test St'
         )
         
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=3)
         self.booking = Booking.objects.create(
             property=self.property,
-            check_in_date=timezone.now(),
-            check_out_date=timezone.now() + timedelta(days=3),
+            check_in_date=check_in,
+            check_out_date=check_out,
             guest_name='Test Guest',
             status='confirmed'
         )
@@ -311,7 +313,7 @@ class DynamicPermissionsTestCase(APITestCase):
     def test_expired_permission_override(self):
         """Test that expired permission overrides are ignored"""
         # Create an expired override
-        expired_time = timezone.now() - timedelta(days=1)
+        expired_time = create_expired_datetime(days_ago=1)
         UserPermissionOverride.objects.create(
             user=self.staff,
             permission=self.view_reports_perm,
@@ -436,7 +438,7 @@ class DynamicPermissionsTestCase(APITestCase):
     def test_permission_cleanup_on_expiry(self):
         """Test that expired overrides are cleaned up"""
         # Create an expired override
-        expired_time = timezone.now() - timedelta(days=1)
+        expired_time = create_expired_datetime(days_ago=1)
         override = UserPermissionOverride.objects.create(
             user=self.staff,
             permission=self.view_reports_perm,
@@ -608,10 +610,11 @@ class PermissionIntegrationTestCase(APITestCase):
         
         # Create test data
         self.property = Property.objects.create(name='Test Property')
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=3)
         self.booking = Booking.objects.create(
             property=self.property,
-            check_in_date=timezone.now(),
-            check_out_date=timezone.now() + timedelta(days=3),
+            check_in_date=check_in,
+            check_out_date=check_out,
             guest_name='Test Guest',
             status='confirmed'
         )

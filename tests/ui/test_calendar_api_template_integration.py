@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from api.models import Property, Task, Booking, Profile
 from django.utils import timezone
 from datetime import timedelta
+from tests.utils.timezone_helpers import create_booking_dates, create_task_dates
 
 User = get_user_model()
 
@@ -50,19 +51,21 @@ class CalendarAPITemplateIntegrationTestCase(TestCase):
         )
         
         # Create test task
+        due_date = create_task_dates(due_days=1)
         self.task = Task.objects.create(
             title='Test Task',
             property_ref=self.property,
-            due_date=timezone.now() + timedelta(days=1),
+            due_date=due_date,
             status='pending',
             created_by=self.manager
         )
         
         # Create test booking
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=2)
         self.booking = Booking.objects.create(
             property=self.property,
-            check_in_date=timezone.now().date(),
-            check_out_date=(timezone.now() + timedelta(days=2)).date(),
+            check_in_date=check_in,
+            check_out_date=check_out,
             guest_name='Test Guest',
             status='confirmed'
         )
