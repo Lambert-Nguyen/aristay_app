@@ -53,15 +53,36 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 
 # Cache configuration (Redis for production)
+import ssl
+
 REDIS_URL = os.getenv('REDIS_URL')
 if REDIS_URL:
+    # Configure Redis with SSL certificate handling
+    _redis_use_ssl = os.getenv('REDIS_USE_SSL', '').lower() == 'true' or REDIS_URL.startswith('rediss://')
+    _redis_ssl_cert_reqs = os.getenv('REDIS_SSL_CERT_REQS', 'required')
+    _redis_ssl_ca_certs = os.getenv('REDIS_SSL_CA_CERTS')
+    _redis_ignore_exceptions = os.getenv('REDIS_IGNORE_EXCEPTIONS', 'true').lower() == 'true'
+
+    _redis_options = {
+        'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        'CONNECTION_POOL_KWARGS': {
+            'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+            'retry_on_timeout': True,
+        },
+        'IGNORE_EXCEPTIONS': _redis_ignore_exceptions,
+    }
+
+    if _redis_use_ssl:
+        _redis_options['CONNECTION_POOL_KWARGS']['ssl_cert_reqs'] = getattr(ssl, f'CERT_{_redis_ssl_cert_reqs.upper()}', ssl.CERT_REQUIRED)
+        if _redis_ssl_ca_certs:
+            _redis_options['CONNECTION_POOL_KWARGS']['ssl_ca_certs'] = _redis_ssl_ca_certs
+
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            }
+            'OPTIONS': _redis_options,
+            'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
         }
     }
 
