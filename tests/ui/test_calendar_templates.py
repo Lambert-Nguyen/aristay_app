@@ -397,8 +397,11 @@ class CalendarTemplateTestCase(TestCase):
         
         # Check for security features
         self.assertContains(response, 'csrfmiddlewaretoken')
-        self.assertContains(response, 'X-Frame-Options')
         self.assertContains(response, 'X-Content-Type-Options')
+        
+        # Check HTTP security headers (not in HTML content)
+        self.assertIn('X-Frame-Options', response.headers)
+        self.assertEqual(response.headers['X-Frame-Options'], 'DENY')
     
     def test_calendar_template_analytics_integration(self):
         """Test that calendar template supports analytics integration"""
