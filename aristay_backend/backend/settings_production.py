@@ -75,6 +75,8 @@ if REDIS_URL:
     if _redis_use_ssl:
         # SSL settings for django-redis
         ssl_cert_reqs_value = getattr(ssl, f'CERT_{_redis_ssl_cert_reqs.upper()}', ssl.CERT_REQUIRED)
+        
+        # Add SSL settings to CONNECTION_POOL_KWARGS
         _redis_options['CONNECTION_POOL_KWARGS']['ssl_cert_reqs'] = ssl_cert_reqs_value
         if _redis_ssl_ca_certs:
             _redis_options['CONNECTION_POOL_KWARGS']['ssl_ca_certs'] = _redis_ssl_ca_certs
@@ -83,6 +85,7 @@ if REDIS_URL:
         
         # Debug logging
         print(f"🔧 Redis SSL Config: USE_SSL={_redis_use_ssl}, CERT_REQS={_redis_ssl_cert_reqs} -> {ssl_cert_reqs_value}, IGNORE_EXCEPTIONS={_redis_ignore_exceptions}")
+        print(f"🔧 Redis Options: {_redis_options}")
 
     CACHES = {
         'default': {
