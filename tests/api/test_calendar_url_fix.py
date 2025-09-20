@@ -154,6 +154,8 @@ class TestCalendarURLFix:
         client = APIClient()
         client.force_authenticate(user=user)
         
+        from django.utils import timezone
+        today = timezone.now().date()
         response = client.get(f'/api/calendar/day_events/?date={today}')
         assert response.status_code == status.HTTP_200_OK
         

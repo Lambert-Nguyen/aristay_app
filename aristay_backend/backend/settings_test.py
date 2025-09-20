@@ -112,9 +112,9 @@ STORAGES = {
 
 # Mock Cloudinary settings to prevent "Must supply api_key" errors during tests
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'test',
-    'API_KEY': 'test',
-    'API_SECRET': 'test',
+    'CLOUD_NAME': 'test_cloud',
+    'API_KEY': 'test_key',
+    'API_SECRET': 'test_secret',
 }
 
 # Ensure Django knows we're testing
@@ -172,13 +172,6 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'rest_framework_simplejwt.authentication.JWTAuthentication',
 ]
-
-# Mock Cloudinary settings for tests to prevent "Must supply api_key" errors
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'test_cloud',
-    'API_KEY': 'test_key',
-    'API_SECRET': 'test_secret',
-}
 
 # Ensure Cloudinary is properly mocked
 os.environ['CLOUDINARY_CLOUD_NAME'] = 'test_cloud'
