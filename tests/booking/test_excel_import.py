@@ -31,7 +31,7 @@ class TestEnhancedExcelImport(TestCase):
     def setUp(self):
         """Create test user and property"""
         # Create test user with unique username to avoid conflicts
-        self.username = f'test_import_user_{datetime.now().microsecond}'
+        self.username = f'test_import_user_{timezone.now().microsecond}'
         self.user = User.objects.create_user(
             username=self.username,
             email='test@example.com',
@@ -40,7 +40,7 @@ class TestEnhancedExcelImport(TestCase):
         )
         
         # Create test property with unique name (Property model only has name and address)
-        property_name = f'Test Property for Import {datetime.now().microsecond}'
+        property_name = f'Test Property for Import {timezone.now().microsecond}'
         self.property = Property.objects.create(
             name=property_name,
             address='123 Test Street, Test City, CA 12345'
@@ -73,7 +73,7 @@ class TestEnhancedExcelImport(TestCase):
         """Test conflict detection logic"""
         # Create existing booking with proper transaction management
         with transaction.atomic():
-            external_code = f'TEST123_{datetime.now().microsecond}'
+            external_code = f'TEST123_{timezone.now().microsecond}'
             existing_booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
@@ -114,7 +114,7 @@ class TestEnhancedExcelImport(TestCase):
         """Test conflict serialization for frontend"""
         # Create test booking and conflict with proper transaction management
         with transaction.atomic():
-            external_code = f'TEST456_{datetime.now().microsecond}'
+            external_code = f'TEST456_{timezone.now().microsecond}'
             existing_booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
@@ -156,7 +156,7 @@ class TestEnhancedExcelImport(TestCase):
         """Test conflict resolution service"""
         # Create test booking with proper transaction management
         with transaction.atomic():
-            external_code = f'TEST789_{datetime.now().microsecond}'
+            external_code = f'TEST789_{timezone.now().microsecond}'
             existing_booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
@@ -213,7 +213,7 @@ class TestEnhancedExcelImport(TestCase):
         """Test proper handling of database constraint violations"""
         # Create a booking that might trigger constraint violations
         with transaction.atomic():
-            external_code = f'CONSTRAINT_TEST_{datetime.now().microsecond}'
+            external_code = f'CONSTRAINT_TEST_{timezone.now().microsecond}'
             booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
@@ -229,7 +229,7 @@ class TestEnhancedExcelImport(TestCase):
         
         # This should work without constraint violations
         booking_data = {
-            'external_code': f'DIFFERENT_CODE_{datetime.now().microsecond}',
+            'external_code': f'DIFFERENT_CODE_{timezone.now().microsecond}',
             'guest_name': 'Different Guest',
             'property_name': self.property.name,
             'start_date': days_from_now(5),

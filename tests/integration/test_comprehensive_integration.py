@@ -23,6 +23,7 @@ from django.contrib.auth.models import User
 from api.services.enhanced_excel_import_service import EnhancedExcelImportService
 from django.utils import timezone
 from django.db import transaction
+from tests.utils.timezone_helpers import create_booking_dates, days_from_now
 
 def setup_test_data():
     """Create test data for comprehensive testing"""
@@ -46,14 +47,21 @@ def setup_test_data():
     ]).delete()
     
     # Create test bookings for various scenarios
+    # Create timezone-aware dates
+    check_in1, check_out1 = create_booking_dates(check_in_days=1, check_out_days=3)
+    check_in2, check_out2 = create_booking_dates(check_in_days=5, check_out_days=7)
+    check_in3, check_out3 = create_booking_dates(check_in_days=10, check_out_days=12)
+    check_in4, check_out4 = create_booking_dates(check_in_days=15, check_out_days=17)
+    check_in5, check_out5 = create_booking_dates(check_in_days=20, check_out_days=22)
+    
     test_bookings = [
         # HMZE8BT5AC - Guest name encoding issue
         {
             'external_code': 'HMZE8BT5AC',
             'guest_name': 'Kathrin MĂ¼ller',  # Encoding issue
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=1),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=3),
+            'check_in_date': check_in1,
+            'check_out_date': check_out1,
             'external_status': 'Confirmed',
             'source': 'Airbnb'
         },
@@ -63,8 +71,8 @@ def setup_test_data():
             'external_code': 'HMDNHY93WB',
             'guest_name': 'John Smith',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=5),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=7),
+            'check_in_date': check_in2,
+            'check_out_date': check_out2,
             'external_status': 'Confirmed',
             'source': 'Airbnb'
         },
@@ -74,8 +82,8 @@ def setup_test_data():
             'external_code': 'HMHCA35ERM',
             'guest_name': 'Jane Doe',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=10),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=12),
+            'check_in_date': check_in3,
+            'check_out_date': check_out3,
             'external_status': 'Confirmed',
             'source': 'VRBO'
         },
@@ -85,8 +93,8 @@ def setup_test_data():
             'external_code': 'TEST123',
             'guest_name': 'Test Guest',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=15),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=17),
+            'check_in_date': check_in4,
+            'check_out_date': check_out4,
             'external_status': 'Confirmed',
             'source': 'Direct'
         },
@@ -96,8 +104,8 @@ def setup_test_data():
             'external_code': 'TEST456',
             'guest_name': 'Another Guest',
             'property': property_obj,
-            'check_in_date': timezone.now().date() + timezone.timedelta(days=20),
-            'check_out_date': timezone.now().date() + timezone.timedelta(days=22),
+            'check_in_date': check_in5,
+            'check_out_date': check_out5,
             'external_status': 'Confirmed',
             'source': 'Booking.com'
         }
@@ -217,8 +225,8 @@ def test_specific_scenarios():
                     external_code=case['excel_data']['external_code'],
                     guest_name=case['existing_guest_name'],
                     property=property_obj,
-                    check_in_date=case['excel_data']['start_date'].date(),
-                    check_out_date=case['excel_data']['end_date'].date(),
+                    check_in_date=case['excel_data']['start_date'],
+                    check_out_date=case['excel_data']['end_date'],
                     external_status=case.get('existing_status', 'Confirmed'),
                     source=case['excel_data']['source']
                 )
@@ -288,6 +296,11 @@ def test_other_conflict_types():
         defaults={'address': "456 Test Ave"}
     )
     
+    # Create additional timezone-aware dates for other conflict tests
+    check_in6, check_out6 = create_booking_dates(check_in_days=25, check_out_days=28)
+    check_in7, check_out7 = create_booking_dates(check_in_days=30, check_out_days=32)
+    check_in8, check_out8 = create_booking_dates(check_in_days=35, check_out_days=37)
+    
     other_conflict_tests = [
         {
             'name': 'Date Change Conflict',
@@ -295,8 +308,8 @@ def test_other_conflict_types():
                 'external_code': 'DATE001',
                 'guest_name': 'Date Test Guest',
                 'property': property_obj,
-                'check_in_date': timezone.now().date() + timezone.timedelta(days=25),
-                'check_out_date': timezone.now().date() + timezone.timedelta(days=28),
+                'check_in_date': check_in6,
+                'check_out_date': check_out6,
                 'external_status': 'Confirmed',
                 'source': 'Airbnb'
             },
@@ -319,8 +332,8 @@ def test_other_conflict_types():
                 'external_code': 'PROP001',
                 'guest_name': 'Property Test Guest',
                 'property': property_obj,
-                'check_in_date': timezone.now().date() + timezone.timedelta(days=30),
-                'check_out_date': timezone.now().date() + timezone.timedelta(days=32),
+                'check_in_date': check_in7,
+                'check_out_date': check_out7,
                 'external_status': 'Confirmed',
                 'source': 'VRBO'
             },
@@ -343,8 +356,8 @@ def test_other_conflict_types():
                 'external_code': 'DIRECT001',
                 'guest_name': 'Direct Guest',
                 'property': property_obj,
-                'check_in_date': timezone.now().date() + timezone.timedelta(days=35),
-                'check_out_date': timezone.now().date() + timezone.timedelta(days=37),
+                'check_in_date': check_in8,
+                'check_out_date': check_out8,
                 'external_status': 'Confirmed',
                 'source': 'Direct'
             },

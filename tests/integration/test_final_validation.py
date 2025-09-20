@@ -20,6 +20,7 @@ django.setup()
 from api.models import Booking, Property
 from django.contrib.auth.models import User
 from api.services.enhanced_excel_import_service import EnhancedExcelImportService, _analyze_guest_name_difference
+from tests.utils.timezone_helpers import create_booking_dates, days_from_now
 from django.utils import timezone
 from django.db import transaction
 
@@ -114,12 +115,13 @@ def test_conflict_behavior():
         # Test Case 1: Status-only change should auto-resolve for platform bookings
         print("\n📝 Test 1: Status-only change (platform booking)")
         
+        check_in1, check_out1 = create_booking_dates(check_in_days=1, check_out_days=3)
         booking1 = Booking.objects.create(
             external_code='TEST_STATUS',
             guest_name='John Smith',
             property=property_obj,
-            check_in_date=timezone.now().date() + timezone.timedelta(days=1),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=3),
+            check_in_date=check_in1,
+            check_out_date=check_out1,
             external_status='Confirmed',
             source='Airbnb'
         )
@@ -145,12 +147,13 @@ def test_conflict_behavior():
         # Test Case 2: Guest name change should require manual review
         print("\n📝 Test 2: Guest name change (requires manual review)")
         
+        check_in2, check_out2 = create_booking_dates(check_in_days=5, check_out_days=8)
         booking2 = Booking.objects.create(
             external_code='TEST_GUEST',
             guest_name='Kathrin MĂ¼ller',  # Encoding issue
             property=property_obj,
-            check_in_date=timezone.now().date() + timezone.timedelta(days=5),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=8),
+            check_in_date=check_in2,
+            check_out_date=check_out2,
             external_status='Confirmed',
             source='Airbnb'
         )
@@ -184,12 +187,13 @@ def test_conflict_behavior():
         # Test Case 3: Direct booking should never auto-resolve
         print("\n📝 Test 3: Direct booking duplicate (never auto-resolve)")
         
+        check_in3, check_out3 = create_booking_dates(check_in_days=10, check_out_days=12)
         booking3 = Booking.objects.create(
             external_code='TEST_DIRECT',
             guest_name='Direct Guest',
             property=property_obj,
-            check_in_date=timezone.now().date() + timezone.timedelta(days=10),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=12),
+            check_in_date=check_in3,
+            check_out_date=check_out3,
             external_status='Confirmed',
             source='Direct'
         )
@@ -239,12 +243,13 @@ def test_json_serialization():
         
         service = EnhancedExcelImportService(user)
         
+        check_in4, check_out4 = create_booking_dates(check_in_days=0, check_out_days=2)
         booking = Booking.objects.create(
             external_code='TEST_JSON',
             guest_name='José García',
             property=property_obj,
-            check_in_date=timezone.now().date(),
-            check_out_date=timezone.now().date() + timezone.timedelta(days=2),
+            check_in_date=check_in4,
+            check_out_date=check_out4,
             external_status='Confirmed',
             source='Airbnb'
         )
