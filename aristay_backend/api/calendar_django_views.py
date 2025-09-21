@@ -135,7 +135,7 @@ def calendar_properties_api(request):
             'type': 'task',
             'status': task.status,
             'property': task.property_ref.name if task.property_ref else '',
-            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}" if task.assigned_to else '',
+            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}".strip() if task.assigned_to and (task.assigned_to.first_name or task.assigned_to.last_name) else (task.assigned_to.username if task.assigned_to else ''),
         })
     
     # Add bookings
@@ -262,7 +262,7 @@ def calendar_data_api(request):
             'type': 'task',
             'status': task.status,
             'property': task.property_ref.name if task.property_ref else '',
-            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}" if task.assigned_to else '',
+            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}".strip() if task.assigned_to and (task.assigned_to.first_name or task.assigned_to.last_name) else (task.assigned_to.username if task.assigned_to else ''),
         })
     
     # Add bookings
@@ -358,7 +358,7 @@ def calendar_events_api(request):
             'type': 'task',
             'status': task.status,
             'property': task.property_ref.name if task.property_ref else '',
-            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}" if task.assigned_to else '',
+            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}".strip() if task.assigned_to and (task.assigned_to.first_name or task.assigned_to.last_name) else (task.assigned_to.username if task.assigned_to else ''),
         })
     
     # Add bookings to events
