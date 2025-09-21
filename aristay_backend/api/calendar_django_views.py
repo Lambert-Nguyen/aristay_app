@@ -10,7 +10,6 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.urls import reverse
 from .models import Property, User
@@ -24,18 +23,22 @@ from rest_framework.response import Response
 from rest_framework import status
 
 
-class CalendarView(LoginRequiredMixin, View):
+class CalendarView(View):
     """
-    Main calendar view with HTML template
+    Main calendar view with HTML template - publicly accessible
     """
     template_name = 'portal/calendar.html'
     
     def get(self, request):
         """Render the calendar page"""
+        # Handle both authenticated and anonymous users
+        user = request.user if request.user.is_authenticated else None
+        
         context = {
-            'user': request.user,
-            'can_view_tasks': hasattr(request.user, 'profile') and request.user.profile.has_permission('view_all_tasks'),
-            'can_view_bookings': True,  # Simplified - you might want to implement proper booking permissions
+            'user': user,
+            'can_view_tasks': user and hasattr(user, 'profile') and user.profile.has_permission('view_all_tasks'),
+            'can_view_bookings': True,  # Allow everyone to view bookings
+            'is_authenticated': request.user.is_authenticated,
         }
         return render(request, self.template_name, context)
 
@@ -317,7 +320,6 @@ def calendar_data_api(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def calendar_events_api(request):
     """
     API endpoint to get events for a date range (for calendar display)
@@ -457,7 +459,6 @@ def calendar_events_api(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def calendar_day_events_api(request):
     """
     API endpoint to get events for a specific day
@@ -542,7 +543,6 @@ def calendar_day_events_api(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def calendar_tasks_api(request):
     """
     API endpoint to get tasks for calendar
@@ -590,7 +590,6 @@ def calendar_tasks_api(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def calendar_bookings_api(request):
     """
     API endpoint to get bookings for calendar
