@@ -101,6 +101,77 @@ def calendar_stats_api(request):
 
 
 @require_http_methods(["GET"])
+def calendar_events_api(request):
+    """
+    API endpoint to get events for a date range (for calendar display)
+    """
+    from .models import Task, Booking
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    from .calendar_serializers import CalendarTaskSerializer, CalendarBookingSerializer
+    
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if not start_date or not end_date:
+        return JsonResponse({'error': 'start_date and end_date parameters required'}, status=400)
+    
+    try:
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format'}, status=400)
+    
+    # Get tasks in the date range
+    tasks = Task.objects.filter(
+        is_deleted=False,
+        due_date__date__gte=start_dt,
+        due_date__date__lte=end_dt
+    )
+    
+    # Get bookings in the date range
+    bookings = Booking.objects.filter(
+        is_deleted=False,
+        Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
+    )
+    
+    # Serialize the data
+    task_data = CalendarTaskSerializer(tasks, many=True).data
+    booking_data = CalendarBookingSerializer(bookings, many=True).data
+    
+    # Convert to calendar events format
+    events = []
+    
+    for task in task_data:
+        events.append({
+            'id': f"task_{task['id']}",
+            'title': task['title'],
+            'start': task['due_date'],
+            'end': task['due_date'],
+            'color': '#007bff',
+            'type': 'task',
+            'status': task['status'],
+            'property': task.get('property_name', ''),
+            'assigned_to': task.get('assigned_to_name', ''),
+        })
+    
+    for booking in booking_data:
+        events.append({
+            'id': f"booking_{booking['id']}",
+            'title': f"{booking['guest_name']} - {booking['property_name']}",
+            'start': booking['check_in_date'],
+            'end': booking['check_out_date'],
+            'color': '#28a745',
+            'type': 'booking',
+            'status': booking['status'],
+            'property': booking['property_name'],
+            'guest_name': booking['guest_name'],
+        })
+    
+    return JsonResponse(events, safe=False)
+
+
+@require_http_methods(["GET"])
 def calendar_day_events_api(request):
     """
     API endpoint to get events for a specific day
