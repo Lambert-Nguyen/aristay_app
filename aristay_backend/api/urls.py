@@ -71,8 +71,8 @@ from .notification_management_views import (
 # Agent's Phase 2: Import audit views
 from .audit_views import AuditEventViewSet
 
-# Calendar views
-from .calendar_views import CalendarViewSet
+# Calendar views - using Django views instead of DRF ViewSet
+# from .calendar_views import CalendarViewSet
 from .calendar_django_views import (
     CalendarView, calendar_properties_api, calendar_users_api, calendar_stats_api,
     calendar_events_api, calendar_day_events_api, calendar_tasks_api, calendar_bookings_api
