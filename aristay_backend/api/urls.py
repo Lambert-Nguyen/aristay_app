@@ -107,8 +107,8 @@ router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 # Agent's Phase 2: Register audit API endpoints
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
-# Calendar API endpoints
-router.register(r'calendar', CalendarViewSet, basename='calendar')
+# Calendar API endpoints - using Django views instead of DRF ViewSet
+# router.register(r'calendar', CalendarViewSet, basename='calendar')
 
 urlpatterns = [
     # Invite-based registration API (web/mobile)
