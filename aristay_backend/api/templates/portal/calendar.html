@@ -175,8 +175,18 @@
             ...currentFilters
         });
 
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
         showLoading();
-        fetch(`/api/calendar/events/?${params}`)
+        fetch(`/api/calendar/events/?${params}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load events');
@@ -206,8 +216,18 @@
     }
 
     function loadFilterOptions() {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         // Load properties
-        fetch('/api/calendar/properties/')
+        fetch('/api/calendar/properties/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
             .then(response => response.json())
             .then(data => {
                 const propertySelect = document.getElementById('propertyFilter');
@@ -224,7 +244,14 @@
             .catch(error => console.error('Error loading properties:', error));
 
         // Load users
-        fetch('/api/calendar/users/')
+        fetch('/api/calendar/users/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
             .then(response => response.json())
             .then(data => {
                 const userSelect = document.getElementById('assignedToFilter');
@@ -340,7 +367,17 @@
     }
 
     function showDayEvents(dateStr) {
-        fetch(`/api/calendar/day_events/?date=${dateStr}`)
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch(`/api/calendar/day_events/?date=${dateStr}`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
             .then(response => response.json())
             .then(data => {
                 let content = `<h6>Events for ${new Date(dateStr).toLocaleDateString()}</h6>`;

@@ -634,7 +634,14 @@ else:
                 'BACKEND': 'django_redis.cache.RedisCache',
                 'LOCATION': os.getenv('REDIS_URL'),
                 'OPTIONS': {
-                    'CLIENT_CLASS': NoSSLVerifyRedisClient,
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'CONNECTION_POOL_KWARGS': {
+                        'ssl': True,
+                        'ssl_cert_reqs': None,  # Disable SSL certificate verification
+                        'ssl_check_hostname': False,  # Disable hostname verification
+                        'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+                        'retry_on_timeout': True,
+                    },
                     'IGNORE_EXCEPTIONS': True,
                 },
                 'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
