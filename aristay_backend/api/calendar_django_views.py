@@ -262,7 +262,8 @@ def calendar_events_api(request):
     
     # Get bookings in the date range
     bookings = Booking.objects.filter(
-        is_deleted=False,
+        is_deleted=False
+    ).filter(
         Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
     )
     
