@@ -74,7 +74,7 @@
                     <span class="status-badge status-{{ task.status|cut:'-' }}">{{ task.get_status_display }}</span>
                 </div>
                 <div class="task-meta">
-                    <span>🏠 {{ task.property.name|default:"No Property" }}</span>
+                    <span>🏠 {{ task.property_ref.name|default:"No Property" }}</span>
                     {% if task.due_date %}
                     <span>⏰ {{ task.due_date|dual_timezone:user }}</span>
                     {% endif %}

@@ -550,3 +550,11 @@ def calendar_bookings_api(request):
     
     serializer = CalendarBookingSerializer(bookings, many=True)
     return JsonResponse(serializer.data, safe=False)
+
+
+@require_http_methods(["GET"])
+def calendar_test_api(request):
+    """
+    Simple test API to check if Django views work without authentication
+    """
+    return JsonResponse({'status': 'success', 'message': 'Test API working'})
