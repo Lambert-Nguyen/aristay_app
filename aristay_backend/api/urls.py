@@ -115,6 +115,16 @@ urlpatterns = [
     path('register/', register_user, name='api-register'),
     path('validate-invite/', validate_invite_code, name='validate-invite'),
     path('logout/', logout_view, name='api-logout'),
+    
+    # Calendar HTML views (must come before DRF router)
+    path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
+    path('calendar/users/', calendar_users_api, name='calendar-users'),
+    path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
+    path('calendar/events/', calendar_events_api, name='calendar-events'),
+    path('calendar/day_events/', calendar_day_events_api, name='calendar-day-events'),
+    path('calendar/tasks/', calendar_tasks_api, name='calendar-tasks'),
+    path('calendar/bookings/', calendar_bookings_api, name='calendar-bookings'),
+    
     path('', include(router.urls)),
     
     # Mobile-optimized endpoints
@@ -291,11 +301,4 @@ urlpatterns = [
     
     # Calendar HTML views
     path('calendar/', CalendarView.as_view(), name='calendar-view'),
-    path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
-    path('calendar/users/', calendar_users_api, name='calendar-users'),
-    path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
-    path('calendar/events/', calendar_events_api, name='calendar-events'),
-    path('calendar/day_events/', calendar_day_events_api, name='calendar-day-events'),
-    path('calendar/tasks/', calendar_tasks_api, name='calendar-tasks'),
-    path('calendar/bookings/', calendar_bookings_api, name='calendar-bookings'),
 ]
