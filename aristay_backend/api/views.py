@@ -320,16 +320,14 @@ def portal_home(request):
     return render(request, 'portal/home.html', context)
 
 
+@login_required
 def portal_calendar(request):
-    """Portal calendar view with unified booking and task display - publicly accessible"""
-    # Handle both authenticated and anonymous users
-    user = request.user if request.user.is_authenticated else None
-    
+    """Portal calendar view with unified booking and task display - accessible to all authenticated users"""
     context = {
-        'user': user,
-        'can_view_tasks': user and hasattr(user, 'profile') and user.profile.has_permission('view_all_tasks'),
-        'can_view_bookings': True,  # Allow everyone to view bookings
-        'is_authenticated': request.user.is_authenticated,
+        'user': request.user,
+        'can_view_tasks': hasattr(request.user, 'profile') and request.user.profile.has_permission('view_all_tasks'),
+        'can_view_bookings': True,  # All authenticated users can view bookings
+        'is_authenticated': True,
     }
     return render(request, 'portal/calendar.html', context)
 
