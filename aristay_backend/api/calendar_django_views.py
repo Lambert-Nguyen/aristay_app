@@ -130,6 +130,7 @@ def calendar_properties_api(request):
             'title': task.title,
             'start': task.due_date.isoformat() if task.due_date else None,
             'end': task.due_date.isoformat() if task.due_date else None,
+            'allDay': True,  # Tasks are all-day events
             'color': get_task_color(task.status),
             'type': 'task',
             'status': task.status,
@@ -256,6 +257,7 @@ def calendar_data_api(request):
             'title': task.title,
             'start': task.due_date.isoformat() if task.due_date else None,
             'end': task.due_date.isoformat() if task.due_date else None,
+            'allDay': True,  # Tasks are all-day events
             'color': '#007bff',
             'type': 'task',
             'status': task.status,
@@ -351,6 +353,7 @@ def calendar_events_api(request):
             'title': task.title,
             'start': task.due_date.isoformat() if task.due_date else None,
             'end': task.due_date.isoformat() if task.due_date else None,
+            'allDay': True,  # Tasks are all-day events
             'color': get_task_color(task.status),
             'type': 'task',
             'status': task.status,

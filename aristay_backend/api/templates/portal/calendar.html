@@ -335,16 +335,18 @@
             </div>
         `;
         
-        if (props.property_name) {
-            bodyContent += `<div style="margin-bottom: 0.5rem;"><strong>Property:</strong> ${props.property_name}</div>`;
+        if (props.property) {
+            bodyContent += `<div style="margin-bottom: 0.5rem;"><strong>Property:</strong> ${props.property}</div>`;
         }
         
         if (props.guest_name) {
             bodyContent += `<div style="margin-bottom: 0.5rem;"><strong>Guest:</strong> ${props.guest_name}</div>`;
         }
         
-        if (props.assigned_to) {
+        if (props.assigned_to && props.assigned_to.trim()) {
             bodyContent += `<div style="margin-bottom: 0.5rem;"><strong>Assigned To:</strong> ${props.assigned_to}</div>`;
+        } else if (props.type === 'task') {
+            bodyContent += `<div style="margin-bottom: 0.5rem;"><strong>Assigned To:</strong> <em>Not Assigned</em></div>`;
         }
         
         if (props.description) {
