@@ -1,0 +1,13 @@
+/* Admin styles for Auto Task Template widget/forms */
+.autotasktemplate-help {
+  font-size: 12px;
+  color: #64748b;
+}
+.autotasktemplate-preview {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+

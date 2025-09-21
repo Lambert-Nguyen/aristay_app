@@ -1,0 +1,627 @@
+/* ========================================
+   ARISTAY DARK MODE TOGGLE - ENHANCED UX
+   ======================================== */
+
+/* Modern Toggle Switch Design */
+.theme-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 32px;
+    background: #e2e8f0;
+    border: 2px solid #cbd5e0;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    margin: 0 12px;
+    vertical-align: middle;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Toggle Switch Track */
+.theme-toggle::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 50%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+}
+
+/* Hover Effects */
+.theme-toggle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #a0aec0;
+}
+
+.theme-toggle:hover::before {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* Active State */
+.theme-toggle:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.theme-toggle:active::before {
+    transform: scale(0.95);
+}
+
+/* Subtle pulse animation for attention */
+@keyframes themeTogglePulse {
+    0% { box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+    50% { box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5), 0 0 0 4px rgba(102, 126, 234, 0.1); }
+    100% { box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+}
+
+.theme-toggle.pulse {
+    animation: themeTogglePulse 2s ease-in-out infinite;
+}
+
+/* Staff portal specific styling - matches purple theme */
+.user-info .theme-toggle {
+    margin: 0 8px 0 0;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+}
+
+.user-info .theme-toggle:hover {
+    box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+.user-info .theme-toggle.dark {
+    background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
+    box-shadow: 0 2px 4px rgba(109, 40, 217, 0.2);
+}
+
+/* Portal specific styling - matches indigo theme */
+.brand .theme-toggle {
+    margin: 0 8px 0 0;
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+.brand .theme-toggle:hover {
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+}
+
+.brand .theme-toggle.dark {
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+/* Admin specific styling - matches blue theme */
+.branding .theme-toggle {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.branding .theme-toggle:hover {
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.branding .theme-toggle.dark {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+
+.theme-toggle.dark {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    box-shadow: 0 2px 4px rgba(31, 41, 55, 0.2);
+}
+
+.theme-toggle.dark:hover {
+    box-shadow: 0 4px 8px rgba(31, 41, 55, 0.3);
+}
+
+.theme-toggle.dark::before {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%);
+}
+
+/* Modern Icon System - SVG Icons */
+.theme-toggle-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 3;
+    fill: currentColor;
+}
+
+/* Sun Icon (Light Mode) */
+.sun-icon {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    color: #f59e0b;
+}
+
+/* Moon Icon (Dark Mode) */
+.moon-icon {
+    display: block;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8) rotate(-90deg);
+    color: #6366f1;
+}
+
+/* Dark Mode States */
+.theme-toggle.dark {
+    background: #374151;
+    border-color: #4b5563;
+}
+
+.theme-toggle.dark::before {
+    left: 30px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.theme-toggle.dark .sun-icon {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8) rotate(90deg);
+}
+
+.theme-toggle.dark .moon-icon {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+/* Hover states for dark mode */
+.theme-toggle.dark:hover {
+    border-color: #6b7280;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.theme-toggle.dark:hover::before {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ========================================
+   COMPREHENSIVE DARK MODE SYSTEM
+   ======================================== */
+
+/* CSS Custom Properties for Dark Mode */
+[data-theme="dark"] {
+    /* Background Colors */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --bg-quaternary: #475569;
+    
+    /* Text Colors */
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-inverse: #0f172a;
+    
+    /* Border Colors */
+    --border-primary: #334155;
+    --border-secondary: #475569;
+    --border-accent: #6366f1;
+    
+    /* Card and Surface Colors */
+    --card-bg: #1e293b;
+    --card-bg-hover: #334155;
+    --surface-bg: #0f172a;
+    --header-bg: #0f172a;
+    
+    /* Accent Colors */
+    --accent-primary: #6366f1;
+    --accent-secondary: #8b5cf6;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    
+    /* Shadow Colors */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+}
+
+/* ========================================
+   DARK MODE COMPONENT STYLES
+   ======================================== */
+
+/* Base Dark Mode Styles */
+[data-theme="dark"] body {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Admin Portal Dark Mode */
+[data-theme="dark"] #header {
+    background: var(--header-bg) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] #user-tools {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] #user-tools a {
+    color: var(--accent-primary) !important;
+}
+
+[data-theme="dark"] #user-tools a:hover {
+    color: var(--accent-secondary) !important;
+}
+
+/* Django Admin Interface Dark Mode */
+[data-theme="dark"] .module,
+[data-theme="dark"] .dashboard-section,
+[data-theme="dark"] .welcome-section,
+[data-theme="dark"] .admin-info {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .module caption,
+[data-theme="dark"] .module h2,
+[data-theme="dark"] .dashboard-title {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+/* Action Cards and Quick Access */
+[data-theme="dark"] .action-card,
+[data-theme="dark"] .action-card-mini {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .action-card:hover,
+[data-theme="dark"] .action-card-mini:hover {
+    background: var(--card-bg-hover) !important;
+    box-shadow: var(--shadow-md) !important;
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .action-description {
+    color: var(--text-muted) !important;
+}
+
+/* Tables */
+[data-theme="dark"] th,
+[data-theme="dark"] td {
+    border-color: var(--border-primary) !important;
+    color: var(--text-primary) !important;
+    background: var(--card-bg) !important;
+}
+
+[data-theme="dark"] tr:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+[data-theme="dark"] thead th {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 2px solid var(--border-accent) !important;
+}
+
+/* Form Elements */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Links and Buttons */
+[data-theme="dark"] .addlink,
+[data-theme="dark"] .changelink,
+[data-theme="dark"] .viewlink {
+    background: rgba(99, 102, 241, 0.1) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    color: var(--accent-primary) !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+}
+
+[data-theme="dark"] .addlink:hover,
+[data-theme="dark"] .changelink:hover,
+[data-theme="dark"] .viewlink:hover {
+    background: rgba(99, 102, 241, 0.2) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+/* Buttons */
+[data-theme="dark"] .button,
+[data-theme="dark"] input[type="submit"],
+[data-theme="dark"] input[type="button"] {
+    background: var(--accent-primary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .button:hover,
+[data-theme="dark"] input[type="submit"]:hover,
+[data-theme="dark"] input[type="button"]:hover {
+    background: var(--accent-secondary) !important;
+    border-color: var(--accent-secondary) !important;
+}
+
+/* Modals and Overlays */
+[data-theme="dark"] .modal-content {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-xl) !important;
+}
+
+[data-theme="dark"] .close {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .close:hover {
+    color: var(--text-primary) !important;
+}
+
+/* ========================================
+   PORTAL-SPECIFIC DARK MODE STYLES
+   ======================================== */
+
+/* Staff Portal Dark Mode */
+[data-theme="dark"] .header {
+    background: var(--header-bg) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .card {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .nav {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .nav a {
+    color: var(--text-secondary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .nav a:hover,
+[data-theme="dark"] .nav a.active {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border-left: 3px solid var(--accent-primary) !important;
+}
+
+/* Portal Header Dark Mode */
+[data-theme="dark"] header {
+    background: linear-gradient(135deg, var(--header-bg) 0%, var(--bg-secondary) 100%) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .brand h1 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .brand a {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .brand a:hover {
+    color: var(--accent-primary) !important;
+}
+
+/* Manager Portal Specific Dark Mode */
+[data-theme="dark"] #site-name {
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+[data-theme="dark"] #site-name a {
+    color: var(--text-primary) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .welcome-section {
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%) !important;
+    color: var(--text-primary) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+[data-theme="dark"] .admin-info {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .admin-info h2 {
+    color: var(--text-primary) !important;
+    border-bottom: 2px solid var(--accent-primary) !important;
+}
+
+/* Staff Dashboard Cards Dark Mode */
+[data-theme="dark"] .card {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .card-header {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .stat-card {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .stat-card:hover {
+    background: var(--card-bg-hover) !important;
+    box-shadow: var(--shadow-md) !important;
+    transform: translateY(-2px) !important;
+}
+
+[data-theme="dark"] .stat-number {
+    color: var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .stat-label {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .stat-action {
+    color: var(--text-muted) !important;
+}
+
+/* Quick Access Cards Dark Mode (for other portals) */
+[data-theme="dark"] .quick-access-grid .action-card {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .quick-access-grid .action-card:hover {
+    background: var(--card-bg-hover) !important;
+    box-shadow: var(--shadow-md) !important;
+    transform: translateY(-2px) !important;
+}
+
+[data-theme="dark"] .quick-access-grid .action-card h3 {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .quick-access-grid .action-description {
+    color: var(--text-muted) !important;
+}
+
+/* Statistics Cards Dark Mode */
+[data-theme="dark"] .stats-grid .stat-card {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .stats-grid .stat-card:hover {
+    background: var(--card-bg-hover) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .stats-grid .stat-number {
+    color: var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .stats-grid .stat-label {
+    color: var(--text-secondary) !important;
+}
+
+/* Task Items Dark Mode */
+[data-theme="dark"] .task-item {
+    background: var(--card-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+    border-left: 4px solid var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .task-item:hover {
+    background: var(--card-bg-hover) !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .task-title {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .task-description {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .task-meta {
+    color: var(--text-muted) !important;
+}
+
+/* Buttons Dark Mode */
+[data-theme="dark"] .btn {
+    background: var(--accent-primary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--accent-primary) !important;
+}
+
+[data-theme="dark"] .btn:hover {
+    background: var(--accent-secondary) !important;
+    border-color: var(--accent-secondary) !important;
+}
+
+[data-theme="dark"] .btn-secondary {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-primary) !important;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background: var(--bg-quaternary) !important;
+    border-color: var(--border-secondary) !important;
+}
+
+/* Container and Layout */
+[data-theme="dark"] .container {
+    background: transparent !important;
+}
+
+[data-theme="dark"] .dashboard-grid {
+    background: transparent !important;
+}
+
+/* Navigation Links in Headers */
+[data-theme="dark"] .branding a[href="/api/portal/"],
+[data-theme="dark"] .branding a[href="/manager/"],
+[data-theme="dark"] .branding a[href="/admin/"] {
+    background: rgba(99, 102, 241, 0.2) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
+[data-theme="dark"] .branding a[href="/api/portal/"]:hover,
+[data-theme="dark"] .branding a[href="/manager/"]:hover,
+[data-theme="dark"] .branding a[href="/admin/"]:hover {
+    background: rgba(99, 102, 241, 0.3) !important;
+    border-color: var(--accent-primary) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--shadow-md) !important;
+}
