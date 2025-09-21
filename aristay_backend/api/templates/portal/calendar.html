@@ -247,7 +247,7 @@
                 'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json',
             },
-            credentials: 'same-origin'
+            credentials: 'include'
         })
             .then(response => {
                 if (!response.ok) {
@@ -288,7 +288,7 @@
                 'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json',
             },
-            credentials: 'same-origin'
+            credentials: 'include'
         })
             .then(response => response.json())
             .then(data => {
@@ -312,7 +312,7 @@
                 'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json',
             },
-            credentials: 'same-origin'
+            credentials: 'include'
         })
             .then(response => response.json())
             .then(data => {
@@ -442,7 +442,7 @@
                 'X-CSRFToken': csrfToken,
                 'Content-Type': 'application/json',
             },
-            credentials: 'same-origin'
+            credentials: 'include'
         })
             .then(response => response.json())
             .then(data => {

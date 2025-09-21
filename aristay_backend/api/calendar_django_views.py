@@ -28,7 +28,7 @@ class CalendarView(LoginRequiredMixin, View):
     """
     Main calendar view with HTML template
     """
-    template_name = 'calendar/calendar_view.html'
+    template_name = 'portal/calendar.html'
     
     def get(self, request):
         """Render the calendar page"""
