@@ -301,6 +301,10 @@ def calendar_events_api(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     
+    # Get include/exclude parameters
+    include_tasks = request.GET.get('include_tasks', 'true').lower() == 'true'
+    include_bookings = request.GET.get('include_bookings', 'true').lower() == 'true'
+    
     # If no date parameters provided, use default range (current month)
     if not start_date or not end_date:
         today = timezone.now().date()
@@ -315,7 +319,7 @@ def calendar_events_api(request):
             start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
         except ValueError:
-            return JsonResponse({'error': 'Invalid date format'}, status=400)
+            return Response({'error': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
     
     # Get tasks in the date range
     tasks = Task.objects.filter(
@@ -360,36 +364,38 @@ def calendar_events_api(request):
         }
         return color_map.get(status, '#28a745')  # Default green for unknown status
     
-    # Add tasks to events
-    for task in tasks:
-        events.append({
-            'id': f"task_{task.id}",
-            'title': task.title,
-            'start': task.due_date.isoformat() if task.due_date else None,
-            'end': task.due_date.isoformat() if task.due_date else None,
-            'allDay': True,  # Tasks are all-day events
-            'color': get_task_color(task.status),
-            'type': 'task',
-            'status': task.status,
-            'property': task.property_ref.name if task.property_ref else '',
-            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}".strip() if task.assigned_to and (task.assigned_to.first_name or task.assigned_to.last_name) else (task.assigned_to.username if task.assigned_to else ''),
-            'url': reverse('portal-task-detail', args=[task.id]),
-        })
+    # Add tasks to events (if included)
+    if include_tasks:
+        for task in tasks:
+            events.append({
+                'id': f"task_{task.id}",
+                'title': task.title,
+                'start': task.due_date.isoformat() if task.due_date else None,
+                'end': task.due_date.isoformat() if task.due_date else None,
+                'allDay': True,  # Tasks are all-day events
+                'color': get_task_color(task.status),
+                'type': 'task',
+                'status': task.status,
+                'property': task.property_ref.name if task.property_ref else '',
+                'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}".strip() if task.assigned_to and (task.assigned_to.first_name or task.assigned_to.last_name) else (task.assigned_to.username if task.assigned_to else ''),
+                'url': reverse('portal-task-detail', args=[task.id]),
+            })
     
-    # Add bookings to events
-    for booking in bookings:
-        events.append({
-            'id': f"booking_{booking.id}",
-            'title': f"{booking.guest_name} - {booking.property.name}",
-            'start': booking.check_in_date.isoformat() if booking.check_in_date else None,
-            'end': booking.check_out_date.isoformat() if booking.check_out_date else None,
-            'color': get_booking_color(booking.status),
-            'type': 'booking',
-            'status': booking.status,
-            'property': booking.property.name,
-            'guest_name': booking.guest_name,
-            'url': reverse('portal-booking-detail', args=[booking.property.id, booking.id]),
-        })
+    # Add bookings to events (if included)
+    if include_bookings:
+        for booking in bookings:
+            events.append({
+                'id': f"booking_{booking.id}",
+                'title': f"{booking.guest_name} - {booking.property.name}",
+                'start': booking.check_in_date.isoformat() if booking.check_in_date else None,
+                'end': booking.check_out_date.isoformat() if booking.check_out_date else None,
+                'color': get_booking_color(booking.status),
+                'type': 'booking',
+                'status': booking.status,
+                'property': booking.property.name,
+                'guest_name': booking.guest_name,
+                'url': reverse('portal-booking-detail', args=[booking.property.id, booking.id]),
+            })
     
     return Response(events, status=status.HTTP_200_OK)
 
@@ -407,12 +413,12 @@ def calendar_day_events_api(request):
     
     date_str = request.GET.get('date')
     if not date_str:
-        return JsonResponse({'error': 'Date parameter required'}, status=400)
+        return Response({'error': 'Date parameter required'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
-        return JsonResponse({'error': 'Invalid date format'}, status=400)
+        return Response({'error': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
     
     # Get tasks for the day
     tasks = Task.objects.filter(
@@ -515,9 +521,9 @@ def calendar_tasks_api(request):
     if property_id:
         tasks = tasks.filter(property_ref_id=property_id)
     
-    status = request.GET.get('status')
-    if status:
-        tasks = tasks.filter(status=status)
+    task_status = request.GET.get('status')
+    if task_status:
+        tasks = tasks.filter(status=task_status)
     
     user_id = request.GET.get('user_id')
     if user_id:
@@ -563,9 +569,9 @@ def calendar_bookings_api(request):
     if property_id:
         bookings = bookings.filter(property_id=property_id)
     
-    status = request.GET.get('status')
-    if status:
-        bookings = bookings.filter(status=status)
+    booking_status = request.GET.get('status')
+    if booking_status:
+        bookings = bookings.filter(status=booking_status)
     
     serializer = CalendarBookingSerializer(bookings, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
