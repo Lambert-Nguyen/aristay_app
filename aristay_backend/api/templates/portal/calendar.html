@@ -4,36 +4,65 @@
 
 {% block content %}
 <div class="calendar-container">
-    <div class="card calendar-header d-flex justify-content-between align-items-center">
-        <div class="section-title">Property Management Calendar</div>
-        <!-- Action Toolbar -->
-        <div class="btn-group" role="group" aria-label="Calendar actions" style="margin-top: .5rem; display: flex; gap: .5rem; flex-wrap: wrap;">
-            <button type="button" class="btn btn-outline-primary" onclick="refreshCalendar()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-            <button type="button" class="btn btn-outline-secondary" onclick="exportCalendar()">
-                <i class="fas fa-download"></i> Export
-            </button>
+    <!-- Modern Header Section -->
+    <div class="calendar-header-section">
+        <div class="header-content">
+            <div class="header-text">
+                <h1 class="page-title">
+                    <i class="fas fa-calendar-alt"></i>
+                    Property Management Calendar
+                </h1>
+                <p class="page-subtitle">Manage your bookings and tasks with an intuitive calendar interface</p>
+            </div>
+            <div class="header-actions">
+                <button type="button" class="btn-action btn-refresh" onclick="refreshCalendar()">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Refresh</span>
+                </button>
+                <button type="button" class="btn-action btn-export" onclick="exportCalendar()">
+                    <i class="fas fa-download"></i>
+                    <span>Export</span>
+                </button>
+            </div>
         </div>
     </div>
-    
-    <div style="margin-bottom: 2rem;">
-        <p>View all your bookings and tasks in a unified calendar interface.</p>
-    </div>
 
-    <!-- Calendar Filters -->
-    <div class="card calendar-filters" style="margin-bottom: 2rem;">
-        <h5 style="margin-bottom: 1rem;">Filters</h5>
-        <div class="grid cols-1 md:cols-4 gap-4">
-            <div>
-                <label for="propertyFilter" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Property</label>
-                <select id="propertyFilter" class="input form-select" style="width: 100%;">
+    <!-- Modern Filter Section -->
+    <div class="calendar-filters-section">
+        <div class="filters-header">
+            <h3 class="filters-title">
+                <i class="fas fa-filter"></i>
+                Filters & Search
+            </h3>
+            <div class="filter-actions">
+                <button type="button" class="btn-filter btn-apply" onclick="applyFilters()">
+                    <i class="fas fa-check"></i>
+                    Apply
+                </button>
+                <button type="button" class="btn-filter btn-clear" onclick="clearFilters()">
+                    <i class="fas fa-times"></i>
+                    Clear
+                </button>
+            </div>
+        </div>
+        
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label for="propertyFilter" class="filter-label">
+                    <i class="fas fa-building"></i>
+                    Property
+                </label>
+                <select id="propertyFilter" class="filter-select">
                     <option value="">All Properties</option>
                 </select>
             </div>
-            <div>
-                <label for="statusFilter" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Status</label>
-                <select id="statusFilter" class="input form-select" style="width: 100%;">
+            
+            <div class="filter-group">
+                <label for="statusFilter" class="filter-label">
+                    <i class="fas fa-flag"></i>
+                    Status
+                </label>
+                <select id="statusFilter" class="filter-select">
                     <option value="">All Statuses</option>
                     <option value="pending">Pending</option>
                     <option value="in-progress">In Progress</option>
@@ -42,58 +71,78 @@
                     <option value="cancelled">Cancelled</option>
                 </select>
             </div>
-            <div>
-                <label for="eventTypeFilter" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Event Type</label>
-                <select id="eventTypeFilter" class="input form-select" style="width: 100%;">
+            
+            <div class="filter-group">
+                <label for="eventTypeFilter" class="filter-label">
+                    <i class="fas fa-tasks"></i>
+                    Event Type
+                </label>
+                <select id="eventTypeFilter" class="filter-select">
                     <option value="">All Event Types</option>
                     <option value="task">Tasks</option>
                     <option value="booking">Bookings</option>
                 </select>
             </div>
-            <div>
-                <label for="assignedToFilter" class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Assigned To</label>
-                <select id="assignedToFilter" class="input form-select" style="width: 100%;">
+            
+            <div class="filter-group">
+                <label for="assignedToFilter" class="filter-label">
+                    <i class="fas fa-user"></i>
+                    Assigned To
+                </label>
+                <select id="assignedToFilter" class="filter-select">
                     <option value="">All Users</option>
                 </select>
             </div>
-            <div style="display: flex; align-items: end; gap: 0.5rem;">
-                <button type="button" class="button btn btn-primary" onclick="applyFilters()" style="flex: 1;">
-                    <i class="fas fa-filter"></i> Apply Filters
-                </button>
-                <button type="button" class="button btn btn-outline-secondary" onclick="clearFilters()" style="background-color: #6b7280; border-color: #6b7280;">
-                    <i class="fas fa-times"></i> Clear Filters
-                </button>
-            </div>
         </div>
     </div>
 
-    <!-- Loading / Error Hooks for CI expectations -->
-    <div id="loadingIndicator" style="display:none; margin-bottom: 1rem; color: #64748b;">Loading...</div>
-    <div id="errorDisplay" style="display:none; margin-bottom: 1rem; color: #b91c1c;"></div>
+    <!-- Loading / Error States -->
+    <div id="loadingIndicator" class="loading-indicator">
+        <div class="loading-spinner"></div>
+        <span>Loading calendar...</span>
+    </div>
+    <div id="errorDisplay" class="error-indicator">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Error loading calendar data</span>
+    </div>
+    
     <!-- Hidden Bootstrap grid helpers for responsive test expectations -->
     <div class="row" style="display:none"><div class="col-md-4"></div><div class="col-md-6"></div></div>
 
-    <!-- Calendar Container -->
-    <div class="card calendar-wrapper">
-        <!-- FullCalendar integration -->
-        <div id="calendar" style="min-height: 700px; padding: 1rem;"></div>
+    <!-- Modern Calendar Container -->
+    <div class="calendar-main-section">
+        <div class="calendar-wrapper">
+            <div id="calendar"></div>
+        </div>
     </div>
 </div>
 
-<!-- Event Details Modal -->
-<!-- bootstrap.Modal placeholder for tests -->
-<div class="modal" id="eventModal" tabindex="-1" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 8px; padding: 2rem; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 id="eventModalTitle">Event Details</h3>
-            <button onclick="closeEventModal()" data-bs-dismiss="modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+<!-- Modern Event Details Modal -->
+<div class="modal-overlay" id="eventModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="eventModalTitle" class="modal-title">
+                <i class="fas fa-info-circle"></i>
+                Event Details
+            </h3>
+            <button class="modal-close" onclick="closeEventModal()">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <div id="eventModalBody">
-            <!-- Content populated via JavaScript -->
+        <div class="modal-body">
+            <div id="eventModalBody">
+                <!-- Content populated via JavaScript -->
+            </div>
         </div>
-        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
-            <button onclick="closeEventModal()" class="button" style="background-color: #6b7280; border-color: #6b7280;">Close</button>
-            <button onclick="viewEventDetails()" class="button" id="eventModalAction">View Details</button>
+        <div class="modal-footer">
+            <button class="btn-modal btn-secondary" onclick="closeEventModal()">
+                <i class="fas fa-times"></i>
+                Close
+            </button>
+            <button class="btn-modal btn-primary" onclick="viewEventDetails()" id="eventModalAction">
+                <i class="fas fa-external-link-alt"></i>
+                View Details
+            </button>
         </div>
     </div>
 </div>
@@ -159,7 +208,10 @@
 
     function showLoading() {
         const el = document.getElementById('loadingIndicator');
-        if (el) el.style.display = 'block';
+        if (el) {
+            el.style.display = 'flex';
+            el.querySelector('span').textContent = 'Loading calendar...';
+        }
     }
 
     function hideLoading() {
@@ -171,8 +223,8 @@
         console.error(message);
         const el = document.getElementById('errorDisplay');
         if (el) {
-            el.textContent = message;
-            el.style.display = 'block';
+            el.querySelector('span').textContent = message || 'Error loading calendar data';
+            el.style.display = 'flex';
         }
     }
 
@@ -427,136 +479,523 @@
 </script>
 
 <style>
-    .event-task {
-        border-left: 4px solid #007bff;
-        background-color: #f8f9ff;
+    /* Modern Calendar Container */
+    .calendar-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0;
+        background: #ffffff;
+        min-height: 100vh;
     }
-    
-    .event-booking {
-        border-left: 4px solid #28a745;
-        background-color: #f8fff8;
+
+    /* Header Section */
+    .calendar-header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
     }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 2px 8px;
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .page-title i {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+
+    .page-subtitle {
+        font-size: 1.1rem;
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        font-weight: 300;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-action {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 0.75rem 1.5rem;
         border-radius: 12px;
-        font-size: 0.75em;
-        font-weight: 500;
-        text-transform: uppercase;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        backdrop-filter: blur(10px);
     }
-    
-    .status-pending { background-color: #fff3cd; color: #856404; }
-    .status-in-progress { background-color: #d1ecf1; color: #0c5460; }
-    .status-completed { background-color: #d4edda; color: #155724; }
-    .status-confirmed { background-color: #d4edda; color: #155724; }
-    .status-cancelled { background-color: #f8d7da; color: #721c24; }
-    
-    /* Calendar wrapper improvements */
-    .calendar-wrapper {
+
+    .btn-action:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.5);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Filters Section */
+    .calendar-filters-section {
+        background: #f8fafc;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+    }
+
+    .filters-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .filters-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .filters-title i {
+        color: #667eea;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .btn-filter {
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+    }
+
+    .btn-apply {
+        background: #667eea;
+        color: white;
+    }
+
+    .btn-apply:hover {
+        background: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-clear {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+
+    .btn-clear:hover {
+        background: #cbd5e0;
+        transform: translateY(-1px);
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .filter-label i {
+        color: #667eea;
+        width: 16px;
+    }
+
+    .filter-select {
+        padding: 0.875rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        background: white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* Loading and Error States */
+    .loading-indicator, .error-indicator {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 2rem;
+        margin: 2rem 0;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+
+    .loading-indicator {
+        background: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+
+    .error-indicator {
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+
+    .loading-spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid #e0e7ff;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Calendar Main Section */
+    .calendar-main-section {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         overflow: hidden;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e2e8f0;
     }
-    
-    .calendar-wrapper .card-body {
+
+    .calendar-wrapper {
         padding: 0;
     }
-    
-    /* FullCalendar container */
+
     #calendar {
+        min-height: 700px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    
+
+    /* FullCalendar Customization */
+    .fc {
+        --fc-border-color: #e2e8f0;
+        --fc-today-bg-color: #f0f9ff;
+        --fc-button-bg-color: #667eea;
+        --fc-button-border-color: #667eea;
+        --fc-button-hover-bg-color: #5a67d8;
+        --fc-button-hover-border-color: #5a67d8;
+        --fc-button-active-bg-color: #4c51bf;
+        --fc-button-active-border-color: #4c51bf;
+    }
+
+    .fc-toolbar {
+        padding: 1.5rem 2rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+
+    .fc-button {
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1rem !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .fc-button:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+    }
+
+    .fc-button-group .fc-button {
+        margin: 0 0.25rem !important;
+    }
+
+    /* Event Styling */
     .fc-event {
         border: none !important;
-        border-radius: 4px !important;
-        margin: 1px 0 !important;
-        font-size: 0.85em !important;
-        padding: 2px 4px !important;
-    }
-    
-    .fc-event:hover {
-        opacity: 0.8;
-        cursor: pointer;
-        transition: opacity 0.2s ease;
-    }
-    
-    /* Week and Day view improvements */
-    .fc-timegrid-slot {
-        height: 2.5em !important;
-    }
-    
-    .fc-timegrid-slot-label {
-        font-size: 0.9em !important;
-        padding: 0.5em 0.5em 0.5em 0 !important;
-    }
-    
-    .fc-timegrid-event {
-        margin: 1px 2px !important;
-        border-radius: 3px !important;
-        font-size: 0.8em !important;
-        padding: 1px 3px !important;
-    }
-    
-    .fc-timegrid-event .fc-event-title {
+        border-radius: 8px !important;
+        margin: 2px 1px !important;
+        font-size: 0.85rem !important;
         font-weight: 500 !important;
-        line-height: 1.2 !important;
+        padding: 4px 8px !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.3s ease !important;
     }
-    
-    /* Week view column headers */
-    .fc-col-header-cell {
-        padding: 0.75em 0.5em !important;
+
+    .fc-event:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        cursor: pointer !important;
+    }
+
+    .event-task {
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        color: white !important;
+    }
+
+    .event-booking {
+        background: linear-gradient(135deg, #48bb78, #38a169) !important;
+        color: white !important;
+    }
+
+    /* Time Grid Improvements */
+    .fc-timegrid-slot {
+        height: 3em !important;
+    }
+
+    .fc-timegrid-slot-label {
+        font-size: 0.9rem !important;
+        font-weight: 500 !important;
+        color: #718096 !important;
+        padding: 0.75rem 0.5rem 0.75rem 0 !important;
+    }
+
+    .fc-timegrid-event {
+        margin: 1px 3px !important;
+        border-radius: 6px !important;
+        font-size: 0.8rem !important;
+        padding: 2px 6px !important;
+    }
+
+    .fc-timegrid-event .fc-event-title {
         font-weight: 600 !important;
-        font-size: 0.9em !important;
+        line-height: 1.3 !important;
     }
-    
-    /* Day view improvements */
+
+    .fc-col-header-cell {
+        padding: 1rem 0.5rem !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        color: #4a5568 !important;
+        background: #f8fafc !important;
+    }
+
     .fc-timegrid-day {
         min-height: 600px !important;
     }
-    
+
     .fc-timegrid-body {
         min-height: 500px !important;
     }
-    
-    /* Better spacing for all views */
-    .fc-scrollgrid {
-        border: 1px solid #e2e8f0 !important;
+
+    /* Modal Styling */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        backdrop-filter: blur(4px);
     }
-    
-    .fc-scrollgrid-sync-table {
-        border-collapse: separate !important;
-        border-spacing: 0 !important;
-    }
-    
-    /* Event text handling */
-    .event-details, .fc-event-title, .fc-event-main {
-        white-space: normal !important;
-        text-overflow: ellipsis;
+
+    .modal-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
         overflow: hidden;
-        line-height: 1.3 !important;
     }
-    
-    /* Responsive improvements */
+
+    .modal-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+    }
+
+    .modal-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #718096;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+
+    .modal-body {
+        padding: 2rem;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+
+    .modal-footer {
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        background: #f8fafc;
+    }
+
+    .btn-modal {
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+    }
+
+    .btn-primary {
+        background: #667eea;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #5a67d8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+
+    .btn-secondary:hover {
+        background: #cbd5e0;
+        transform: translateY(-1px);
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-in-progress { background: #dbeafe; color: #1e40af; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-confirmed { background: #d1fae5; color: #065f46; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+    /* Responsive Design */
     @media (max-width: 768px) {
+        .header-content {
+            flex-direction: column;
+            gap: 1.5rem;
+            text-align: center;
+        }
+
+        .page-title {
+            font-size: 2rem;
+        }
+
+        .filters-grid {
+            grid-template-columns: 1fr;
+        }
+
         .fc-toolbar {
-            flex-direction: column !important;
-            gap: 0.5rem !important;
+            flex-direction: column;
+            gap: 1rem;
         }
-        
+
         .fc-toolbar-chunk {
-            display: flex !important;
-            justify-content: center !important;
+            display: flex;
+            justify-content: center;
         }
-        
+
         .fc-timegrid-slot {
-            height: 2em !important;
+            height: 2.5em !important;
         }
-        
+
         .fc-timegrid-event {
-            font-size: 0.75em !important;
-            padding: 1px 2px !important;
+            font-size: 0.75rem !important;
+            padding: 1px 4px !important;
+        }
+
+        .modal-container {
+            width: 95%;
+            margin: 1rem;
         }
     }
 </style>
