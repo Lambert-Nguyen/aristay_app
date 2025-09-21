@@ -58,19 +58,41 @@ def calendar_properties_api(request):
     except ValueError:
         return JsonResponse({'error': 'Invalid date format'}, status=400)
     
-    # Get tasks in the date range
-    tasks = Task.objects.filter(
+    # Get filter parameters
+    property_id = request.GET.get('property_id')
+    status = request.GET.get('status')
+    user_id = request.GET.get('user_id')
+    
+    # Build base queries
+    tasks_query = Task.objects.filter(
         is_deleted=False,
         due_date__date__gte=start_dt,
         due_date__date__lte=end_dt
     )
     
-    # Get bookings in the date range  
-    bookings = Booking.objects.filter(
+    bookings_query = Booking.objects.filter(
         is_deleted=False
     ).filter(
         Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
     )
+    
+    # Apply property filter
+    if property_id:
+        tasks_query = tasks_query.filter(property_ref_id=property_id)
+        bookings_query = bookings_query.filter(property_id=property_id)
+    
+    # Apply status filter
+    if status:
+        tasks_query = tasks_query.filter(status=status)
+        bookings_query = bookings_query.filter(status=status)
+    
+    # Apply user filter (for tasks only, as bookings don't have assigned users)
+    if user_id:
+        tasks_query = tasks_query.filter(assigned_to_id=user_id)
+    
+    # Execute queries
+    tasks = tasks_query
+    bookings = bookings_query
     
     # Color scheme for better visual distinction and status indication
     def get_task_color(status):
