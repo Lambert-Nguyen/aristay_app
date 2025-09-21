@@ -179,7 +179,7 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         showLoading();
-        fetch(`/api/calendar/properties/`, {
+        fetch(`/api/calendar/data/?${params}`, {
             method: 'GET',
             headers: {
                 'X-CSRFToken': csrfToken,
@@ -193,18 +193,13 @@
                 }
                 return response.json();
             })
-            .then(properties => {
-                // Temporarily show properties as events for testing
-                const processedEvents = properties.map(property => {
+            .then(events => {
+                const processedEvents = events.map(event => {
+                    const { url, ...eventWithoutUrl } = event;
                     return {
-                        id: `property_${property.id}`,
-                        title: `Property: ${property.name}`,
-                        start: new Date().toISOString().split('T')[0], // Today's date
-                        color: '#28a745',
-                        type: 'property',
+                        ...eventWithoutUrl,
                         extendedProps: {
-                            id: `property_${property.id}`,
-                            title: `Property: ${property.name}`,
+                            ...eventWithoutUrl,
                             url: url
                         }
                     };
