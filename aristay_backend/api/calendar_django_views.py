@@ -270,6 +270,32 @@ def calendar_events_api(request):
     # Manually serialize the data without DRF serializers
     events = []
     
+    # Color scheme for better visual distinction
+    def get_task_color(status):
+        """Get color based on task status"""
+        color_map = {
+            'pending': '#ffc107',      # Amber - needs attention
+            'in-progress': '#17a2b8',  # Teal - actively being worked on
+            'completed': '#28a745',    # Green - done
+            'cancelled': '#6c757d',    # Gray - cancelled
+            'overdue': '#dc3545',      # Red - urgent/overdue
+        }
+        return color_map.get(status, '#007bff')  # Default blue for unknown status
+    
+    def get_booking_color(status):
+        """Get color based on booking status"""
+        color_map = {
+            'pending': '#ffc107',           # Amber - pending confirmation
+            'confirmed': '#28a745',         # Green - confirmed
+            'booked': '#17a2b8',           # Teal - booked
+            'in-progress': '#007bff',       # Blue - currently hosting
+            'currently_hosting': '#007bff', # Blue - currently hosting
+            'owner_staying': '#6f42c1',     # Purple - owner staying
+            'cancelled': '#6c757d',         # Gray - cancelled
+            'completed': '#28a745',         # Green - completed
+        }
+        return color_map.get(status, '#28a745')  # Default green for unknown status
+    
     # Add tasks to events
     for task in tasks:
         events.append({
@@ -277,7 +303,7 @@ def calendar_events_api(request):
             'title': task.title,
             'start': task.due_date.isoformat() if task.due_date else None,
             'end': task.due_date.isoformat() if task.due_date else None,
-            'color': '#007bff',
+            'color': get_task_color(task.status),
             'type': 'task',
             'status': task.status,
             'property': task.property_ref.name if task.property_ref else '',
@@ -291,7 +317,7 @@ def calendar_events_api(request):
             'title': f"{booking.guest_name} - {booking.property.name}",
             'start': booking.check_in_date.isoformat() if booking.check_in_date else None,
             'end': booking.check_out_date.isoformat() if booking.check_out_date else None,
-            'color': '#28a745',
+            'color': get_booking_color(booking.status),
             'type': 'booking',
             'status': booking.status,
             'property': booking.property.name,
