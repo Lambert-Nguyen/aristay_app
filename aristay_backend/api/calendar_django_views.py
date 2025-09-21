@@ -100,32 +100,32 @@ def calendar_properties_api(request):
     tasks = tasks_query
     bookings = bookings_query
     
-        # Enhanced color scheme for better visual distinction and status indication
-        def get_task_color(status):
-            """Get color based on task status with diverse, distinct colors"""
-            color_map = {
-                'pending': '#f39c12',      # Orange - needs attention
-                'in-progress': '#3498db',  # Blue - actively being worked on
-                'completed': '#27ae60',    # Green - done
-                'cancelled': '#95a5a6',    # Gray - cancelled
-                'overdue': '#e74c3c',      # Red - urgent/overdue
-                'waiting_dependency': '#9b59b6',  # Purple - waiting for dependency
-            }
-            return color_map.get(status, '#3498db')  # Default blue for unknown status
-        
-        def get_booking_color(status):
-            """Get color based on booking status with diverse, distinct colors"""
-            color_map = {
-                'pending': '#f39c12',           # Orange - pending confirmation
-                'confirmed': '#27ae60',         # Green - confirmed
-                'booked': '#16a085',           # Teal - booked
-                'in-progress': '#3498db',       # Blue - currently hosting
-                'currently_hosting': '#3498db', # Blue - currently hosting
-                'owner_staying': '#8e44ad',     # Purple - owner staying
-                'cancelled': '#95a5a6',         # Gray - cancelled
-                'completed': '#27ae60',         # Green - completed
-            }
-            return color_map.get(status, '#27ae60')  # Default green for unknown status
+    # Enhanced color scheme for better visual distinction and status indication
+    def get_task_color(status):
+        """Get color based on task status with diverse, distinct colors"""
+        color_map = {
+            'pending': '#f39c12',      # Orange - needs attention
+            'in-progress': '#3498db',  # Blue - actively being worked on
+            'completed': '#27ae60',    # Green - done
+            'cancelled': '#95a5a6',    # Gray - cancelled
+            'overdue': '#e74c3c',      # Red - urgent/overdue
+            'waiting_dependency': '#9b59b6',  # Purple - waiting for dependency
+        }
+        return color_map.get(status, '#3498db')  # Default blue for unknown status
+    
+    def get_booking_color(status):
+        """Get color based on booking status with diverse, distinct colors"""
+        color_map = {
+            'pending': '#f39c12',           # Orange - pending confirmation
+            'confirmed': '#27ae60',         # Green - confirmed
+            'booked': '#16a085',           # Teal - booked
+            'in-progress': '#3498db',       # Blue - currently hosting
+            'currently_hosting': '#3498db', # Blue - currently hosting
+            'owner_staying': '#8e44ad',     # Purple - owner staying
+            'cancelled': '#95a5a6',         # Gray - cancelled
+            'completed': '#27ae60',         # Green - completed
+        }
+        return color_map.get(status, '#27ae60')  # Default green for unknown status
     
     # Create events list
     events = []
