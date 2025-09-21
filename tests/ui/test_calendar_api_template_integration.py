@@ -264,7 +264,7 @@ class CalendarAPITemplateIntegrationTestCase(TestCase):
         
         # Check for loading states
         self.assertContains(response, 'loadingIndicator')
-        self.assertContains(response, 'Loading...')
+        self.assertContains(response, 'Loading calendar...')
         self.assertContains(response, 'showLoading')
         self.assertContains(response, 'hideLoading')
     
