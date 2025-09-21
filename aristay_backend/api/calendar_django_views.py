@@ -333,6 +333,12 @@ def calendar_events_api(request):
     include_tasks = request.GET.get('include_tasks', 'true').lower() == 'true'
     include_bookings = request.GET.get('include_bookings', 'true').lower() == 'true'
     
+    # Get filter parameters
+    property_id = request.GET.get('property_id')
+    status_filter = request.GET.get('status')
+    user_id = request.GET.get('user_id')
+    event_type_filter = request.GET.get('event_type')
+    
     # If no date parameters provided, use default range (current month)
     if not start_date or not end_date:
         today = timezone.now().date()
@@ -362,6 +368,27 @@ def calendar_events_api(request):
     ).filter(
         Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
     )
+    
+    # Apply property filter
+    if property_id:
+        tasks = tasks.filter(property_ref_id=property_id)
+        bookings = bookings.filter(property_id=property_id)
+    
+    # Apply status filter
+    if status_filter:
+        tasks = tasks.filter(status=status_filter)
+        bookings = bookings.filter(status=status_filter)
+    
+    # Apply user filter (for tasks only, as bookings don't have assigned users)
+    if user_id:
+        tasks = tasks.filter(assigned_to_id=user_id)
+    
+    # Apply event type filter
+    if event_type_filter:
+        if event_type_filter == 'task':
+            include_bookings = False
+        elif event_type_filter == 'booking':
+            include_tasks = False
     
     # Manually serialize the data without DRF serializers
     events = []

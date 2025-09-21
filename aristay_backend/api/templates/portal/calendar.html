@@ -256,14 +256,7 @@
                 return response.json();
             })
             .then(events => {
-                // Apply client-side filtering for event type
-                let filteredEvents = events;
-                const eventTypeFilter = document.getElementById('eventTypeFilter').value;
-                if (eventTypeFilter) {
-                    filteredEvents = events.filter(event => event.type === eventTypeFilter);
-                }
-                
-                const processedEvents = filteredEvents.map(event => {
+                const processedEvents = events.map(event => {
                     const { url, ...eventWithoutUrl } = event;
                     return {
                         ...eventWithoutUrl,
@@ -342,6 +335,7 @@
             property_id: document.getElementById('propertyFilter').value,
             status: document.getElementById('statusFilter').value,
             user_id: document.getElementById('assignedToFilter').value,
+            event_type: document.getElementById('eventTypeFilter').value,
         };
         
         // Remove empty filters
