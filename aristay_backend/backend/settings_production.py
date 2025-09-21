@@ -73,18 +73,56 @@ if REDIS_URL:
     }
 
     if _redis_use_ssl:
-        # SSL settings for django-redis
-        ssl_cert_reqs_value = getattr(ssl, f'CERT_{_redis_ssl_cert_reqs.upper()}', ssl.CERT_REQUIRED)
+        # For Heroku Redis with SSL, we need to disable certificate verification
+        # because Heroku uses self-signed certificates
+        import redis
+        from django_redis.client import DefaultClient
         
-        # Add SSL settings to CONNECTION_POOL_KWARGS
-        _redis_options['CONNECTION_POOL_KWARGS']['ssl_cert_reqs'] = ssl_cert_reqs_value
-        if _redis_ssl_ca_certs:
-            _redis_options['CONNECTION_POOL_KWARGS']['ssl_ca_certs'] = _redis_ssl_ca_certs
-        # Enable SSL for the connection
-        _redis_options['CONNECTION_POOL_KWARGS']['ssl'] = True
+        class NoSSLVerifyRedisClient(DefaultClient):
+            def __init__(self, server, params, backend):
+                # Override the entire initialization to bypass django-redis parameter passing
+                self._server = server
+                self._params = params
+                self._backend = backend
+                self._client = None
+                self._connection_pool = None
+            
+            def get_client(self, host, port, db, password, **kwargs):
+                # Completely bypass django-redis parameter passing
+                # Create Redis connection directly with SSL settings
+                return redis.Redis(
+                    host=host,
+                    port=port,
+                    db=db,
+                    password=password,
+                    ssl=True,
+                    ssl_cert_reqs=None,  # Disable SSL certificate verification
+                    ssl_check_hostname=False,  # Disable hostname verification
+                    decode_responses=True
+                )
+            
+            def get_connection_pool(self, host, port, db, password, **kwargs):
+                # Completely bypass django-redis parameter passing
+                # Create connection pool directly with SSL settings
+                return redis.ConnectionPool(
+                    host=host,
+                    port=port,
+                    db=db,
+                    password=password,
+                    ssl=True,
+                    ssl_cert_reqs=None,  # Disable SSL certificate verification
+                    ssl_check_hostname=False,  # Disable hostname verification
+                    decode_responses=True
+                )
+        
+        # Use custom client for SSL and remove CONNECTION_POOL_KWARGS
+        _redis_options = {
+            'CLIENT_CLASS': NoSSLVerifyRedisClient,
+            'IGNORE_EXCEPTIONS': _redis_ignore_exceptions,
+        }
         
         # Debug logging
-        print(f"🔧 Redis SSL Config: USE_SSL={_redis_use_ssl}, CERT_REQS={_redis_ssl_cert_reqs} -> {ssl_cert_reqs_value}, IGNORE_EXCEPTIONS={_redis_ignore_exceptions}")
+        print(f"🔧 Redis SSL Config: USE_SSL={_redis_use_ssl}, Using custom NoSSLVerifyRedisClient")
         print(f"🔧 Redis Options: {_redis_options}")
 
     CACHES = {
