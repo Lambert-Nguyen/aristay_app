@@ -194,7 +194,14 @@
                 return response.json();
             })
             .then(events => {
-                const processedEvents = events.map(event => {
+                // Apply client-side filtering for event type
+                let filteredEvents = events;
+                const eventTypeFilter = document.getElementById('eventTypeFilter').value;
+                if (eventTypeFilter) {
+                    filteredEvents = events.filter(event => event.type === eventTypeFilter);
+                }
+                
+                const processedEvents = filteredEvents.map(event => {
                     const { url, ...eventWithoutUrl } = event;
                     return {
                         ...eventWithoutUrl,
@@ -204,7 +211,7 @@
                         }
                     };
                 });
-                console.log('FullCalendar events loaded:', new Date().toLocaleDateString());
+                console.log('FullCalendar events loaded:', processedEvents.length, 'events');
                 hideLoading();
                 successCallback(processedEvents);
             })
@@ -289,6 +296,7 @@
         document.getElementById('propertyFilter').value = '';
         document.getElementById('statusFilter').value = '';
         document.getElementById('assignedToFilter').value = '';
+        document.getElementById('eventTypeFilter').value = '';
         currentFilters = {};
         calendar.refetchEvents();
     }
