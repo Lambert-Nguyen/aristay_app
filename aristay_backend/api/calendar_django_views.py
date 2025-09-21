@@ -108,7 +108,6 @@ def calendar_events_api(request):
     from .models import Task, Booking
     from django.utils import timezone
     from datetime import datetime, timedelta
-    from .calendar_serializers import CalendarTaskSerializer, CalendarBookingSerializer
     
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -135,37 +134,35 @@ def calendar_events_api(request):
         Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
     )
     
-    # Serialize the data
-    task_data = CalendarTaskSerializer(tasks, many=True).data
-    booking_data = CalendarBookingSerializer(bookings, many=True).data
-    
-    # Convert to calendar events format
+    # Manually serialize the data without DRF serializers
     events = []
     
-    for task in task_data:
+    # Add tasks to events
+    for task in tasks:
         events.append({
-            'id': f"task_{task['id']}",
-            'title': task['title'],
-            'start': task['due_date'],
-            'end': task['due_date'],
+            'id': f"task_{task.id}",
+            'title': task.title,
+            'start': task.due_date.isoformat() if task.due_date else None,
+            'end': task.due_date.isoformat() if task.due_date else None,
             'color': '#007bff',
             'type': 'task',
-            'status': task['status'],
-            'property': task.get('property_name', ''),
-            'assigned_to': task.get('assigned_to_name', ''),
+            'status': task.status,
+            'property': task.property_ref.name if task.property_ref else '',
+            'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}" if task.assigned_to else '',
         })
     
-    for booking in booking_data:
+    # Add bookings to events
+    for booking in bookings:
         events.append({
-            'id': f"booking_{booking['id']}",
-            'title': f"{booking['guest_name']} - {booking['property_name']}",
-            'start': booking['check_in_date'],
-            'end': booking['check_out_date'],
+            'id': f"booking_{booking.id}",
+            'title': f"{booking.guest_name} - {booking.property.name}",
+            'start': booking.check_in_date.isoformat() if booking.check_in_date else None,
+            'end': booking.check_out_date.isoformat() if booking.check_out_date else None,
             'color': '#28a745',
             'type': 'booking',
-            'status': booking['status'],
-            'property': booking['property_name'],
-            'guest_name': booking['guest_name'],
+            'status': booking.status,
+            'property': booking.property.name,
+            'guest_name': booking.guest_name,
         })
     
     return JsonResponse(events, safe=False)
