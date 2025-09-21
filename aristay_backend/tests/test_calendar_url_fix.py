@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
 from api.models import Task, Booking, Property, Profile
+from tests.utils.timezone_helpers import create_task_dates, create_booking_dates
 
 User = get_user_model()
 
@@ -28,18 +29,20 @@ class TestCalendarURLFix:
         # Create a property
         property_obj = Property.objects.create(
             name='Test Property',
-            address='123 Test St',
-            property_type='apartment'
+            address='123 Test St'
         )
         
         # Create a task
+        from django.utils import timezone
+        due_date = create_task_dates(due_days=1)
         task = Task.objects.create(
             title='Test Task',
             description='Test Description',
             property_ref=property_obj,
             created_by=user,
             assigned_to=user,
-            status='pending'
+            status='pending',
+            due_date=due_date
         )
         
         # Test the calendar events endpoint
@@ -72,16 +75,17 @@ class TestCalendarURLFix:
         # Create a property
         property_obj = Property.objects.create(
             name='Test Property',
-            address='123 Test St',
-            property_type='apartment'
+            address='123 Test St'
         )
         
         # Create a booking
+        from django.utils import timezone
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=2)
         booking = Booking.objects.create(
             guest_name='Test Guest',
             property=property_obj,
-            check_in_date='2024-01-01',
-            check_out_date='2024-01-05',
+            check_in_date=check_in,
+            check_out_date=check_out,
             status='confirmed'
         )
         
@@ -117,13 +121,12 @@ class TestCalendarURLFix:
         # Create a property
         property_obj = Property.objects.create(
             name='Test Property',
-            address='123 Test St',
-            property_type='apartment'
+            address='123 Test St'
         )
         
         # Create a task for today
         from django.utils import timezone
-        today = timezone.now().date()
+        due_date = create_task_dates(due_days=0)
         
         task = Task.objects.create(
             title='Test Task Today',
@@ -132,15 +135,16 @@ class TestCalendarURLFix:
             created_by=user,
             assigned_to=user,
             status='pending',
-            due_date=today
+            due_date=due_date
         )
         
         # Create a booking for today
+        check_in, check_out = create_booking_dates(check_in_days=0, check_out_days=1)
         booking = Booking.objects.create(
             guest_name='Test Guest',
             property=property_obj,
-            check_in_date=today,
-            check_out_date=today,
+            check_in_date=check_in,
+            check_out_date=check_out,
             status='confirmed'
         )
         
@@ -148,6 +152,7 @@ class TestCalendarURLFix:
         client = APIClient()
         client.force_authenticate(user=user)
         
+        today = timezone.now().date()
         response = client.get(f'/api/calendar/day_events/?date={today}')
         assert response.status_code == status.HTTP_200_OK
         

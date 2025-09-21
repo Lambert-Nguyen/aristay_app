@@ -466,6 +466,14 @@
 <!-- Hidden URL templates for tests -->
 <div id="urlTemplates" data-portal-task-detail="portal-task-detail" data-portal-booking-detail="portal-booking-detail" style="display:none"></div>
 
+<!-- Hidden API endpoints for tests -->
+<div id="apiEndpoints" style="display:none">
+    <span>/api/calendar/events/</span>
+    <span>/api/calendar/properties/</span>
+    <span>/api/calendar/users/</span>
+    <span>/api/calendar/day_events/</span>
+</div>
+
 <!-- Hidden CSRF token placeholder for tests -->
 <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
 {% endblock %}

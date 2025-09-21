@@ -17,6 +17,12 @@ from .models import Property, User
 from .authz import AuthzHelper
 import json
 
+# DRF imports for API views
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
 
 class CalendarView(LoginRequiredMixin, View):
     """
@@ -282,7 +288,8 @@ def calendar_data_api(request):
     return JsonResponse(events, safe=False)
 
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def calendar_events_api(request):
     """
     API endpoint to get events for a date range (for calendar display)
@@ -294,14 +301,21 @@ def calendar_events_api(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     
+    # If no date parameters provided, use default range (current month)
     if not start_date or not end_date:
-        return JsonResponse({'error': 'start_date and end_date parameters required'}, status=400)
-    
-    try:
-        start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
-    except ValueError:
-        return JsonResponse({'error': 'Invalid date format'}, status=400)
+        today = timezone.now().date()
+        start_dt = today.replace(day=1)  # First day of current month
+        # Last day of current month
+        if today.month == 12:
+            end_dt = today.replace(year=today.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end_dt = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
+    else:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
     
     # Get tasks in the date range
     tasks = Task.objects.filter(
@@ -359,6 +373,7 @@ def calendar_events_api(request):
             'status': task.status,
             'property': task.property_ref.name if task.property_ref else '',
             'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}".strip() if task.assigned_to and (task.assigned_to.first_name or task.assigned_to.last_name) else (task.assigned_to.username if task.assigned_to else ''),
+            'url': reverse('portal-task-detail', args=[task.id]),
         })
     
     # Add bookings to events
@@ -373,12 +388,14 @@ def calendar_events_api(request):
             'status': booking.status,
             'property': booking.property.name,
             'guest_name': booking.guest_name,
+            'url': reverse('portal-booking-detail', args=[booking.property.id, booking.id]),
         })
     
-    return JsonResponse(events, safe=False)
+    return Response(events, status=status.HTTP_200_OK)
 
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def calendar_day_events_api(request):
     """
     API endpoint to get events for a specific day
@@ -428,7 +445,7 @@ def calendar_day_events_api(request):
             'status': task['status'],
             'color': '#007bff',
             'property_name': task['property_name'],
-            'assigned_to': task['assigned_to_username'],
+            'assigned_to': task['assigned_to'],
             'description': task['description'],
             'url': reverse('portal-task-detail', args=[task['id']])
         })
@@ -453,16 +470,17 @@ def calendar_day_events_api(request):
             'url': reverse('portal-booking-detail', args=[property_id, booking['id']]) if property_id else None
         })
     
-    return JsonResponse({
+    return Response({
         'date': date_str,
         'tasks': task_data,
         'bookings': booking_data,
         'events': events,
         'total_events': len(events)
-    })
+    }, status=status.HTTP_200_OK)
 
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def calendar_tasks_api(request):
     """
     API endpoint to get tasks for calendar
@@ -506,10 +524,11 @@ def calendar_tasks_api(request):
         tasks = tasks.filter(assigned_to_id=user_id)
     
     serializer = CalendarTaskSerializer(tasks, many=True)
-    return JsonResponse(serializer.data, safe=False)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def calendar_bookings_api(request):
     """
     API endpoint to get bookings for calendar
@@ -549,7 +568,7 @@ def calendar_bookings_api(request):
         bookings = bookings.filter(status=status)
     
     serializer = CalendarBookingSerializer(bookings, many=True)
-    return JsonResponse(serializer.data, safe=False)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @require_http_methods(["GET"])
