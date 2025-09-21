@@ -39,8 +39,72 @@ def calendar_properties_api(request):
     """
     API endpoint to get properties for calendar filters
     """
-    properties = Property.objects.filter(is_deleted=False).values('id', 'name')
-    return JsonResponse(list(properties), safe=False)
+    # Check if this is a request for calendar data
+    if request.GET.get('start_date') and request.GET.get('end_date'):
+        # Return calendar data instead of just properties
+        from .models import Task, Booking
+        from django.utils import timezone
+        from datetime import datetime, timedelta
+        
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+        
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
+        
+        # Get tasks in the date range
+        tasks = Task.objects.filter(
+            is_deleted=False,
+            due_date__date__gte=start_dt,
+            due_date__date__lte=end_dt
+        )
+        
+        # Get bookings in the date range  
+        bookings = Booking.objects.filter(
+            is_deleted=False
+        ).filter(
+            Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
+        )
+        
+        # Create events list
+        events = []
+        
+        # Add tasks
+        for task in tasks:
+            events.append({
+                'id': f"task_{task.id}",
+                'title': task.title,
+                'start': task.due_date.isoformat() if task.due_date else None,
+                'end': task.due_date.isoformat() if task.due_date else None,
+                'color': '#007bff',
+                'type': 'task',
+                'status': task.status,
+                'property': task.property_ref.name if task.property_ref else '',
+                'assigned_to': f"{task.assigned_to.first_name} {task.assigned_to.last_name}" if task.assigned_to else '',
+            })
+        
+        # Add bookings
+        for booking in bookings:
+            events.append({
+                'id': f"booking_{booking.id}",
+                'title': f"{booking.guest_name} - {booking.property.name}",
+                'start': booking.check_in_date.isoformat() if booking.check_in_date else None,
+                'end': booking.check_out_date.isoformat() if booking.check_out_date else None,
+                'color': '#28a745',
+                'type': 'booking',
+                'status': booking.status,
+                'property': booking.property.name,
+                'guest_name': booking.guest_name,
+            })
+        
+        return JsonResponse(events, safe=False)
+    else:
+        # Return properties as before
+        properties = Property.objects.filter(is_deleted=False).values('id', 'name')
+        return JsonResponse(list(properties), safe=False)
 
 
 @require_http_methods(["GET"])

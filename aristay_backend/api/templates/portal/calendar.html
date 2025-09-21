@@ -179,7 +179,7 @@
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         showLoading();
-        fetch(`/api/calendar/data/?${params}`, {
+        fetch(`/api/calendar/properties/?${params}`, {
             method: 'GET',
             headers: {
                 'X-CSRFToken': csrfToken,
