@@ -47,10 +47,10 @@ def calendar_properties_api(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     
-    # If no date parameters, return properties for backward compatibility
+    # If no date parameters, use default date range
     if not start_date or not end_date:
-        properties = Property.objects.filter(is_deleted=False).values('id', 'name')
-        return JsonResponse(list(properties), safe=False)
+        start_date = '2025-08-31'
+        end_date = '2025-10-12'
     
     try:
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
