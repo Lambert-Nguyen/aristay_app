@@ -5,9 +5,6 @@ Use this for running tests
 
 import os
 
-# Force-disable DATABASE_URL so base settings don't connect to Postgres during tests
-os.environ["DATABASE_URL"] = ""
-
 from .settings_base import *
 
 # Using Django's default User model
@@ -18,25 +15,30 @@ DEBUG = True
 DJANGO_ENVIRONMENT = "testing"
 ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 
-# Override DATABASES after importing base settings to ensure it takes precedence
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'aristay_test',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
-        'CONN_MAX_AGE': 0,  # Don't keep connections open during tests
-    }
-}
+# Prefer DATABASE_URL in CI/local if provided, else fall back to local Postgres
+from pathlib import Path
+import dj_database_url
 
-# Disable API app migrations for tests (avoid Postgres-specific SQL like DO $$ blocks)
-# Disable all migrations for tests. Django will create tables directly from models.
-# Disable api migrations only; point to empty module to force syncdb
-MIGRATION_MODULES = {
-    'api': None,
-}
+_db_url = os.getenv('DATABASE_URL')
+if _db_url:
+    DATABASES = {
+        'default': dj_database_url.parse(_db_url, conn_max_age=0, ssl_require=False),
+    }
+else:
+    # Local Postgres default for tests
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'aristay_test'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'postgres'),
+            'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'CONN_MAX_AGE': 0,
+        }
+    }
+
+# Run real migrations in tests to match CI behavior
 
 # Disable password hashing for faster tests
 PASSWORD_HASHERS = [
@@ -95,14 +97,24 @@ INSTALLED_APPS = [
     if app not in ('cloudinary', 'cloudinary_storage')
 ]
 
-# Storage backends: use local filesystem for both default and staticfiles
+# Override STORAGES to ensure local filesystem is used (not Cloudinary)
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'OPTIONS': {
+            'location': '/tmp/test_media',
+        },
     },
     'staticfiles': {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
+}
+
+# Mock Cloudinary settings to prevent "Must supply api_key" errors during tests
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'test_cloud',
+    'API_KEY': 'test_key',
+    'API_SECRET': 'test_secret',
 }
 
 # Ensure Django knows we're testing
@@ -124,7 +136,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Enable timezone for tests to support timezone-aware datetimes
 USE_TZ = True
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/New_York'  # Tampa, FL timezone to match production
 
 # Ensure throttle rates are available for tests
 REST_FRAMEWORK = {
@@ -160,3 +172,8 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'rest_framework_simplejwt.authentication.JWTAuthentication',
 ]
+
+# Ensure Cloudinary is properly mocked
+os.environ['CLOUDINARY_CLOUD_NAME'] = 'test_cloud'
+os.environ['CLOUDINARY_API_KEY'] = 'test_key'
+os.environ['CLOUDINARY_API_SECRET'] = 'test_secret'

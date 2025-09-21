@@ -14,6 +14,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from tests.utils.timezone_helpers import create_booking_dates, days_from_now
 
 from api.models import Property, Booking, BookingImportLog
 from api.services.enhanced_excel_import_service import (
@@ -30,7 +31,7 @@ class TestEnhancedExcelImport(TestCase):
     def setUp(self):
         """Create test user and property"""
         # Create test user with unique username to avoid conflicts
-        self.username = f'test_import_user_{datetime.now().microsecond}'
+        self.username = f'test_import_user_{timezone.now().microsecond}'
         self.user = User.objects.create_user(
             username=self.username,
             email='test@example.com',
@@ -39,7 +40,7 @@ class TestEnhancedExcelImport(TestCase):
         )
         
         # Create test property with unique name (Property model only has name and address)
-        property_name = f'Test Property for Import {datetime.now().microsecond}'
+        property_name = f'Test Property for Import {timezone.now().microsecond}'
         self.property = Property.objects.create(
             name=property_name,
             address='123 Test Street, Test City, CA 12345'
@@ -72,13 +73,13 @@ class TestEnhancedExcelImport(TestCase):
         """Test conflict detection logic"""
         # Create existing booking with proper transaction management
         with transaction.atomic():
-            external_code = f'TEST123_{datetime.now().microsecond}'
+            external_code = f'TEST123_{timezone.now().microsecond}'
             existing_booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
                 guest_name='John Doe',
-                check_in_date=timezone.now() + timedelta(days=1),
-                check_out_date=timezone.now() + timedelta(days=3),
+                check_in_date=days_from_now(1),
+                check_out_date=days_from_now(3),
                 external_status='confirmed',
                 source='Airbnb'
             )
@@ -91,8 +92,8 @@ class TestEnhancedExcelImport(TestCase):
             'external_code': external_code,
             'guest_name': 'John Doe',
             'property_name': self.property.name,
-            'start_date': timezone.now() + timedelta(days=2),  # Different date
-            'end_date': timezone.now() + timedelta(days=4),    # Different date
+            'start_date': days_from_now(2),  # Different date
+            'end_date': days_from_now(4),    # Different date
             'external_status': 'confirmed',
             'source': 'Airbnb'
         }
@@ -113,13 +114,13 @@ class TestEnhancedExcelImport(TestCase):
         """Test conflict serialization for frontend"""
         # Create test booking and conflict with proper transaction management
         with transaction.atomic():
-            external_code = f'TEST456_{datetime.now().microsecond}'
+            external_code = f'TEST456_{timezone.now().microsecond}'
             existing_booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
                 guest_name='Jane Smith',
-                check_in_date=timezone.now() + timedelta(days=5),
-                check_out_date=timezone.now() + timedelta(days=7),
+                check_in_date=days_from_now(5),
+                check_out_date=days_from_now(7),
                 external_status='confirmed',
                 source='VRBO'
             )
@@ -128,8 +129,8 @@ class TestEnhancedExcelImport(TestCase):
             'external_code': external_code,
             'guest_name': 'Jane Smith Updated',
             'property_name': self.property.name,
-            'start_date': timezone.now() + timedelta(days=6),
-            'end_date': timezone.now() + timedelta(days=8),
+            'start_date': days_from_now(6),
+            'end_date': days_from_now(8),
             'external_status': 'modified',
             'source': 'VRBO'
         }
@@ -155,13 +156,13 @@ class TestEnhancedExcelImport(TestCase):
         """Test conflict resolution service"""
         # Create test booking with proper transaction management
         with transaction.atomic():
-            external_code = f'TEST789_{datetime.now().microsecond}'
+            external_code = f'TEST789_{timezone.now().microsecond}'
             existing_booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
                 guest_name='Bob Wilson',
-                check_in_date=timezone.now() + timedelta(days=10),
-                check_out_date=timezone.now() + timedelta(days=12),
+                check_in_date=days_from_now(10),
+                check_out_date=days_from_now(12),
                 external_status='confirmed',
                 source='Direct'
             )
@@ -212,13 +213,13 @@ class TestEnhancedExcelImport(TestCase):
         """Test proper handling of database constraint violations"""
         # Create a booking that might trigger constraint violations
         with transaction.atomic():
-            external_code = f'CONSTRAINT_TEST_{datetime.now().microsecond}'
+            external_code = f'CONSTRAINT_TEST_{timezone.now().microsecond}'
             booking = Booking.objects.create(
                 property=self.property,
                 external_code=external_code,
                 guest_name='Constraint Test User',
-                check_in_date=timezone.now() + timedelta(days=1),
-                check_out_date=timezone.now() + timedelta(days=3),
+                check_in_date=days_from_now(1),
+                check_out_date=days_from_now(3),
                 external_status='confirmed',
                 source='Test'
             )
@@ -228,11 +229,11 @@ class TestEnhancedExcelImport(TestCase):
         
         # This should work without constraint violations
         booking_data = {
-            'external_code': f'DIFFERENT_CODE_{datetime.now().microsecond}',
+            'external_code': f'DIFFERENT_CODE_{timezone.now().microsecond}',
             'guest_name': 'Different Guest',
             'property_name': self.property.name,
-            'start_date': timezone.now() + timedelta(days=5),
-            'end_date': timezone.now() + timedelta(days=7),
+            'start_date': days_from_now(5),
+            'end_date': days_from_now(7),
             'external_status': 'confirmed',
             'source': 'Test'
         }

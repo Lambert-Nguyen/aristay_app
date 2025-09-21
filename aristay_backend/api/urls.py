@@ -71,11 +71,11 @@ from .notification_management_views import (
 # Agent's Phase 2: Import audit views
 from .audit_views import AuditEventViewSet
 
-# Calendar views
-from .calendar_views import CalendarViewSet
+# Calendar views - using Django views instead of DRF ViewSet
+# from .calendar_views import CalendarViewSet
 from .calendar_django_views import (
     CalendarView, calendar_properties_api, calendar_users_api, calendar_stats_api,
-    calendar_day_events_api, calendar_tasks_api, calendar_bookings_api
+    calendar_data_api, calendar_events_api, calendar_day_events_api, calendar_tasks_api, calendar_bookings_api
 )
 
 # Remove separate imports since they're now in the main views.py
@@ -107,14 +107,25 @@ router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 # Agent's Phase 2: Register audit API endpoints
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
-# Calendar API endpoints
-router.register(r'calendar', CalendarViewSet, basename='calendar')
+# Calendar API endpoints - using Django views instead of DRF ViewSet
+# router.register(r'calendar', CalendarViewSet, basename='calendar')
 
 urlpatterns = [
     # Invite-based registration API (web/mobile)
     path('register/', register_user, name='api-register'),
     path('validate-invite/', validate_invite_code, name='validate-invite'),
     path('logout/', logout_view, name='api-logout'),
+    
+    # Calendar HTML views (must come before DRF router)
+    path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
+    path('calendar/users/', calendar_users_api, name='calendar-users'),
+    path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
+    path('calendar/data/', calendar_data_api, name='calendar-data'),
+    path('calendar/events/', calendar_events_api, name='calendar-events'),
+    path('calendar/day_events/', calendar_day_events_api, name='calendar-day-events'),
+    path('calendar/tasks/', calendar_tasks_api, name='calendar-tasks'),
+    path('calendar/bookings/', calendar_bookings_api, name='calendar-bookings'),
+    
     path('', include(router.urls)),
     
     # Mobile-optimized endpoints
@@ -291,10 +302,4 @@ urlpatterns = [
     
     # Calendar HTML views
     path('calendar/', CalendarView.as_view(), name='calendar-view'),
-    path('calendar/properties/', calendar_properties_api, name='calendar-properties'),
-    path('calendar/users/', calendar_users_api, name='calendar-users'),
-    path('calendar/stats/', calendar_stats_api, name='calendar-stats'),
-    path('calendar/day_events/', calendar_day_events_api, name='calendar-day-events'),
-    path('calendar/tasks/', calendar_tasks_api, name='calendar-tasks'),
-    path('calendar/bookings/', calendar_bookings_api, name='calendar-bookings'),
 ]

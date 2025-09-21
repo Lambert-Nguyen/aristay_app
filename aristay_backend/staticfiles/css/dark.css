@@ -1,0 +1,85 @@
+/* AriStay Dark Mode - applies automatically when OS is in dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-0: #0b0f14;
+    --bg-1: #0f141a;
+    --bg-2: #121922;
+    --bg-3: #1a2330;
+    --text-0: #e7eef7;
+    --text-1: #cfd8e3;
+    --muted: #9aa7b5;
+    --border: #253140;
+    --primary-500: #6ea8fe;
+    --primary-600: #4b92ff;
+    --success-500: #64d8cb;
+    --warning-500: #ffd166;
+    --danger-500: #ff7b7b;
+  }
+
+  /* Global */
+  html, body {
+    background: var(--bg-1) !important;
+    color: var(--text-0) !important;
+  }
+
+  a { color: var(--primary-500); }
+  a:hover { color: var(--primary-600); }
+
+  /* Django admin core */
+  .module, .app-*, .dashboard-section, .welcome-section, .admin-info,
+  .inline-group, .aligned, .form-row, .submit-row, .results, .paginator,
+  .change-list .filtered, .selector, .selector-chosen, .calendarbox {
+    background: var(--bg-2) !important;
+    color: var(--text-0) !important;
+    border-color: var(--border) !important;
+  }
+
+  .module caption, .module h2, .inline-group h2, #site-name,
+  .breadcrumbs, .dashboard-title { 
+    background: linear-gradient(135deg, #274364 0%, #1b2a3b 100%) !important;
+    color: var(--text-0) !important;
+    border-color: transparent !important;
+  }
+
+  th, td { border-color: var(--border) !important; }
+  tr:hover { background: var(--bg-3) !important; }
+
+  input, select, textarea { 
+    background: var(--bg-3) !important; 
+    color: var(--text-0) !important; 
+    border-color: var(--border) !important;
+  }
+
+  .addlink, .changelink, .viewlink { 
+    background: rgba(110,168,254,0.08) !important; 
+    border-color: rgba(110,168,254,0.35) !important; 
+    color: var(--text-1) !important; 
+  }
+
+  .addlink:hover, .changelink:hover, .viewlink:hover {
+    background: rgba(110,168,254,0.16) !important;
+  }
+
+  .errornote, .errorlist li { background: #3d0f14 !important; color: #ffb3b3 !important; }
+  .success { background: #0f302b !important; color: #9ee5d9 !important; }
+
+  /* Cards in manager console */
+  .action-card, .action-card-mini { 
+    background: var(--bg-2) !important; 
+    color: var(--text-0) !important; 
+    border-color: var(--border) !important; 
+    box-shadow: none !important;
+  }
+  .action-description { color: var(--muted) !important; }
+
+  /* Modal */
+  .modal-content { background: var(--bg-2) !important; color: var(--text-0) !important; }
+  .close { color: var(--muted) !important; }
+
+  /* DRF browsable API common elements */
+  .navbar, .navbar-inverse, header.navbar { background: var(--bg-2) !important; border-color: var(--border) !important; }
+  .container, .content-main, .wrapper { background: var(--bg-1) !important; color: var(--text-0) !important; }
+  pre, code, .prettyprint { background: var(--bg-3) !important; color: var(--text-1) !important; border-color: var(--border) !important; }
+  .btn, .button { background: var(--bg-3) !important; color: var(--text-0) !important; border-color: var(--border) !important; }
+}
+

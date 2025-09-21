@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Account Locked - Aristay{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lock"></i> Account Temporarily Locked
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5>Too Many Failed Login Attempts</h5>
+                        <p class="mb-0">
+                            Your account has been temporarily locked due to multiple failed login attempts. 
+                            This is a security measure to protect your account.
+                        </p>
+                    </div>
+                    
+                    <div class="text-center">
+                        <p><strong>What can you do?</strong></p>
+                        <ul class="list-unstyled">
+                            <li>• Wait {{ lockout_time|default:"15 minutes" }} before trying again</li>
+                            <li>• Contact your administrator if you need immediate access</li>
+                            <li>• Make sure you're using the correct username and password</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{% url 'admin:login' %}" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Try Again
+                        </a>
+                        <a href="{% url 'home' %}" class="btn btn-secondary">
+                            <i class="fas fa-home"></i> Go Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

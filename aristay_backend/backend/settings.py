@@ -585,19 +585,81 @@ if DEBUG or os.getenv('CI') or os.getenv('TESTING'):
         }
     }
 else:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-            'OPTIONS': {
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
-                    'retry_on_timeout': True,
+    # For production, use Redis configuration with SSL handling for Heroku Redis
+    if DJANGO_ENVIRONMENT == 'production':
+        # Production Redis configuration with SSL support
+        import ssl
+        import redis
+        from django_redis.client import DefaultClient
+        
+        class NoSSLVerifyRedisClient(DefaultClient):
+            def __init__(self, server, params, backend):
+                # Override the entire initialization to bypass django-redis parameter passing
+                self._server = server
+                self._params = params
+                self._backend = backend
+                self._client = None
+                self._connection_pool = None
+            
+            def get_client(self, host, port, db, password, **kwargs):
+                # Completely bypass django-redis parameter passing
+                # Create Redis connection directly with SSL settings
+                return redis.Redis(
+                    host=host,
+                    port=port,
+                    db=db,
+                    password=password,
+                    ssl=True,
+                    ssl_cert_reqs=None,  # Disable SSL certificate verification
+                    ssl_check_hostname=False,  # Disable hostname verification
+                    decode_responses=True
+                )
+            
+            def get_connection_pool(self, host, port, db, password, **kwargs):
+                # Completely bypass django-redis parameter passing
+                # Create connection pool directly with SSL settings
+                return redis.ConnectionPool(
+                    host=host,
+                    port=port,
+                    db=db,
+                    password=password,
+                    ssl=True,
+                    ssl_cert_reqs=None,  # Disable SSL certificate verification
+                    ssl_check_hostname=False,  # Disable hostname verification
+                    decode_responses=True
+                )
+        
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': os.getenv('REDIS_URL'),
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'CONNECTION_POOL_KWARGS': {
+                        'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+                        'retry_on_timeout': True,
+                    },
+                    'IGNORE_EXCEPTIONS': True,
                 },
-            },
-            'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),  # 5 minutes default
+                'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
+            }
         }
-    }
+    else:
+        # For development, use basic Redis configuration
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'CONNECTION_POOL_KWARGS': {
+                        'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+                        'retry_on_timeout': True,
+                    },
+                },
+                'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),  # 5 minutes default
+            }
+        }
 
 # Rate limiting settings (unused - using DRF throttling instead)
 # RATELIMIT_ENABLE = not DEBUG

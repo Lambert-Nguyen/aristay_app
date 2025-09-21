@@ -37,7 +37,7 @@
             </a>
         </div>
         <div class="task-meta">
-            <span>🏠 {{ task.property.name }}</span>
+            <span>🏠 {{ task.property_ref.name }}</span>
             {% if task.booking %}
             <span>📅 {{ task.booking.check_in_date|date:"M d" }} → {{ task.booking.check_out_date|date:"M d" }}</span>
             {% endif %}
@@ -78,7 +78,7 @@
                     </a>
                 </div>
                 <div class="task-meta">
-                    <span>🏠 {{ task.property.name }}</span>
+                    <span>🏠 {{ task.property_ref.name }}</span>
                     {% if task.due_date %}
                     <span>📅 {{ task.due_date|date:"M d, H:i" }}</span>
                     {% endif %}
@@ -150,7 +150,7 @@
                 </a>
             </div>
             <div class="task-meta">
-                <span>🏠 {{ task_progress.task.property.name }}</span>
+                <span>🏠 {{ task_progress.task.property_ref.name }}</span>
                 <span class="status-badge status-{{ task_progress.task.status|cut:'-' }}">
                     {{ task_progress.task.get_status_display }}
                 </span>

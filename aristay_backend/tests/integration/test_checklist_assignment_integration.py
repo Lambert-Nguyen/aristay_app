@@ -11,7 +11,7 @@ from rest_framework import status
 
 from api.models import (
     Task, TaskChecklist, ChecklistTemplate, ChecklistItem, ChecklistResponse, 
-    ChecklistPhoto, UserProfile, AuditEvent
+    ChecklistPhoto, Profile, AuditEvent
 )
 
 

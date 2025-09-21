@@ -322,11 +322,12 @@ def portal_home(request):
 
 @login_required
 def portal_calendar(request):
-    """Portal calendar view with unified booking and task display"""
+    """Portal calendar view with unified booking and task display - accessible to all authenticated users"""
     context = {
         'user': request.user,
         'can_view_tasks': hasattr(request.user, 'profile') and request.user.profile.has_permission('view_all_tasks'),
-        'can_view_bookings': True,  # Simplified - you might want to implement proper booking permissions
+        'can_view_bookings': True,  # All authenticated users can view bookings
+        'is_authenticated': True,
     }
     return render(request, 'portal/calendar.html', context)
 

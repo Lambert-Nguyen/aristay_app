@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from datetime import datetime, timedelta
+from tests.utils.timezone_helpers import create_task_dates, create_booking_dates
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User
@@ -46,39 +47,43 @@ class CalendarAPITestCase(TestCase):
         )
         
         # Create test tasks
+        due_date1 = create_task_dates(due_days=1)
         self.task1 = Task.objects.create(
             title='Test Task 1',
             description='Test task description',
             property_ref=self.property,
-            due_date=timezone.now() + timedelta(days=1),
+            due_date=due_date1,
             status='pending',
             created_by=self.user,
             assigned_to=self.user
         )
         
+        due_date2 = create_task_dates(due_days=2)
         self.task2 = Task.objects.create(
             title='Test Task 2',
             description='Another test task',
             property_ref=self.property,
-            due_date=timezone.now() + timedelta(days=2),
+            due_date=due_date2,
             status='in-progress',
             created_by=self.user
         )
         
         # Create test bookings
+        check_in1, check_out1 = create_booking_dates(check_in_days=3, check_out_days=5)
         self.booking1 = Booking.objects.create(
             property=self.property,
-            check_in_date=timezone.now() + timedelta(days=3),
-            check_out_date=timezone.now() + timedelta(days=5),
+            check_in_date=check_in1,
+            check_out_date=check_out1,
             guest_name='John Doe',
             guest_contact='john@example.com',
             status='confirmed'
         )
         
+        check_in2, check_out2 = create_booking_dates(check_in_days=7, check_out_days=9)
         self.booking2 = Booking.objects.create(
             property=self.property,
-            check_in_date=timezone.now() + timedelta(days=7),
-            check_out_date=timezone.now() + timedelta(days=9),
+            check_in_date=check_in2,
+            check_out_date=check_out2,
             guest_name='Jane Smith',
             guest_contact='jane@example.com',
             status='booked'
@@ -226,11 +231,12 @@ class CalendarAPITestCase(TestCase):
         )
         
         # Create a task assigned to the limited user
+        limited_due_date = create_task_dates(due_days=1)
         limited_task = Task.objects.create(
             title='Limited User Task',
             description='Task for limited user',
             property_ref=self.property,
-            due_date=timezone.now() + timedelta(days=1),
+            due_date=limited_due_date,
             status='pending',
             created_by=limited_user,
             assigned_to=limited_user

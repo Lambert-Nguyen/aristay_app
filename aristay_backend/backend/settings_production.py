@@ -3,8 +3,13 @@ Production Settings for Aristay
 Use this for production deployment
 """
 
-from .settings_base import *
+# Import base settings directly
 import os
+from pathlib import Path
+import dj_database_url
+import django_redis
+import redis
+from django_redis.client import DefaultClient
 
 # Using Django's default User model
 # AUTH_USER_MODEL = 'auth.User'  # This is the default
@@ -53,15 +58,43 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 
 # Cache configuration (Redis for production)
+import ssl
+
 REDIS_URL = os.getenv('REDIS_URL')
 if REDIS_URL:
+    # Configure Redis with SSL certificate handling
+    _redis_use_ssl = os.getenv('REDIS_USE_SSL', '').lower() == 'true' or REDIS_URL.startswith('rediss://')
+    _redis_ssl_cert_reqs = os.getenv('REDIS_SSL_CERT_REQS', 'required')
+    _redis_ssl_ca_certs = os.getenv('REDIS_SSL_CA_CERTS')
+    _redis_ignore_exceptions = os.getenv('REDIS_IGNORE_EXCEPTIONS', 'true').lower() == 'true'
+
+    _redis_options = {
+        'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        'CONNECTION_POOL_KWARGS': {
+            'max_connections': int(os.getenv('REDIS_MAX_CONNECTIONS', '50')),
+            'retry_on_timeout': True,
+        },
+        'IGNORE_EXCEPTIONS': _redis_ignore_exceptions,
+    }
+
+    if _redis_use_ssl:
+        # For Heroku Redis with SSL, configure SSL settings in connection pool
+        _redis_options['CONNECTION_POOL_KWARGS'].update({
+            'ssl': True,
+            'ssl_cert_reqs': None,  # Disable SSL certificate verification
+            'ssl_check_hostname': False,  # Disable hostname verification
+        })
+        
+        # Debug logging
+        print(f"🔧 Redis SSL Config: USE_SSL={_redis_use_ssl}, SSL settings applied to connection pool")
+        print(f"🔧 Redis Options: {_redis_options}")
+
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
             'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            }
+            'OPTIONS': _redis_options,
+            'TIMEOUT': int(os.getenv('CACHE_TIMEOUT', '300')),
         }
     }
 
@@ -75,8 +108,55 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@aristay.com')
 
 # Logging configuration for production
-LOGGING['handlers']['file']['filename'] = '/app/logs/debug.log'
-LOGGING['handlers']['error_file']['filename'] = '/app/logs/error.log'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': '/app/logs/debug.log',
+            'formatter': 'verbose',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': '/app/logs/error.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file', 'error_file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'api': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 # Static files for production
 STATIC_ROOT = '/app/staticfiles'
@@ -123,8 +203,5 @@ if SENTRY_DSN:
 # Performance optimizations
 CONN_MAX_AGE = 60
 
-# Disable debug toolbar and other development tools
-if 'debug_toolbar' in INSTALLED_APPS:
-    INSTALLED_APPS.remove('debug_toolbar')
-if 'debug_toolbar.middleware.DebugToolbarMiddleware' in MIDDLEWARE:
-    MIDDLEWARE.remove('debug_toolbar.middleware.DebugToolbarMiddleware')
+# Debug toolbar and other development tools are disabled in production
+# (INSTALLED_APPS and MIDDLEWARE are defined in the main settings file)

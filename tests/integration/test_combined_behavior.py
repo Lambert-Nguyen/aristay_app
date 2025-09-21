@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from api.services.enhanced_excel_import_service import EnhancedExcelImportService
 from api.models import Booking, Property
+from tests.utils.timezone_helpers import create_booking_dates, days_from_now
 import pandas as pd
 import uuid
 
@@ -39,13 +40,18 @@ def test_combined_behavior():
         prop = Property.objects.create(name=f'Combined Test Property {uuid.uuid4()}')
         user = User.objects.first() or User.objects.create_user('testuser')
         
+        # Create timezone-aware dates
+        check_in1, check_out1 = create_booking_dates(check_in_days=10, check_out_days=15)
+        check_in2, check_out2 = create_booking_dates(check_in_days=12, check_out_days=17)
+        check_in3, check_out3 = create_booking_dates(check_in_days=20, check_out_days=25)
+        
         # Scenario 1: Status-only change (should auto-update)
         booking1 = Booking.objects.create(
             property=prop,
             external_code='STATUS001',
             guest_name='John Doe',
-            check_in_date=date(2025, 1, 10),
-            check_out_date=date(2025, 1, 15),
+            check_in_date=check_in1,
+            check_out_date=check_out1,
             source='Airbnb',
             external_status='Confirmed',
             status='confirmed'
@@ -56,8 +62,8 @@ def test_combined_behavior():
             property=prop,
             external_code='GUEST001',
             guest_name='Kathrin MĂ¼ller',  # Encoding issue
-            check_in_date=date(2025, 1, 12),
-            check_out_date=date(2025, 1, 17),
+            check_in_date=check_in2,
+            check_out_date=check_out2,
             source='Airbnb',
             external_status='Confirmed',
             status='confirmed'
@@ -68,8 +74,8 @@ def test_combined_behavior():
             property=prop,
             external_code='BOTH001',
             guest_name='Jane Smith',
-            check_in_date=date(2025, 1, 20),
-            check_out_date=date(2025, 1, 25),
+            check_in_date=check_in3,
+            check_out_date=check_out3,
             source='Airbnb',
             external_status='Confirmed',
             status='confirmed'
@@ -88,8 +94,8 @@ def test_combined_behavior():
                 'data': {
                     'Confirmation code': 'STATUS001',
                     'Guest name': 'John Doe',  # Same name
-                    'Start date': date(2025, 1, 10),
-                    'End date': date(2025, 1, 15),
+                    'Start date': check_in1,
+                    'End date': check_out1,
                     'Booking source': 'Airbnb',
                     'Properties': prop.name,
                     'Status': 'Checking out today'  # Changed status
@@ -103,8 +109,8 @@ def test_combined_behavior():
                 'data': {
                     'Confirmation code': 'GUEST001',
                     'Guest name': 'Kathrin Muller',  # Fixed encoding
-                    'Start date': date(2025, 1, 12),
-                    'End date': date(2025, 1, 17),
+                    'Start date': check_in2,
+                    'End date': check_out2,
                     'Booking source': 'Airbnb',
                     'Properties': prop.name,
                     'Status': 'Confirmed'  # Same status
@@ -118,8 +124,8 @@ def test_combined_behavior():
                 'data': {
                     'Confirmation code': 'BOTH001',
                     'Guest name': 'Jane Miller',  # Changed name
-                    'Start date': date(2025, 1, 20),
-                    'End date': date(2025, 1, 25),
+                    'Start date': check_in3,
+                    'End date': check_out3,
                     'Booking source': 'Airbnb',
                     'Properties': prop.name,
                     'Status': 'Checking out today'  # Changed status

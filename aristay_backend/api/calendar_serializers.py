@@ -25,6 +25,7 @@ class CalendarEventSerializer(serializers.Serializer):
 class CalendarTaskSerializer(serializers.Serializer):
     id = serializers.IntegerField(source="pk")
     title = serializers.CharField()
+    description = serializers.CharField(allow_null=True)
     due_date = serializers.DateTimeField(allow_null=True)
     status = serializers.CharField()
     property_name = serializers.SerializerMethodField()
