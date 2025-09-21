@@ -76,7 +76,7 @@
     <!-- Calendar Container -->
     <div class="card calendar-wrapper">
         <!-- FullCalendar integration -->
-        <div id="calendar" style="min-height: 600px;"></div>
+        <div id="calendar" style="min-height: 800px;"></div>
     </div>
 </div>
 
@@ -126,6 +126,23 @@
                 right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
             },
             height: 'auto',
+            // Better spacing and layout for week/day views
+            dayMaxEvents: 3, // Limit events per day to prevent cramping
+            moreLinkClick: 'popover', // Show popover for additional events
+            slotMinTime: '06:00:00', // Start time for time views
+            slotMaxTime: '22:00:00', // End time for time views
+            slotDuration: '01:00:00', // 1-hour slots
+            slotLabelInterval: '01:00:00', // Show time labels every hour
+            allDaySlot: true, // Show all-day slot
+            nowIndicator: true, // Show current time indicator
+            expandRows: true, // Expand rows to fill available space
+            // Better event display
+            eventDisplay: 'block',
+            eventTimeFormat: {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            },
             events: function(info, successCallback, failureCallback) {
                 loadCalendarEvents(info.start, info.end, successCallback, failureCallback);
             },
@@ -448,6 +465,9 @@
         border: none !important;
         border-radius: 4px !important;
         margin: 1px 0 !important;
+        padding: 2px 4px !important;
+        font-size: 0.85em !important;
+        line-height: 1.2 !important;
     }
     
     .fc-event:hover {
@@ -455,11 +475,74 @@
         cursor: pointer;
         transition: opacity 0.2s ease;
     }
-    /* Mobile text overflow handling */
+    
+    /* Better spacing for week and day views */
+    .fc-timegrid-slot {
+        height: 2.5em !important; /* Increased slot height */
+    }
+    
+    .fc-timegrid-slot-label {
+        font-size: 0.9em !important;
+        padding: 0.5em 0.5em 0.5em 0 !important;
+    }
+    
+    .fc-timegrid-event {
+        margin: 1px 2px !important;
+        border-radius: 3px !important;
+    }
+    
+    .fc-timegrid-event .fc-event-main {
+        padding: 2px 4px !important;
+        font-size: 0.8em !important;
+    }
+    
+    /* Week view improvements */
+    .fc-daygrid-day-events {
+        margin: 0 !important;
+    }
+    
+    .fc-daygrid-event {
+        margin: 1px 0 !important;
+        border-radius: 3px !important;
+        padding: 1px 3px !important;
+    }
+    
+    .fc-daygrid-event .fc-event-main {
+        padding: 1px 2px !important;
+        font-size: 0.8em !important;
+    }
+    
+    /* Day view improvements */
+    .fc-timegrid-body {
+        min-height: 400px !important;
+    }
+    
+    .fc-timegrid-axis {
+        width: 3.5em !important;
+    }
+    
+    /* Better event text handling */
     .event-details, .fc-event-title, .fc-event-main {
         white-space: normal;
         text-overflow: ellipsis;
         overflow: hidden;
+        word-wrap: break-word;
+    }
+    
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+        .fc-timegrid-slot {
+            height: 2em !important;
+        }
+        
+        .fc-event {
+            font-size: 0.75em !important;
+            padding: 1px 2px !important;
+        }
+        
+        .fc-timegrid-slot-label {
+            font-size: 0.8em !important;
+        }
     }
 </style>
 
