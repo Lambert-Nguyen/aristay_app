@@ -40,7 +40,11 @@ def calendar_properties_api(request):
     API endpoint to get properties for calendar filters
     """
     # Check if this is a request for calendar data
-    if request.GET.get('start_date') and request.GET.get('end_date'):
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    print(f"DEBUG: start_date={start_date}, end_date={end_date}")
+    
+    if start_date and end_date:
         # Return calendar data instead of just properties
         from .models import Task, Booking
         from django.utils import timezone
