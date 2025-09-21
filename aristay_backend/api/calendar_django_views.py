@@ -72,6 +72,32 @@ def calendar_properties_api(request):
         Q(check_in_date__date__lte=end_dt) & Q(check_out_date__date__gte=start_dt)
     )
     
+    # Color scheme for better visual distinction and status indication
+    def get_task_color(status):
+        """Get color based on task status with better visual hierarchy"""
+        color_map = {
+            'pending': '#ffc107',      # Amber - needs attention
+            'in-progress': '#17a2b8',  # Teal - actively being worked on
+            'completed': '#28a745',    # Green - done
+            'cancelled': '#6c757d',    # Gray - cancelled
+            'overdue': '#dc3545',      # Red - urgent/overdue
+        }
+        return color_map.get(status, '#007bff')  # Default blue for unknown status
+    
+    def get_booking_color(status):
+        """Get color based on booking status with better visual hierarchy"""
+        color_map = {
+            'pending': '#ffc107',           # Amber - pending confirmation
+            'confirmed': '#28a745',         # Green - confirmed
+            'booked': '#17a2b8',           # Teal - booked
+            'in-progress': '#007bff',       # Blue - currently hosting
+            'currently_hosting': '#007bff', # Blue - currently hosting
+            'owner_staying': '#6f42c1',     # Purple - owner staying
+            'cancelled': '#6c757d',         # Gray - cancelled
+            'completed': '#28a745',         # Green - completed
+        }
+        return color_map.get(status, '#28a745')  # Default green for unknown status
+    
     # Create events list
     events = []
     
@@ -208,7 +234,7 @@ def calendar_data_api(request):
             'title': task.title,
             'start': task.due_date.isoformat() if task.due_date else None,
             'end': task.due_date.isoformat() if task.due_date else None,
-            'color': get_task_color(task.status),
+            'color': '#007bff',
             'type': 'task',
             'status': task.status,
             'property': task.property_ref.name if task.property_ref else '',
@@ -222,7 +248,7 @@ def calendar_data_api(request):
             'title': f"{booking.guest_name} - {booking.property.name}",
             'start': booking.check_in_date.isoformat() if booking.check_in_date else None,
             'end': booking.check_out_date.isoformat() if booking.check_out_date else None,
-            'color': get_booking_color(booking.status),
+            'color': '#28a745',
             'type': 'booking',
             'status': booking.status,
             'property': booking.property.name,
@@ -270,9 +296,9 @@ def calendar_events_api(request):
     # Manually serialize the data without DRF serializers
     events = []
     
-    # Color scheme for better visual distinction
+    # Color scheme for better visual distinction and status indication
     def get_task_color(status):
-        """Get color based on task status"""
+        """Get color based on task status with better visual hierarchy"""
         color_map = {
             'pending': '#ffc107',      # Amber - needs attention
             'in-progress': '#17a2b8',  # Teal - actively being worked on
@@ -283,7 +309,7 @@ def calendar_events_api(request):
         return color_map.get(status, '#007bff')  # Default blue for unknown status
     
     def get_booking_color(status):
-        """Get color based on booking status"""
+        """Get color based on booking status with better visual hierarchy"""
         color_map = {
             'pending': '#ffc107',           # Amber - pending confirmation
             'confirmed': '#28a745',         # Green - confirmed
@@ -375,7 +401,7 @@ def calendar_day_events_api(request):
             'allDay': True,
             'type': 'task',
             'status': task['status'],
-            'color': get_task_color(task.status),
+            'color': '#007bff',
             'property_name': task['property_name'],
             'assigned_to': task['assigned_to_username'],
             'description': task['description'],
@@ -395,7 +421,7 @@ def calendar_day_events_api(request):
             'allDay': True,
             'type': 'booking',
             'status': booking['status'],
-            'color': get_booking_color(booking.status),
+            'color': '#28a745',
             'property_name': booking['property_name'],
             'guest_name': booking['guest_name'],
             'description': f"Booking from {booking['check_in_date']} to {booking['check_out_date']}",
