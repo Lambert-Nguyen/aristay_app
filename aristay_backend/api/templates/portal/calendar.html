@@ -76,7 +76,7 @@
     <!-- Calendar Container -->
     <div class="card calendar-wrapper">
         <!-- FullCalendar integration -->
-        <div id="calendar" style="min-height: 800px;"></div>
+        <div id="calendar" style="min-height: 700px; padding: 1rem;"></div>
     </div>
 </div>
 
@@ -126,23 +126,14 @@
                 right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
             },
             height: 'auto',
-            // Better spacing and layout for week/day views
-            dayMaxEvents: 3, // Limit events per day to prevent cramping
-            moreLinkClick: 'popover', // Show popover for additional events
-            slotMinTime: '06:00:00', // Start time for time views
-            slotMaxTime: '22:00:00', // End time for time views
-            slotDuration: '01:00:00', // 1-hour slots
-            slotLabelInterval: '01:00:00', // Show time labels every hour
-            allDaySlot: true, // Show all-day slot
-            nowIndicator: true, // Show current time indicator
-            expandRows: true, // Expand rows to fill available space
-            // Better event display
-            eventDisplay: 'block',
-            eventTimeFormat: {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            },
+            aspectRatio: 1.8,
+            slotMinTime: '06:00:00',
+            slotMaxTime: '22:00:00',
+            slotDuration: '01:00:00',
+            slotLabelInterval: '01:00:00',
+            allDaySlot: true,
+            dayMaxEvents: 3,
+            moreLinkClick: 'popover',
             events: function(info, successCallback, failureCallback) {
                 loadCalendarEvents(info.start, info.end, successCallback, failureCallback);
             },
@@ -461,13 +452,28 @@
     .status-confirmed { background-color: #d4edda; color: #155724; }
     .status-cancelled { background-color: #f8d7da; color: #721c24; }
     
+    /* Calendar wrapper improvements */
+    .calendar-wrapper {
+        overflow: hidden;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .calendar-wrapper .card-body {
+        padding: 0;
+    }
+    
+    /* FullCalendar container */
+    #calendar {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
     .fc-event {
         border: none !important;
         border-radius: 4px !important;
         margin: 1px 0 !important;
-        padding: 2px 4px !important;
         font-size: 0.85em !important;
-        line-height: 1.2 !important;
+        padding: 2px 4px !important;
     }
     
     .fc-event:hover {
@@ -476,9 +482,9 @@
         transition: opacity 0.2s ease;
     }
     
-    /* Better spacing for week and day views */
+    /* Week and Day view improvements */
     .fc-timegrid-slot {
-        height: 2.5em !important; /* Increased slot height */
+        height: 2.5em !important;
     }
     
     .fc-timegrid-slot-label {
@@ -489,59 +495,68 @@
     .fc-timegrid-event {
         margin: 1px 2px !important;
         border-radius: 3px !important;
-    }
-    
-    .fc-timegrid-event .fc-event-main {
-        padding: 2px 4px !important;
         font-size: 0.8em !important;
-    }
-    
-    /* Week view improvements */
-    .fc-daygrid-day-events {
-        margin: 0 !important;
-    }
-    
-    .fc-daygrid-event {
-        margin: 1px 0 !important;
-        border-radius: 3px !important;
         padding: 1px 3px !important;
     }
     
-    .fc-daygrid-event .fc-event-main {
-        padding: 1px 2px !important;
-        font-size: 0.8em !important;
+    .fc-timegrid-event .fc-event-title {
+        font-weight: 500 !important;
+        line-height: 1.2 !important;
+    }
+    
+    /* Week view column headers */
+    .fc-col-header-cell {
+        padding: 0.75em 0.5em !important;
+        font-weight: 600 !important;
+        font-size: 0.9em !important;
     }
     
     /* Day view improvements */
+    .fc-timegrid-day {
+        min-height: 600px !important;
+    }
+    
     .fc-timegrid-body {
-        min-height: 400px !important;
+        min-height: 500px !important;
     }
     
-    .fc-timegrid-axis {
-        width: 3.5em !important;
+    /* Better spacing for all views */
+    .fc-scrollgrid {
+        border: 1px solid #e2e8f0 !important;
     }
     
-    /* Better event text handling */
+    .fc-scrollgrid-sync-table {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+    }
+    
+    /* Event text handling */
     .event-details, .fc-event-title, .fc-event-main {
-        white-space: normal;
+        white-space: normal !important;
         text-overflow: ellipsis;
         overflow: hidden;
-        word-wrap: break-word;
+        line-height: 1.3 !important;
     }
     
     /* Responsive improvements */
     @media (max-width: 768px) {
+        .fc-toolbar {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+        }
+        
+        .fc-toolbar-chunk {
+            display: flex !important;
+            justify-content: center !important;
+        }
+        
         .fc-timegrid-slot {
             height: 2em !important;
         }
         
-        .fc-event {
+        .fc-timegrid-event {
             font-size: 0.75em !important;
             padding: 1px 2px !important;
-        }
-        
-        .fc-timegrid-slot-label {
-            font-size: 0.8em !important;
         }
     }
 </style>
