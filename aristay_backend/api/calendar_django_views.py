@@ -101,6 +101,14 @@ def calendar_stats_api(request):
 
 
 @require_http_methods(["GET"])
+def calendar_test_api(request):
+    """
+    Simple test API to check if Django views work without authentication
+    """
+    return JsonResponse({'status': 'success', 'message': 'Test API working'})
+
+
+@require_http_methods(["GET"])
 def calendar_events_api(request):
     """
     API endpoint to get events for a date range (for calendar display)
