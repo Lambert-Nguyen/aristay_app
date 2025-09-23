@@ -59,7 +59,7 @@ def get_team_tasks(request, task_type):
         ).select_related('property_ref', 'booking')
 
 from .models import (
-    Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto,
+    Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto, TaskImage,
     PropertyInventory, InventoryTransaction, LostFoundItem, Profile,
     Booking, TASK_TYPE_CHOICES
 )
@@ -700,17 +700,24 @@ def upload_checklist_photo(request):
         if not can_edit_task(request.user, response.checklist.task):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         
-        # Create photo record
-        checklist_photo = ChecklistPhoto.objects.create(
-            response=response,
+        # Unified path: create TaskImage associated to the task and link to ChecklistResponse
+        task = response.checklist.task
+        # Determine next sequence within 'checklist' type
+        existing = TaskImage.objects.filter(task=task, photo_type='checklist')
+        next_seq = existing.count() + 1
+        task_image = TaskImage.objects.create(
+            task=task,
             image=photo,
-            uploaded_by=request.user
+            uploaded_by=request.user,
+            photo_type='checklist',
+            sequence_number=next_seq,
+            checklist_response=response,
         )
         
         return JsonResponse({
             'success': True,
-            'photo_id': checklist_photo.id,
-            'photo_url': checklist_photo.image.url
+            'photo_id': task_image.id,
+            'photo_url': task_image.image.url
         })
         
     except Exception as e:
@@ -736,21 +743,27 @@ def remove_checklist_photo(request):
         if not can_edit_task(request.user, response.checklist.task):
             return JsonResponse({'error': 'Permission denied'}, status=403)
 
-        # Find and delete the photo
+        # Prefer deleting unified TaskImage; fall back to ChecklistPhoto for legacy
+        filename = photo_url.split('/')[-1]
+        # 1) Try TaskImage linked to this response and task
+        task = response.checklist.task
+        ti = TaskImage.objects.filter(task=task, checklist_response=response, image__endswith=filename).first()
+        if ti:
+            ti.image.delete(save=False)
+            ti.delete()
+            return JsonResponse({'success': True})
+        
+        # 2) Legacy: try ChecklistPhoto
         try:
             photo = ChecklistPhoto.objects.get(
                 response=response,
-                image__endswith=photo_url.split('/')[-1]
+                image__endswith=filename
             )
-            
-            # Delete the file
             photo.image.delete(save=False)
             photo.delete()
-
             return JsonResponse({'success': True})
-            
         except ChecklistPhoto.DoesNotExist:
-            logger.warning(f"ChecklistPhoto not found for response {item_id} with photo_url {photo_url}")
+            logger.warning(f"ChecklistPhoto/TaskImage not found for response {item_id} with photo_url {photo_url}")
             return JsonResponse({'error': 'Photo not found'}, status=404)
 
     except Exception as e:

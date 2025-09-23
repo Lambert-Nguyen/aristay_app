@@ -131,7 +131,9 @@ class TaskImageSerializer(serializers.ModelSerializer):
             'size_bytes', 'width', 'height', 'original_size_bytes',
             # NEW: Before/After photo fields
             'photo_type', 'photo_type_display', 'photo_status', 'photo_status_display',
-            'sequence_number', 'is_primary', 'description'
+            'sequence_number', 'is_primary', 'description',
+            # Link to checklist response when applicable
+            'checklist_response'
         ]
         read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
                            'width', 'height', 'original_size_bytes', 'photo_type_display', 'photo_status_display']
