@@ -6,7 +6,6 @@ def backfill_checklist_photos(apps, schema_editor):
     ChecklistPhoto = apps.get_model('api', 'ChecklistPhoto')
     ChecklistResponse = apps.get_model('api', 'ChecklistResponse')
 
-    # Iterate all ChecklistPhoto and create TaskImage if not already present
     for cp in ChecklistPhoto.objects.all().select_related('response', 'uploaded_by'):
         response = cp.response
         checklist = getattr(response, 'checklist', None)
@@ -14,7 +13,6 @@ def backfill_checklist_photos(apps, schema_editor):
         if not task:
             continue
 
-        # Check if a TaskImage already references this file for this task and response
         exists = TaskImage.objects.filter(
             task_id=task.id,
             checklist_response_id=response.id,
@@ -23,30 +21,28 @@ def backfill_checklist_photos(apps, schema_editor):
         if exists:
             continue
 
-        # Determine next sequence number for 'checklist' type within the task
         next_seq = TaskImage.objects.filter(task_id=task.id, photo_type='checklist').count() + 1
 
         TaskImage.objects.create(
             task_id=task.id,
-            image=cp.image,  # reuse file reference
+            image=cp.image,
             uploaded_by_id=getattr(cp.uploaded_by, 'id', None),
             photo_type='checklist',
             sequence_number=next_seq,
             checklist_response_id=response.id,
-            photo_status='approved',  # existing photos considered approved
+            photo_status='approved',
             description=cp.caption or '',
         )
 
 
 def noop_reverse(apps, schema_editor):
-    # We do not delete TaskImage records when reversing; keep data safe
     pass
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0069_booking_booking_no_overlap_active'),
+        ('api', '0075_booking_booking_no_overlap_active'),
     ]
 
     operations = [
