@@ -301,14 +301,15 @@
                         <div class="photo-section" id="photos-{{ response.id }}">
                             <label class="form-label">Photos:</label>
                             <div class="photo-grid">
-                                {% for photo in response.photos.all %}
+                                {# Unified: render TaskImage linked to this response (checklist photos) #}
+                                {% for photo in response.unified_photos %}
                                 <div class="photo-item" data-photo-id="{{ photo.id }}">
                                     <img src="{{ photo.image.url }}"
                                          alt="Checklist photo"
                                          data-photo-url="{{ photo.image.url }}"
                                          data-photo-id="{{ photo.id }}">
                                     {% if can_edit %}
-                                    <button class="btn-photo-remove" data-photo-id="{{ photo.id }}" data-response-id="{{ response.id }}">
+                                    <button class="btn-photo-remove" data-item-id="{{ response.id }}" data-photo-url="{{ photo.image.url }}">
                                         ×
                                     </button>
                                     {% endif %}

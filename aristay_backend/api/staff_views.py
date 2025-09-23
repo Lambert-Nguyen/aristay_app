@@ -335,9 +335,22 @@ def task_detail(request, task_id):
                     ChecklistResponse.objects.bulk_create(responses_to_create, ignore_conflicts=True)
                     responses = checklist.responses.select_related('item').prefetch_related('photos')
     
+    # Attach unified photos (TaskImage) per checklist response
+    try:
+        task_images = TaskImage.objects.filter(task=task).select_related('checklist_response')
+        images_by_response = {}
+        for img in task_images:
+            rid = getattr(img.checklist_response, 'id', None)
+            if rid:
+                images_by_response.setdefault(rid, []).append(img)
+    except Exception:
+        images_by_response = {}
+
     # Group responses by room type for better organization
     responses_by_room = {}
     for response in responses:
+        # Attach unified photos for template consumption
+        setattr(response, 'unified_photos', images_by_response.get(response.id, []))
         room = response.item.room_type or 'General'
         if room not in responses_by_room:
             responses_by_room[room] = {
