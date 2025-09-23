@@ -114,13 +114,12 @@ class InviteCodeManagementTestCase(TestCase):
         
         # Test that we can create invite codes directly
         from datetime import datetime, timedelta
-        from tests.utils.timezone_helpers import create_invite_code_dates
         invite_code = InviteCode.objects.create(
             code='SUPER123',
             created_by=self.superuser,
             task_group=TaskGroup.GENERAL,
             role=UserRole.STAFF,
-            expires_at=create_invite_code_dates(expires_days=30),
+            expires_at=datetime.now() + timedelta(days=30),
             notes='Superuser test code'
         )
         
