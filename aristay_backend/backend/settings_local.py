@@ -38,27 +38,22 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'false').lower() == 'true'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
-# Cloudinary settings from your .env
-USE_CLOUDINARY = os.getenv('USE_CLOUDINARY', 'true').lower() == 'true'
-if USE_CLOUDINARY:
-    CLOUDINARY_URL = os.getenv('CLOUDINARY_URL')
-    if CLOUDINARY_URL:
-        # Parse CLOUDINARY_URL if provided
-        import cloudinary
-        cloudinary.config(cloudinary_url=CLOUDINARY_URL)
-    else:
-        # Use individual environment variables
-        CLOUDINARY_STORAGE = {
-            'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
-            'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
-            'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
-        }
-        if all([CLOUDINARY_STORAGE['CLOUD_NAME'], CLOUDINARY_STORAGE['API_KEY'], CLOUDINARY_STORAGE['API_SECRET']]):
-            cloudinary.config(
-                cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
-                api_key=CLOUDINARY_STORAGE['API_KEY'],
-                api_secret=CLOUDINARY_STORAGE['API_SECRET']
-            )
+# Force local storage for development regardless of .env Cloudinary values
+USE_CLOUDINARY = False
+os.environ['USE_CLOUDINARY'] = 'false'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'OPTIONS': {
+            'location': str(MEDIA_ROOT),
+        },
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+print('🗂️ Development: forcing FileSystemStorage (Cloudinary disabled)')
 
 # Redis configuration from your .env (optional)
 REDIS_URL = os.getenv('REDIS_URL')
