@@ -1,5 +1,7 @@
 ## Unified Checklist + Task Photo System
 
+**Status: ✅ COMPLETE & TESTED**
+
 ### Overview
 Checklist photos are now unified with the task before/after photo system via `TaskImage`.
 
@@ -19,6 +21,8 @@ Checklist photos are now unified with the task before/after photo system via `Ta
 
 ### Templates
 - `api/templates/staff/task_detail.html` renders `response.unified_photos` (from `TaskImage`) instead of legacy `response.photos`.
+- Added unified photo gallery section showing all task photos (before/after/checklist) with type badges.
+- Updated CSS for photo gallery grid with hover effects and type indicators.
 
 ### Migration
 - `api/migrations/0070_unify_checklist_photos_into_taskimage.py`
@@ -41,7 +45,16 @@ Checklist photos are now unified with the task before/after photo system via `Ta
 3. Optional: remove legacy references to `ChecklistPhoto` once data verified.
 
 ### Tests
-- Added cases ensuring upload creates `TaskImage` and removal deletes it (`tests/api/test_task_image_api.py`).
+- Added comprehensive test suite in `tests/integration/test_unified_photo_system_simple.py`:
+  - ✅ Photo type choices include 'checklist'
+  - ✅ TaskImage can link to ChecklistResponse
+  - ✅ Model relationships are properly defined
+  - ✅ Photo type display works correctly
+  - ✅ Photo type validation works
+  - ✅ Sequence number auto-increment logic
+  - ✅ Unified photos context logic
+  - ✅ Checklist photo identification
+- All 8 tests passing ✅
 
 ### Notes
 - Legacy `ChecklistPhoto` model remains temporarily for compatibility. New uploads go solely to `TaskImage`.
