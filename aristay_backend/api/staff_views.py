@@ -21,13 +21,15 @@ Authorization:
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.http import JsonResponse, HttpResponseRedirect
+from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Q, Count, Prefetch, F
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.urls import reverse
+from django.forms import ModelForm, CharField, Textarea, Select, DateInput, DateTimeInput
 from datetime import timedelta
 import json
 import logging
@@ -61,7 +63,7 @@ def get_team_tasks(request, task_type):
 from .models import (
     Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto, TaskImage,
     PropertyInventory, InventoryTransaction, LostFoundItem, Profile,
-    Booking, TASK_TYPE_CHOICES
+    Booking, TASK_TYPE_CHOICES, User
 )
 from .serializers import TaskSerializer
 from .authz import AuthzHelper, can_edit_task, can_view_task
@@ -528,6 +530,197 @@ def my_tasks(request):
     }
     
     return render(request, 'staff/my_tasks.html', context)
+
+
+# Task Form for CRUD operations
+class TaskForm(ModelForm):
+    """Form for creating and editing tasks."""
+    
+    class Meta:
+        model = Task
+        fields = [
+            'title', 'description', 'task_type', 'status', 
+            'due_date', 'assigned_to', 'property_ref', 'booking'
+        ]
+        widgets = {
+            'description': Textarea(attrs={'rows': 4, 'cols': 40}),
+            'due_date': DateTimeInput(attrs={'type': 'datetime-local'}),
+            'task_type': Select(choices=TASK_TYPE_CHOICES),
+            'status': Select(choices=Task.STATUS_CHOICES),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter properties to only show active ones
+        self.fields['property_ref'].queryset = Property.objects.filter(is_deleted=False)
+        
+        # Filter users to only show staff members
+        if user and not user.is_superuser:
+            try:
+                profile = user.profile
+                if profile.role == 'manager':
+                    # Managers can assign to all staff
+                    self.fields['assigned_to'].queryset = User.objects.filter(
+                        is_active=True, 
+                        profile__isnull=False
+                    ).exclude(profile__role='guest')
+                else:
+                    # Regular staff can only assign to themselves
+                    self.fields['assigned_to'].queryset = User.objects.filter(id=user.id)
+            except Profile.DoesNotExist:
+                self.fields['assigned_to'].queryset = User.objects.filter(id=user.id)
+        else:
+            # Superusers can assign to all staff
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                is_active=True, 
+                profile__isnull=False
+            ).exclude(profile__role='guest')
+        
+        # Set default assigned_to to current user
+        if user and not self.instance.pk:
+            self.fields['assigned_to'].initial = user
+
+
+@login_required
+def task_create(request):
+    """Create a new task."""
+    
+    # Check if user can create tasks
+    try:
+        profile = request.user.profile
+        can_create = (
+            request.user.is_superuser or 
+            profile.role == 'manager' or 
+            profile.has_permission('add_task')
+        )
+    except Profile.DoesNotExist:
+        can_create = request.user.is_superuser
+    
+    if not can_create:
+        messages.error(request, "You don't have permission to create tasks.")
+        return redirect('/api/staff/tasks/')
+    
+    if request.method == 'POST':
+        form = TaskForm(request.POST, user=request.user)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.created_by = request.user
+            task.save()
+            
+            messages.success(request, f'Task "{task.title}" created successfully.')
+            return redirect('staff-task-detail', task_id=task.id)
+    else:
+        form = TaskForm(user=request.user)
+    
+    context = {
+        'form': form,
+        'title': 'Create New Task',
+        'action': 'create',
+        'user': request.user,
+    }
+    
+    return render(request, 'staff/task_form.html', context)
+
+
+@login_required
+def task_edit(request, task_id):
+    """Edit an existing task."""
+    
+    task = get_object_or_404(Task, id=task_id)
+    
+    # Check if user can edit this task
+    if not can_edit_task(request.user, task):
+        messages.error(request, "You don't have permission to edit this task.")
+        return redirect('staff-task-detail', task_id=task_id)
+    
+    if request.method == 'POST':
+        form = TaskForm(request.POST, instance=task, user=request.user)
+        if form.is_valid():
+            task = form.save()
+            messages.success(request, f'Task "{task.title}" updated successfully.')
+            return redirect('staff-task-detail', task_id=task.id)
+    else:
+        form = TaskForm(instance=task, user=request.user)
+    
+    context = {
+        'form': form,
+        'task': task,
+        'title': f'Edit Task: {task.title}',
+        'action': 'edit',
+        'user': request.user,
+    }
+    
+    return render(request, 'staff/task_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def task_delete(request, task_id):
+    """Delete a task."""
+    
+    task = get_object_or_404(Task, id=task_id)
+    
+    # Check if user can delete this task
+    try:
+        profile = request.user.profile
+        can_delete = (
+            request.user.is_superuser or 
+            profile.role == 'manager' or 
+            profile.has_permission('delete_task') or
+            task.created_by == request.user
+        )
+    except Profile.DoesNotExist:
+        can_delete = request.user.is_superuser or task.created_by == request.user
+    
+    if not can_delete:
+        messages.error(request, "You don't have permission to delete this task.")
+        return redirect('staff-task-detail', task_id=task_id)
+    
+    task_title = task.title
+    task.delete()
+    
+    messages.success(request, f'Task "{task_title}" deleted successfully.')
+    return redirect('/api/staff/tasks/')
+
+
+@login_required
+def task_duplicate(request, task_id):
+    """Duplicate an existing task."""
+    
+    original_task = get_object_or_404(Task, id=task_id)
+    
+    # Check if user can create tasks
+    try:
+        profile = request.user.profile
+        can_create = (
+            request.user.is_superuser or 
+            profile.role == 'manager' or 
+            profile.has_permission('add_task')
+        )
+    except Profile.DoesNotExist:
+        can_create = request.user.is_superuser
+    
+    if not can_create:
+        messages.error(request, "You don't have permission to create tasks.")
+        return redirect('staff-task-detail', task_id=task_id)
+    
+    # Create duplicate
+    duplicate_task = Task.objects.create(
+        title=f"{original_task.title} (Copy)",
+        description=original_task.description,
+        task_type=original_task.task_type,
+        status='pending',
+        property_ref=original_task.property_ref,
+        booking=original_task.booking,
+        assigned_to=request.user,  # Assign to current user
+        created_by=request.user,
+        due_date=original_task.due_date,
+    )
+    
+    messages.success(request, f'Task "{duplicate_task.title}" created successfully.')
+    return redirect('staff-task-detail', task_id=duplicate_task.id)
 
 
 @login_required

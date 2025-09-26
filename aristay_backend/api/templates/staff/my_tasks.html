@@ -18,10 +18,13 @@
                     {% endif %}
                 </div>
                 <div class="header-actions">
-                    <button class="btn btn-primary" onclick="toggleBulkActions()">
+                    <a href="/api/staff/tasks/create/" class="btn btn-primary">
+                        ✨ Create Task
+                    </a>
+                    <button class="btn btn-secondary" onclick="toggleBulkActions()">
                         ⚡ Bulk Actions
                     </button>
-                    <button class="btn btn-secondary" onclick="exportTasks()">
+                    <button class="btn btn-outline" onclick="exportTasks()">
                         📤 Export
                     </button>
                 </div>
@@ -179,8 +182,17 @@
                         <button class="btn-action btn-sm" onclick="quickAction('{{ task.id }}', 'complete')" title="Complete Task">
                             ✅
                         </button>
-                        <button class="btn-action btn-sm" onclick="quickAction('{{ task.id }}', 'view')" title="View Details">
+                        <a href="/api/staff/tasks/{{ task.id }}/" class="btn-action btn-sm" title="View Details">
                             👁️
+                        </a>
+                        <a href="/api/staff/tasks/{{ task.id }}/edit/" class="btn-action btn-sm" title="Edit Task">
+                            ✏️
+                        </a>
+                        <button class="btn-action btn-sm" onclick="duplicateTask('{{ task.id }}')" title="Duplicate Task">
+                            📋
+                        </button>
+                        <button class="btn-action btn-sm btn-danger" onclick="deleteTask('{{ task.id }}', '{{ task.title|escapejs }}')" title="Delete Task">
+                            🗑️
                         </button>
                     </div>
                 </div>
@@ -586,6 +598,18 @@
     background: #667eea;
     color: white;
     border-color: #667eea;
+}
+
+.btn-action.btn-danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+.btn-action.btn-danger:hover {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
 }
 
 /* Task Content */
@@ -1195,6 +1219,35 @@ function quickAction(taskId, action) {
         case 'view':
             window.location.href = `/api/staff/tasks/${taskId}/`;
             break;
+    }
+}
+
+// New CRUD Actions
+function duplicateTask(taskId) {
+    if (confirm('Create a copy of this task?')) {
+        window.location.href = `/api/staff/tasks/${taskId}/duplicate/`;
+    }
+}
+
+function deleteTask(taskId, taskTitle) {
+    if (confirm(`Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`)) {
+        // Create a form to submit the delete request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/api/staff/tasks/${taskId}/delete/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 
