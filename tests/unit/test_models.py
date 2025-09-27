@@ -77,6 +77,7 @@ class TestTaskImageModelEnhancements:
             ('reference', 'Reference'),
             ('damage', 'Damage'),
             ('general', 'General'),
+            ('checklist', 'Checklist'),
         ]
         assert choices == expected_choices
 
