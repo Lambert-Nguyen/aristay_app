@@ -30,6 +30,7 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.urls import reverse
 from django.forms import ModelForm, CharField, Textarea, Select, DateInput, DateTimeInput
+from django.core.exceptions import ValidationError
 from datetime import timedelta
 import json
 import logging
@@ -905,6 +906,17 @@ def upload_checklist_photo(request):
         # Check permissions using centralized authorization
         if not can_edit_task(request.user, response.checklist.task):
             return JsonResponse({'error': 'Permission denied'}, status=403)
+        
+        # Validate file type and size
+        try:
+            from api.models import validate_task_image
+            validate_task_image(photo)
+        except ValidationError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        
+        # Check file size (5MB limit)
+        if photo.size > 5 * 1024 * 1024:  # 5MB
+            return JsonResponse({'error': 'File too large. Maximum size is 5MB.'}, status=400)
         
         # Unified path: create TaskImage associated to the task and link to ChecklistResponse
         task = response.checklist.task

@@ -56,9 +56,16 @@ class TestUnifiedPhotoSystem(TestCase):
     def test_checklist_upload_creates_taskimage(self):
         """Test that checklist photo upload creates TaskImage"""
         # Upload photo via staff endpoint
+        # Create a real JPEG image for testing
+        from PIL import Image
+        import io
+        img = Image.new('RGB', (100, 100), color='blue')
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='JPEG')
+        img_bytes.seek(0)
         image_content = SimpleUploadedFile(
             'test.jpg', 
-            b'\xff\xd8\xff\xd9', 
+            img_bytes.getvalue(), 
             content_type='image/jpeg'
         )
         
@@ -154,22 +161,70 @@ class TestUnifiedPhotoSystem(TestCase):
     
     def test_sequence_number_auto_increment(self):
         """Test that sequence numbers auto-increment for checklist photos"""
+        # Clean up any existing TaskImage objects to avoid conflicts
+        TaskImage.objects.filter(photo_type='checklist').delete()
+        
+        # Create a fresh task and response to avoid conflicts
+        # Use a unique title to ensure we get a fresh task
+        import time
+        fresh_task = Task.objects.create(
+            title=f'Fresh Task {int(time.time())}',
+            task_type='cleaning',
+            property_ref=self.property,
+            created_by=self.user,
+            assigned_to=self.user,
+        )
+        
+        fresh_template = ChecklistTemplate.objects.create(
+            name='Fresh Template',
+            task_type='cleaning',
+            is_active=True,
+            created_by=self.user
+        )
+        fresh_photo_item = ChecklistItem.objects.create(
+            template=fresh_template,
+            title='Take photo',
+            item_type='photo_required'
+        )
+        fresh_checklist = TaskChecklist.objects.create(
+            task=fresh_task,
+            template=fresh_template
+        )
+        fresh_response = ChecklistResponse.objects.create(
+            checklist=fresh_checklist,
+            item=fresh_photo_item
+        )
+        
         # Create multiple checklist photos
         for i in range(3):
+            # Create a real JPEG image for testing
+            from PIL import Image
+            import io
+            img = Image.new('RGB', (100, 100), color=f'rgb({i*50}, {i*50}, {i*50})')
+            img_bytes = io.BytesIO()
+            img.save(img_bytes, format='JPEG')
+            img_bytes.seek(0)
+            
+            # Calculate sequence number like the actual system does
+            existing = TaskImage.objects.filter(task=fresh_task, photo_type='checklist')
+            next_seq = existing.count() + 1
+            
             TaskImage.objects.create(
-                task=self.task,
-                checklist_response=self.response,
-                image=SimpleUploadedFile(f'test{i}.jpg', b'\xff\xd8\xff\xd9', content_type='image/jpeg'),
+                task=fresh_task,
+                checklist_response=fresh_response,
+                image=SimpleUploadedFile(f'test{i}.jpg', img_bytes.getvalue(), content_type='image/jpeg'),
                 uploaded_by=self.user,
-                photo_type='checklist'
+                photo_type='checklist',
+                sequence_number=next_seq
             )
         
         # Check sequence numbers
         images = TaskImage.objects.filter(
-            task=self.task,
+            task=fresh_task,
             photo_type='checklist'
         ).order_by('sequence_number')
         
+        assert images.count() == 3
         assert images[0].sequence_number == 1
         assert images[1].sequence_number == 2
         assert images[2].sequence_number == 3
