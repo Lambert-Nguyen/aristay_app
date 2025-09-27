@@ -382,13 +382,13 @@ def task_detail(request, task_id):
 def update_checklist_response(request, response_id):
     """Update a checklist response via AJAX."""
     
-    response = get_object_or_404(ChecklistResponse, id=response_id)
-    
-    # Check permissions using centralized authorization
-    if not can_edit_task(request.user, response.checklist.task):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
     try:
+        response = get_object_or_404(ChecklistResponse, id=response_id)
+        
+        # Check permissions using centralized authorization
+        if not can_edit_task(request.user, response.checklist.task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+        
         data = json.loads(request.body)
         
         # Update response fields
@@ -914,9 +914,12 @@ def upload_checklist_photo(request):
         except ValidationError as e:
             return JsonResponse({'error': str(e)}, status=400)
         
-        # Check file size (5MB limit)
-        if photo.size > 5 * 1024 * 1024:  # 5MB
-            return JsonResponse({'error': 'File too large. Maximum size is 5MB.'}, status=400)
+        # Check file size using consistent settings
+        from django.conf import settings
+        max_bytes = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024)
+        if photo.size > max_bytes:
+            max_mb = max_bytes // (1024 * 1024)
+            return JsonResponse({'error': f'File too large. Maximum size is {max_mb}MB.'}, status=400)
         
         # Unified path: create TaskImage associated to the task and link to ChecklistResponse
         task = response.checklist.task
