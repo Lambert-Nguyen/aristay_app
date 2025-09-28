@@ -1160,6 +1160,8 @@ class NotificationVerb(models.TextChoices):
     DESCRIPTION_CHANGED = "description_changed", "Description changed"
     PHOTO_ADDED       = "photo_added",       "Photo added"
     PHOTO_DELETED     = "photo_deleted",     "Photo deleted"
+    PHOTO_APPROVED    = "photo_approved",    "Photo approved"
+    PHOTO_REJECTED    = "photo_rejected",    "Photo rejected"
     CREATED           = "created",           "Task created"
 
 class Notification(models.Model):

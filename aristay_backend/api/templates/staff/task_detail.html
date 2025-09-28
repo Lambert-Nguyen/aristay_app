@@ -119,18 +119,76 @@
                     <h4>📸 All Task Photos</h4>
                     <div class="photo-gallery-grid">
                         {% for image in task.images.all %}
-                        <div class="gallery-photo-item" data-photo-type="{{ image.photo_type }}">
+                        {% if image.image %}
+                        <div class="gallery-photo-item" data-photo-type="{{ image.photo_type }}" data-photo-id="{{ image.id }}">
                             <img src="{{ image.image.url }}" 
                                  alt="{{ image.get_photo_type_display }} photo"
                                  data-photo-url="{{ image.image.url }}"
-                                 data-photo-id="{{ image.id }}">
+                                 data-photo-id="{{ image.id }}"
+                                 onclick="openPhotoModal('{{ image.image.url }}', {{ image.id }})">
                             <div class="photo-meta">
-                                <span class="photo-type-badge">{{ image.get_photo_type_display }}</span>
+                                <div class="photo-header">
+                                    <span class="photo-type-badge">{{ image.get_photo_type_display }}</span>
+                                    <span class="photo-status status-{{ image.photo_status }}">{{ image.get_photo_status_display }}</span>
+                                </div>
                                 {% if image.checklist_response %}
                                 <span class="checklist-badge">Checklist</span>
                                 {% endif %}
+                                {% if image.description %}
+                                <p class="photo-description">{{ image.description|truncatechars:50 }}</p>
+                                {% endif %}
+                                {% if can_approve_photos %}
+                                <div class="photo-approval-controls">
+                                    {% if image.photo_status == 'pending' %}
+                                    <button class="btn-approve" onclick="approvePhoto({{ image.id }})">
+                                        ✓ Approve
+                                    </button>
+                                    <button class="btn-reject" onclick="rejectPhoto({{ image.id }})">
+                                        ✗ Reject
+                                    </button>
+                                    {% elif image.photo_status == 'approved' %}
+                                    <span class="status-approved">✓ Approved</span>
+                                    <button class="btn-archive" onclick="archivePhoto({{ image.id }})">
+                                        📁 Archive
+                                    </button>
+                                    {% elif image.photo_status == 'rejected' %}
+                                    <span class="status-rejected">✗ Rejected</span>
+                                    <button class="btn-approve" onclick="approvePhoto({{ image.id }})">
+                                        ✓ Approve
+                                    </button>
+                                    {% elif image.photo_status == 'archived' %}
+                                    <span class="status-archived">📁 Archived</span>
+                                    <button class="btn-approve" onclick="approvePhoto({{ image.id }})">
+                                        ✓ Unarchive
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
+                        {% else %}
+                        <!-- Handle TaskImage objects without files -->
+                        <div class="gallery-photo-item photo-error" data-photo-type="{{ image.photo_type }}" data-photo-id="{{ image.id }}">
+                            <div class="photo-placeholder">
+                                <span class="placeholder-icon">⚠️</span>
+                                <span class="placeholder-text">No Image File</span>
+                            </div>
+                            <div class="photo-meta">
+                                <div class="photo-header">
+                                    <span class="photo-type-badge">{{ image.get_photo_type_display }}</span>
+                                    <span class="photo-status status-error">Error</span>
+                                </div>
+                                <p class="photo-description">This photo record has no associated file</p>
+                                {% if can_approve_photos %}
+                                <div class="photo-approval-controls">
+                                    <button class="btn-danger" onclick="deletePhoto({{ image.id }})">
+                                        🗑️ Delete Record
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -1674,9 +1732,82 @@ window.toggleNotes = function(responseId) {
 
 // Remove duplicate closeModal function - using the one defined above;
 
+// Photo Approval Functions
+async function approvePhoto(photoId) {
+    await updatePhotoStatus(photoId, 'approved');
+}
+
+async function rejectPhoto(photoId) {
+    await updatePhotoStatus(photoId, 'rejected');
+}
+
+async function archivePhoto(photoId) {
+    await updatePhotoStatus(photoId, 'archived');
+}
+
+async function updatePhotoStatus(photoId, status) {
+    try {
+        const response = await fetch(`/api/tasks/{{ task.id }}/images/${photoId}/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ photo_status: status })
+        });
+
+        if (response.ok) {
+            showNotification(`Photo ${status} successfully!`, 'success');
+            // Reload the page to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            const error = await response.json();
+            showNotification(`Failed to ${status} photo: ${error.detail || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error updating photo status:', error);
+        showNotification(`Error updating photo status: ${error.message}`, 'error');
+    }
+}
+
+async function deletePhoto(photoId) {
+    if (!confirm('Are you sure you want to delete this photo record? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tasks/{{ task.id }}/images/${photoId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+
+        if (response.ok) {
+            showNotification('Photo record deleted successfully!', 'success');
+            // Reload the page to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            const error = await response.json();
+            showNotification(`Failed to delete photo: ${error.detail || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting photo:', error);
+        showNotification(`Error deleting photo: ${error.message}`, 'error');
+    }
+}
+
 // Export additional functions for global access
 window.openPhotoModal = openPhotoModal;
 window.updateChecklistItem = updateChecklistItem;
+window.approvePhoto = approvePhoto;
+window.rejectPhoto = rejectPhoto;
+window.archivePhoto = archivePhoto;
+window.deletePhoto = deletePhoto;
 </script>
 {% endblock %}
 
@@ -1825,6 +1956,165 @@ window.updateChecklistItem = updateChecklistItem;
     background: #dc2626;
     color: white;
     border-color: #dc2626;
+}
+
+/* Photo Approval Styles */
+.photo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.photo-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.photo-status.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.photo-status.status-approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.photo-status.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.photo-status.status-archived {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.photo-approval-controls {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.photo-approval-controls button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-approve {
+    background: #10b981;
+    color: white;
+}
+
+.btn-approve:hover {
+    background: #059669;
+}
+
+.btn-reject {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-reject:hover {
+    background: #dc2626;
+}
+
+.btn-archive {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-archive:hover {
+    background: #4b5563;
+}
+
+.status-approved, .status-rejected, .status-archived {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.status-approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-archived {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.photo-description {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 4px 0;
+    font-style: italic;
+}
+
+/* Photo Error States */
+.photo-error {
+    border: 2px dashed #ef4444;
+    background: #fef2f2;
+}
+
+.photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.placeholder-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.placeholder-text {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.status-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
 }
 
 .quick-actions {

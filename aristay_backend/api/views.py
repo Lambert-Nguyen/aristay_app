@@ -37,7 +37,7 @@ from .system_metrics import get_system_metrics
 
 from rest_framework import generics, permissions, viewsets, filters
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
@@ -555,12 +555,12 @@ class TaskImageListView(DefaultAuthMixin, generics.ListAPIView):
         
         return TaskImage.objects.filter(task_id=task_pk).select_related('task', 'uploaded_by')
 
-class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveDestroyAPIView):
+class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIView):
     """
-    GET, DELETE /api/tasks/{task_pk}/images/{pk}/
+    GET, PATCH, DELETE /api/tasks/{task_pk}/images/{pk}/
     """
     serializer_class = TaskImageSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated]  # object-level check in get_object
 
     def get_queryset(self):
@@ -571,6 +571,128 @@ class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveDestroyAPIView):
         if not can_edit_task(self.request.user, obj.task):
             raise DRFPermissionDenied("You can't modify images on this task.")
         return obj
+    
+    def check_permissions(self, request):
+        """Override permission checking for photo approval"""
+        super().check_permissions(request)
+        
+        # For PATCH requests (photo approval), check if user can approve photos
+        if request.method == 'PATCH':
+            if not self.can_approve_photos(request.user):
+                raise DRFPermissionDenied("You don't have permission to approve photos.")
+    
+    def can_approve_photos(self, user):
+        """Check if user can approve photos"""
+        if not user or not user.is_authenticated:
+            return False
+            
+        if user.is_superuser:
+            return True
+            
+        profile = getattr(user, 'profile', None)
+        if not profile:
+            return False
+            
+        # Managers can approve photos
+        if profile.role == 'manager':
+            return True
+            
+        # Users with manage_files permission can approve photos
+        if profile.has_permission('manage_files'):
+            return True
+            
+        return False
+    
+    def perform_update(self, serializer):
+        """Handle photo status updates with validation and audit logging"""
+        instance = serializer.instance
+        old_status = instance.photo_status
+        
+        # Validate status transitions
+        new_status = serializer.validated_data.get('photo_status', old_status)
+        if not self.is_valid_status_transition(old_status, new_status):
+            raise DRFPermissionDenied(f"Invalid status transition from {old_status} to {new_status}")
+        
+        # Update the instance
+        serializer.save()
+        
+        # Log the status change
+        self.log_photo_status_change(instance, old_status, new_status)
+        
+        # Send notification if status changed
+        if old_status != new_status:
+            self.notify_photo_status_change(instance, old_status, new_status)
+    
+    def is_valid_status_transition(self, old_status, new_status):
+        """Validate photo status transitions"""
+        if old_status == new_status:
+            return True
+            
+        # Define valid transitions
+        valid_transitions = {
+            'pending': ['approved', 'rejected'],
+            'approved': ['archived'],
+            'rejected': ['pending', 'archived'],
+            'archived': ['pending']  # Allow unarchiving
+        }
+        
+        return new_status in valid_transitions.get(old_status, [])
+    
+    def log_photo_status_change(self, instance, old_status, new_status):
+        """Log photo status change to task history"""
+        if old_status == new_status:
+            return
+            
+        task = instance.task
+        user = self.request.user
+        
+        # Add to task history
+        history_entry = (
+            f"{timezone.now().isoformat()}: {user.username} changed photo status "
+            f"from '{old_status}' to '{new_status}' for {instance.get_photo_type_display()} photo"
+        )
+        
+        history = json.loads(task.history or '[]')
+        history.append(history_entry)
+        task.history = json.dumps(history)
+        task.save(update_fields=['history'])
+        
+        # Log to audit events
+        from api.models import AuditEvent
+        AuditEvent.objects.create(
+            object_type='TaskImage',
+            object_id=instance.id,
+            action='update',
+            actor=user,
+            changes=f"Photo status: {old_status} → {new_status}",
+            ip_address=self.request.META.get('REMOTE_ADDR', ''),
+            user_agent=self.request.META.get('HTTP_USER_AGENT', ''),
+        )
+    
+    def notify_photo_status_change(self, instance, old_status, new_status):
+        """Send notification about photo status change"""
+        task = instance.task
+        user = self.request.user
+        
+        # Determine notification verb based on status change
+        if new_status == 'approved':
+            verb = 'photo_approved'
+        elif new_status == 'rejected':
+            verb = 'photo_rejected'
+        else:
+            # For other status changes, use a generic photo notification
+            verb = 'photo_added'  # This will be handled by the existing system
+        
+        # Send notification using the existing system
+        from api.models import Notification, NotificationVerb
+        for recipient in NotificationService._recipients(task, actor=user):
+            Notification.objects.create(
+                recipient=recipient,
+                task=task,
+                verb=verb,
+                message=f"Photo {new_status} by {user.username}",
+                timestamp=timezone.now()
+            )
 
     def perform_destroy(self, instance):
         # 1) capture metadata before deletion

@@ -366,11 +366,20 @@ def task_detail(request, task_id):
         if response.is_completed:
             responses_by_room[room]['completed_count'] += 1
     
+    # Check if user can approve photos
+    can_approve_photos = (
+        request.user.is_superuser or
+        (hasattr(request.user, 'profile') and 
+         (request.user.profile.role == 'manager' or 
+          request.user.profile.has_permission('manage_files')))
+    )
+    
     context = {
         'task': task,
         'checklist': checklist,
         'responses_by_room': responses_by_room,
         'can_edit': can_edit_task(request.user, task),
+        'can_approve_photos': can_approve_photos,
         'user': request.user,  # Add user to context
     }
     

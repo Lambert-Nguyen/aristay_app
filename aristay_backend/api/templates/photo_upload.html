@@ -257,13 +257,150 @@
         color: var(--danger-color, #ef4444);
     }
 
-    .btn-danger {
-        background: var(--danger-color, #ef4444);
+    /* Photo Approval Controls */
+    .photo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .photo-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .photo-status.status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .photo-status.status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .photo-status.status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .photo-status.status-archived {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .photo-approval-controls {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .photo-approval-controls button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-approve {
+        background: #10b981;
         color: white;
     }
 
+    .btn-approve:hover {
+        background: #059669;
+    }
+
+    .btn-reject {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-reject:hover {
+        background: #dc2626;
+    }
+
+    .btn-archive {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-archive:hover {
+        background: #4b5563;
+    }
+
+    .status-approved, .status-rejected {
+        font-size: 12px;
+        font-weight: 500;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+
+    .status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Photo Error States */
+    .photo-error {
+        border: 2px dashed #ef4444;
+        background: #fef2f2;
+    }
+
+    .photo-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 120px;
+        background: #f9fafb;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+
+    .placeholder-icon {
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+
+    .placeholder-text {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .status-error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
     .btn-danger:hover {
-        background: var(--danger-hover, #dc2626);
+        background: #dc2626;
     }
 
     .progress-bar {
@@ -744,16 +881,48 @@ class PhotoUploader {
 
         console.log('Rendering', photos.length, 'photos');
 
-        const photosHtml = photos.map(photo => `
-            <div class="uploaded-photo-item">
-                <img src="${photo.image}" alt="Task photo" class="uploaded-photo-thumbnail">
-                <div class="photo-info">
-                    <span class="photo-type">${photo.photo_type_display}</span>
-                    <span class="photo-date">${new Date(photo.uploaded_at).toLocaleString()}</span>
-                    ${photo.description ? `<p class="photo-description">${photo.description}</p>` : ''}
+        const photosHtml = photos.map(photo => {
+            if (!photo.image) {
+                return `
+                    <div class="uploaded-photo-item photo-error">
+                        <div class="photo-placeholder">
+                            <span class="placeholder-icon">⚠️</span>
+                            <span class="placeholder-text">No Image File</span>
+                        </div>
+                        <div class="photo-info">
+                            <div class="photo-header">
+                                <span class="photo-type">${photo.photo_type_display}</span>
+                                <span class="photo-status status-error">Error</span>
+                            </div>
+                            <span class="photo-date">${new Date(photo.uploaded_at).toLocaleString()}</span>
+                            <p class="photo-description">This photo record has no associated file</p>
+                            ${this.canApprovePhotos() ? `
+                                <div class="photo-approval-controls">
+                                    <button class="btn-danger" onclick="photoUploader.deletePhoto(${photo.id})">
+                                        🗑️ Delete Record
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="uploaded-photo-item">
+                    <img src="${photo.image}" alt="Task photo" class="uploaded-photo-thumbnail">
+                    <div class="photo-info">
+                        <div class="photo-header">
+                            <span class="photo-type">${photo.photo_type_display}</span>
+                            <span class="photo-status status-${photo.photo_status}">${photo.photo_status_display}</span>
+                        </div>
+                        <span class="photo-date">${new Date(photo.uploaded_at).toLocaleString()}</span>
+                        ${photo.description ? `<p class="photo-description">${photo.description}</p>` : ''}
+                        ${this.canApprovePhotos() ? this.renderApprovalControls(photo) : ''}
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         container.innerHTML = `
             <div class="uploaded-photos-section">
@@ -771,6 +940,111 @@ class PhotoUploader {
                 </div>
             </div>
         `;
+    }
+
+    canApprovePhotos() {
+        // Check if current user can approve photos
+        // This would typically be checked server-side, but for UI purposes we can make an assumption
+        // In a real implementation, you'd get this from the server or user context
+        return true; // For now, assume all users can approve (will be restricted by API)
+    }
+
+    renderApprovalControls(photo) {
+        if (photo.photo_status === 'pending') {
+            return `
+                <div class="photo-approval-controls">
+                    <button class="btn-approve" onclick="photoUploader.approvePhoto(${photo.id})">
+                        ✓ Approve
+                    </button>
+                    <button class="btn-reject" onclick="photoUploader.rejectPhoto(${photo.id})">
+                        ✗ Reject
+                    </button>
+                </div>
+            `;
+        } else if (photo.photo_status === 'approved') {
+            return `
+                <div class="photo-approval-controls">
+                    <span class="status-approved">✓ Approved</span>
+                    <button class="btn-archive" onclick="photoUploader.archivePhoto(${photo.id})">
+                        📁 Archive
+                    </button>
+                </div>
+            `;
+        } else if (photo.photo_status === 'rejected') {
+            return `
+                <div class="photo-approval-controls">
+                    <span class="status-rejected">✗ Rejected</span>
+                    <button class="btn-approve" onclick="photoUploader.approvePhoto(${photo.id})">
+                        ✓ Approve
+                    </button>
+                </div>
+            `;
+        }
+        return '';
+    }
+
+    async approvePhoto(photoId) {
+        await this.updatePhotoStatus(photoId, 'approved');
+    }
+
+    async rejectPhoto(photoId) {
+        await this.updatePhotoStatus(photoId, 'rejected');
+    }
+
+    async archivePhoto(photoId) {
+        await this.updatePhotoStatus(photoId, 'archived');
+    }
+
+    async updatePhotoStatus(photoId, status) {
+        try {
+            const response = await fetch(`/api/tasks/${this.selectedTask}/images/${photoId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ photo_status: status })
+            });
+
+            if (response.ok) {
+                this.showStatus(`Photo ${status} successfully!`, 'success');
+                // Reload photos to show updated status
+                this.loadAndDisplayTaskPhotos();
+            } else {
+                const error = await response.json();
+                this.showStatus(`Failed to ${status} photo: ${error.detail || 'Unknown error'}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error updating photo status:', error);
+            this.showStatus(`Error updating photo status: ${error.message}`, 'error');
+        }
+    }
+
+    async deletePhoto(photoId) {
+        if (!confirm('Are you sure you want to delete this photo record? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/tasks/${this.selectedTask}/images/${photoId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+
+            if (response.ok) {
+                this.showStatus('Photo record deleted successfully!', 'success');
+                // Reload photos to show updated status
+                this.loadAndDisplayTaskPhotos();
+            } else {
+                const error = await response.json();
+                this.showStatus(`Failed to delete photo: ${error.detail || 'Unknown error'}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting photo:', error);
+            this.showStatus(`Error deleting photo: ${error.message}`, 'error');
+        }
     }
 }
 
