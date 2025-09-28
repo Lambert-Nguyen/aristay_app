@@ -566,6 +566,9 @@
 </div>
 
 <script>
+// Set user permissions for photo approval
+window.userCanApprovePhotos = {{ can_approve_photos|yesno:"true,false" }};
+
 class PhotoUploader {
     constructor() {
         this.selectedFiles = [];
@@ -948,9 +951,8 @@ class PhotoUploader {
 
     canApprovePhotos() {
         // Check if current user can approve photos
-        // This would typically be checked server-side, but for UI purposes we can make an assumption
-        // In a real implementation, you'd get this from the server or user context
-        return true; // For now, assume all users can approve (will be restricted by API)
+        // This should match the backend permission logic
+        return window.userCanApprovePhotos || false;
     }
 
     renderApprovalControls(photo) {

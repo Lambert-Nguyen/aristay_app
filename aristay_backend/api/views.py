@@ -3010,10 +3010,19 @@ def photo_upload_view(request):
         except Task.DoesNotExist:
             selected_task = None
     
+    # Check if user can approve photos
+    can_approve_photos = (
+        request.user.is_superuser or
+        (hasattr(request.user, 'profile') and 
+         (request.user.profile.role == 'manager' or 
+          request.user.profile.has_permission('manage_files')))
+    )
+    
     context = {
         'tasks': tasks,
         'selected_task': selected_task,
         'user': request.user,
+        'can_approve_photos': can_approve_photos,
     }
     return render(request, 'photo_upload.html', context)
 
