@@ -632,11 +632,13 @@ function validateField(e) {
 }
 
 function clearFieldError(field) {
-    const errorElement = field.parentNode.querySelector('.error');
-    if (errorElement) {
-        errorElement.remove();
+    if (field && field.parentNode) {
+        const errorElement = field.parentNode.querySelector('.error');
+        if (errorElement) {
+            errorElement.remove();
+        }
+        field.classList.remove('error');
     }
-    field.classList.remove('error');
 }
 
 function showFieldError(field, message) {

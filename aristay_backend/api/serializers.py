@@ -153,9 +153,13 @@ class TaskImageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
         
         # Validate allowed content types
-        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        
+        # Debug: Log the actual content type received
+        print(f"DEBUG: File content_type received: '{file.content_type}'")
+        
         if file.content_type not in allowed_types:
-            raise serializers.ValidationError("Unsupported file type. Please upload JPEG, PNG, or WebP images.")
+            raise serializers.ValidationError(f"Unsupported file type '{file.content_type}'. Please upload JPEG, PNG, or WebP images.")
         
         return file
     

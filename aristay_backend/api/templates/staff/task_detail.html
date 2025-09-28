@@ -432,7 +432,7 @@
             <p class="empty-message">This task doesn't have a checklist template assigned.</p>
             {% if can_edit %}
             <div class="empty-actions">
-                <button type="button" class="btn btn-success" onclick="completeTask()">
+                <button type="button" class="btn btn-success" onclick="completeTask({{ task.id }})">
                     ✅ Mark Task Complete
                 </button>
             </div>
