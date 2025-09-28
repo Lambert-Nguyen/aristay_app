@@ -524,6 +524,7 @@ class PhotoUploader {
         formData.append('photo_type', fileData.photoType);
         formData.append('description', fileData.description);
         formData.append('sequence_number', fileData.sequenceNumber);
+        formData.append('task', this.selectedTask);
 
         // Debug: Log what we're sending
         console.log('Uploading photo:', {
