@@ -131,6 +131,7 @@
                                  data-photo-url="{{ image.image.url }}"
                                  data-photo-id="{{ image.id }}"
                                  onclick="console.log('Photo clicked:', {{ image.id }}); openPhotoModal('{{ image.image.url }}', {{ image.id }})"
+                                 onmouseover="console.log('Photo hovered:', {{ image.id }})"
                                  style="cursor: pointer;">
                             <div class="photo-meta">
                                 <div class="photo-header">
@@ -805,6 +806,51 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Modal element:', document.getElementById('photoModal'));
     console.log('Modal photo element:', document.getElementById('modalPhoto'));
     console.log('openPhotoModal function:', typeof window.openPhotoModal);
+    
+    // Add event listeners to photos as backup
+    const photoImages = document.querySelectorAll('.gallery-photo-item img');
+    console.log('Found', photoImages.length, 'photo images');
+    photoImages.forEach((img, index) => {
+        console.log(`Setting up click listener for photo ${index + 1}`);
+        console.log('Photo element:', img);
+        console.log('Photo dataset:', img.dataset);
+        console.log('Photo computed style:', window.getComputedStyle(img));
+        
+        // Click event
+        img.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Photo clicked via event listener:', this.dataset.photoId);
+            const photoUrl = this.src;
+            const photoId = this.dataset.photoId;
+            openPhotoModal(photoUrl, photoId);
+        });
+        
+        // Hover event
+        img.addEventListener('mouseover', function(e) {
+            console.log('Photo hovered via event listener:', this.dataset.photoId);
+        });
+        
+        // Also add mouseenter for better compatibility
+        img.addEventListener('mouseenter', function(e) {
+            console.log('Photo mouseenter via event listener:', this.dataset.photoId);
+        });
+        
+        // Test if the element is actually hoverable
+        img.addEventListener('mousemove', function(e) {
+            console.log('Photo mousemove via event listener:', this.dataset.photoId);
+        });
+        
+        // Add visual feedback on hover
+        img.addEventListener('mouseenter', function(e) {
+            this.style.border = '2px solid #3b82f6';
+            this.style.transform = 'scale(1.05)';
+        });
+        
+        img.addEventListener('mouseleave', function(e) {
+            this.style.border = 'none';
+            this.style.transform = 'scale(1)';
+        });
+    });
 });
 
 // Task Timer Functionality
@@ -1331,7 +1377,13 @@ function initializeModalHandlers() {
     // Close modal on Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            closeModal();
+            // Check if photo modal is open first
+            const photoModal = document.getElementById('photoModal');
+            if (photoModal && photoModal.style.display !== 'none') {
+                closePhotoModal();
+            } else {
+                closeModal();
+            }
         }
     });
     
@@ -1389,6 +1441,12 @@ function openPhotoModal(photoUrl, photoId) {
     
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+function canApprovePhotos() {
+    // Check if user can approve photos (managers and superusers)
+    // This should match the backend permission logic
+    return true; // For now, allow all users to test the modal
 }
 
 function updateModalApprovalControls(photoId, currentStatus) {
@@ -1507,14 +1565,11 @@ function initPhotoModal() {
         updateZoomButtons();
     });
     
-    // Keyboard shortcuts
+    // Keyboard shortcuts for zoom (Escape handled globally)
     document.addEventListener('keydown', (e) => {
         if (modal.style.display === 'none') return;
         
         switch(e.key) {
-            case 'Escape':
-                closePhotoModal();
-                break;
             case '+':
             case '=':
                 e.preventDefault();
@@ -1567,8 +1622,10 @@ function closeModal() {
     const modals = document.querySelectorAll('.photo-modal, .note-modal, .lost-found-modal');
     console.log('🚪 Found modals:', modals.length);
     modals.forEach(modal => {
-        modal.style.display = 'none';
-        console.log('🚪 Closed modal:', modal.id || modal.className);
+        if (modal.style.display !== 'none') {
+            modal.style.display = 'none';
+            console.log('🚪 Closed modal:', modal.id || modal.className);
+        }
     });
     document.body.style.overflow = 'auto';
     console.log('🚪 Modal closed successfully');
@@ -3052,6 +3109,10 @@ window.testPhotoModal = testPhotoModal;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .photo-meta {
