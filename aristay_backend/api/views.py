@@ -543,6 +543,7 @@ class TaskImageListView(DefaultAuthMixin, generics.ListAPIView):
     """
     serializer_class = TaskImageSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for photo lists
 
     def get_queryset(self):
         task_pk = self.kwargs['task_pk']
