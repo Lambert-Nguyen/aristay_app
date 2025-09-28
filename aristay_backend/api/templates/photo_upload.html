@@ -909,8 +909,12 @@ class PhotoUploader {
             }
             
             return `
-                <div class="uploaded-photo-item">
-                    <img src="${photo.image}" alt="Task photo" class="uploaded-photo-thumbnail">
+                <div class="uploaded-photo-item" data-photo-id="${photo.id}" data-photo-type="${photo.photo_type}">
+                    <img src="${photo.image}" 
+                         alt="Task photo" 
+                         class="uploaded-photo-thumbnail"
+                         onclick="photoUploader.openPhotoModal('${photo.image}', ${photo.id})"
+                         style="cursor: pointer;">
                     <div class="photo-info">
                         <div class="photo-header">
                             <span class="photo-type">${photo.photo_type_display}</span>
@@ -1044,6 +1048,16 @@ class PhotoUploader {
         } catch (error) {
             console.error('Error deleting photo:', error);
             this.showStatus(`Error deleting photo: ${error.message}`, 'error');
+        }
+    }
+
+    openPhotoModal(photoUrl, photoId) {
+        // Use the same photo modal functionality as task detail page
+        if (typeof window.openPhotoModal === 'function') {
+            window.openPhotoModal(photoUrl, photoId);
+        } else {
+            // Fallback: open in new tab
+            window.open(photoUrl, '_blank');
         }
     }
 }

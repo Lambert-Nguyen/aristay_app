@@ -689,9 +689,7 @@ class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIVie
             Notification.objects.create(
                 recipient=recipient,
                 task=task,
-                verb=verb,
-                message=f"Photo {new_status} by {user.username}",
-                timestamp=timezone.now()
+                verb=verb
             )
 
     def perform_destroy(self, instance):

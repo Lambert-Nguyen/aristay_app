@@ -116,7 +116,12 @@
                 <!-- Unified Photo Gallery -->
                 {% if task.images.all %}
                 <div class="unified-photo-gallery">
-                    <h4>📸 All Task Photos</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h4>📸 All Task Photos</h4>
+                        <button onclick="testPhotoModal()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            Test Modal
+                        </button>
+                    </div>
                     <div class="photo-gallery-grid">
                         {% for image in task.images.all %}
                         {% if image.image %}
@@ -125,7 +130,8 @@
                                  alt="{{ image.get_photo_type_display }} photo"
                                  data-photo-url="{{ image.image.url }}"
                                  data-photo-id="{{ image.id }}"
-                                 onclick="openPhotoModal('{{ image.image.url }}', {{ image.id }})">
+                                 onclick="console.log('Photo clicked:', {{ image.id }}); openPhotoModal('{{ image.image.url }}', {{ image.id }})"
+                                 style="cursor: pointer;">
                             <div class="photo-meta">
                                 <div class="photo-header">
                                     <span class="photo-type-badge">{{ image.get_photo_type_display }}</span>
@@ -511,18 +517,42 @@
     </div>
 </div>
 
-<!-- Photo Modal -->
+<!-- Enhanced Photo Modal with Zoom and Approval Controls -->
 <div id="photoModal" class="photo-modal" style="display: none;">
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" onclick="closePhotoModal()"></div>
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Photo Viewer</h3>
-            <button class="modal-close">&times;</button>
+            <div class="photo-info">
+                <h3 id="modalPhotoTitle">Photo Viewer</h3>
+                <div class="photo-meta-info">
+                    <span id="modalPhotoType" class="photo-type-badge"></span>
+                    <span id="modalPhotoStatus" class="photo-status"></span>
+                    <span id="modalPhotoDate" class="photo-date"></span>
+                </div>
+            </div>
+            <div class="modal-controls">
+                <button id="zoomInBtn" class="btn-zoom" title="Zoom In">🔍+</button>
+                <button id="zoomOutBtn" class="btn-zoom" title="Zoom Out">🔍-</button>
+                <button id="resetZoomBtn" class="btn-zoom" title="Reset Zoom">⌂</button>
+                <button class="modal-close" onclick="closePhotoModal()">&times;</button>
+            </div>
         </div>
         <div class="modal-body">
-            <img id="modalPhoto" src="" alt="Task photo">
-            <div class="photo-actions">
-                <button class="btn btn-secondary modal-close-btn">Close</button>
+            <div class="photo-container">
+                <img id="modalPhoto" src="" alt="Photo" class="modal-photo">
+            </div>
+            <div class="photo-description-container">
+                <p id="modalPhotoDescription" class="photo-description"></p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="photo-approval-section">
+                <div id="modalApprovalControls" class="photo-approval-controls">
+                    <!-- Approval controls will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closePhotoModal()">Close</button>
             </div>
         </div>
     </div>
@@ -768,6 +798,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModalHandlers();
     initializeKeyboardNavigation();
     initializeRealTimeUpdates();
+    initPhotoModal(); // Initialize enhanced photo modal
+    
+    // Test modal functionality
+    console.log('Photo modal elements check:');
+    console.log('Modal element:', document.getElementById('photoModal'));
+    console.log('Modal photo element:', document.getElementById('modalPhoto'));
+    console.log('openPhotoModal function:', typeof window.openPhotoModal);
 });
 
 // Task Timer Functionality
@@ -1305,22 +1342,99 @@ function initializeModalHandlers() {
     }
 }
 
-function openPhotoModal(itemId) {
+function openPhotoModal(photoUrl, photoId) {
+    console.log('openPhotoModal called with:', photoUrl, photoId);
+    
     const modal = document.getElementById('photoModal');
-    const item = document.querySelector(`[data-item-id="${itemId}"]`);
-    const photos = item.querySelectorAll('.photo-item img');
-
-    if (photos.length === 0) {
-        showNotification('No photos available for this item', 'info');
+    const modalPhoto = document.getElementById('modalPhoto');
+    
+    if (!modal) {
+        console.error('Photo modal not found!');
         return;
     }
-
-    // For simplicity, show first photo
-    const modalPhoto = document.getElementById('modalPhoto');
-    modalPhoto.src = photos[0].src;
-
+    
+    if (!modalPhoto) {
+        console.error('Modal photo element not found!');
+        return;
+    }
+    
+    // Reset zoom
+    modalPhoto.style.transform = 'scale(1)';
+    modalPhoto.style.cursor = 'zoom-in';
+    
+    // Set photo source
+    modalPhoto.src = photoUrl;
+    
+    // Find the photo data from the gallery
+    const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+    if (photoElement) {
+        // Extract photo metadata
+        const photoType = photoElement.dataset.photoType;
+        const photoTypeDisplay = photoElement.querySelector('.photo-type-badge')?.textContent || photoType;
+        const photoStatus = photoElement.querySelector('.photo-status')?.textContent || 'Unknown';
+        const photoStatusClass = photoElement.querySelector('.photo-status')?.className || '';
+        const photoDescription = photoElement.querySelector('.photo-description')?.textContent || '';
+        
+        // Update modal content
+        document.getElementById('modalPhotoTitle').textContent = `${photoTypeDisplay} Photo`;
+        document.getElementById('modalPhotoType').textContent = photoTypeDisplay;
+        document.getElementById('modalPhotoStatus').textContent = photoStatus;
+        document.getElementById('modalPhotoStatus').className = `photo-status ${photoStatusClass}`;
+        document.getElementById('modalPhotoDate').textContent = new Date().toLocaleString();
+        document.getElementById('modalPhotoDescription').textContent = photoDescription;
+        
+        // Update approval controls
+        updateModalApprovalControls(photoId, photoStatus);
+    }
+    
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+function updateModalApprovalControls(photoId, currentStatus) {
+    const controlsContainer = document.getElementById('modalApprovalControls');
+    const canApprove = canApprovePhotos();
+    
+    if (!canApprove) {
+        controlsContainer.innerHTML = '<p class="text-muted">You do not have permission to approve photos</p>';
+        return;
+    }
+    
+    let controlsHtml = '';
+    
+    if (currentStatus === 'pending') {
+        controlsHtml = `
+            <button class="btn-approve" onclick="approvePhoto(${photoId}); closePhotoModal();">
+                ✓ Approve Photo
+            </button>
+            <button class="btn-reject" onclick="rejectPhoto(${photoId}); closePhotoModal();">
+                ✗ Reject Photo
+            </button>
+        `;
+    } else if (currentStatus === 'approved') {
+        controlsHtml = `
+            <span class="status-approved">✓ Approved</span>
+            <button class="btn-archive" onclick="archivePhoto(${photoId}); closePhotoModal();">
+                📁 Archive Photo
+            </button>
+        `;
+    } else if (currentStatus === 'rejected') {
+        controlsHtml = `
+            <span class="status-rejected">✗ Rejected</span>
+            <button class="btn-approve" onclick="approvePhoto(${photoId}); closePhotoModal();">
+                ✓ Approve Photo
+            </button>
+        `;
+    } else if (currentStatus === 'archived') {
+        controlsHtml = `
+            <span class="status-archived">📁 Archived</span>
+            <button class="btn-approve" onclick="approvePhoto(${photoId}); closePhotoModal();">
+                ✓ Unarchive Photo
+            </button>
+        `;
+    }
+    
+    controlsContainer.innerHTML = controlsHtml;
 }
 
 function openPhotoViewer(src) {
@@ -1330,6 +1444,107 @@ function openPhotoViewer(src) {
 
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+function closePhotoModal() {
+    const modal = document.getElementById('photoModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Zoom functionality
+let currentZoom = 1;
+const minZoom = 0.5;
+const maxZoom = 3;
+const zoomStep = 0.25;
+
+function initPhotoModal() {
+    const modal = document.getElementById('photoModal');
+    const modalPhoto = document.getElementById('modalPhoto');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const resetZoomBtn = document.getElementById('resetZoomBtn');
+    
+    if (!modal || !modalPhoto) return;
+    
+    // Zoom in
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => {
+            currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+            modalPhoto.style.transform = `scale(${currentZoom})`;
+            updateZoomButtons();
+        });
+    }
+    
+    // Zoom out
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => {
+            currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+            modalPhoto.style.transform = `scale(${currentZoom})`;
+            updateZoomButtons();
+        });
+    }
+    
+    // Reset zoom
+    if (resetZoomBtn) {
+        resetZoomBtn.addEventListener('click', () => {
+            currentZoom = 1;
+            modalPhoto.style.transform = 'scale(1)';
+            updateZoomButtons();
+        });
+    }
+    
+    // Click to zoom
+    modalPhoto.addEventListener('click', () => {
+        if (currentZoom === 1) {
+            currentZoom = 2;
+            modalPhoto.style.cursor = 'zoom-out';
+        } else {
+            currentZoom = 1;
+            modalPhoto.style.cursor = 'zoom-in';
+        }
+        modalPhoto.style.transform = `scale(${currentZoom})`;
+        updateZoomButtons();
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (modal.style.display === 'none') return;
+        
+        switch(e.key) {
+            case 'Escape':
+                closePhotoModal();
+                break;
+            case '+':
+            case '=':
+                e.preventDefault();
+                zoomInBtn?.click();
+                break;
+            case '-':
+                e.preventDefault();
+                zoomOutBtn?.click();
+                break;
+            case '0':
+                e.preventDefault();
+                resetZoomBtn?.click();
+                break;
+        }
+    });
+}
+
+function updateZoomButtons() {
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    
+    if (zoomInBtn) {
+        zoomInBtn.disabled = currentZoom >= maxZoom;
+        zoomInBtn.style.opacity = currentZoom >= maxZoom ? '0.5' : '1';
+    }
+    
+    if (zoomOutBtn) {
+        zoomOutBtn.disabled = currentZoom <= minZoom;
+        zoomOutBtn.style.opacity = currentZoom <= minZoom ? '0.5' : '1';
+    }
 }
 
 function openNotesModal(itemId) {
@@ -1801,6 +2016,20 @@ async function deletePhoto(photoId) {
     }
 }
 
+// Test function for debugging
+function testPhotoModal() {
+    console.log('Testing photo modal...');
+    const firstImage = document.querySelector('.gallery-photo-item img');
+    if (firstImage) {
+        const photoUrl = firstImage.src;
+        const photoId = firstImage.dataset.photoId;
+        console.log('Testing with:', photoUrl, photoId);
+        openPhotoModal(photoUrl, photoId);
+    } else {
+        console.log('No images found to test with');
+    }
+}
+
 // Export additional functions for global access
 window.openPhotoModal = openPhotoModal;
 window.updateChecklistItem = updateChecklistItem;
@@ -1808,6 +2037,7 @@ window.approvePhoto = approvePhoto;
 window.rejectPhoto = rejectPhoto;
 window.archivePhoto = archivePhoto;
 window.deletePhoto = deletePhoto;
+window.testPhotoModal = testPhotoModal;
 </script>
 {% endblock %}
 
@@ -2115,6 +2345,228 @@ window.deletePhoto = deletePhoto;
 
 .btn-danger:hover {
     background: #dc2626;
+}
+
+/* Enhanced Photo Modal Styles */
+.photo-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-modal .modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    cursor: pointer;
+}
+
+.photo-modal .modal-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 1000px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.photo-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 12px 12px 0 0;
+}
+
+.photo-modal .photo-info h3 {
+    margin: 0 0 8px 0;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.photo-modal .photo-meta-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.photo-modal .modal-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.photo-modal .btn-zoom {
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 40px;
+}
+
+.photo-modal .btn-zoom:hover:not(:disabled) {
+    background: #4b5563;
+}
+
+.photo-modal .btn-zoom:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.photo-modal .modal-close {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 40px;
+}
+
+.photo-modal .modal-close:hover {
+    background: #dc2626;
+}
+
+.photo-modal .modal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.photo-modal .photo-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #f8fafc;
+    overflow: auto;
+}
+
+.photo-modal .modal-photo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    cursor: zoom-in;
+    transition: transform 0.2s ease;
+}
+
+.photo-modal .photo-description-container {
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+}
+
+.photo-modal .photo-description {
+    margin: 0;
+    color: #6b7280;
+    font-style: italic;
+    font-size: 14px;
+}
+
+.photo-modal .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 12px 12px;
+}
+
+.photo-modal .photo-approval-section {
+    flex: 1;
+}
+
+.photo-modal .photo-approval-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.photo-modal .modal-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.photo-modal .btn-secondary {
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.photo-modal .btn-secondary:hover {
+    background: #4b5563;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .photo-modal .modal-content {
+        max-width: 95vw;
+        max-height: 95vh;
+        width: 100%;
+    }
+    
+    .photo-modal .modal-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .photo-modal .modal-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .photo-modal .photo-meta-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .photo-modal .modal-footer {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .photo-modal .photo-approval-controls {
+        justify-content: center;
+    }
 }
 
 .quick-actions {
