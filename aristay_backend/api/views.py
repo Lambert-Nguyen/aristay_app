@@ -3031,8 +3031,39 @@ def photo_upload_view(request):
 @staff_or_perm('view_task')
 def photo_management_view(request):
     """Photo management dashboard for staff"""
+    # Build task list for filters
+    if request.user.is_superuser:
+        tasks = Task.objects.filter(is_deleted=False).select_related('property_ref').order_by('-id')
+    else:
+        accessible_properties = Property.objects.filter(
+            Q(ownerships__user=request.user) |
+            Q(tasks__assigned_to=request.user)
+        ).distinct()
+        tasks = Task.objects.filter(
+            property_ref__in=accessible_properties,
+            is_deleted=False
+        ).select_related('property_ref').order_by('-id')
+
+    # Check approval permission
+    can_approve_photos = (
+        request.user.is_superuser or
+        (hasattr(request.user, 'profile') and 
+         (request.user.profile.role == 'manager' or 
+          request.user.profile.has_permission('manage_files')))
+    )
+
+    # Optional pre-selected task
+    selected_task_id = request.GET.get('task')
+    try:
+        selected_task = Task.objects.get(id=selected_task_id) if selected_task_id else None
+    except Task.DoesNotExist:
+        selected_task = None
+
     context = {
         'user': request.user,
+        'tasks': tasks,
+        'selected_task': selected_task,
+        'can_approve_photos': can_approve_photos,
     }
     return render(request, 'photo_management.html', context)
 

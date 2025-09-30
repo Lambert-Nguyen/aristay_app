@@ -52,3 +52,5 @@ class Command(BaseCommand):
                     f'Successfully deleted {deleted_count} broken photo records.'
                 )
             )
+
+
