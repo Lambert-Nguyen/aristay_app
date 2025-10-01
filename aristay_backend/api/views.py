@@ -631,9 +631,9 @@ class TaskImageDetailView(DefaultAuthMixin, generics.RetrieveUpdateDestroyAPIVie
         # Define valid transitions
         valid_transitions = {
             'pending': ['approved', 'rejected'],
-            'approved': ['archived'],
-            'rejected': ['pending', 'archived'],
-            'archived': ['pending']  # Allow unarchiving
+            'approved': ['archived', 'rejected'],  # Allow approved -> rejected
+            'rejected': ['pending', 'archived', 'approved'],  # Allow rejected -> approved
+            'archived': ['pending', 'approved', 'rejected']  # Allow archived -> any status
         }
         
         return new_status in valid_transitions.get(old_status, [])

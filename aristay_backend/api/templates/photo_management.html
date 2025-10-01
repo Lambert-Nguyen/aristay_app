@@ -462,7 +462,7 @@
     padding: 0.25rem 0.5rem;
     border-radius: 999px;
     font-size: 0.75rem;
-    font-weight: 600;
+        font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -533,8 +533,8 @@
     width: 100%;
     height: 100%;
     z-index: 1000;
-    display: flex;
-    align-items: center;
+        display: flex;
+        align-items: center;
     justify-content: center;
 }
 
@@ -608,7 +608,7 @@
     .header-actions {
             width: 100%;
         justify-content: flex-start;
-    }
+        }
     }
 </style>
 
@@ -624,6 +624,18 @@ function statusBadgeStyles(status){
     case 'archived': return 'archived';
     default: return 'archived';
   }
+}
+
+function getValidTransitions(currentStatus) {
+  // Match the backend validation logic
+  const validTransitions = {
+    'pending': ['approved', 'rejected'],
+    'approved': ['archived', 'rejected'],
+    'rejected': ['pending', 'archived', 'approved'],
+    'archived': ['pending', 'approved', 'rejected']
+  };
+  
+  return validTransitions[currentStatus] || [];
 }
 
 async function fetchPhotos(){
@@ -757,9 +769,36 @@ function renderGrid(items){
         const rejectBtn = actionContainer.querySelector('[data-action="reject"]');
         const archiveBtn = actionContainer.querySelector('[data-action="archive"]');
         
-        if (approveBtn) approveBtn.addEventListener('click', () => updateStatus(p, 'approved'));
-        if (rejectBtn) rejectBtn.addEventListener('click', () => updateStatus(p, 'rejected'));
-        if (archiveBtn) archiveBtn.addEventListener('click', () => updateStatus(p, 'archived'));
+        // Show/hide buttons based on valid transitions
+        const currentStatus = p.photo_status;
+        const validTransitions = getValidTransitions(currentStatus);
+        
+        if (approveBtn) {
+          if (validTransitions.includes('approved')) {
+            approveBtn.style.display = 'inline-block';
+            approveBtn.addEventListener('click', () => updateStatus(p, 'approved'));
+          } else {
+            approveBtn.style.display = 'none';
+          }
+        }
+        
+        if (rejectBtn) {
+          if (validTransitions.includes('rejected')) {
+            rejectBtn.style.display = 'inline-block';
+            rejectBtn.addEventListener('click', () => updateStatus(p, 'rejected'));
+        } else {
+            rejectBtn.style.display = 'none';
+          }
+        }
+        
+        if (archiveBtn) {
+          if (validTransitions.includes('archived')) {
+            archiveBtn.style.display = 'inline-block';
+            archiveBtn.addEventListener('click', () => updateStatus(p, 'archived'));
+        } else {
+            archiveBtn.style.display = 'none';
+          }
+        }
       });
     }
 
