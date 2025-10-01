@@ -119,7 +119,7 @@ class InviteCodeManagementTestCase(TestCase):
             created_by=self.superuser,
             task_group=TaskGroup.GENERAL,
             role=UserRole.STAFF,
-            expires_at=datetime.now() + timedelta(days=30),
+            expires_at=timezone.now() + timedelta(days=30),
             notes='Superuser test code'
         )
         

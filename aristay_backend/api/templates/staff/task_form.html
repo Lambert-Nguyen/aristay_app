@@ -563,6 +563,27 @@ function initializeForm() {
     initializeTooltips();
 }
 
+function validateField(e) {
+    const field = e.target;
+    const label = document.querySelector(`label[for="${field.id}"]`);
+    
+    if (label && label.classList.contains('required') && !field.value.trim()) {
+        showFieldError(field, 'This field is required');
+    } else {
+        clearFieldError(field);
+    }
+}
+
+function clearFieldError(field) {
+    if (field && field.parentNode) {
+        const errorElement = field.parentNode.querySelector('.error');
+        if (errorElement) {
+            errorElement.remove();
+        }
+        field.classList.remove('error');
+    }
+}
+
 function setupFormValidation() {
     const form = document.querySelector('.task-form');
     if (!form) return;
@@ -618,27 +639,6 @@ function validateForm() {
     }
     
     return isValid;
-}
-
-function validateField(e) {
-    const field = e.target;
-    const label = document.querySelector(`label[for="${field.id}"]`);
-    
-    if (label && label.classList.contains('required') && !field.value.trim()) {
-        showFieldError(field, 'This field is required');
-    } else {
-        clearFieldError(field);
-    }
-}
-
-function clearFieldError(field) {
-    if (field && field.parentNode) {
-        const errorElement = field.parentNode.querySelector('.error');
-        if (errorElement) {
-            errorElement.remove();
-        }
-        field.classList.remove('error');
-    }
 }
 
 function showFieldError(field, message) {

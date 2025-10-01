@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
-from api.models import Task, TaskChecklist, ChecklistTemplate, ChecklistItem, ChecklistResponse, ChecklistPhoto, Profile, TaskImage
+from api.models import Task, TaskChecklist, ChecklistTemplate, ChecklistItem, ChecklistResponse, Profile, TaskImage
 from PIL import Image
 import io
 
