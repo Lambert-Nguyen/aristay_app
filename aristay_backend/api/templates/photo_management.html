@@ -861,7 +861,7 @@ async function updateStatus(photo, newStatus){
     
     if(res.ok){
       const statusText = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-      console.log(`Photo ${photo.id} status updated to ${statusText}`);
+      // Photo status updated successfully
       load(); // Refresh the grid
     } else {
       const text = await res.text();
