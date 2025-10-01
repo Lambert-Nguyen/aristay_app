@@ -932,17 +932,21 @@ def upload_checklist_photo(request):
         
         # Unified path: create TaskImage associated to the task and link to ChecklistResponse
         task = response.checklist.task
-        # Determine next sequence within 'checklist' type
-        existing = TaskImage.objects.filter(task=task, photo_type='checklist')
-        next_seq = existing.count() + 1
-        task_image = TaskImage.objects.create(
-            task=task,
-            image=photo,
-            uploaded_by=request.user,
-            photo_type='checklist',
-            sequence_number=next_seq,
-            checklist_response=response,
-        )
+        
+        with transaction.atomic():
+            # Lock existing rows for this task/type to compute next sequence safely
+            existing_qs = (TaskImage.objects
+                           .select_for_update()
+                           .filter(task=task, photo_type='checklist'))
+            next_seq = existing_qs.count() + 1
+            task_image = TaskImage.objects.create(
+                task=task,
+                image=photo,
+                uploaded_by=request.user,
+                photo_type='checklist',
+                sequence_number=next_seq,
+                checklist_response=response,
+            )
         
         return JsonResponse({
             'success': True,

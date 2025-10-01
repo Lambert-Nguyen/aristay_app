@@ -566,6 +566,11 @@
 </div>
 
 <script>
+function getCsrfToken(){
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : (window.CSRF_TOKEN || '');
+}
+
 // Set user permissions for photo approval
 window.userCanApprovePhotos = {{ can_approve_photos|yesno:"true,false" }};
 
@@ -792,7 +797,7 @@ class PhotoUploader {
             method: 'POST',
             body: formData,
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': getCsrfToken()
             }
         });
 
@@ -1007,7 +1012,7 @@ class PhotoUploader {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({ photo_status: status })
             });
@@ -1035,7 +1040,7 @@ class PhotoUploader {
             const response = await fetch(`/api/tasks/${this.selectedTask}/images/${photoId}/`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCsrfToken()
                 }
             });
 
