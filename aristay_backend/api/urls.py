@@ -40,7 +40,7 @@ from .views import (
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
     system_logs_viewer, system_logs_download, system_crash_recovery,
     portal_home, portal_calendar, portal_property_list, portal_property_detail, portal_booking_detail,
-    portal_task_detail,
+    portal_task_detail, portal_photo_management_view,
     excel_import_view, excel_import_api, property_approval_create,
     enhanced_excel_import_view, enhanced_excel_import_api,
     ConflictReviewView, resolve_conflicts, get_conflict_details,
@@ -188,6 +188,7 @@ urlpatterns = [
     path('portal/properties/<int:pk>/', portal_property_detail, name='portal-property-detail'),
     path('portal/properties/<int:property_id>/bookings/<int:pk>/', portal_booking_detail, name='portal-booking-detail'),
     path('portal/tasks/<int:task_id>/', portal_task_detail, name='portal-task-detail'),
+    path('portal/photos/', portal_photo_management_view, name='portal-photo-management'),
     
     # Staff Portal Routes
     path('staff/', staff_dashboard, name='staff-dashboard'),

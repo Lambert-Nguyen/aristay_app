@@ -45,6 +45,21 @@
             </a>
         </div>
         
+        <!-- Photo Management Portal -->
+        {% if user.is_staff or user.profile and user.profile.role in 'manager,superuser' %}
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🖼️</div>
+            <h3 style="margin-bottom: 0.5rem;">Photo Management</h3>
+            <p style="margin-bottom: 1rem; color: #64748b;">Review, approve, and manage photos across all tasks</p>
+            <a href="/api/portal/photos/" class="button" style="width: 100%; display: block; margin-bottom: 0.5rem;">
+                📸 Manage Photos
+            </a>
+            <a href="/api/staff/photos/upload/" class="button" style="width: 100%; display: block; background-color: #059669; border-color: #059669;">
+                📤 Upload Photos
+            </a>
+        </div>
+        {% endif %}
+        
         <!-- Admin/Manager Portal -->
         {% if user.is_staff %}
         <div class="card" style="text-align: center; padding: 1.5rem;">
