@@ -186,7 +186,12 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             '../', '..\\', 'etc/passwd'
         ]
         
-        request_data = f"{request.path} {request.body.decode('utf-8', errors='ignore')[:500]}"
+        # Safely read request body; avoid triggering RequestDataTooBig
+        try:
+            body_preview = request.body.decode('utf-8', errors='ignore')[:500]
+        except Exception:
+            body_preview = ''
+        request_data = f"{request.path} {body_preview}"
         if any(pattern in request_data for pattern in suspicious_patterns):
             self.security_logger.warning(
                 f"Suspicious request pattern detected: {request.method} {request.path}",

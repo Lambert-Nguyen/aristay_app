@@ -13,7 +13,7 @@ from .settings_base import *
 # Test-specific overrides
 DEBUG = True
 DJANGO_ENVIRONMENT = "testing"
-ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1', 'localhost:8000', '127.0.0.1:8000']
 
 # Prefer DATABASE_URL in CI/local if provided, else fall back to local Postgres
 from pathlib import Path

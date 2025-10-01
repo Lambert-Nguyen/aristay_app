@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
-from api.models import Task, TaskChecklist, ChecklistTemplate, ChecklistItem, ChecklistResponse, ChecklistPhoto, Profile
+from api.models import Task, TaskChecklist, ChecklistTemplate, ChecklistItem, ChecklistResponse, Profile, TaskImage
 from PIL import Image
 import io
 
@@ -91,8 +91,8 @@ class TestChecklistPhotoUpload:
         
         assert response_data.status_code == 200
         
-        # Verify photo was created
-        photos = ChecklistPhoto.objects.filter(response=response)
+        # Verify photo was created as TaskImage (unified photo system)
+        photos = TaskImage.objects.filter(checklist_response=response, photo_type='checklist')
         assert photos.count() == 1
         
         photo = photos.first()
@@ -432,10 +432,12 @@ class TestChecklistPhotoRemoval:
             content_type="image/jpeg"
         )
         
-        photo = ChecklistPhoto.objects.create(
-            response=response,
+        photo = TaskImage.objects.create(
+            task=response.checklist.task,
             image=test_image,
-            uploaded_by=user
+            uploaded_by=user,
+            photo_type='checklist',
+            checklist_response=response
         )
         
         client = Client()
@@ -450,7 +452,7 @@ class TestChecklistPhotoRemoval:
         assert response_data.status_code == 200
         
         # Verify photo was removed
-        photos = ChecklistPhoto.objects.filter(response=response)
+        photos = TaskImage.objects.filter(checklist_response=response, photo_type='checklist')
         assert photos.count() == 0
     
     def test_photo_removal_missing_parameters(self):

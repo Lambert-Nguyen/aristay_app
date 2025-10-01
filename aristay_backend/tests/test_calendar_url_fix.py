@@ -8,7 +8,19 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
 from api.models import Task, Booking, Property, Profile
-from tests.utils.timezone_helpers import create_task_dates, create_booking_dates
+# Inline helper functions
+from datetime import timedelta
+from django.utils import timezone
+
+def create_task_dates(due_days=1):
+    """Create task due date relative to now"""
+    return timezone.now() + timedelta(days=due_days)
+
+def create_booking_dates(check_in_days=0, check_out_days=1):
+    """Create booking check-in and check-out dates relative to now"""
+    check_in = timezone.now() + timedelta(days=check_in_days)
+    check_out = timezone.now() + timedelta(days=check_out_days)
+    return check_in, check_out
 
 User = get_user_model()
 

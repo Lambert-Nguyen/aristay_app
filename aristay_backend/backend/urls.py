@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponse
 from api.managersite import manager_site
 from api.invite_code_views import invite_code_list, create_invite_code, edit_invite_code, revoke_invite_code, reactivate_invite_code, delete_invite_code, invite_code_detail
 from api.registration_views import registration_view
@@ -105,6 +106,9 @@ urlpatterns = [
     
     # User registration (HTML form)
     path('register/', registration_view, name='register'),
+    
+    # Favicon
+    path('favicon.ico', lambda request: HttpResponse('', content_type='image/x-icon'), name='favicon'),
     
     # Password reset endpoints - using custom views with audit logging
     path('api/auth/password_reset/', 

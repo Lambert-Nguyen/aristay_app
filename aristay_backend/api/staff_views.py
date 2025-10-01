@@ -21,13 +21,16 @@ Authorization:
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.http import JsonResponse, HttpResponseRedirect
+from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Q, Count, Prefetch, F
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.urls import reverse
+from django.forms import ModelForm, CharField, Textarea, Select, DateInput, DateTimeInput
+from django.core.exceptions import ValidationError
 from datetime import timedelta
 import json
 import logging
@@ -59,9 +62,9 @@ def get_team_tasks(request, task_type):
         ).select_related('property_ref', 'booking')
 
 from .models import (
-    Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto,
+    Task, Property, TaskChecklist, ChecklistResponse, ChecklistPhoto, TaskImage,
     PropertyInventory, InventoryTransaction, LostFoundItem, Profile,
-    Booking, TASK_TYPE_CHOICES
+    Booking, TASK_TYPE_CHOICES, User
 )
 from .serializers import TaskSerializer
 from .authz import AuthzHelper, can_edit_task, can_view_task
@@ -335,9 +338,22 @@ def task_detail(request, task_id):
                     ChecklistResponse.objects.bulk_create(responses_to_create, ignore_conflicts=True)
                     responses = checklist.responses.select_related('item').prefetch_related('photos')
     
+    # Attach unified photos (TaskImage) per checklist response
+    try:
+        task_images = TaskImage.objects.filter(task=task).select_related('checklist_response')
+        images_by_response = {}
+        for img in task_images:
+            rid = getattr(img.checklist_response, 'id', None)
+            if rid:
+                images_by_response.setdefault(rid, []).append(img)
+    except Exception:
+        images_by_response = {}
+
     # Group responses by room type for better organization
     responses_by_room = {}
     for response in responses:
+        # Attach unified photos for template consumption
+        setattr(response, 'unified_photos', images_by_response.get(response.id, []))
         room = response.item.room_type or 'General'
         if room not in responses_by_room:
             responses_by_room[room] = {
@@ -350,11 +366,20 @@ def task_detail(request, task_id):
         if response.is_completed:
             responses_by_room[room]['completed_count'] += 1
     
+    # Check if user can approve photos
+    can_approve_photos = (
+        request.user.is_superuser or
+        (hasattr(request.user, 'profile') and 
+         (request.user.profile.role == 'manager' or 
+          request.user.profile.has_permission('manage_files')))
+    )
+    
     context = {
         'task': task,
         'checklist': checklist,
         'responses_by_room': responses_by_room,
         'can_edit': can_edit_task(request.user, task),
+        'can_approve_photos': can_approve_photos,
         'user': request.user,  # Add user to context
     }
     
@@ -366,13 +391,13 @@ def task_detail(request, task_id):
 def update_checklist_response(request, response_id):
     """Update a checklist response via AJAX."""
     
-    response = get_object_or_404(ChecklistResponse, id=response_id)
-    
-    # Check permissions using centralized authorization
-    if not can_edit_task(request.user, response.checklist.task):
-        return JsonResponse({'error': 'Permission denied'}, status=403)
-    
     try:
+        response = get_object_or_404(ChecklistResponse, id=response_id)
+        
+        # Check permissions using centralized authorization
+        if not can_edit_task(request.user, response.checklist.task):
+            return JsonResponse({'error': 'Permission denied'}, status=403)
+        
         data = json.loads(request.body)
         
         # Update response fields
@@ -515,6 +540,197 @@ def my_tasks(request):
     }
     
     return render(request, 'staff/my_tasks.html', context)
+
+
+# Task Form for CRUD operations
+class TaskForm(ModelForm):
+    """Form for creating and editing tasks."""
+    
+    class Meta:
+        model = Task
+        fields = [
+            'title', 'description', 'task_type', 'status', 
+            'due_date', 'assigned_to', 'property_ref', 'booking'
+        ]
+        widgets = {
+            'description': Textarea(attrs={'rows': 4, 'cols': 40}),
+            'due_date': DateTimeInput(attrs={'type': 'datetime-local'}),
+            'task_type': Select(choices=TASK_TYPE_CHOICES),
+            'status': Select(choices=Task.STATUS_CHOICES),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter properties to only show active ones
+        self.fields['property_ref'].queryset = Property.objects.filter(is_deleted=False)
+        
+        # Filter users to only show staff members
+        if user and not user.is_superuser:
+            try:
+                profile = user.profile
+                if profile.role == 'manager':
+                    # Managers can assign to all staff
+                    self.fields['assigned_to'].queryset = User.objects.filter(
+                        is_active=True, 
+                        profile__isnull=False
+                    ).exclude(profile__role='guest')
+                else:
+                    # Regular staff can only assign to themselves
+                    self.fields['assigned_to'].queryset = User.objects.filter(id=user.id)
+            except Profile.DoesNotExist:
+                self.fields['assigned_to'].queryset = User.objects.filter(id=user.id)
+        else:
+            # Superusers can assign to all staff
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                is_active=True, 
+                profile__isnull=False
+            ).exclude(profile__role='guest')
+        
+        # Set default assigned_to to current user
+        if user and not self.instance.pk:
+            self.fields['assigned_to'].initial = user
+
+
+@login_required
+def task_create(request):
+    """Create a new task."""
+    
+    # Check if user can create tasks
+    try:
+        profile = request.user.profile
+        can_create = (
+            request.user.is_superuser or 
+            profile.role == 'manager' or 
+            profile.has_permission('add_task')
+        )
+    except Profile.DoesNotExist:
+        can_create = request.user.is_superuser
+    
+    if not can_create:
+        messages.error(request, "You don't have permission to create tasks.")
+        return redirect('/api/staff/tasks/')
+    
+    if request.method == 'POST':
+        form = TaskForm(request.POST, user=request.user)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.created_by = request.user
+            task.save()
+            
+            messages.success(request, f'Task "{task.title}" created successfully.')
+            return redirect('staff-task-detail', task_id=task.id)
+    else:
+        form = TaskForm(user=request.user)
+    
+    context = {
+        'form': form,
+        'title': 'Create New Task',
+        'action': 'create',
+        'user': request.user,
+    }
+    
+    return render(request, 'staff/task_form.html', context)
+
+
+@login_required
+def task_edit(request, task_id):
+    """Edit an existing task."""
+    
+    task = get_object_or_404(Task, id=task_id)
+    
+    # Check if user can edit this task
+    if not can_edit_task(request.user, task):
+        messages.error(request, "You don't have permission to edit this task.")
+        return redirect('staff-task-detail', task_id=task_id)
+    
+    if request.method == 'POST':
+        form = TaskForm(request.POST, instance=task, user=request.user)
+        if form.is_valid():
+            task = form.save()
+            messages.success(request, f'Task "{task.title}" updated successfully.')
+            return redirect('staff-task-detail', task_id=task.id)
+    else:
+        form = TaskForm(instance=task, user=request.user)
+    
+    context = {
+        'form': form,
+        'task': task,
+        'title': f'Edit Task: {task.title}',
+        'action': 'edit',
+        'user': request.user,
+    }
+    
+    return render(request, 'staff/task_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def task_delete(request, task_id):
+    """Delete a task."""
+    
+    task = get_object_or_404(Task, id=task_id)
+    
+    # Check if user can delete this task
+    try:
+        profile = request.user.profile
+        can_delete = (
+            request.user.is_superuser or 
+            profile.role == 'manager' or 
+            profile.has_permission('delete_task') or
+            task.created_by == request.user
+        )
+    except Profile.DoesNotExist:
+        can_delete = request.user.is_superuser or task.created_by == request.user
+    
+    if not can_delete:
+        messages.error(request, "You don't have permission to delete this task.")
+        return redirect('staff-task-detail', task_id=task_id)
+    
+    task_title = task.title
+    task.delete()
+    
+    messages.success(request, f'Task "{task_title}" deleted successfully.')
+    return redirect('/api/staff/tasks/')
+
+
+@login_required
+def task_duplicate(request, task_id):
+    """Duplicate an existing task."""
+    
+    original_task = get_object_or_404(Task, id=task_id)
+    
+    # Check if user can create tasks
+    try:
+        profile = request.user.profile
+        can_create = (
+            request.user.is_superuser or 
+            profile.role == 'manager' or 
+            profile.has_permission('add_task')
+        )
+    except Profile.DoesNotExist:
+        can_create = request.user.is_superuser
+    
+    if not can_create:
+        messages.error(request, "You don't have permission to create tasks.")
+        return redirect('staff-task-detail', task_id=task_id)
+    
+    # Create duplicate
+    duplicate_task = Task.objects.create(
+        title=f"{original_task.title} (Copy)",
+        description=original_task.description,
+        task_type=original_task.task_type,
+        status='pending',
+        property_ref=original_task.property_ref,
+        booking=original_task.booking,
+        assigned_to=request.user,  # Assign to current user
+        created_by=request.user,
+        due_date=original_task.due_date,
+    )
+    
+    messages.success(request, f'Task "{duplicate_task.title}" created successfully.')
+    return redirect('staff-task-detail', task_id=duplicate_task.id)
 
 
 @login_required
@@ -700,17 +916,42 @@ def upload_checklist_photo(request):
         if not can_edit_task(request.user, response.checklist.task):
             return JsonResponse({'error': 'Permission denied'}, status=403)
         
-        # Create photo record
-        checklist_photo = ChecklistPhoto.objects.create(
-            response=response,
-            image=photo,
-            uploaded_by=request.user
-        )
+        # Validate file type and size
+        try:
+            from api.models import validate_task_image
+            validate_task_image(photo)
+        except ValidationError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        
+        # Check file size using consistent settings
+        from django.conf import settings
+        max_bytes = getattr(settings, 'MAX_UPLOAD_BYTES', 25 * 1024 * 1024)
+        if photo.size > max_bytes:
+            max_mb = max_bytes // (1024 * 1024)
+            return JsonResponse({'error': f'File too large. Maximum size is {max_mb}MB.'}, status=400)
+        
+        # Unified path: create TaskImage associated to the task and link to ChecklistResponse
+        task = response.checklist.task
+        
+        with transaction.atomic():
+            # Lock existing rows for this task/type to compute next sequence safely
+            existing_qs = (TaskImage.objects
+                           .select_for_update()
+                           .filter(task=task, photo_type='checklist'))
+            next_seq = existing_qs.count() + 1
+            task_image = TaskImage.objects.create(
+                task=task,
+                image=photo,
+                uploaded_by=request.user,
+                photo_type='checklist',
+                sequence_number=next_seq,
+                checklist_response=response,
+            )
         
         return JsonResponse({
             'success': True,
-            'photo_id': checklist_photo.id,
-            'photo_url': checklist_photo.image.url
+            'photo_id': task_image.id,
+            'photo_url': task_image.image.url
         })
         
     except Exception as e:
@@ -736,21 +977,27 @@ def remove_checklist_photo(request):
         if not can_edit_task(request.user, response.checklist.task):
             return JsonResponse({'error': 'Permission denied'}, status=403)
 
-        # Find and delete the photo
+        # Prefer deleting unified TaskImage; fall back to ChecklistPhoto for legacy
+        filename = photo_url.split('/')[-1]
+        # 1) Try TaskImage linked to this response and task
+        task = response.checklist.task
+        ti = TaskImage.objects.filter(task=task, checklist_response=response, image__endswith=filename).first()
+        if ti:
+            ti.image.delete(save=False)
+            ti.delete()
+            return JsonResponse({'success': True})
+        
+        # 2) Legacy: try ChecklistPhoto
         try:
             photo = ChecklistPhoto.objects.get(
                 response=response,
-                image__endswith=photo_url.split('/')[-1]
+                image__endswith=filename
             )
-            
-            # Delete the file
             photo.image.delete(save=False)
             photo.delete()
-
             return JsonResponse({'success': True})
-            
         except ChecklistPhoto.DoesNotExist:
-            logger.warning(f"ChecklistPhoto not found for response {item_id} with photo_url {photo_url}")
+            logger.warning(f"ChecklistPhoto/TaskImage not found for response {item_id} with photo_url {photo_url}")
             return JsonResponse({'error': 'Photo not found'}, status=404)
 
     except Exception as e:
