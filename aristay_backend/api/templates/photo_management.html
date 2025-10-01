@@ -5,6 +5,7 @@
 
 {% block content %}
 <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 16px;">
+    {% csrf_token %}
     <h1 style="margin-bottom: 16px;">Photo Management</h1>
 
     <div class="filters" style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
@@ -45,6 +46,38 @@
     </div>
 
     <div id="grid" class="grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;"></div>
+    
+    <style>
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background: #2563eb;
+        }
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .filters select {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+        .filters select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 
     <template id="photoCardTpl">
         <div class="card" style="border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; background:#fff; display:flex; flex-direction:column;">
@@ -86,12 +119,23 @@ async function fetchPhotos(){
   const taskId = document.getElementById('taskFilter').value;
   const url = taskId ? `/api/tasks/${taskId}/images/` : null;
   if(!url){
-    document.getElementById('grid').innerHTML = '<div style="color:#6b7280;">Select a task to view photos.</div>';
+    document.getElementById('grid').innerHTML = '<div style="color:#6b7280; padding:20px; text-align:center;">Select a task to view photos.</div>';
     return [];
   }
-  const res = await fetch(url, { credentials: 'same-origin' });
-  if(!res.ok){ return []; }
-  return await res.json();
+  try {
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if(!res.ok){ 
+      console.error('Failed to fetch photos:', res.status, res.statusText);
+      document.getElementById('grid').innerHTML = '<div style="color:#dc2626; padding:20px; text-align:center;">Failed to load photos. Please try again.</div>';
+      return []; 
+    }
+    const data = await res.json();
+    return data.results || data; // Handle both paginated and non-paginated responses
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    document.getElementById('grid').innerHTML = '<div style="color:#dc2626; padding:20px; text-align:center;">Error loading photos. Please check your connection.</div>';
+    return [];
+  }
 }
 
 function renderGrid(items){
@@ -99,10 +143,20 @@ function renderGrid(items){
   const statusFilter = document.getElementById('statusFilter').value;
   const typeFilter = document.getElementById('typeFilter').value;
 
+  if (!items || items.length === 0) {
+    grid.innerHTML = '<div style="color:#6b7280; padding:20px; text-align:center;">No photos found for the selected task.</div>';
+    return;
+  }
+
   const filtered = items.filter(p =>
     (!statusFilter || p.photo_status === statusFilter) &&
     (!typeFilter || p.photo_type === typeFilter)
   );
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="color:#6b7280; padding:20px; text-align:center;">No photos match the current filters.</div>';
+    return;
+  }
 
   const tpl = document.getElementById('photoCardTpl');
   grid.innerHTML = '';
@@ -115,19 +169,30 @@ function renderGrid(items){
     const meta = node.querySelector('[data-el="meta"]');
     const actions = node.querySelector('[data-el="actions"]');
 
-    img.src = p.image;
-    img.alt = `Photo ${p.id}`;
-    img.addEventListener('click', () => window.open(p.image, '_blank'));
+    // Handle missing image gracefully
+    if (p.image) {
+      img.src = p.image;
+      img.alt = `Photo ${p.id}`;
+      img.addEventListener('click', () => window.open(p.image, '_blank'));
+    } else {
+      img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDIwMCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik04MCA2MEgxMjBWMTIwSDgwVjYwWiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNODAgODBIMTIwVjEwMEg4MFY4MFoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+';
+      img.alt = 'Missing image';
+      img.style.cursor = 'default';
+    }
 
-    type.textContent = (p.photo_type_display || p.photo_type || '').toString();
-    status.textContent = (p.photo_status_display || p.photo_status || '').toString();
+    type.textContent = (p.photo_type_display || p.photo_type || 'Unknown').toString();
+    status.textContent = (p.photo_status_display || p.photo_status || 'Unknown').toString();
     status.setAttribute('style', statusBadgeStyles(p.photo_status));
-    meta.textContent = `ID #${p.id} · seq ${p.sequence_number} · ${p.created_at ?? ''}`;
+    meta.textContent = `ID #${p.id || 'N/A'} · seq ${p.sequence_number || 'N/A'} · ${p.created_at || 'Unknown date'}`;
 
     if (canApprove && actions){
-      actions.querySelector('[data-action="approve"]').addEventListener('click', () => updateStatus(p, 'approved'));
-      actions.querySelector('[data-action="reject"]').addEventListener('click', () => updateStatus(p, 'rejected'));
-      actions.querySelector('[data-action="archive"]').addEventListener('click', () => updateStatus(p, 'archived'));
+      const approveBtn = actions.querySelector('[data-action="approve"]');
+      const rejectBtn = actions.querySelector('[data-action="reject"]');
+      const archiveBtn = actions.querySelector('[data-action="archive"]');
+      
+      if (approveBtn) approveBtn.addEventListener('click', () => updateStatus(p, 'approved'));
+      if (rejectBtn) rejectBtn.addEventListener('click', () => updateStatus(p, 'rejected'));
+      if (archiveBtn) archiveBtn.addEventListener('click', () => updateStatus(p, 'archived'));
     }
 
     grid.appendChild(node);
@@ -136,18 +201,44 @@ function renderGrid(items){
 
 async function updateStatus(photo, newStatus){
   const taskId = document.getElementById('taskFilter').value;
-  if(!taskId){ return; }
-  const res = await fetch(`/api/tasks/${taskId}/images/${photo.id}/`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ photo_status: newStatus })
-  });
-  if(res.ok){
-    load();
-  } else {
-    const text = await res.text();
-    alert(`Update failed: ${res.status} ${text}`);
+  if(!taskId){ 
+    alert('Please select a task first.');
+    return; 
+  }
+  
+  if (!photo || !photo.id) {
+    alert('Invalid photo data.');
+    return;
+  }
+
+  // Get CSRF token
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  
+  try {
+    const res = await fetch(`/api/tasks/${taskId}/images/${photo.id}/`, {
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(csrfToken && { 'X-CSRFToken': csrfToken })
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ photo_status: newStatus })
+    });
+    
+    if(res.ok){
+      // Show success feedback
+      const statusText = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+      console.log(`Photo ${photo.id} status updated to ${statusText}`);
+      load(); // Refresh the grid
+    } else {
+      const text = await res.text();
+      console.error('Update failed:', res.status, text);
+      alert(`Failed to update photo status: ${res.status} ${res.statusText}`);
+    }
+  } catch (error) {
+    console.error('Error updating photo status:', error);
+    alert('Network error. Please check your connection and try again.');
   }
 }
 
