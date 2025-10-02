@@ -131,7 +131,9 @@ class TaskImageSerializer(serializers.ModelSerializer):
             'size_bytes', 'width', 'height', 'original_size_bytes',
             # NEW: Before/After photo fields
             'photo_type', 'photo_type_display', 'photo_status', 'photo_status_display',
-            'sequence_number', 'is_primary', 'description'
+            'sequence_number', 'is_primary', 'description',
+            # Link to checklist response when applicable
+            'checklist_response'
         ]
         read_only_fields = ['uploaded_by', 'uploaded_by_username', 'size_bytes', 
                            'width', 'height', 'original_size_bytes', 'photo_type_display', 'photo_status_display']
@@ -151,9 +153,27 @@ class TaskImageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"Image is too large (> {max_mb} MB). Please choose a smaller photo.")
         
         # Validate allowed content types
-        allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/mpo']
+        
+        # Handle MPO files (Multi Picture Object - used by some cameras)
+        if file.content_type == 'image/mpo':
+            # MPO files are essentially JPEG files with additional data
+            # We'll treat them as JPEG for processing
+            file.content_type = 'image/jpeg'
+        
+        # Fallback: Check file extension if content type is not recognized
         if file.content_type not in allowed_types:
-            raise serializers.ValidationError("Unsupported file type. Please upload JPEG, PNG, or WebP images.")
+            file_extension = file.name.lower().split('.')[-1] if '.' in file.name else ''
+            
+            if file_extension in ['jpg', 'jpeg']:
+                file.content_type = 'image/jpeg'
+            elif file_extension == 'png':
+                file.content_type = 'image/png'
+            elif file_extension == 'webp':
+                file.content_type = 'image/webp'
+        
+        if file.content_type not in allowed_types:
+            raise serializers.ValidationError(f"Unsupported file type '{file.content_type}'. Please upload JPEG, PNG, or WebP images.")
         
         return file
     

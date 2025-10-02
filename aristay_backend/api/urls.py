@@ -40,7 +40,7 @@ from .views import (
     admin_charts_dashboard, system_metrics_dashboard, system_metrics_api,
     system_logs_viewer, system_logs_download, system_crash_recovery,
     portal_home, portal_calendar, portal_property_list, portal_property_detail, portal_booking_detail,
-    portal_task_detail,
+    portal_task_detail, portal_photo_management_view,
     excel_import_view, excel_import_api, property_approval_create,
     enhanced_excel_import_view, enhanced_excel_import_api,
     ConflictReviewView, resolve_conflicts, get_conflict_details,
@@ -85,7 +85,8 @@ from .staff_views import (
     lawn_pool_dashboard, task_detail, update_checklist_response, my_tasks,
     inventory_lookup, log_inventory_transaction, lost_found_list, lost_found_create,
     upload_checklist_photo, update_task_status_api, task_counts_api,
-    update_checklist_item, remove_checklist_photo, task_progress_api
+    update_checklist_item, remove_checklist_photo, task_progress_api,
+    task_create, task_edit, task_delete, task_duplicate
 )
 
 from .monitoring import (
@@ -187,6 +188,7 @@ urlpatterns = [
     path('portal/properties/<int:pk>/', portal_property_detail, name='portal-property-detail'),
     path('portal/properties/<int:property_id>/bookings/<int:pk>/', portal_booking_detail, name='portal-booking-detail'),
     path('portal/tasks/<int:task_id>/', portal_task_detail, name='portal-task-detail'),
+    path('portal/photos/', portal_photo_management_view, name='portal-photo-management'),
     
     # Staff Portal Routes
     path('staff/', staff_dashboard, name='staff-dashboard'),
@@ -195,7 +197,11 @@ urlpatterns = [
     path('staff/laundry/', laundry_dashboard, name='laundry-dashboard'),
     path('staff/lawn_pool/', lawn_pool_dashboard, name='lawn-pool-dashboard'),
     path('staff/tasks/', my_tasks, name='staff-tasks'),
+    path('staff/tasks/create/', task_create, name='staff-task-create'),
     path('staff/tasks/<int:task_id>/', task_detail, name='staff-task-detail'),
+    path('staff/tasks/<int:task_id>/edit/', task_edit, name='staff-task-edit'),
+    path('staff/tasks/<int:task_id>/delete/', task_delete, name='staff-task-delete'),
+    path('staff/tasks/<int:task_id>/duplicate/', task_duplicate, name='staff-task-duplicate'),
     path('staff/inventory/', inventory_lookup, name='staff-inventory'),
     path('staff/lost-found/', lost_found_list, name='staff-lost-found'),
     path('staff/lost-found/create/', lost_found_create, name='staff-lost-found-create'),

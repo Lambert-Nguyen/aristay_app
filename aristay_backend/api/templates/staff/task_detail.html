@@ -69,6 +69,19 @@
             </div>
 
             <div class="task-actions-section">
+                <!-- CRUD Actions -->
+                <div class="crud-actions">
+                    <a href="/api/staff/tasks/{{ task.id }}/edit/" class="btn-action edit-task">
+                        ✏️ Edit Task
+                    </a>
+                    <button class="btn-action duplicate-task" onclick="duplicateTask('{{ task.id }}')">
+                        📋 Duplicate
+                    </button>
+                    <button class="btn-action delete-task btn-danger" onclick="deleteTask('{{ task.id }}', '{{ task.title|escapejs }}')">
+                        🗑️ Delete
+                    </button>
+                </div>
+                
                 <!-- Quick Actions -->
                 <div class="quick-actions">
                     <button class="btn-action start-task"
@@ -99,6 +112,94 @@
                         🔍 View Before/After
                     </a>
                 </div>
+
+                <!-- Unified Photo Gallery -->
+                {% if task.images.all %}
+                <div class="unified-photo-gallery">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h4>📸 All Task Photos</h4>
+                        <button onclick="testPhotoModal()" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            Test Modal
+                        </button>
+                    </div>
+                    <div class="photo-gallery-grid">
+                        {% for image in task.images.all %}
+                        {% if image.image %}
+                        <div class="gallery-photo-item" data-photo-type="{{ image.photo_type }}" data-photo-id="{{ image.id }}">
+                            <img src="{{ image.image.url }}" 
+                                 alt="{{ image.get_photo_type_display }} photo"
+                                 data-photo-url="{{ image.image.url }}"
+                                 data-photo-id="{{ image.id }}"
+                                 onclick="console.log('Photo clicked:', {{ image.id }}); openPhotoModal('{{ image.image.url }}', {{ image.id }})"
+                                 onmouseover="console.log('Photo hovered:', {{ image.id }})"
+                                 style="cursor: pointer;">
+                            <div class="photo-meta">
+                                <div class="photo-header">
+                                    <span class="photo-type-badge">{{ image.get_photo_type_display }}</span>
+                                    <span class="photo-status status-{{ image.photo_status }}">{{ image.get_photo_status_display }}</span>
+                                </div>
+                                {% if image.checklist_response %}
+                                <span class="checklist-badge">Checklist</span>
+                                {% endif %}
+                                {% if image.description %}
+                                <p class="photo-description">{{ image.description|truncatechars:50 }}</p>
+                                {% endif %}
+                                {% if can_approve_photos %}
+                                <div class="photo-approval-controls">
+                                    {% if image.photo_status == 'pending' %}
+                                    <button class="btn-approve" onclick="approvePhoto({{ image.id }})">
+                                        ✓ Approve
+                                    </button>
+                                    <button class="btn-reject" onclick="rejectPhoto({{ image.id }})">
+                                        ✗ Reject
+                                    </button>
+                                    {% elif image.photo_status == 'approved' %}
+                                    <span class="status-approved">✓ Approved</span>
+                                    <button class="btn-archive" onclick="archivePhoto({{ image.id }})">
+                                        📁 Archive
+                                    </button>
+                                    {% elif image.photo_status == 'rejected' %}
+                                    <span class="status-rejected">✗ Rejected</span>
+                                    <button class="btn-approve" onclick="approvePhoto({{ image.id }})">
+                                        ✓ Approve
+                                    </button>
+                                    {% elif image.photo_status == 'archived' %}
+                                    <span class="status-archived">📁 Archived</span>
+                                    <button class="btn-approve" onclick="approvePhoto({{ image.id }})">
+                                        ✓ Unarchive
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Handle TaskImage objects without files -->
+                        <div class="gallery-photo-item photo-error" data-photo-type="{{ image.photo_type }}" data-photo-id="{{ image.id }}">
+                            <div class="photo-placeholder">
+                                <span class="placeholder-icon">⚠️</span>
+                                <span class="placeholder-text">No Image File</span>
+                            </div>
+                            <div class="photo-meta">
+                                <div class="photo-header">
+                                    <span class="photo-type-badge">{{ image.get_photo_type_display }}</span>
+                                    <span class="photo-status status-error">Error</span>
+                                </div>
+                                <p class="photo-description">This photo record has no associated file</p>
+                                {% if can_approve_photos %}
+                                <div class="photo-approval-controls">
+                                    <button class="btn-danger" onclick="deletePhoto({{ image.id }})">
+                                        🗑️ Delete Record
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 <!-- Task Timer -->
                 <div class="task-timer" id="taskTimer">
@@ -301,14 +402,15 @@
                         <div class="photo-section" id="photos-{{ response.id }}">
                             <label class="form-label">Photos:</label>
                             <div class="photo-grid">
-                                {% for photo in response.photos.all %}
+                                {# Unified: render TaskImage linked to this response (checklist photos) #}
+                                {% for photo in response.unified_photos %}
                                 <div class="photo-item" data-photo-id="{{ photo.id }}">
                                     <img src="{{ photo.image.url }}"
                                          alt="Checklist photo"
                                          data-photo-url="{{ photo.image.url }}"
                                          data-photo-id="{{ photo.id }}">
                                     {% if can_edit %}
-                                    <button class="btn-photo-remove" data-photo-id="{{ photo.id }}" data-response-id="{{ response.id }}">
+                                    <button class="btn-photo-remove" data-item-id="{{ response.id }}" data-photo-url="{{ photo.image.url }}">
                                         ×
                                     </button>
                                     {% endif %}
@@ -326,7 +428,7 @@
                                        style="display: none;">
                                 <button type="button" class="btn-upload" data-response-id="{{ response.id }}">
                                     📷 Add Photos
-                                    {% if response.item.item_type == 'photo_required' and not response.photos.all %}*{% endif %}
+                                    {% if response.item.item_type == 'photo_required' and not response.unified_photos %}*{% endif %}
                                 </button>
                             </div>
                             {% endif %}
@@ -395,7 +497,7 @@
             <p class="empty-message">This task doesn't have a checklist template assigned.</p>
             {% if can_edit %}
             <div class="empty-actions">
-                <button type="button" class="btn btn-success" onclick="completeTask()">
+                <button type="button" class="btn btn-success" onclick="completeTask({{ task.id }})">
                     ✅ Mark Task Complete
                 </button>
             </div>
@@ -416,18 +518,42 @@
     </div>
 </div>
 
-<!-- Photo Modal -->
+<!-- Enhanced Photo Modal with Zoom and Approval Controls -->
 <div id="photoModal" class="photo-modal" style="display: none;">
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" onclick="closePhotoModal()"></div>
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Photo Viewer</h3>
-            <button class="modal-close">&times;</button>
+            <div class="photo-info">
+                <h3 id="modalPhotoTitle">Photo Viewer</h3>
+                <div class="photo-meta-info">
+                    <span id="modalPhotoType" class="photo-type-badge"></span>
+                    <span id="modalPhotoStatus" class="photo-status"></span>
+                    <span id="modalPhotoDate" class="photo-date"></span>
+                </div>
+            </div>
+            <div class="modal-controls">
+                <button id="zoomInBtn" class="btn-zoom" title="Zoom In">🔍+</button>
+                <button id="zoomOutBtn" class="btn-zoom" title="Zoom Out">🔍-</button>
+                <button id="resetZoomBtn" class="btn-zoom" title="Reset Zoom">⌂</button>
+                <button class="modal-close" onclick="closePhotoModal()">&times;</button>
+            </div>
         </div>
         <div class="modal-body">
-            <img id="modalPhoto" src="" alt="Task photo">
-            <div class="photo-actions">
-                <button class="btn btn-secondary modal-close-btn">Close</button>
+            <div class="photo-container">
+                <img id="modalPhoto" src="" alt="Photo" class="modal-photo">
+            </div>
+            <div class="photo-description-container">
+                <p id="modalPhotoDescription" class="photo-description"></p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="photo-approval-section">
+                <div id="modalApprovalControls" class="photo-approval-controls">
+                    <!-- Approval controls will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closePhotoModal()">Close</button>
             </div>
         </div>
     </div>
@@ -634,6 +760,35 @@ window.shareTask = function() {
     }
 };
 
+// CRUD Actions
+window.duplicateTask = function(taskId) {
+    if (confirm('Create a copy of this task?')) {
+        window.location.href = `/api/staff/tasks/${taskId}/duplicate/`;
+    }
+};
+
+window.deleteTask = function(taskId, taskTitle) {
+    if (confirm(`Are you sure you want to delete "${taskTitle}"? This action cannot be undone.`)) {
+        // Create a form to submit the delete request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/api/staff/tasks/${taskId}/delete/`;
+        
+        // Add CSRF token
+        const csrfToken = getCsrfToken();
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+};
+
 // NOW initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize all components
@@ -644,6 +799,58 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModalHandlers();
     initializeKeyboardNavigation();
     initializeRealTimeUpdates();
+    initPhotoModal(); // Initialize enhanced photo modal
+    
+    // Test modal functionality
+    console.log('Photo modal elements check:');
+    console.log('Modal element:', document.getElementById('photoModal'));
+    console.log('Modal photo element:', document.getElementById('modalPhoto'));
+    console.log('openPhotoModal function:', typeof window.openPhotoModal);
+    
+    // Add event listeners to photos as backup
+    const photoImages = document.querySelectorAll('.gallery-photo-item img');
+    console.log('Found', photoImages.length, 'photo images');
+    photoImages.forEach((img, index) => {
+        console.log(`Setting up click listener for photo ${index + 1}`);
+        console.log('Photo element:', img);
+        console.log('Photo dataset:', img.dataset);
+        console.log('Photo computed style:', window.getComputedStyle(img));
+        
+        // Click event
+        img.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Photo clicked via event listener:', this.dataset.photoId);
+            const photoUrl = this.src;
+            const photoId = this.dataset.photoId;
+            openPhotoModal(photoUrl, photoId);
+        });
+        
+        // Hover event
+        img.addEventListener('mouseover', function(e) {
+            console.log('Photo hovered via event listener:', this.dataset.photoId);
+        });
+        
+        // Also add mouseenter for better compatibility
+        img.addEventListener('mouseenter', function(e) {
+            console.log('Photo mouseenter via event listener:', this.dataset.photoId);
+        });
+        
+        // Test if the element is actually hoverable
+        img.addEventListener('mousemove', function(e) {
+            console.log('Photo mousemove via event listener:', this.dataset.photoId);
+        });
+        
+        // Add visual feedback on hover
+        img.addEventListener('mouseenter', function(e) {
+            this.style.border = '2px solid #3b82f6';
+            this.style.transform = 'scale(1.05)';
+        });
+        
+        img.addEventListener('mouseleave', function(e) {
+            this.style.border = 'none';
+            this.style.transform = 'scale(1)';
+        });
+    });
 });
 
 // Task Timer Functionality
@@ -1170,7 +1377,13 @@ function initializeModalHandlers() {
     // Close modal on Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            closeModal();
+            // Check if photo modal is open first
+            const photoModal = document.getElementById('photoModal');
+            if (photoModal && photoModal.style.display !== 'none') {
+                closePhotoModal();
+            } else {
+                closeModal();
+            }
         }
     });
     
@@ -1181,22 +1394,105 @@ function initializeModalHandlers() {
     }
 }
 
-function openPhotoModal(itemId) {
+function openPhotoModal(photoUrl, photoId) {
+    console.log('openPhotoModal called with:', photoUrl, photoId);
+    
     const modal = document.getElementById('photoModal');
-    const item = document.querySelector(`[data-item-id="${itemId}"]`);
-    const photos = item.querySelectorAll('.photo-item img');
-
-    if (photos.length === 0) {
-        showNotification('No photos available for this item', 'info');
+    const modalPhoto = document.getElementById('modalPhoto');
+    
+    if (!modal) {
+        console.error('Photo modal not found!');
         return;
     }
-
-    // For simplicity, show first photo
-    const modalPhoto = document.getElementById('modalPhoto');
-    modalPhoto.src = photos[0].src;
-
+    
+    if (!modalPhoto) {
+        console.error('Modal photo element not found!');
+        return;
+    }
+    
+    // Reset zoom
+    modalPhoto.style.transform = 'scale(1)';
+    modalPhoto.style.cursor = 'zoom-in';
+    
+    // Set photo source
+    modalPhoto.src = photoUrl;
+    
+    // Find the photo data from the gallery
+    const photoElement = document.querySelector(`[data-photo-id="${photoId}"]`);
+    if (photoElement) {
+        // Extract photo metadata
+        const photoType = photoElement.dataset.photoType;
+        const photoTypeDisplay = photoElement.querySelector('.photo-type-badge')?.textContent || photoType;
+        const photoStatus = photoElement.querySelector('.photo-status')?.textContent || 'Unknown';
+        const photoStatusClass = photoElement.querySelector('.photo-status')?.className || '';
+        const photoDescription = photoElement.querySelector('.photo-description')?.textContent || '';
+        
+        // Update modal content
+        document.getElementById('modalPhotoTitle').textContent = `${photoTypeDisplay} Photo`;
+        document.getElementById('modalPhotoType').textContent = photoTypeDisplay;
+        document.getElementById('modalPhotoStatus').textContent = photoStatus;
+        document.getElementById('modalPhotoStatus').className = `photo-status ${photoStatusClass}`;
+        document.getElementById('modalPhotoDate').textContent = new Date().toLocaleString();
+        document.getElementById('modalPhotoDescription').textContent = photoDescription;
+        
+        // Update approval controls
+        updateModalApprovalControls(photoId, photoStatus);
+    }
+    
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+function canApprovePhotos() {
+    // Check if user can approve photos (managers and superusers)
+    // This should match the backend permission logic
+    return true; // For now, allow all users to test the modal
+}
+
+function updateModalApprovalControls(photoId, currentStatus) {
+    const controlsContainer = document.getElementById('modalApprovalControls');
+    const canApprove = canApprovePhotos();
+    
+    if (!canApprove) {
+        controlsContainer.innerHTML = '<p class="text-muted">You do not have permission to approve photos</p>';
+        return;
+    }
+    
+    let controlsHtml = '';
+    
+    if (currentStatus === 'pending') {
+        controlsHtml = `
+            <button class="btn-approve" onclick="approvePhoto(${photoId}); closePhotoModal();">
+                ✓ Approve Photo
+            </button>
+            <button class="btn-reject" onclick="rejectPhoto(${photoId}); closePhotoModal();">
+                ✗ Reject Photo
+            </button>
+        `;
+    } else if (currentStatus === 'approved') {
+        controlsHtml = `
+            <span class="status-approved">✓ Approved</span>
+            <button class="btn-archive" onclick="archivePhoto(${photoId}); closePhotoModal();">
+                📁 Archive Photo
+            </button>
+        `;
+    } else if (currentStatus === 'rejected') {
+        controlsHtml = `
+            <span class="status-rejected">✗ Rejected</span>
+            <button class="btn-approve" onclick="approvePhoto(${photoId}); closePhotoModal();">
+                ✓ Approve Photo
+            </button>
+        `;
+    } else if (currentStatus === 'archived') {
+        controlsHtml = `
+            <span class="status-archived">📁 Archived</span>
+            <button class="btn-approve" onclick="approvePhoto(${photoId}); closePhotoModal();">
+                ✓ Unarchive Photo
+            </button>
+        `;
+    }
+    
+    controlsContainer.innerHTML = controlsHtml;
 }
 
 function openPhotoViewer(src) {
@@ -1206,6 +1502,104 @@ function openPhotoViewer(src) {
 
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+function closePhotoModal() {
+    const modal = document.getElementById('photoModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Zoom functionality
+let currentZoom = 1;
+const minZoom = 0.5;
+const maxZoom = 3;
+const zoomStep = 0.25;
+
+function initPhotoModal() {
+    const modal = document.getElementById('photoModal');
+    const modalPhoto = document.getElementById('modalPhoto');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const resetZoomBtn = document.getElementById('resetZoomBtn');
+    
+    if (!modal || !modalPhoto) return;
+    
+    // Zoom in
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => {
+            currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+            modalPhoto.style.transform = `scale(${currentZoom})`;
+            updateZoomButtons();
+        });
+    }
+    
+    // Zoom out
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => {
+            currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+            modalPhoto.style.transform = `scale(${currentZoom})`;
+            updateZoomButtons();
+        });
+    }
+    
+    // Reset zoom
+    if (resetZoomBtn) {
+        resetZoomBtn.addEventListener('click', () => {
+            currentZoom = 1;
+            modalPhoto.style.transform = 'scale(1)';
+            updateZoomButtons();
+        });
+    }
+    
+    // Click to zoom
+    modalPhoto.addEventListener('click', () => {
+        if (currentZoom === 1) {
+            currentZoom = 2;
+            modalPhoto.style.cursor = 'zoom-out';
+        } else {
+            currentZoom = 1;
+            modalPhoto.style.cursor = 'zoom-in';
+        }
+        modalPhoto.style.transform = `scale(${currentZoom})`;
+        updateZoomButtons();
+    });
+    
+    // Keyboard shortcuts for zoom (Escape handled globally)
+    document.addEventListener('keydown', (e) => {
+        if (modal.style.display === 'none') return;
+        
+        switch(e.key) {
+            case '+':
+            case '=':
+                e.preventDefault();
+                zoomInBtn?.click();
+                break;
+            case '-':
+                e.preventDefault();
+                zoomOutBtn?.click();
+                break;
+            case '0':
+                e.preventDefault();
+                resetZoomBtn?.click();
+                break;
+        }
+    });
+}
+
+function updateZoomButtons() {
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    
+    if (zoomInBtn) {
+        zoomInBtn.disabled = currentZoom >= maxZoom;
+        zoomInBtn.style.opacity = currentZoom >= maxZoom ? '0.5' : '1';
+    }
+    
+    if (zoomOutBtn) {
+        zoomOutBtn.disabled = currentZoom <= minZoom;
+        zoomOutBtn.style.opacity = currentZoom <= minZoom ? '0.5' : '1';
+    }
 }
 
 function openNotesModal(itemId) {
@@ -1228,8 +1622,10 @@ function closeModal() {
     const modals = document.querySelectorAll('.photo-modal, .note-modal, .lost-found-modal');
     console.log('🚪 Found modals:', modals.length);
     modals.forEach(modal => {
-        modal.style.display = 'none';
-        console.log('🚪 Closed modal:', modal.id || modal.className);
+        if (modal.style.display !== 'none') {
+            modal.style.display = 'none';
+            console.log('🚪 Closed modal:', modal.id || modal.className);
+        }
     });
     document.body.style.overflow = 'auto';
     console.log('🚪 Modal closed successfully');
@@ -1608,9 +2004,97 @@ window.toggleNotes = function(responseId) {
 
 // Remove duplicate closeModal function - using the one defined above;
 
+// Photo Approval Functions
+async function approvePhoto(photoId) {
+    await updatePhotoStatus(photoId, 'approved');
+}
+
+async function rejectPhoto(photoId) {
+    await updatePhotoStatus(photoId, 'rejected');
+}
+
+async function archivePhoto(photoId) {
+    await updatePhotoStatus(photoId, 'archived');
+}
+
+async function updatePhotoStatus(photoId, status) {
+    try {
+        const response = await fetch(`/api/tasks/{{ task.id }}/images/${photoId}/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ photo_status: status })
+        });
+
+        if (response.ok) {
+            showNotification(`Photo ${status} successfully!`, 'success');
+            // Reload the page to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            const error = await response.json();
+            showNotification(`Failed to ${status} photo: ${error.detail || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error updating photo status:', error);
+        showNotification(`Error updating photo status: ${error.message}`, 'error');
+    }
+}
+
+async function deletePhoto(photoId) {
+    if (!confirm('Are you sure you want to delete this photo record? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tasks/{{ task.id }}/images/${photoId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+
+        if (response.ok) {
+            showNotification('Photo record deleted successfully!', 'success');
+            // Reload the page to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            const error = await response.json();
+            showNotification(`Failed to delete photo: ${error.detail || 'Unknown error'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting photo:', error);
+        showNotification(`Error deleting photo: ${error.message}`, 'error');
+    }
+}
+
+// Test function for debugging
+function testPhotoModal() {
+    console.log('Testing photo modal...');
+    const firstImage = document.querySelector('.gallery-photo-item img');
+    if (firstImage) {
+        const photoUrl = firstImage.src;
+        const photoId = firstImage.dataset.photoId;
+        console.log('Testing with:', photoUrl, photoId);
+        openPhotoModal(photoUrl, photoId);
+    } else {
+        console.log('No images found to test with');
+    }
+}
+
 // Export additional functions for global access
 window.openPhotoModal = openPhotoModal;
 window.updateChecklistItem = updateChecklistItem;
+window.approvePhoto = approvePhoto;
+window.rejectPhoto = rejectPhoto;
+window.archivePhoto = archivePhoto;
+window.deletePhoto = deletePhoto;
+window.testPhotoModal = testPhotoModal;
 </script>
 {% endblock %}
 
@@ -1716,6 +2200,430 @@ window.updateChecklistItem = updateChecklistItem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.crud-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.crud-actions .btn-action {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.crud-actions .btn-action:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+    transform: translateY(-1px);
+}
+
+.crud-actions .btn-action.btn-danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+.crud-actions .btn-action.btn-danger:hover {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+/* Photo Approval Styles */
+.photo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.photo-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.photo-status.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.photo-status.status-approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.photo-status.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.photo-status.status-archived {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.photo-approval-controls {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.photo-approval-controls button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-approve {
+    background: #10b981;
+    color: white;
+}
+
+.btn-approve:hover {
+    background: #059669;
+}
+
+.btn-reject {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-reject:hover {
+    background: #dc2626;
+}
+
+.btn-archive {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-archive:hover {
+    background: #4b5563;
+}
+
+.status-approved, .status-rejected, .status-archived {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.status-approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-archived {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.photo-description {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 4px 0;
+    font-style: italic;
+}
+
+/* Photo Error States */
+.photo-error {
+    border: 2px dashed #ef4444;
+    background: #fef2f2;
+}
+
+.photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.placeholder-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.placeholder-text {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.status-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+/* Enhanced Photo Modal Styles */
+.photo-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-modal .modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    cursor: pointer;
+}
+
+.photo-modal .modal-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 1000px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.photo-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 12px 12px 0 0;
+}
+
+.photo-modal .photo-info h3 {
+    margin: 0 0 8px 0;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.photo-modal .photo-meta-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.photo-modal .modal-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.photo-modal .btn-zoom {
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 40px;
+}
+
+.photo-modal .btn-zoom:hover:not(:disabled) {
+    background: #4b5563;
+}
+
+.photo-modal .btn-zoom:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.photo-modal .modal-close {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 40px;
+}
+
+.photo-modal .modal-close:hover {
+    background: #dc2626;
+}
+
+.photo-modal .modal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.photo-modal .photo-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #f8fafc;
+    overflow: auto;
+}
+
+.photo-modal .modal-photo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    cursor: zoom-in;
+    transition: transform 0.2s ease;
+}
+
+.photo-modal .photo-description-container {
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+}
+
+.photo-modal .photo-description {
+    margin: 0;
+    color: #6b7280;
+    font-style: italic;
+    font-size: 14px;
+}
+
+.photo-modal .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 12px 12px;
+}
+
+.photo-modal .photo-approval-section {
+    flex: 1;
+}
+
+.photo-modal .photo-approval-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.photo-modal .modal-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.photo-modal .btn-secondary {
+    background: #6b7280;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.photo-modal .btn-secondary:hover {
+    background: #4b5563;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .photo-modal .modal-content {
+        max-width: 95vw;
+        max-height: 95vh;
+        width: 100%;
+    }
+    
+    .photo-modal .modal-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .photo-modal .modal-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .photo-modal .photo-meta-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .photo-modal .modal-footer {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+    
+    .photo-modal .photo-approval-controls {
+        justify-content: center;
+    }
 }
 
 .quick-actions {
@@ -2158,6 +3066,84 @@ window.updateChecklistItem = updateChecklistItem;
 .form-value {
     color: #1e293b;
     line-height: 1.5;
+}
+
+/* Unified Photo Gallery */
+.unified-photo-gallery {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    margin-top: 1rem;
+}
+
+.unified-photo-gallery h4 {
+    margin: 0 0 1rem 0;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.photo-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.gallery-photo-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.gallery-photo-item:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.gallery-photo-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.photo-meta {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.photo-type-badge {
+    background: rgba(102, 126, 234, 0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.checklist-badge {
+    background: rgba(16, 185, 129, 0.8);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
 }
 
 /* Photo Section */

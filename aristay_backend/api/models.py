@@ -538,6 +538,7 @@ class TaskImage(models.Model):
         ('reference', 'Reference'),
         ('damage', 'Damage'),
         ('general', 'General'),
+        ('checklist', 'Checklist'),  # unify checklist photos with task images
     ]
     
     # Photo status choices for approval workflow
@@ -552,6 +553,8 @@ class TaskImage(models.Model):
     image = models.ImageField(upload_to=task_image_upload_path, validators=[validate_task_image])
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_task_images')
+    # Optional link to a specific checklist response when the image originates from checklist UI
+    checklist_response = models.ForeignKey('ChecklistResponse', on_delete=models.CASCADE, null=True, blank=True, related_name='task_images')
     
     # NEW: Before/After photo categorization
     photo_type = models.CharField(
@@ -600,6 +603,7 @@ class TaskImage(models.Model):
             models.Index(fields=['task', 'photo_type']),
             models.Index(fields=['photo_status']),
             models.Index(fields=['uploaded_at']),
+            models.Index(fields=['checklist_response']),
         ]
 
     def __str__(self):
@@ -1156,6 +1160,8 @@ class NotificationVerb(models.TextChoices):
     DESCRIPTION_CHANGED = "description_changed", "Description changed"
     PHOTO_ADDED       = "photo_added",       "Photo added"
     PHOTO_DELETED     = "photo_deleted",     "Photo deleted"
+    PHOTO_APPROVED    = "photo_approved",    "Photo approved"
+    PHOTO_REJECTED    = "photo_rejected",    "Photo rejected"
     CREATED           = "created",           "Task created"
 
 class Notification(models.Model):

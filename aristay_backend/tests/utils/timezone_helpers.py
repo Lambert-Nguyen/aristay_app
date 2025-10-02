@@ -1,7 +1,7 @@
 """
-Timezone helper functions for tests.
+Timezone helper functions for tests
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.utils import timezone
 
 
@@ -15,16 +15,6 @@ def create_booking_dates(check_in_days=0, check_out_days=1):
     check_in = timezone.now() + timedelta(days=check_in_days)
     check_out = timezone.now() + timedelta(days=check_out_days)
     return check_in, check_out
-
-
-def days_from_now(days):
-    """Create a datetime that is N days from now"""
-    return timezone.now() + timedelta(days=days)
-
-
-def create_expired_datetime(days_ago=30):
-    """Create a datetime that is N days ago (expired)"""
-    return timezone.now() - timedelta(days=days_ago)
 
 
 def create_invite_code_dates(expiry_days=7, expires_days=None):
