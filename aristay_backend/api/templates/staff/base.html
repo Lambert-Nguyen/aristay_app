@@ -685,6 +685,174 @@
     </div>
 
     <script src="{% static 'js/theme-toggle.js' %}"></script>
+    
+    <!-- Hidden Sarcastic Message - Staff Mobile Edition -->
+    <div id="aristay-secret-message-staff" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); z-index: 10000; max-width: 90vw; width: 500px; text-align: center; font-family: 'Georgia', serif; line-height: 1.7; backdrop-filter: blur(20px); border: 2px solid rgba(255,255,255,0.3); opacity: 0; transition: all 0.3s ease;">
+        <div style="font-size: 1.2rem; margin-bottom: 1.5rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+            📱 A Staff Member's Secret 📱
+        </div>
+        <div style="font-size: 0.95rem; font-style: italic; white-space: pre-line; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">Oh, have you no shame, dear friend of mine?
+To strut about boldly, crossing the line?
+With cheek so divine and nerve so grand,
+You march unashamed through all the land.
+
+What audacity fills your trembling soul,
+To flaunt your misdeeds as your lofty goal?
+No blush, no hint of modesty's flame,
+Tell me truly, have you no shame?
+
+You wear shameless acts like a badge of pride,
+As if decency has left your side.
+Oh, the gall, the nerve, the unabashed game—
+Pray tell, dear friend, have you no shame?</div>
+        <button onclick="hideSecretMessageStaff()" style="margin-top: 1.5rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; min-height: 44px; font-size: 0.9rem;">✨ Close This Mobile Secret ✨</button>
+    </div>
+
+    <!-- Secret Message Overlay -->
+    <div id="secret-message-overlay-staff" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; backdrop-filter: blur(10px); opacity: 0; transition: opacity 0.3s ease;"></div>
+
+    <script>
+    // Mobile-Friendly Staff Secret Message System
+    let staffSecretTouchCount = 0;
+    let staffSecretTimeout;
+    let staffSecretStartTime = 0;
+
+    function showSecretMessageStaff() {
+        const message = document.getElementById('aristay-secret-message-staff');
+        const overlay = document.getElementById('secret-message-overlay-staff');
+        
+        message.style.display = 'block';
+        overlay.style.display = 'block';
+        
+        // Mobile-optimized entrance animation
+        setTimeout(() => {
+            message.style.opacity = '1';
+            message.style.transform = 'translate(-50%, -50%) scale(1)';
+            overlay.style.opacity = '1';
+            
+            // Add mobile-friendly vibration if supported
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+        }, 50);
+        
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideSecretMessageStaff() {
+        const message = document.getElementById('aristay-secret-message-staff');
+        const overlay = document.getElementById('secret-message-overlay-staff');
+        
+        message.style.opacity = '0';
+        message.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        overlay.style.opacity = '0';
+        
+        setTimeout(() => {
+            message.style.display = 'none';
+            overlay.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 300);
+    }
+
+    // Mobile-specific activation - long press on logo
+    document.addEventListener('DOMContentLoaded', function() {
+        const logo = document.querySelector('.logo');
+        if (logo) {
+            let pressTimer;
+            
+            // Long press detection
+            logo.addEventListener('touchstart', function(e) {
+                pressTimer = setTimeout(() => {
+                    showSecretMessageStaff();
+                }, 2000); // 2 second long press
+            });
+            
+            logo.addEventListener('touchend', function(e) {
+                clearTimeout(pressTimer);
+            });
+            
+            logo.addEventListener('touchmove', function(e) {
+                clearTimeout(pressTimer);
+            });
+            
+            // Desktop fallback - triple click
+            logo.addEventListener('click', function(e) {
+                staffSecretTouchCount++;
+                clearTimeout(staffSecretTimeout);
+                
+                if (staffSecretTouchCount >= 3) {
+                    showSecretMessageStaff();
+                    staffSecretTouchCount = 0;
+                } else {
+                    staffSecretTimeout = setTimeout(() => {
+                        staffSecretTouchCount = 0;
+                    }, 1000);
+                }
+            });
+            
+            // Add mobile-friendly hover effect
+            logo.addEventListener('mouseenter', function() {
+                this.style.cursor = 'pointer';
+                this.style.transform = 'scale(1.05)';
+                this.style.transition = 'transform 0.3s ease';
+            });
+            
+            logo.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+        }
+    });
+
+    // Alternative mobile activation - swipe gesture
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let swipeCount = 0;
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    });
+
+    document.addEventListener('touchend', function(e) {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+        
+        // Detect diagonal swipe (top-left to bottom-right)
+        if (Math.abs(diffX) > 100 && Math.abs(diffY) > 100 && diffX > 0 && diffY > 0) {
+            swipeCount++;
+            if (swipeCount >= 3) {
+                showSecretMessageStaff();
+                swipeCount = 0;
+            }
+        }
+        
+        // Reset swipe count after 3 seconds
+        setTimeout(() => {
+            swipeCount = 0;
+        }, 3000);
+    });
+
+    // Close on overlay tap (mobile-friendly)
+    document.addEventListener('click', function(e) {
+        const overlay = document.getElementById('secret-message-overlay-staff');
+        if (e.target === overlay) {
+            hideSecretMessageStaff();
+        }
+    });
+
+    // Handle orientation change
+    window.addEventListener('orientationchange', function() {
+        setTimeout(() => {
+            const message = document.getElementById('aristay-secret-message-staff');
+            if (message.style.display === 'block') {
+                message.style.transform = 'translate(-50%, -50%) scale(1)';
+            }
+        }, 100);
+    });
+    </script>
+    
     <script>
         // Get CSRF token from meta tag (works with HttpOnly cookies in production)
         function getCsrfToken() {
