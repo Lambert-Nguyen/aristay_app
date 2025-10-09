@@ -1011,25 +1011,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Alternative activation - click sequence on action cards
+// Alternative activation - keyboard sequence (more elegant)
 document.addEventListener('DOMContentLoaded', function() {
-    const actionCards = document.querySelectorAll('.action-card');
-    let cardClickSequence = [];
+    let managerSecretSequence = [];
+    const managerTargetSequence = ['a', 'r', 'i', 's', 't', 'a', 'y']; // "aristay"
     
-    actionCards.forEach((card, index) => {
-        card.addEventListener('click', function(e) {
-            cardClickSequence.push(index);
-            if (cardClickSequence.length > 5) {
-                cardClickSequence.shift();
-            }
-            
-            // Check for specific sequence: Analytics -> Tasks -> Properties -> Users -> Invite Codes
-            const targetSequence = [0, 1, 2, 3, 4]; // Based on the order in the template
-            if (cardClickSequence.join(',') === targetSequence.join(',')) {
-                showSecretMessageManager();
-                cardClickSequence = [];
-            }
-        });
+    document.addEventListener('keydown', function(e) {
+        managerSecretSequence.push(e.key.toLowerCase());
+        if (managerSecretSequence.length > managerTargetSequence.length) {
+            managerSecretSequence.shift();
+        }
+        
+        // Check for "aristay" sequence
+        if (managerSecretSequence.join('') === managerTargetSequence.join('')) {
+            showSecretMessageManager();
+            managerSecretSequence = [];
+        }
     });
 });
 </script>
