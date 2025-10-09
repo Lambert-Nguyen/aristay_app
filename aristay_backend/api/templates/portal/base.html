@@ -77,17 +77,7 @@
         }
 
         .brand img { 
-            width: 36px; 
-            height: 36px; 
-            border-radius: 8px; 
-            object-fit: cover;
-        }
-
-        @media (min-width: 768px) {
-            .brand img {
-                width: 40px;
-                height: 40px;
-            }
+            /* Inline styles applied directly to img tag for consistency */
         }
 
         .brand h1 { 
@@ -319,7 +309,7 @@
         <div class="container">
             <div class="brand">
                 <div class="brand-left">
-                    <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay">
+                    <img src="{% static 'images/aristay_logo.jpg' %}" alt="AriStay" style="width: 50px; height: 50px; border-radius: 12px; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
                     <h1>AriStay Portal</h1>
                 </div>
                 
@@ -424,6 +414,206 @@
         }
     </script>
     <script src="{% static 'js/theme-toggle.js' %}"></script>
+    
+    <!-- Hidden Sarcastic Message - Portal Theme-Aware Edition -->
+    <div id="aristay-secret-message-portal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 2rem; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); z-index: 10000; max-width: 600px; text-align: center; font-family: 'Georgia', serif; line-height: 1.8; backdrop-filter: blur(20px); border: 2px solid rgba(255,255,255,0.3); opacity: 0; transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);">
+        <div style="font-size: 1.3rem; margin-bottom: 1.8rem; font-weight: 700; text-shadow: 0 3px 6px rgba(0,0,0,0.4); background: linear-gradient(45deg, #fff, #f8fafc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+            🌟 A Portal Wanderer's Secret 🌟
+        </div>
+        <div style="font-size: 1rem; font-style: italic; white-space: pre-line; text-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 0.3px;">Oh, have you no shame, dear friend of mine?
+To strut about boldly, crossing the line?
+With cheek so divine and nerve so grand,
+You march unashamed through all the land.
+
+What audacity fills your trembling soul,
+To flaunt your misdeeds as your lofty goal?
+No blush, no hint of modesty's flame,
+Tell me truly, have you no shame?
+
+You wear shameless acts like a badge of pride,
+As if decency has left your side.
+Oh, the gall, the nerve, the unabashed game—
+Pray tell, dear friend, have you no shame?</div>
+        <button onclick="hideSecretMessagePortal()" style="margin-top: 1.8rem; background: linear-gradient(45deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1)); color: white; border: 2px solid rgba(255,255,255,0.4); padding: 0.875rem 1.75rem; border-radius: 12px; cursor: pointer; font-weight: 700; transition: all 0.3s ease; font-size: 1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">✨ Close This Portal Secret ✨</button>
+    </div>
+
+    <!-- Secret Message Overlay -->
+    <div id="secret-message-overlay-portal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; backdrop-filter: blur(15px); opacity: 0; transition: opacity 0.4s ease;"></div>
+
+    <script>
+    // Theme-Aware Portal Secret Message System
+    let portalSecretClickCount = 0;
+    let portalSecretTimeout;
+    let portalSecretSequence = [];
+    let isDarkMode = false;
+
+    function updateTheme() {
+        const root = document.documentElement;
+        isDarkMode = root.getAttribute('data-theme') === 'dark';
+        
+        const message = document.getElementById('aristay-secret-message-portal');
+        if (message) {
+            if (isDarkMode) {
+                message.style.background = 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
+                message.style.border = '2px solid rgba(255,255,255,0.2)';
+                message.style.color = '#f1f5f9';
+            } else {
+                message.style.background = 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';
+                message.style.border = '2px solid rgba(255,255,255,0.3)';
+                message.style.color = 'white';
+            }
+        }
+    }
+
+    function showSecretMessagePortal() {
+        const message = document.getElementById('aristay-secret-message-portal');
+        const overlay = document.getElementById('secret-message-overlay-portal');
+        
+        // Update theme before showing
+        updateTheme();
+        
+        message.style.display = 'block';
+        overlay.style.display = 'block';
+        
+        // Theme-aware entrance animation
+        setTimeout(() => {
+            message.style.opacity = '1';
+            message.style.transform = 'translate(-50%, -50%) scale(1)';
+            overlay.style.opacity = '1';
+            
+            // Add theme-appropriate particle effect
+            createThemeParticles();
+        }, 50);
+        
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideSecretMessagePortal() {
+        const message = document.getElementById('aristay-secret-message-portal');
+        const overlay = document.getElementById('secret-message-overlay-portal');
+        
+        message.style.opacity = '0';
+        message.style.transform = 'translate(-50%, -50%) scale(0.85)';
+        overlay.style.opacity = '0';
+        
+        setTimeout(() => {
+            message.style.display = 'none';
+            overlay.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }, 400);
+    }
+
+    function createThemeParticles() {
+        const particleCount = isDarkMode ? 15 : 25;
+        const particleColor = isDarkMode ? '#64748b' : '#ffffff';
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.style.position = 'fixed';
+            particle.style.width = '3px';
+            particle.style.height = '3px';
+            particle.style.background = particleColor;
+            particle.style.borderRadius = '50%';
+            particle.style.pointerEvents = 'none';
+            particle.style.zIndex = '10001';
+            particle.style.left = Math.random() * window.innerWidth + 'px';
+            particle.style.top = Math.random() * window.innerHeight + 'px';
+            particle.style.animation = `particleFloat 3s ease-out forwards`;
+            particle.style.opacity = '0';
+            
+            document.body.appendChild(particle);
+            
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, 3000);
+        }
+    }
+
+    // Add particle animation
+    const particleStyle = document.createElement('style');
+    particleStyle.textContent = `
+        @keyframes particleFloat {
+            0% { opacity: 0; transform: scale(0) translateY(0); }
+            20% { opacity: 1; transform: scale(1) translateY(-10px); }
+            80% { opacity: 1; transform: scale(1) translateY(-30px); }
+            100% { opacity: 0; transform: scale(0) translateY(-50px); }
+        }
+    `;
+    document.head.appendChild(particleStyle);
+
+    // Portal-specific activation - click the brand logo 5 times
+    document.addEventListener('DOMContentLoaded', function() {
+        const brandLogo = document.querySelector('.brand img');
+        if (brandLogo) {
+            brandLogo.addEventListener('click', function(e) {
+                portalSecretClickCount++;
+                clearTimeout(portalSecretTimeout);
+                
+                if (portalSecretClickCount >= 5) {
+                    showSecretMessagePortal();
+                    portalSecretClickCount = 0;
+                } else {
+                    portalSecretTimeout = setTimeout(() => {
+                        portalSecretClickCount = 0;
+                    }, 2000);
+                }
+            });
+            
+            // Add theme-aware hover effect
+            brandLogo.addEventListener('mouseenter', function() {
+                this.style.cursor = 'pointer';
+                this.style.transform = 'scale(1.1) rotate(-5deg)';
+                this.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                this.style.filter = isDarkMode ? 'drop-shadow(0 8px 16px rgba(255,255,255,0.1))' : 'drop-shadow(0 8px 16px rgba(0,0,0,0.2))';
+            });
+            
+            brandLogo.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1) rotate(0deg)';
+                this.style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))';
+            });
+        }
+    });
+
+    // Alternative activation - keyboard sequence
+    document.addEventListener('keydown', function(e) {
+        portalSecretSequence.push(e.key.toLowerCase());
+        if (portalSecretSequence.length > 8) {
+            portalSecretSequence.shift();
+        }
+        
+        // Check for "aristay" sequence
+        const targetSequence = ['a', 'r', 'i', 's', 't', 'a', 'y'];
+        if (portalSecretSequence.join('') === targetSequence.join('')) {
+            showSecretMessagePortal();
+            portalSecretSequence = [];
+        }
+    });
+
+    // Listen for theme changes
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                updateTheme();
+            }
+        });
+    });
+    
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
+
+    // Initialize theme
+    updateTheme();
+    </script>
+    
+    <!-- Footer with Copyright -->
+    <footer style="text-align: center; padding: 20px; background: rgba(255,255,255,0.95); border-top: 1px solid rgba(0,0,0,0.1); margin-top: 40px; backdrop-filter: blur(10px);">
+        <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">&copy; 2025 Nguyen Phuong Duy Lam. All rights reserved. | <a href="https://lambertnguyen.cloud/company/products" target="_blank" style="color: #6366f1; text-decoration: none; font-weight: 600;">Visit Our Products</a></p>
+        <p style="margin: 0.5rem 0 0 0; color: #6c757d; font-size: 0.8rem; opacity: 0.8;">Built with ❤️ for learning.</p>
+    </footer>
 </body>
 </html>
 

@@ -19,12 +19,12 @@
                  alt="AriStay" 
                  style="width: 50px; height: 50px; border-radius: 12px; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.3); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);">
             <div>
-                <h1 id="site-name" style="margin: 0; color: #ffffff; font-size: 1.8rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);">
+                <h1 id="site-name" style="margin: 0; color: #ffffff; font-size: 1.4rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);">
                     <a href="{% url 'admin:index' %}" style="color: inherit; text-decoration: none;">
                         AriStay Administration
                     </a>
                 </h1>
-                <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; font-weight: 400;">System Administration Console</p>
+                <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 0.85rem; font-weight: 400;">System Administration Console</p>
             </div>
         </div>
         
@@ -36,17 +36,9 @@
                 <span>Portal</span>
             </a>
             
-            <!-- Manager Console (if not superuser but is staff) -->
-            {% if user.profile and user.profile.role == 'manager' and not user.is_superuser %}
+            <!-- Manager Console Link -->
             <a href="/manager/" 
                style="background: rgba(255,255,255,0.15); color: white; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 1.1rem;">👔</span>
-                <span>Manager</span>
-            </a>
-            {% endif %}
-            
-            <!-- Manager Dashboard button (header) -->
-            <a href="/manager/" style="background: rgba(255,255,255,0.15); color: white; padding: 10px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.25); transition: all 0.3s ease; backdrop-filter: blur(10px); display: flex; align-items: center; gap: 6px;">
                 <span style="font-size: 1.1rem;">👔</span>
                 <span>Manager</span>
             </a>
@@ -276,6 +268,20 @@
 [data-theme="dark"] .admin-info strong {
     color: var(--text-primary) !important;
 }
+
+/* Dark mode footer styling */
+[data-theme="dark"] footer {
+    background: rgba(30, 41, 59, 0.95) !important;
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] footer p {
+    color: #94a3b8 !important;
+}
+
+[data-theme="dark"] footer a {
+    color: #818cf8 !important;
+}
 </style>
 {% endblock %}
 
@@ -448,4 +454,115 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Overlay -->
 <div id="menu-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9998; opacity: 0; visibility: hidden; transition: all 0.3s ease;"></div>
+
+<!-- Hidden Sarcastic Message - Elegantly Concealed -->
+<div id="aristay-secret-message" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); z-index: 10000; max-width: 600px; text-align: center; font-family: 'Georgia', serif; line-height: 1.8; backdrop-filter: blur(20px); border: 2px solid rgba(255,255,255,0.2);">
+    <div style="font-size: 1.2rem; margin-bottom: 1.5rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+        🎭 A Message for the Curious Soul 🎭
+    </div>
+    <div style="font-size: 1rem; font-style: italic; white-space: pre-line; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">Oh, have you no shame, dear friend of mine?
+To strut about boldly, crossing the line?
+With cheek so divine and nerve so grand,
+You march unashamed through all the land.
+
+What audacity fills your trembling soul,
+To flaunt your misdeeds as your lofty goal?
+No blush, no hint of modesty's flame,
+Tell me truly, have you no shame?
+
+You wear shameless acts like a badge of pride,
+As if decency has left your side.
+Oh, the gall, the nerve, the unabashed game—
+Pray tell, dear friend, have you no shame?</div>
+    <button onclick="hideSecretMessage()" style="margin-top: 1.5rem; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease;">✨ Close This Elegant Secret ✨</button>
+</div>
+
+<!-- Secret Message Overlay -->
+<div id="secret-message-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; backdrop-filter: blur(10px);"></div>
+
+<script>
+// Elegant Secret Message System
+let secretClickCount = 0;
+let secretTimeout;
+
+function showSecretMessage() {
+    const message = document.getElementById('aristay-secret-message');
+    const overlay = document.getElementById('secret-message-overlay');
+    
+    message.style.display = 'block';
+    overlay.style.display = 'block';
+    
+    // Elegant entrance animation
+    setTimeout(() => {
+        message.style.opacity = '1';
+        message.style.transform = 'translate(-50%, -50%) scale(1)';
+        overlay.style.opacity = '1';
+    }, 10);
+    
+    // Add some dramatic flair
+    document.body.style.overflow = 'hidden';
+}
+
+function hideSecretMessage() {
+    const message = document.getElementById('aristay-secret-message');
+    const overlay = document.getElementById('secret-message-overlay');
+    
+    message.style.opacity = '0';
+    message.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    overlay.style.opacity = '0';
+    
+    setTimeout(() => {
+        message.style.display = 'none';
+        overlay.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }, 300);
+}
+
+// Secret activation sequence - click the logo 7 times
+document.addEventListener('DOMContentLoaded', function() {
+    const logo = document.querySelector('img[alt="AriStay"]');
+    if (logo) {
+        logo.addEventListener('click', function(e) {
+            secretClickCount++;
+            clearTimeout(secretTimeout);
+            
+            if (secretClickCount >= 7) {
+                showSecretMessage();
+                secretClickCount = 0;
+            } else {
+                secretTimeout = setTimeout(() => {
+                    secretClickCount = 0;
+                }, 2000);
+            }
+        });
+        
+        // Add subtle hint on hover
+        logo.addEventListener('mouseenter', function() {
+            this.style.cursor = 'pointer';
+            this.style.transform = 'scale(1.05)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        logo.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    }
+});
+
+// Alternative activation - Konami code
+let konamiCode = [];
+const konamiSequence = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65]; // ↑↑↓↓←→←→BA
+
+document.addEventListener('keydown', function(e) {
+    konamiCode.push(e.keyCode);
+    if (konamiCode.length > konamiSequence.length) {
+        konamiCode.shift();
+    }
+    
+    if (konamiCode.join(',') === konamiSequence.join(',')) {
+        showSecretMessage();
+        konamiCode = [];
+    }
+});
+</script>
 {% endblock %}
