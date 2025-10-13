@@ -293,7 +293,7 @@ class SecurityHeadersEnhancedMiddleware(MiddlewareMixin):
                 "default-src 'self'; "
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-                "img-src 'self' data: https:; "
+                "img-src 'self' data: https: blob:; "
                 "connect-src 'self'; "
                 "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:"
             )

@@ -923,14 +923,11 @@ Pray tell, dear friend, have you no shame?</div>
             lastScrollTop = currentScrollTop;
         });
 
-        // Touch gesture support for mobile
-        let touchStartX = 0;
-        let touchStartY = 0;
-        
+        // Touch gesture support for mobile (reuse variables from above)
         document.addEventListener('touchstart', function(e) {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
-        });
+        }, { passive: true });
         
         document.addEventListener('touchend', function(e) {
             const touchEndX = e.changedTouches[0].clientX;
@@ -950,7 +947,7 @@ Pray tell, dear friend, have you no shame?</div>
                     closeMobileNav();
                 }
             }
-        });
+        }, { passive: true });
 
         // Close mobile nav when clicking outside
         document.addEventListener('click', function(event) {
