@@ -2114,7 +2114,8 @@ def get_conflict_details(request, import_session_id):
         return JsonResponse({'error': 'Failed to get conflict details'}, status=500)
 
 
-@staff_or_perm('manage_bookings')
+@login_required
+@user_passes_test(is_superuser_or_manager)
 @require_http_methods(["GET"])
 def preview_conflict_resolution(request, import_session_id, conflict_index):
     """Preview what changes would be made for a specific conflict resolution"""
@@ -2162,7 +2163,8 @@ def preview_conflict_resolution(request, import_session_id, conflict_index):
         return JsonResponse({'error': 'Failed to preview conflict'}, status=500)
 
 
-@staff_or_perm('manage_bookings')
+@login_required
+@user_passes_test(is_superuser_or_manager)
 @require_http_methods(["POST"])
 @csrf_exempt
 def quick_resolve_conflict(request, import_session_id, conflict_index):
@@ -2209,7 +2211,8 @@ def quick_resolve_conflict(request, import_session_id, conflict_index):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@staff_or_perm('manage_bookings')
+@login_required
+@user_passes_test(is_superuser_or_manager)
 def enhanced_excel_import_view(request):
     """Enhanced Excel import view with conflict detection"""
     
@@ -2291,7 +2294,8 @@ def enhanced_excel_import_view(request):
     return render(request, 'admin/enhanced_excel_import.html', context)
 
 
-@staff_or_perm('manage_bookings')
+@login_required
+@user_passes_test(is_superuser_or_manager)
 def enhanced_excel_import_api(request):
     """Enhanced Excel import API endpoint"""
     
