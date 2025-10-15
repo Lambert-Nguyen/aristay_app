@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from django.conf import settings
+from django.utils import timezone
 from api.models import BookingImportLog
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class ImportFileCleanupService:
         Returns:
             Dictionary with cleanup results
         """
-        cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+        cutoff_date = timezone.now() - timedelta(days=days_to_keep)
         
         # Find old import logs with files
         old_logs = BookingImportLog.objects.filter(
