@@ -11,6 +11,7 @@ import os
 from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
+from django.utils import timezone
 from api.models import BookingImportLog
 import logging
 
@@ -61,7 +62,7 @@ class Command(BaseCommand):
             criteria = f"keeping only {keep} most recent imports"
         else:
             # Delete files older than N days
-            cutoff_date = datetime.now() - timedelta(days=days)
+            cutoff_date = timezone.now() - timedelta(days=days)
             logs_to_delete = BookingImportLog.objects.filter(
                 imported_at__lt=cutoff_date
             )
