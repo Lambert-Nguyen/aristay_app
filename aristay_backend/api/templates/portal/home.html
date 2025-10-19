@@ -45,6 +45,16 @@
             </a>
         </div>
         
+        <!-- Chat Portal -->
+        <div class="card" style="text-align: center; padding: 1.5rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <h3 style="margin-bottom: 0.5rem;">Team Chat</h3>
+            <p style="margin-bottom: 1rem; color: #64748b;">Real-time messaging with your team members</p>
+            <a href="/api/chat/" class="button" style="width: 100%; display: block;">
+                Open Chat
+            </a>
+        </div>
+        
         <!-- Photo Management Portal -->
         {% if user.is_staff or user.profile and user.profile.role == 'manager' or user.profile and user.profile.role == 'superuser' %}
         <div class="card" style="text-align: center; padding: 1.5rem;">
