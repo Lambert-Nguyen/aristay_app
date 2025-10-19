@@ -3132,3 +3132,43 @@ def photo_comparison_view(request, task_id):
         'user': request.user,
     }
     return render(request, 'photo_comparison.html', context)
+
+
+# =============================================================================
+# CHAT VIEWS
+# =============================================================================
+
+@login_required
+def chat_view(request):
+    """
+    Main chat interface for web users.
+    Shows room list and message area.
+    """
+    from .models_chat import ChatRoom, ChatParticipant
+    from rest_framework_simplejwt.tokens import AccessToken
+    
+    # Get JWT token for WebSocket authentication
+    try:
+        access_token = AccessToken.for_user(request.user)
+        ws_token = str(access_token)
+    except Exception as e:
+        logger.error(f"Failed to generate WebSocket token: {str(e)}")
+        ws_token = None
+    
+    # Get user's chat rooms
+    rooms = ChatRoom.objects.filter(
+        participants__user=request.user,
+        participants__left_at__isnull=True,
+        is_active=True
+    ).select_related('created_by', 'task', 'property').prefetch_related(
+        'participants__user'
+    ).distinct().order_by('-modified_at')[:50]  # Limit to 50 most recent
+    
+    context = {
+        'ws_token': ws_token,
+        'user_id': request.user.id,
+        'username': request.user.username,
+        'rooms': rooms,
+    }
+    
+    return render(request, 'chat/chatbox.html', context)

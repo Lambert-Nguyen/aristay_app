@@ -53,3 +53,8 @@ python-dotenv==1.0.1
 
 # Development tools
 django-extensions>=3.2.0  # For show_urls and other dev commands
+
+# Real-time chat with WebSocket support
+channels>=4.0.0
+channels-redis>=4.0.0
+daphne>=4.0.0  # ASGI server for Django Channels
