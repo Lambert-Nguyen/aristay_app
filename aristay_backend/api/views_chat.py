@@ -346,6 +346,15 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
             return ChatMessageCreateSerializer
         return ChatMessageSerializer
     
+    def create(self, request, *args, **kwargs):
+        """Override create to use ChatMessageCreateSerializer for input, but return response with ChatMessageSerializer."""
+        serializer = ChatMessageCreateSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        output_serializer = ChatMessageSerializer(instance, context=self.get_serializer_context())
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     def get_permissions(self):
         """Different permissions for different actions"""
         if self.action in ['update', 'partial_update', 'destroy']:
