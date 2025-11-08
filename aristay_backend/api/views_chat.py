@@ -466,9 +466,19 @@ class ChatParticipantViewSet(viewsets.ModelViewSet):
     """
     
     serializer_class = ChatParticipantSerializer
-    permission_classes = [IsAuthenticated, IsChatRoomAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['room', 'user', 'is_admin']
+
+    def get_permissions(self):
+        """
+        Use IsAuthenticated+IsChatParticipant for list/retrieve,
+        IsAuthenticated+IsChatRoomAdmin for create/update/destroy.
+        """
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated, IsChatParticipant]
+        else:
+            permission_classes = [IsAuthenticated, IsChatRoomAdmin]
+        return [permission() for permission in permission_classes]
     
     def get_queryset(self):
         """Return participants from rooms where user is a participant"""
