@@ -132,7 +132,7 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
     
     def validate_reply_to(self, value):
         """Ensure reply_to message is in the same room"""
-        if value and value.room_id != self.initial_data.get('room'):
+        if value and str(value.room_id) != str(self.initial_data.get('room')):
             raise serializers.ValidationError("Reply message must be in the same room")
         
         return value
