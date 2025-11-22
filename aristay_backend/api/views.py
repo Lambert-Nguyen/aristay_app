@@ -3164,11 +3164,25 @@ def chat_view(request):
         'participants__user'
     ).distinct().order_by('-modified_at')[:50]  # Limit to 50 most recent
     
+    # Pre-process room display names for template
+    rooms_with_display_names = []
+    for room in rooms:
+        display_name = room.get_display_name(for_user=request.user)
+        last_message = room.get_last_message()
+        unread_count = room.get_unread_count(request.user)
+        rooms_with_display_names.append({
+            'room': room,
+            'display_name': display_name,
+            'last_message': last_message,
+            'unread_count': unread_count,
+        })
+    
     context = {
         'ws_token': ws_token,
         'user_id': request.user.id,
         'username': request.user.username,
         'rooms': rooms,
+        'rooms_with_display_names': rooms_with_display_names,
     }
     
     return render(request, 'chat/chatbox.html', context)

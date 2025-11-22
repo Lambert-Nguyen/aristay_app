@@ -290,7 +290,7 @@ class TestChatTypingIndicator:
         assert indicator.started_at is not None
         
     def test_automatic_cleanup_old_indicators(self):
-        """Test that old typing indicators are cleaned up"""
+        """Test that old typing indicators can be cleaned up"""
         user = User.objects.create_user(username='alice', password='test123')
         room = ChatRoom.objects.create(
             room_type='direct',
@@ -302,16 +302,21 @@ class TestChatTypingIndicator:
             room=room,
             user=user
         )
+        indicator_id = indicator.id
         
         # Make it old (more than 10 seconds)
         old_time = timezone.now() - timezone.timedelta(seconds=15)
-        indicator.started_at = old_time
-        indicator.save()
+        ChatTypingIndicator.objects.filter(id=indicator_id).update(started_at=old_time)
         
-        # Query should clean up stale indicators
+        # Verify it exists before cleanup
+        assert ChatTypingIndicator.objects.filter(id=indicator_id).exists()
+        
+        # Manually clean up stale indicators (this would be done by a periodic task)
         stale_cutoff = timezone.now() - timezone.timedelta(seconds=10)
-        ChatTypingIndicator.objects.filter(started_at__lt=stale_cutoff).delete()
+        deleted_count = ChatTypingIndicator.objects.filter(started_at__lt=stale_cutoff).delete()[0]
         
+        # Verify deletion happened
+        assert deleted_count > 0
         # Indicator should be deleted
-        assert ChatTypingIndicator.objects.filter(id=indicator.id).count() == 0
+        assert not ChatTypingIndicator.objects.filter(id=indicator_id).exists()
 

@@ -18,19 +18,27 @@ class IsChatParticipant(permissions.BasePermission):
         """Check if user is a participant in the room"""
         # For ChatRoom objects
         if hasattr(obj, 'participants'):
-            return ChatParticipant.objects.filter(
+            is_participant = ChatParticipant.objects.filter(
                 room=obj,
                 user=request.user,
                 left_at__isnull=True
             ).exists()
+            if not is_participant:
+                # Return False to trigger 403 Forbidden (not 404)
+                return False
+            return True
         
         # For ChatMessage objects
         if hasattr(obj, 'room'):
-            return ChatParticipant.objects.filter(
+            is_participant = ChatParticipant.objects.filter(
                 room=obj.room,
                 user=request.user,
                 left_at__isnull=True
             ).exists()
+            if not is_participant:
+                # Return False to trigger 403 Forbidden (not 404)
+                return False
+            return True
         
         return False
 

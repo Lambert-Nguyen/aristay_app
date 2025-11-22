@@ -142,6 +142,17 @@ class ChatParticipant(models.Model):
         if self.muted_until and self.muted_until < timezone.now():
             return False
         return True
+    
+    @property
+    def unread_count(self):
+        """Get unread message count for this participant"""
+        if not self.last_read_at:
+            return self.room.messages.filter(is_deleted=False).count()
+        
+        return self.room.messages.filter(
+            created_at__gt=self.last_read_at,
+            is_deleted=False
+        ).exclude(sender=self.user).count()
 
 
 class ChatMessage(models.Model):

@@ -102,18 +102,30 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         """Return only rooms where user is a participant"""
         user = self.request.user
         
-        # Base queryset: rooms where user is an active participant
-        queryset = ChatRoom.objects.filter(
-            participants__user=user,
-            participants__left_at__isnull=True
-        ).select_related(
-            'created_by', 'task', 'property'
-        ).prefetch_related(
-            Prefetch(
-                'participants',
-                queryset=ChatParticipant.objects.select_related('user').filter(left_at__isnull=True)
+        # For retrieve/update/delete actions, don't filter by participants
+        # Let permissions handle access control (to return 403 instead of 404)
+        if self.action in ['retrieve', 'update', 'partial_update', 'destroy']:
+            queryset = ChatRoom.objects.all().select_related(
+                'created_by', 'task', 'property'
+            ).prefetch_related(
+                Prefetch(
+                    'participants',
+                    queryset=ChatParticipant.objects.select_related('user').filter(left_at__isnull=True)
+                )
             )
-        ).distinct()
+        else:
+            # For list actions, filter by participation
+            queryset = ChatRoom.objects.filter(
+                participants__user=user,
+                participants__left_at__isnull=True
+            ).select_related(
+                'created_by', 'task', 'property'
+            ).prefetch_related(
+                Prefetch(
+                    'participants',
+                    queryset=ChatParticipant.objects.select_related('user').filter(left_at__isnull=True)
+                )
+            ).distinct()
         
         # Filter by active status
         if self.request.query_params.get('include_archived') != 'true':
@@ -140,6 +152,16 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set created_by to current user"""
         serializer.save(created_by=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """Create room and return full serializer with participants"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        room = serializer.save()
+        
+        # Return full room details with participants
+        full_serializer = ChatRoomSerializer(room, context={'request': request})
+        return Response(full_serializer.data, status=status.HTTP_201_CREATED)
     
     @extend_schema(
         summary="Archive chat room",

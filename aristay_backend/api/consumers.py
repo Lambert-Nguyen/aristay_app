@@ -210,12 +210,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Authenticate user from JWT token in query params"""
         try:
             # Get token from query params
-            query_string = self.scope['query_string'].decode()
-            params = dict(param.split('=') for param in query_string.split('&') if '=' in param)
-            token = params.get('token')
+            query_string = self.scope.get('query_string', b'').decode('utf-8')
+            if not query_string:
+                logger.warning("No query string in WebSocket connection")
+                self.user = None
+                return
+            
+            # Parse query string (handle URL encoding)
+            from urllib.parse import parse_qs
+            params = parse_qs(query_string)
+            token = params.get('token', [None])[0]
             
             if not token:
                 logger.warning("No token provided in WebSocket connection")
+                self.user = None
                 return
             
             # Verify JWT token
@@ -224,13 +232,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # Get user
             self.user = User.objects.get(id=user_id)
+            logger.info(f"WebSocket authenticated user: {self.user.username}")
             
         except TokenError as e:
             logger.warning(f"Invalid JWT token: {str(e)}")
+            self.user = None
         except User.DoesNotExist:
             logger.warning(f"User not found for token")
+            self.user = None
         except Exception as e:
             logger.error(f"Authentication error: {str(e)}", exc_info=True)
+            self.user = None
     
     @database_sync_to_async
     def check_participant(self):

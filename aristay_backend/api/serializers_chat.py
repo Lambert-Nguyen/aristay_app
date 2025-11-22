@@ -68,7 +68,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'room', 'sender', 'message_type', 'content',
             'attachment', 'attachment_name', 'attachment_size',
-            'reply_to', 'created_at', 'modified_at',
+            'reply_to', 'reply_to_id', 'created_at', 'modified_at',
             'is_edited', 'edited_at', 'is_deleted', 'deleted_at',
             'is_read', 'read_count', 'read_by'
         ]
@@ -91,6 +91,12 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             'content': obj.reply_to.content[:100],  # Preview only
             'created_at': obj.reply_to.created_at.isoformat(),
         }
+    
+    reply_to_id = serializers.SerializerMethodField()
+    
+    def get_reply_to_id(self, obj):
+        """Get reply_to message ID"""
+        return str(obj.reply_to_id) if obj.reply_to_id else None
     
     def get_is_read(self, obj):
         """Check if current user has read this message"""

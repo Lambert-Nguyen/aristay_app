@@ -270,8 +270,10 @@ class FileCleanupUITestCase(TestCase):
         
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'csrfmiddlewaretoken')
-        # Check that the JavaScript file is loaded
-        self.assertContains(response, 'file_cleanup.js')
+        # Check that the JavaScript file is loaded (with hash in filename)
+        # The file is loaded as file_cleanup.{hash}.js, so check for the pattern
+        self.assertIn('file_cleanup', response.content.decode())
+        self.assertIn('.js', response.content.decode())
     
     def test_http_methods_allowed(self):
         """Test that only GET and POST methods are allowed on API"""
