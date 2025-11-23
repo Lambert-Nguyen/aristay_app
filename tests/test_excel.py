@@ -51,5 +51,12 @@ def test_excel_file(filepath):
         return False
 
 if __name__ == "__main__":
-    excel_file = "/Users/duylam1407/Workspace/SJSU/aristay_app/docs/requirements/Cleaning_schedule_1.xlsx"
-    test_excel_file(excel_file)
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parent.parent
+    excel_file = project_root / "docs" / "requirements" / "Cleaning_schedule_1.xlsx"
+
+    if excel_file.exists():
+        test_excel_file(str(excel_file))
+    else:
+        print(f"❌ Excel file not found at: {excel_file}")
+        print("Skipping test.")
