@@ -48,7 +48,8 @@ from .views import (
     file_cleanup_api, user_permissions, available_permissions, 
     manageable_users, grant_permission, revoke_permission, remove_permission_override,
     permission_management_view, file_cleanup_page,
-    photo_upload_view, photo_management_view, photo_comparison_view
+    photo_upload_view, photo_management_view, photo_comparison_view,
+    chat_view
 )
 
 # Checklist Management Views
@@ -102,6 +103,14 @@ from .mobile_views import (
     mobile_task_summary,
 )
 
+# Chat system views
+from .views_chat import (
+    ChatRoomViewSet,
+    ChatMessageViewSet,
+    ChatParticipantViewSet,
+    TypingIndicatorViewSet,
+)
+
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'bookings', BookingViewSet, basename='booking')
@@ -110,6 +119,12 @@ router.register(r'ownerships', PropertyOwnershipViewSet, basename='ownership')
 router.register(r'audit-events', AuditEventViewSet, basename='audit-event')
 # Calendar API endpoints - using Django views instead of DRF ViewSet
 # router.register(r'calendar', CalendarViewSet, basename='calendar')
+
+# Chat API endpoints
+router.register(r'chat/rooms', ChatRoomViewSet, basename='chat-room')
+router.register(r'chat/messages', ChatMessageViewSet, basename='chat-message')
+router.register(r'chat/participants', ChatParticipantViewSet, basename='chat-participant')
+router.register(r'chat/typing', TypingIndicatorViewSet, basename='chat-typing')
 
 urlpatterns = [
     # Invite-based registration API (web/mobile)
@@ -221,6 +236,9 @@ urlpatterns = [
     path('staff/photos/upload/', photo_upload_view, name='photo-upload'),
     path('staff/photos/management/', photo_management_view, name='photo-management'),
     path('staff/photos/comparison/<int:task_id>/', photo_comparison_view, name='photo-comparison'),
+    
+    # Chat Routes
+    path('chat/', chat_view, name='chat'),
     
     # Excel Import endpoints
     path('excel-import/', excel_import_view, name='excel-import'),
