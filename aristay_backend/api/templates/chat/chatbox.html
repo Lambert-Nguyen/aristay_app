@@ -507,32 +507,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function selectRoom(roomId) {
     console.log('Selecting room:', roomId);
-    
+
     // Disconnect from previous room
     if (ChatApp.ws) {
         ChatApp.ws.close();
     }
-    
+
     ChatApp.currentRoom = roomId;
-    
+
     // Update UI
     document.querySelectorAll('.room-item').forEach(item => {
         item.classList.remove('active');
     });
-    document.querySelector(`[data-room-id="${roomId}"]`).classList.add('active');
-    
+    const selectedRoom = document.querySelector(`[data-room-id="${roomId}"]`);
+    if (selectedRoom) {
+        selectedRoom.classList.add('active');
+
+        // Update chat title with room name
+        const roomName = selectedRoom.querySelector('.room-name')?.textContent || 'Chat';
+        document.getElementById('chatTitle').textContent = roomName;
+    }
+
     // Show input area
     document.getElementById('inputArea').style.display = 'block';
-    
+
     // Clear messages
     document.getElementById('messagesContainer').innerHTML = '<div class="loading-messages">Loading messages...</div>';
-    
+
     // Connect to WebSocket
     connectWebSocket(roomId);
-    
+
     // Load messages via REST API
     loadMessages(roomId);
-    
+
     // Hide mobile room list
     if (window.innerWidth <= 768) {
         document.getElementById('roomList').classList.remove('show');
@@ -540,62 +547,84 @@ function selectRoom(roomId) {
 }
 
 function connectWebSocket(roomId) {
+    // Validate WebSocket token
+    if (!ChatApp.wsToken) {
+        console.error('No WebSocket token available');
+        showConnectionStatus('Authentication failed', 'disconnected');
+        showError('Unable to connect to chat. Please refresh the page and try again.');
+        return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/chat/${roomId}/?token=${ChatApp.wsToken}`;
-    
+
     console.log('Connecting to WebSocket:', wsUrl);
-    
+
     showConnectionStatus('Connecting...', 'connecting');
-    
-    ChatApp.ws = new WebSocket(wsUrl);
-    
+
+    try {
+        ChatApp.ws = new WebSocket(wsUrl);
+    } catch (error) {
+        console.error('Failed to create WebSocket:', error);
+        showConnectionStatus('Failed to connect', 'disconnected');
+        showError('Could not establish WebSocket connection. Real-time messaging may not work.');
+        return;
+    }
+
     ChatApp.ws.onopen = function() {
         console.log('WebSocket connected');
         showConnectionStatus('Connected', 'connected');
         ChatApp.reconnectAttempts = 0;
-        
+
         setTimeout(() => {
             hideConnectionStatus();
         }, 2000);
     };
-    
+
     ChatApp.ws.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        console.log('WebSocket message:', data);
-        
-        switch(data.type) {
-            case 'connection_established':
-                updateRoomUnreadCount(roomId, data.unread_count);
-                break;
-            case 'chat_message':
-                appendMessage(data.message);
-                break;
-            case 'typing':
-                showTypingIndicator(data.username, data.is_typing);
-                break;
-            case 'error':
-                console.error('WebSocket error:', data.message);
-                showError(data.message);
-                break;
+        try {
+            const data = JSON.parse(event.data);
+            console.log('WebSocket message:', data);
+
+            switch(data.type) {
+                case 'connection_established':
+                    updateRoomUnreadCount(roomId, data.unread_count);
+                    break;
+                case 'chat_message':
+                    appendMessage(data.message);
+                    break;
+                case 'typing':
+                    showTypingIndicator(data.username, data.is_typing);
+                    break;
+                case 'error':
+                    console.error('WebSocket error:', data.message);
+                    showError(data.message);
+                    break;
+            }
+        } catch (error) {
+            console.error('Error processing WebSocket message:', error);
         }
     };
-    
+
     ChatApp.ws.onerror = function(error) {
         console.error('WebSocket error:', error);
         showConnectionStatus('Connection error', 'disconnected');
     };
-    
-    ChatApp.ws.onclose = function() {
-        console.log('WebSocket closed');
+
+    ChatApp.ws.onclose = function(event) {
+        console.log('WebSocket closed, code:', event.code, 'reason:', event.reason);
         showConnectionStatus('Disconnected', 'disconnected');
-        
+
         // Attempt reconnection
         if (ChatApp.reconnectAttempts < ChatApp.maxReconnectAttempts && ChatApp.currentRoom === roomId) {
             ChatApp.reconnectAttempts++;
+            const delay = 2000 * ChatApp.reconnectAttempts;
+            console.log(`Reconnecting in ${delay}ms... (attempt ${ChatApp.reconnectAttempts})`);
             setTimeout(() => {
-                console.log(`Reconnecting... (attempt ${ChatApp.reconnectAttempts})`);
                 connectWebSocket(roomId);
-            }, 2000 * ChatApp.reconnectAttempts);
+            }, delay);
+        } else if (ChatApp.reconnectAttempts >= ChatApp.maxReconnectAttempts) {
+            showError('Lost connection to chat server. Please refresh the page to reconnect.');
         }
     };
 }
@@ -647,18 +676,23 @@ function appendMessage(message) {
 
 async function loadMessages(roomId) {
     try {
+        // Use credentials 'include' to send session cookies for authentication
         const response = await fetch(`/api/chat/messages/?room=${roomId}&page_size=50&ordering=created_at`, {
+            credentials: 'include',
             headers: {
-                'Authorization': `Bearer ${ChatApp.wsToken}`
+                'X-Requested-With': 'XMLHttpRequest'
             }
         });
-        
-        if (!response.ok) throw new Error('Failed to load messages');
-        
+
+        if (!response.ok) {
+            console.error('Failed to load messages, status:', response.status);
+            throw new Error('Failed to load messages');
+        }
+
         const data = await response.json();
         const container = document.getElementById('messagesContainer');
         container.innerHTML = '';
-        
+
         if (data.results.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -669,17 +703,17 @@ async function loadMessages(roomId) {
             `;
             return;
         }
-        
-        // Messages come newest first, so reverse for display
+
+        // Messages come newest first (due to ordering='-created_at' in model), so reverse for display
         data.results.reverse().forEach(message => {
             if (!message.is_deleted) {
                 appendMessage(message);
             }
         });
-        
+
     } catch (error) {
         console.error('Error loading messages:', error);
-        showError('Failed to load messages');
+        showError('Failed to load messages. Please refresh the page.');
     }
 }
 
@@ -741,9 +775,17 @@ function escapeHtml(text) {
 }
 
 function showError(message) {
-    // Simple error notification
+    // Simple error notification - show in connection status instead of alert
     console.error(message);
-    alert(message);
+    showConnectionStatus(message, 'disconnected');
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        const statusEl = document.getElementById('connectionStatus');
+        if (statusEl.textContent === message) {
+            hideConnectionStatus();
+        }
+    }, 5000);
 }
 </script>
 {% endblock %}

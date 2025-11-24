@@ -18,13 +18,15 @@ django.setup()
 
 def analyze_execution_order():
     """Analyze the JavaScript execution order in task_detail.html"""
-    
+
     print("🔍 ADVANCED ANALYSIS: JavaScript Execution Order")
     print("=" * 60)
-    
-    # Read the template file
-    template_path = '/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend/api/templates/staff/task_detail.html'
-    
+
+    # Read the template file using relative path
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parent.parent
+    template_path = project_root / 'aristay_backend' / 'api' / 'templates' / 'staff' / 'task_detail.html'
+
     try:
         with open(template_path, 'r') as f:
             lines = f.readlines()

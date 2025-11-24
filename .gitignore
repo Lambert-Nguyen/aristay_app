@@ -63,4 +63,8 @@ aristay_backend/logs/
 __pycache__/
 *.pyc
 logs/*.log
-scripts/
+
+# Temporary files
+cookies.txt
+*.tmp
+*.cache
