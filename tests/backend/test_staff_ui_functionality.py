@@ -9,7 +9,7 @@ from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
-from api.models import Task, Property, TaskChecklist, ChecklistResponse, Profile, ChecklistPhoto, ChecklistTemplate, ChecklistItem
+from api.models import Task, Property, TaskChecklist, ChecklistResponse, Profile, ChecklistTemplate, ChecklistItem, TaskImage
 from unittest.mock import patch, MagicMock
 
 
@@ -25,6 +25,9 @@ class StaffUIFunctionalityTest(TestCase):
         """Set up test data"""
         self.client = Client()
         
+        # Ensure username isn't duplicated when DB reuse happens between tests
+        User.objects.filter(username='teststaff').delete()
+
         # Create test user with staff profile
         self.staff_user = User.objects.create_user(
             username='teststaff',
@@ -198,8 +201,8 @@ class StaffUIFunctionalityTest(TestCase):
         
         self.assertEqual(response.status_code, 200)
         
-        # Verify photo was created
-        photo = ChecklistPhoto.objects.filter(response=self.response1).first()
+        # Verify photo was created via unified TaskImage system
+        photo = TaskImage.objects.filter(checklist_response=self.response1).first()
         self.assertIsNotNone(photo)
 
     def test_task_progress_api(self):
@@ -292,6 +295,9 @@ class StaffAPIEndpointTest(TestCase):
         """Set up test data"""
         self.client = Client()
         
+        # Ensure username uniqueness when DB persists between tests
+        User.objects.filter(username='apitest').delete()
+
         # Create test user with staff profile
         self.staff_user = User.objects.create_user(
             username='apitest',
