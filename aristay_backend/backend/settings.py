@@ -104,6 +104,7 @@ COMMON_APPS = [
     "drf_spectacular",  # OpenAPI 3 documentation
     "django_crontab",   # Cron job management
     "django_extensions",  # Development tools (show_urls, etc.)
+    "channels",  # WebSocket support for real-time chat
 ]
 
 if USE_CLOUDINARY:
@@ -187,6 +188,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "backend.wsgi.application"
+ASGI_APPLICATION = "backend.asgi.application"
+
+# Django Channels configuration
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1')],
+            "capacity": 1500,  # Max messages in channel before dropping
+            "expiry": 10,  # Message expiry in seconds
+        },
+    },
+}
 
 # Add your REST framework configuration here:
 REST_FRAMEWORK = {

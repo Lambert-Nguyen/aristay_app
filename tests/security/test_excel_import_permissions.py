@@ -8,7 +8,7 @@ Staff/crew roles should be denied access.
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import RequestFactory, Client
+from django.test import RequestFactory, Client, override_settings
 from django.urls import reverse
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import user_passes_test
@@ -101,7 +101,12 @@ class TestExcelImportPermissions:
         
         # Crew should NOT pass the check
         assert is_superuser_or_manager(crew) is False
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_superuser_can_access_enhanced_excel_import_view(self, users, client):
         """Verify superuser can access enhanced excel import view"""
         client.login(username='test_superuser', password='test123')
@@ -110,7 +115,12 @@ class TestExcelImportPermissions:
         
         # Should not get permission denied (200 or redirect, not 403)
         assert response.status_code != 403
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_manager_can_access_enhanced_excel_import_view(self, users, client):
         """Verify manager can access enhanced excel import view"""
         client.login(username='test_manager', password='test123')
@@ -119,7 +129,12 @@ class TestExcelImportPermissions:
         
         # Should not get permission denied (200 or redirect, not 403)
         assert response.status_code != 403
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_crew_cannot_access_enhanced_excel_import_view(self, users, client):
         """Verify staff/crew CANNOT access enhanced excel import view"""
         client.login(username='test_crew', password='test123')
@@ -129,7 +144,12 @@ class TestExcelImportPermissions:
         # Should get redirected (302) or permission denied (403)
         # user_passes_test redirects to login by default
         assert response.status_code in (302, 403)
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_superuser_can_access_enhanced_excel_import_api(self, users, client):
         """Verify superuser can access enhanced excel import API"""
         client.login(username='test_superuser', password='test123')
@@ -139,7 +159,12 @@ class TestExcelImportPermissions:
         
         # Should not get permission denied (400 validation error is acceptable)
         assert response.status_code != 403
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_manager_can_access_enhanced_excel_import_api(self, users, client):
         """Verify manager can access enhanced excel import API"""
         client.login(username='test_manager', password='test123')
@@ -149,7 +174,12 @@ class TestExcelImportPermissions:
         
         # Should not get permission denied (400 validation error is acceptable)
         assert response.status_code != 403
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_crew_cannot_access_enhanced_excel_import_api(self, users, client):
         """Verify staff/crew CANNOT access enhanced excel import API"""
         client.login(username='test_crew', password='test123')
@@ -159,7 +189,12 @@ class TestExcelImportPermissions:
         # Should get redirected (302) or permission denied (403)
         # user_passes_test redirects to login by default
         assert response.status_code in (302, 403)
-        
+    
+    @override_settings(
+        AUTHENTICATION_BACKENDS=[
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+    )
     def test_legacy_excel_import_view_has_correct_permissions(self, users, client):
         """Verify legacy excel import view also has correct permissions"""
         # Test superuser access

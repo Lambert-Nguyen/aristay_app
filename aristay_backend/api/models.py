@@ -2382,6 +2382,9 @@ class PasswordResetLog(models.Model):
 # Import security models
 from .security_models import UserSession, SecurityEvent, SuspiciousActivity
 
+# Import chat models
+from .models_chat import ChatRoom, ChatParticipant, ChatMessage, ChatTypingIndicator
+
 
 # =============================================================================
 # INVITE CODE SYSTEM

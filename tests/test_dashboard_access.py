@@ -6,7 +6,14 @@ import os
 import sys
 import django
 
-sys.path.append('/Users/duylam1407/Workspace/SJSU/aristay_app/aristay_backend')
+# Add backend to path using relative path
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parent
+while not (PROJECT_ROOT / 'aristay_backend').exists() and PROJECT_ROOT.parent != PROJECT_ROOT:
+    PROJECT_ROOT = PROJECT_ROOT.parent
+BACKEND_DIR = PROJECT_ROOT / 'aristay_backend'
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 

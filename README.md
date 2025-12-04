@@ -9,12 +9,17 @@
 - 📋 **Booking Management** - Comprehensive reservation and guest management
 - 🤖 **Task Automation** - Automated cleaning and maintenance task creation
 - 👥 **Role-Based Access Control** - Granular permission system
+- 💬 **Real-Time Chat** - WebSocket-based messaging system with Django Channels
 - 📱 **Mobile Application** - Flutter-based mobile interface
 - 📊 **Admin Dashboard** - Staff management and reporting interface
+- 📸 **Photo Management** - Before/after photo tracking and approval workflow
+- 📅 **Calendar System** - Property and task scheduling interface
 
 ### Technology Stack
 - **Backend**: Django REST Framework with PostgreSQL
+- **Real-Time**: Django Channels with Redis for WebSocket support
 - **Frontend**: Flutter mobile application
+- **Web UI**: Django templates with modern JavaScript
 - **Authentication**: JWT with djangorestframework-simplejwt
 - **Testing**: Comprehensive test suite with pytest
 - **Deployment**: Production-ready with security hardening
@@ -70,14 +75,17 @@ flutter run
 All project documentation is comprehensively organized in the [`docs/`](docs/) directory:
 
 ### 📋 Essential Documentation
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Official project organization
-- **[docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)** - Complete documentation guide
+- **[CLEANUP_PLAN.md](CLEANUP_PLAN.md)** - Project organization and cleanup strategy
+- **[PROJECT_CLEANUP_SUMMARY.md](PROJECT_CLEANUP_SUMMARY.md)** - Recent reorganization summary
+- **[docs/CURRENT_DOCUMENTATION.md](docs/CURRENT_DOCUMENTATION.md)** - ⭐ Quick reference to active docs
+- **[docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)** - Complete documentation catalog
 
 ### 🔗 Quick Links
-- **Setup**: [Installation Guide](docs/setup/INSTALLATION_GUIDE.md) | [Deployment Guide](docs/setup/DEPLOYMENT_GUIDE.md)
-- **Security**: [JWT Authentication](docs/features/JWT_AUTHENTICATION.md) | [Security Guide](docs/security/SECURITY_IMPLEMENTATION_COMPLETE.md)
-- **Testing**: [Testing Strategy](docs/testing/TESTING_STRATEGY.md) | [System Testing Guide](docs/SYSTEM_TESTING_GUIDE.md)
-- **Development**: [API Documentation](docs/development/API_DOCUMENTATION.md) | [Backend Docs](docs/backend/README.md)
+- **Setup**: [Deployment Guide](docs/setup/DEPLOYMENT_GUIDE.md) | [Environment Config](docs/backend/ENVIRONMENT_CONFIGURATION.md)
+- **Features**: [Chat System](docs/features/chat/CHAT_SYSTEM_QUICKSTART.md) | [Calendar](docs/features/calendar_user_guide.md) | [Photo Management](docs/features/BEFORE_AFTER_PHOTO_QUICK_REFERENCE.md)
+- **Security**: [JWT Authentication](docs/security/JWT_AUTHENTICATION_GUIDE.md) | [Security Guide](docs/security/ENHANCED_SECURITY_IMPLEMENTATION.md)
+- **Testing**: [Testing Strategy](docs/testing/TESTING_STRATEGY.md) | [Test Organization](docs/testing/TEST_ORGANIZATION.md)
+- **Development**: [Local Setup](docs/development/LOCAL_DEVELOPMENT_SETUP.md) | [Project Structure](docs/development/PROJECT_STRUCTURE.md)
 
 ## 🧪 Testing
 
@@ -136,26 +144,59 @@ For detailed security information, see the [Security Documentation](docs/securit
 
 ```
 aristay_app/
-├── PROJECT_STRUCTURE.md           # Official project organization
+├── README.md                      # This file
+├── CLEANUP_PLAN.md                # Project organization strategy
+├── PROJECT_CLEANUP_SUMMARY.md     # Reorganization summary
+├── conftest.py                    # Global pytest configuration
+├── pytest.ini                     # Test configuration
+├── requirements.txt               # Python dependencies
 ├── aristay_backend/               # Django REST API
-├── aristay_flutter_frontend/      # Flutter mobile app  
+│   ├── api/                       # API application
+│   │   ├── models_chat.py        # Chat models
+│   │   ├── views_chat.py         # Chat views
+│   │   ├── consumers.py          # WebSocket consumers
+│   │   └── templates/chat/       # Chat UI templates
+│   ├── backend/                   # Django settings
+│   └── manage.py                  # Django management
+├── aristay_flutter_frontend/      # Flutter mobile app
 ├── tests/                         # Comprehensive test suite
+│   ├── api/                       # API tests
+│   ├── chat/                      # Chat system tests
+│   ├── ui/                        # UI tests
+│   ├── backend/                   # Backend tests
+│   ├── archive/                   # Archived legacy tests
+│   └── utils/                     # Test utilities
 ├── docs/                          # Complete documentation
+│   ├── CURRENT_DOCUMENTATION.md   # ⭐ Quick reference
+│   ├── features/chat/             # Chat documentation
+│   ├── archive/                   # Historical docs
+│   └── reports/archive/           # Old reports
 ├── scripts/                       # Development & admin scripts
 └── tools/                         # Development utilities
+    ├── diagnostics/               # Debug tools
+    └── secret-hygiene/            # Security scanning
 ```
 
-For the complete structure overview, see [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
+See [CLEANUP_PLAN.md](CLEANUP_PLAN.md) for the complete reorganization details.
 
 ## 📊 Project Status
 
-✅ **Production Ready** - All core features implemented and tested  
-✅ **Security Hardened** - Comprehensive security implementation  
-✅ **Well Documented** - Complete documentation and guides  
-✅ **Fully Tested** - Comprehensive test coverage  
-✅ **Organized Structure** - Professional project organization  
+✅ **Production Ready** - All core features implemented and tested
+✅ **Security Hardened** - Comprehensive security implementation
+✅ **Well Documented** - Complete documentation and guides
+✅ **Fully Tested** - Comprehensive test coverage
+✅ **Organized Structure** - Professional project organization (Nov 2025)
+✅ **Chat System** - Real-time messaging with WebSocket support
+✅ **Clean Codebase** - 60+ files reorganized for maintainability
 
-For detailed status information, see [Final Project Status](docs/reports/FINAL_PROJECT_STATUS.md).
+### Recent Updates (November 2025)
+- ✨ Fixed chat UI authentication and error handling
+- 🗂️ Major project reorganization (60 files)
+- 📚 Improved documentation structure
+- 🧪 Centralized all tests
+- 🔧 Fixed .gitignore configuration
+
+For detailed status information, see [PROJECT_CLEANUP_SUMMARY.md](PROJECT_CLEANUP_SUMMARY.md).
 
 ## 🤝 Development Workflow
 
@@ -211,5 +252,5 @@ Copyright (c) 2025 Nguyen, Phuong Duy Lam. All rights reserved.
 
 ---
 
-**Aristay Property Management System** - Professional, Secure, Scalable  
-*Last Updated: Project reorganization completion*
+**Aristay Property Management System** - Professional, Secure, Scalable
+*Last Updated: November 23, 2025 - Chat fixes and project reorganization*
