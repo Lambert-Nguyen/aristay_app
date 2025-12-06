@@ -1,0 +1,276 @@
+{#
+  Task Checklist Component
+  
+  Displays complete checklist with items grouped by room, including checkboxes,
+  photo uploads, notes, and completion tracking.
+  
+  Context Variables:
+    - checklist: ChecklistTemplate instance
+    - responses_by_room: Dict of room → {responses: [], total_count, completed_count}
+    - can_edit: Boolean permission flag
+    - task: Current Task instance
+  
+  JavaScript Integration:
+    - ChecklistManager: Handles checkbox updates, photo uploads, notes
+    - PhotoManager: Manages photo gallery, filtering, CRUD operations
+    - Event delegation for dynamic content
+    - Auto-save on form field changes
+  
+  CSS Classes:
+    - .checklist-container: Main container
+    - .checklist-section: Room-grouped section
+    - .checklist-item: Individual checklist item
+    - .checklist-item.completed: Completed item state
+    - .photo-grid: Photo gallery grid
+    - .completion-actions: Final completion buttons
+  
+  Room Icons:
+    - 📋 General Tasks
+    - 🚿 Bathroom
+    - 🛏️ Bedroom
+    - 🍽️ Kitchen
+    - 🛋️ Living Room
+  
+  Item Types:
+    - checkbox: Simple completion checkbox
+    - text_input: Text area for details
+    - number_input: Numeric input field
+    - photo_required: Must upload photos
+    - photo_optional: Optional photo upload
+    - blocking: Prevents task completion until done
+  
+  Responsive Behavior:
+    - Grid layout: 1 column mobile, 2 columns tablet, 3 columns desktop
+    - Photo grid: 2 columns mobile, 3 columns tablet, 4 columns desktop
+  
+  Usage:
+    {% if checklist %}
+      {% include "staff/components/task_checklist.html" %}
+    {% endif %}
+#}
+
+<!-- Checklist Sections -->
+{% if checklist %}
+<div class="checklist-container">
+    {% csrf_token %}
+
+    {% for room, room_data in responses_by_room.items %}
+    <div class="checklist-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                {% if room == 'General' %}
+                    📋 General Tasks
+                {% elif room == 'bathroom' %}
+                    🚿 Bathroom
+                {% elif room == 'bedroom' %}
+                    🛏️ Bedroom
+                {% elif room == 'kitchen' %}
+                    🍽️ Kitchen
+                {% elif room == 'living_room' %}
+                    🛋️ Living Room
+                {% else %}
+                    📍 {{ room|title }}
+                {% endif %}
+            </h3>
+            <div class="section-progress">
+                <span class="section-count">{{ room_data.total_count }} items</span>
+                <span class="section-completed">{{ room_data.completed_count }} completed</span>
+            </div>
+        </div>
+
+        <div class="checklist-grid">
+            {% for response in room_data.responses %}
+            <div class="checklist-item {% if response.is_completed %}completed{% endif %}"
+                 data-response-id="{{ response.id }}"
+                 data-item-type="{{ response.item.item_type }}">
+
+                <div class="checklist-header">
+                    <div class="completion-indicator">
+                        {% if can_edit %}
+                        <input type="checkbox"
+                               class="checklist-checkbox"
+                               data-response-id="{{ response.id }}"
+                               {% if response.is_completed %}checked{% endif %}>
+                        {% else %}
+                        <span class="checklist-status">
+                            {% if response.is_completed %}✅{% else %}⬜{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="item-content">
+                        <div class="item-title">
+                            {{ response.item.title }}
+                            {% if response.item.is_required %}
+                            <span class="required-indicator">*</span>
+                            {% endif %}
+                        </div>
+
+                        {% if response.item.description %}
+                        <div class="item-description">
+                            {{ response.item.description }}
+                        </div>
+                        {% endif %}
+
+                        <div class="item-meta">
+                            <span class="item-type">{{ response.item.get_item_type_display }}</span>
+                            {% if response.item.item_type == 'blocking' %}
+                            <span class="blocking-badge">🚫 Blocking</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="item-actions">
+                        {% if 'photo' in response.item.item_type %}
+                        <button class="btn-photo" onclick="openPhotoManager({{ response.id }})">
+                            📷
+                        </button>
+                        {% endif %}
+                        <button class="btn-notes">
+                            📝
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Form Fields -->
+                <div class="item-form" id="form-{{ response.id }}">
+                    {% if response.item.item_type == 'text_input' and can_edit %}
+                    <div class="form-group">
+                        <label class="form-label">Details:</label>
+                        <textarea class="auto-save form-control"
+                                  data-response-id="{{ response.id }}"
+                                  data-field="text_response"
+                                  placeholder="Enter details...">{{ response.text_response }}</textarea>
+                    </div>
+                    {% elif response.item.item_type == 'text_input' and response.text_response %}
+                    <div class="form-display">
+                        <label class="form-label">Details:</label>
+                        <div class="form-value">{{ response.text_response|linebreaks }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if response.item.item_type == 'number_input' and can_edit %}
+                    <div class="form-group">
+                        <label class="form-label">Value:</label>
+                        <input type="number"
+                               class="auto-save form-control"
+                               data-response-id="{{ response.id }}"
+                               data-field="number_response"
+                               value="{{ response.number_response|default:'' }}"
+                               placeholder="Enter number...">
+                    </div>
+                    {% elif response.item.item_type == 'number_input' and response.number_response %}
+                    <div class="form-display">
+                        <label class="form-label">Value:</label>
+                        <div class="form-value">{{ response.number_response }}</div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Photo Management -->
+                    {% if 'photo' in response.item.item_type %}
+                    <div class="photo-section" id="photos-{{ response.id }}">
+                        <label class="form-label">Photos:</label>
+                        <div class="photo-grid">
+                            {# Unified: render TaskImage linked to this response (checklist photos) #}
+                            {% for photo in response.unified_photos %}
+                            <div class="photo-item" data-photo-id="{{ photo.id }}">
+                                <img src="{{ photo.image.url }}"
+                                     alt="Checklist photo"
+                                     data-photo-url="{{ photo.image.url }}"
+                                     data-photo-id="{{ photo.id }}">
+                                {% if can_edit %}
+                                <button class="btn-photo-remove" data-item-id="{{ response.id }}" data-photo-url="{{ photo.image.url }}">
+                                    ×
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if can_edit %}
+                        <div class="photo-upload">
+                            <input type="file"
+                                   id="photo-input-{{ response.id }}"
+                                   data-item-id="{{ response.id }}"
+                                   accept="image/*"
+                                   multiple
+                                   style="display: none;">
+                            <button type="button" class="btn-upload" data-response-id="{{ response.id }}">
+                                📷 Add Photos
+                                {% if response.item.item_type == 'photo_required' and not response.unified_photos %}*{% endif %}
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes Section -->
+                    <div class="notes-section" id="notes-{{ response.id }}" style="display: none;">
+                        {% if can_edit %}
+                        <div class="form-group">
+                            <label class="form-label">Notes:</label>
+                            <textarea class="auto-save form-control notes-input"
+                                      data-response-id="{{ response.id }}"
+                                      data-field="notes"
+                                      placeholder="Add notes...">{{ response.notes }}</textarea>
+                        </div>
+                        {% elif response.notes %}
+                        <div class="form-display">
+                            <label class="form-label">Notes:</label>
+                            <div class="form-value">{{ response.notes|linebreaks }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Completion Info -->
+                    {% if response.is_completed and response.completed_at %}
+                    <div class="completion-info">
+                        <span class="completion-icon">✅</span>
+                        <span class="completion-text">
+                            Completed {{ response.completed_at|date:"M d, H:i" }}
+                            {% if response.completed_by %}by {{ response.completed_by.get_full_name|default:response.completed_by.username }}{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Completion Actions -->
+    {% if can_edit %}
+    <div class="completion-actions">
+        {% if checklist.completion_percentage == 100 %}
+        <div class="completion-message success">
+            🎉 All checklist items completed! You can now mark this task as complete.
+        </div>
+        <button type="button" class="btn btn-success btn-lg complete-task-btn">
+            ✅ Mark Task Complete
+        </button>
+        {% else %}
+        <div class="completion-message info">
+            Complete all required checklist items to finish this task.
+            Progress: {{ checklist.completion_percentage }}%
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card empty-checklist">
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3 class="empty-title">No Checklist Available</h3>
+        <p class="empty-message">This task doesn't have a checklist template assigned.</p>
+        {% if can_edit %}
+        <div class="empty-actions">
+            <button type="button" class="btn btn-success" onclick="completeTask({{ task.id }})">
+                ✅ Mark Task Complete
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

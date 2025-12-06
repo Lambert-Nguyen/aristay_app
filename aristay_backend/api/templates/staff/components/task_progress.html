@@ -1,0 +1,78 @@
+{#
+  Task Progress Overview Component
+  
+  Displays visual progress tracking with percentage, progress bar, and checklist statistics.
+  
+  Context Variables:
+    - checklist: ChecklistTemplate instance with completion data
+      - checklist.completion_percentage: 0-100 percentage
+      - checklist.completed_items: Number of completed items
+      - checklist.total_items: Total number of checklist items
+      - checklist.remaining_items: Number of remaining items
+  
+  JavaScript Integration:
+    - Progress updated by ChecklistManager.updateProgressOverview()
+    - Time spent updated by TaskTimer module
+    - Progress bar animation via CSS transition
+  
+  CSS Classes:
+    - .card.progress-overview: Main container
+    - .progress-header: Title and stats container
+    - .progress-stats: Percentage and fraction display
+    - .progress-bar-container: Progress bar with milestones
+    - .progress-fill: Animated fill element
+    - .progress-details: Detailed statistics grid
+  
+  Responsive Behavior:
+    - Progress bar stacks vertically on mobile (<768px)
+    - Detail items flex to 2 columns on tablet, 4 columns on desktop
+  
+  Usage:
+    {% if checklist %}
+      {% include "staff/components/task_progress.html" %}
+    {% endif %}
+#}
+
+<!-- Task Progress Overview -->
+{% if checklist %}
+<div class="card progress-overview">
+    <div class="progress-header">
+        <h3>📋 Task Progress</h3>
+        <div class="progress-stats">
+            <span class="progress-percentage">{{ checklist.completion_percentage }}%</span>
+            <span class="progress-fraction">{{ checklist.completed_items }}/{{ checklist.total_items }} completed</span>
+        </div>
+    </div>
+
+    <div class="progress-bar-container">
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ checklist.completion_percentage }}%"></div>
+        </div>
+        <div class="progress-milestones">
+            <span class="milestone" style="left: 25%">25%</span>
+            <span class="milestone" style="left: 50%">50%</span>
+            <span class="milestone" style="left: 75%">75%</span>
+            <span class="milestone" style="left: 100%">100%</span>
+        </div>
+    </div>
+
+    <div class="progress-details">
+        <div class="detail-item">
+            <span class="detail-label">Total Items:</span>
+            <span class="detail-value">{{ checklist.total_items }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Completed:</span>
+            <span class="detail-value completed">{{ checklist.completed_items }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Remaining:</span>
+            <span class="detail-value remaining">{{ checklist.remaining_items }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Time Spent:</span>
+            <span class="detail-value" id="timeSpent">00:00:00</span>
+        </div>
+    </div>
+</div>
+{% endif %}

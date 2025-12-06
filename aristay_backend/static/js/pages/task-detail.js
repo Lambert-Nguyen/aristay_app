@@ -6,6 +6,9 @@
 import { TaskActions } from '../modules/task-actions.js';
 import { TaskTimer } from '../modules/task-timer.js';
 import { PhotoModal } from '../modules/photo-modal.js';
+import { ChecklistManager } from '../modules/checklist-manager.js';
+import { PhotoManager } from '../modules/photo-manager.js';
+import { NavigationManager } from '../modules/navigation-manager.js';
 
 class TaskDetailPage {
   constructor() {
@@ -61,6 +64,18 @@ class TaskDetailPage {
       this.photoModal = new PhotoModal();
       console.log('✓ Photo Modal initialized');
 
+      // Initialize Checklist Manager
+      this.checklistManager = new ChecklistManager();
+      console.log('✓ Checklist Manager initialized');
+
+      // Initialize Photo Manager
+      this.photoManager = new PhotoManager();
+      console.log('✓ Photo Manager initialized');
+
+      // Initialize Navigation Manager
+      this.navigationManager = new NavigationManager();
+      console.log('✓ Navigation Manager initialized');
+
     } catch (error) {
       console.error('Error initializing modules:', error);
     }
@@ -71,8 +86,11 @@ class TaskDetailPage {
     window.taskActionsInstance = this.actions;
     window.taskTimerInstance = this.timer;
     window._photoModalInstance = this.photoModal;
+    window.checklistManagerInstance = this.checklistManager;
+    window.photoManagerInstance = this.photoManager;
+    window.navigationManagerInstance = this.navigationManager;
     
-    console.log('✓ Global bridges established');
+    console.log('✓ Global bridges established for all modules');
   }
 
   destroy() {

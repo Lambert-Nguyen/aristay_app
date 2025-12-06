@@ -1,0 +1,41 @@
+{#
+  Task Timer Component
+  
+  Displays a timer with start/pause/stop controls for tracking time spent on tasks.
+  
+  Context Variables:
+    - None required (timer state managed by JavaScript)
+  
+  JavaScript Integration:
+    - Managed by TaskTimer module (static/js/modules/task-timer.js)
+    - State persisted in localStorage
+    - Global bridge: window.startTimer(), window.pauseTimer(), window.stopTimer()
+  
+  CSS Classes:
+    - .task-timer: Container for timer display and controls
+    - .timer-display: Shows elapsed time in HH:MM:SS format
+    - .timer-controls: Button group for start/pause/stop
+    - .btn-timer: Individual timer control button
+  
+  Usage:
+    {% include "staff/components/task_timer.html" %}
+#}
+
+<!-- Task Timer -->
+<div class="task-timer" id="taskTimer">
+    <div class="timer-display">
+        <span class="timer-icon">⏱️</span>
+        <span class="timer-text" id="timerText">00:00:00</span>
+    </div>
+    <div class="timer-controls">
+        <button class="btn-timer" id="startTimerBtn">
+            ▶️ Start
+        </button>
+        <button class="btn-timer" id="pauseTimerBtn" style="display: none;">
+            ⏸️ Pause
+        </button>
+        <button class="btn-timer" id="stopTimerBtn" style="display: none;">
+            ⏹️ Stop
+        </button>
+    </div>
+</div>

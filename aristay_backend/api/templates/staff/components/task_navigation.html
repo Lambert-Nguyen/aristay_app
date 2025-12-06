@@ -1,0 +1,37 @@
+{#
+  Task Navigation Component
+  
+  Provides navigation buttons for moving between tasks and returning to task list.
+  
+  Context Variables:
+    - None required (navigation data loaded by JavaScript)
+  
+  JavaScript Integration:
+    - Managed by NavigationManager module (static/js/modules/navigation-manager.js)
+    - Button states (enabled/disabled) updated dynamically
+    - Keyboard shortcuts: Alt+← (prev), Alt+→ (next), Esc (list)
+    - Global bridges: window.navigateToPrevTask(), window.navigateToNextTask(), window.navigateToTaskList()
+  
+  CSS Classes:
+    - .navigation-actions: Container for navigation buttons
+    - .btn-nav: Base navigation button style
+    - .prev-task: Previous task button
+    - .next-task: Next task button
+    - .back-to-list: Return to task list button
+  
+  Usage:
+    {% include "staff/components/task_navigation.html" %}
+#}
+
+<!-- Navigation -->
+<div class="navigation-actions">
+    <button class="btn-nav prev-task">
+        ← Previous Task
+    </button>
+    <button class="btn-nav next-task">
+        Next Task →
+    </button>
+    <button class="btn-nav back-to-list">
+        📋 Back to List
+    </button>
+</div>
