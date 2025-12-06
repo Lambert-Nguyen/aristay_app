@@ -1,0 +1,65 @@
+<!-- Task Header Component -->
+<div class="card task-header-card">
+    <div class="task-header-content">
+        <div class="task-info-section">
+            <div class="task-title-section">
+                <h1 class="task-title">{{ task.title }}</h1>
+                <div class="task-badges">
+                    <span class="status-badge status-{{ task.status|cut:'-' }}">
+                        {{ task.get_status_display }}
+                    </span>
+                    <span class="type-badge">{{ task.get_task_type_display }}</span>
+                    {% if task.due_date %}
+                        {% if task.is_overdue %}
+                        <span class="priority-badge overdue">⚠️ OVERDUE</span>
+                        {% elif task.is_due_soon %}
+                        <span class="priority-badge urgent">⏰ DUE SOON</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="task-meta-grid">
+                <div class="meta-item">
+                    <span class="meta-icon">🏠</span>
+                    <span class="meta-text">{{ task.property_ref.name }}</span>
+                </div>
+                {% if task.booking %}
+                <div class="meta-item">
+                    <span class="meta-icon">📅</span>
+                    <span class="meta-text">
+                        {{ task.booking.check_in_date|date:"M j, Y" }} → {{ task.booking.check_out_date|date:"M j, Y" }}
+                    </span>
+                </div>
+                {% endif %}
+                {% if task.due_date %}
+                <div class="meta-item">
+                    <span class="meta-icon">⏰</span>
+                    <span class="meta-text">{{ task.due_date|date:"M j, Y g:i A" }}</span>
+                </div>
+                {% endif %}
+                <div class="meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span class="meta-text">
+                        {% if task.assigned_to %}
+                            Assigned to {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
+                        {% else %}
+                            Not assigned
+                        {% endif %}
+                    </span>
+                </div>
+                {% if task.created_by %}
+                <div class="meta-item">
+                    <span class="meta-icon">📝</span>
+                    <span class="meta-text">Created by {{ task.created_by.get_full_name|default:task.created_by.username }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="task-description" {% if not task.description %}style="display: none;"{% endif %}>
+                <h4>Description</h4>
+                <p>{{ task.description|default:"" }}</p>
+            </div>
+        </div>
+    </div>
+</div>

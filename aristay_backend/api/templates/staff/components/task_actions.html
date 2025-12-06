@@ -1,0 +1,48 @@
+<!-- Task Actions Component -->
+<div class="task-actions-section">
+    <!-- CRUD Actions -->
+    <div class="crud-actions">
+        <a href="/api/staff/tasks/{{ task.id }}/edit/" class="btn-action edit-task">
+            ✏️ Edit Task
+        </a>
+        <button class="btn-action duplicate-task" onclick="window.duplicateTask('{{ task.id }}')">
+            📋 Duplicate
+        </button>
+        <button class="btn-action delete-task btn-danger" onclick="window.deleteTask('{{ task.id }}', '{{ task.title|escapejs }}')">
+            🗑️ Delete
+        </button>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <button class="btn-action start-task"
+                data-task-id="{{ task.id }}"
+                {% if task.status != 'pending' %}disabled{% endif %}>
+            ▶️ Start Task
+        </button>
+        <button class="btn-action complete-task"
+                data-task-id="{{ task.id }}"
+                {% if task.status == 'completed' %}disabled{% endif %}>
+            ✅ Complete Task
+        </button>
+        <button class="btn-action add-note" data-task-id="{{ task.id }}">
+            📝 Add Note
+        </button>
+        <button class="btn-action share-task" data-task-id="{{ task.id }}">
+            📤 Share
+        </button>
+        <button class="btn-action report-lost-found" data-task-id="{{ task.id }}">
+            🔍 Report Lost & Found
+        </button>
+    </div>
+    
+    <!-- Photo Management Actions -->
+    <div class="photo-actions">
+        <a href="/api/staff/photos/upload/?task={{ task.id }}" class="btn-action photo-upload">
+            📸 Upload Photos
+        </a>
+        <a href="/api/staff/photos/comparison/{{ task.id }}/" class="btn-action photo-comparison">
+            🔍 View Before/After
+        </a>
+    </div>
+</div>
