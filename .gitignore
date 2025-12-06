@@ -46,6 +46,31 @@ aristay_flutter_frontend/.packages
 .DS_Store
 *.iml
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === Node.js and Testing ===
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Testing artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+coverage/
+playwright-report/
+test-results/
+tests/frontend/e2e/.auth/
+
+# Backup files
+templates/backup/
+*.bak
 
 # Ignore sensitive files but KEEP migrations
 aristay_backend/firebase_credentials.json
