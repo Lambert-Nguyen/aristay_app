@@ -17,7 +17,7 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pytz==2025.2
 python-dateutil==2.9.0.post0
-requests==2.32.4
+requests==2.33.0
 rsa==4.9.1
 sqlparse==0.5.3
 urllib3==2.6.0
