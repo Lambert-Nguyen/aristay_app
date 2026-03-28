@@ -31,7 +31,7 @@ drf-spectacular==0.26.4  # OpenAPI 3 documentation
 
 # JWT Authentication and Security
 djangorestframework-simplejwt==5.5.1
-cryptography==45.0.7
+cryptography==46.0.6
 django-axes==8.0.0
 django-ipware==7.0.1
 django-ratelimit>=4.1.0,<5.0.0
